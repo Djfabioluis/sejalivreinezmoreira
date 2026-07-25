@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import {
@@ -22,7 +22,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CalendarClock, Building2, Scissors, Clock, DollarSign, Phone, RefreshCw, Search } from "lucide-react";
+import { CalendarClock, Building2, Scissors, Bot, Clock, DollarSign, Phone, RefreshCw, Search } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -86,12 +86,18 @@ function Dashboard() {
           <div className="rounded-lg bg-primary text-primary-foreground p-2">
             <CalendarClock className="h-5 w-5" />
           </div>
-          <div>
+          <div className="flex-1 min-w-0">
             <h1 className="text-xl font-semibold tracking-tight">Secretária Virtual — Bemp</h1>
             <p className="text-sm text-muted-foreground">
-              Dashboard integrado à sua conta Bemp. IA no WhatsApp na próxima etapa.
+              Dashboard integrado à sua conta Bemp.
             </p>
           </div>
+          <Link
+            to="/agendar"
+            className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            <Bot className="h-4 w-4" /> Agendar com IA
+          </Link>
         </div>
       </header>
 
