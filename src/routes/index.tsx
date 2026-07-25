@@ -8,6 +8,8 @@ import {
   listSlots,
   listCustomerAppointments,
 } from "@/lib/bemp.functions";
+import { getWhatsAppPhoneNumber } from "@/lib/whatsapp.functions";
+import { WhatsAppQr } from "@/components/whatsapp-qr";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,7 +24,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CalendarClock, Building2, Scissors, Bot, Clock, DollarSign, Phone, RefreshCw, Search } from "lucide-react";
+import { CalendarClock, Building2, Scissors, Bot, Clock, DollarSign, Phone, RefreshCw, Search, BookOpen, QrCode } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
