@@ -22,7 +22,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CalendarClock, Building2, Scissors, Clock, DollarSign, Phone, RefreshCw, Search } from "lucide-react";
+import { CalendarClock, Building2, Scissors, Bot, Clock, DollarSign, Phone, RefreshCw, Search } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
