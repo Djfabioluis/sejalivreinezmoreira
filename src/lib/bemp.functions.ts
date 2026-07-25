@@ -3,6 +3,14 @@ import { z } from "zod";
 
 const BEMP_WEBHOOK_BASE = "https://webhooks.bemp.app/webhooks";
 
+type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [k: string]: JsonValue };
+
 function getConfig() {
   const dominio = process.env.BEMP_DOMINIO;
   const token = process.env.BEMP_TOKEN;
