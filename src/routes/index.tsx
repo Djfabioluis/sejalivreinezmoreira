@@ -457,3 +457,55 @@ function SlotsPanel() {
     </Card>
   );
 }
+
+// ---------- WhatsApp QR ----------
+function WhatsAppPanel() {
+  const q = useQuery({
+    queryKey: ["whatsapp-phone"],
+    queryFn: () => getWhatsAppPhoneNumber(),
+  });
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          <QrCode className="h-4 w-4" /> Conectar WhatsApp
+        </CardTitle>
+        <CardDescription>
+          Escaneie o QR code ou clique no link para iniciar a conversa com a secretária virtual.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {q.isLoading && <Skeleton className="h-64 w-64" />}
+        {q.isError && (
+          <p className="text-sm text-destructive">{(q.error as Error).message}</p>
+        )}
+        {q.isSuccess && (
+          q.data.ok ? (
+            <div className="space-y-4">
+              <WhatsAppQr link={q.data.link} />
+              <div className="space-y-1">
+                <p className="text-sm font-medium">{q.data.formatted}</p>
+                <a
+                  href={q.data.link}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm text-primary hover:underline break-all"
+                >
+                  {q.data.link}
+                </a>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-sm text-muted-foreground">
+                WhatsApp Cloud API ainda não configurado.
+              </p>
+              <p className="text-xs text-muted-foreground">{q.data.error}</p>
+            </div>
+          )
+        )}
+      </CardContent>
+    </Card>
+  );
+}
