@@ -94,12 +94,20 @@ function Dashboard() {
               Dashboard integrado à sua conta Bemp.
             </p>
           </div>
-          <Link
-            to="/agendar"
-            className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            <Bot className="h-4 w-4" /> Agendar com IA
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              to="/base-conhecimento"
+              className="inline-flex items-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/90"
+            >
+              <BookOpen className="h-4 w-4" /> Base de conhecimento
+            </Link>
+            <Link
+              to="/agendar"
+              className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              <Bot className="h-4 w-4" /> Agendar com IA
+            </Link>
+          </div>
         </div>
       </header>
 
