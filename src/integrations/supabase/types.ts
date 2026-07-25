@@ -14,7 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      base_conhecimento: {
+        Row: {
+          conteudo: string
+          id: number
+          updated_at: string
+        }
+        Insert: {
+          conteudo?: string
+          id?: number
+          updated_at?: string
+        }
+        Update: {
+          conteudo?: string
+          id?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      wa_conversas: {
+        Row: {
+          messages: Json
+          phone: string
+          updated_at: string
+        }
+        Insert: {
+          messages?: Json
+          phone: string
+          updated_at?: string
+        }
+        Update: {
+          messages?: Json
+          phone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
