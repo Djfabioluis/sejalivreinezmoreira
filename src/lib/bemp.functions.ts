@@ -50,7 +50,7 @@ async function bempFetch(url: string, init?: RequestInit) {
 export const listSalons = createServerFn({ method: "GET" }).handler(async () => {
   const cfg = getConfig();
   const data = await bempFetch(`${cfg.apiBase}/salons`);
-  return data as unknown;
+  return data as JsonValue;
 });
 
 // ---------- Serviços por unidade ----------
@@ -58,7 +58,7 @@ export const listServices = createServerFn({ method: "GET" })
   .inputValidator((input: unknown) => z.object({ salonId: z.union([z.string(), z.number()]) }).parse(input))
   .handler(async ({ data }) => {
     const cfg = getConfig();
-    return (await bempFetch(`${cfg.apiBase}/salons/${data.salonId}/services`)) as unknown;
+    return (await bempFetch(`${cfg.apiBase}/salons/${data.salonId}/services`)) as JsonValue;
   });
 
 // ---------- Profissionais por serviço ----------
@@ -75,7 +75,7 @@ export const listProfessionals = createServerFn({ method: "GET" })
     const cfg = getConfig();
     return (await bempFetch(
       `${cfg.apiBase}/salons/${data.salonId}/services/${data.serviceId}/professionals`,
-    )) as unknown;
+    )) as JsonValue;
   });
 
 // ---------- Slots disponíveis ----------
@@ -95,7 +95,7 @@ export const listSlots = createServerFn({ method: "GET" })
     const url = data.professionalId
       ? `${cfg.apiBase}/salons/${data.salonId}/services/${data.serviceId}/professionals/${data.professionalId}/slots/${data.date}`
       : `${cfg.apiBase}/salons/${data.salonId}/services/${data.serviceId}/slots/${data.date}`;
-    return (await bempFetch(url)) as unknown;
+    return (await bempFetch(url)) as JsonValue;
   });
 
 // ---------- Consulta agendamentos de um cliente ----------
@@ -115,7 +115,7 @@ export const listCustomerAppointments = createServerFn({ method: "GET" })
       phone_area_code: data.phoneArea,
       phone_number: data.phoneNumber,
     });
-    return (await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule?${qs.toString()}`)) as unknown;
+    return (await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule?${qs.toString()}`)) as JsonValue;
   });
 
 // ---------- Consulta cliente ----------
@@ -135,7 +135,7 @@ export const getCustomer = createServerFn({ method: "GET" })
       phone_area_code: data.phoneArea,
       phone_number: data.phoneNumber,
     });
-    return (await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_customer?${qs.toString()}`)) as unknown;
+    return (await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_customer?${qs.toString()}`)) as JsonValue;
   });
 
 // ---------- Criar agendamento ----------
@@ -159,7 +159,7 @@ export const createAppointment = createServerFn({ method: "POST" })
     return (await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule`, {
       method: "POST",
       body: JSON.stringify(data),
-    })) as unknown;
+    })) as JsonValue;
   });
 
 // ---------- Cancelar agendamento ----------
@@ -183,5 +183,5 @@ export const cancelAppointment = createServerFn({ method: "POST" })
     });
     return (await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule?${qs.toString()}`, {
       method: "DELETE",
-    })) as unknown;
+    })) as JsonValue;
   });
