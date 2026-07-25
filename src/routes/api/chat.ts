@@ -6,7 +6,6 @@ import {
   bempFetch,
   getBempConfig,
   BEMP_WEBHOOK_BASE,
-  type JsonValue,
 } from "@/lib/bemp.server";
 
 const SYSTEM_PROMPT = `Você é a secretária virtual de um consultório integrado à plataforma Bemp.
@@ -152,13 +151,5 @@ export const Route = createFileRoute("/api/chat")({
   },
 });
 
-// Silencia o require de export default de rotas TSS
-export default Route;
 
-// Evita erro de tipo: tools registradas
-type _ToolsShape = typeof bempTools;
-type _AssertTools = _ToolsShape extends Record<string, unknown> ? true : false;
-const _asserted: _AssertTools = true;
-void _asserted;
-export type ChatToolsShape = _ToolsShape;
-export const CHAT_JSON_PLACEHOLDER: JsonValue | undefined = undefined;
+
