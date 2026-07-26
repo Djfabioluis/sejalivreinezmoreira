@@ -174,6 +174,19 @@ function AgendarPage() {
               Agendamento integrado à Bemp
             </p>
           </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={toggleVoice}
+            title={voiceOn ? "Silenciar voz" : "Ativar voz"}
+          >
+            {voiceOn ? (
+              <Volume2 className={`h-4 w-4 ${speakingId ? "text-primary animate-pulse" : ""}`} />
+            ) : (
+              <VolumeX className="h-4 w-4 text-muted-foreground" />
+            )}
+          </Button>
           <SandboxToggle compact />
         </div>
       </header>
@@ -221,6 +234,7 @@ function AgendarPage() {
             className="resize-none min-h-[44px] max-h-40"
             disabled={busy}
           />
+          <MicRecorder disabled={busy} onTranscript={submitVoice} />
           <Button type="submit" size="icon" disabled={busy || !input.trim()}>
             <Send className="h-4 w-4" />
           </Button>
