@@ -300,23 +300,23 @@ function SugestoesPage() {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
-        <div className="mx-auto max-w-6xl px-4 py-4 flex items-center gap-3">
+        <div className="mx-auto max-w-6xl px-4 py-4 grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
           <Link
             to="/"
-            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+            className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground shrink-0"
           >
-            <ArrowLeft className="h-4 w-4" /> Dashboard
+            <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Dashboard</span>
           </Link>
-          <div className="flex-1">
-            <h1 className="text-lg font-semibold flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-primary" /> Sugestões complementares
+          <div className="min-w-0">
+            <h1 className="truncate text-base sm:text-lg font-semibold flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary shrink-0" /> <span className="truncate">Sugestões complementares</span>
             </h1>
-            <p className="text-sm text-muted-foreground">
+            <p className="hidden sm:block text-sm text-muted-foreground">
               A IA usa essas regras para oferecer outros serviços antes de finalizar cada agendamento.
             </p>
           </div>
-          <Button onClick={openNew}>
-            <Plus className="h-4 w-4 mr-2" /> Nova regra
+          <Button onClick={openNew} className="shrink-0">
+            <Plus className="h-4 w-4 sm:mr-2" /> <span className="hidden sm:inline">Nova regra</span>
           </Button>
         </div>
       </header>
