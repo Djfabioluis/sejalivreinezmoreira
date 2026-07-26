@@ -71,11 +71,29 @@ function AgendarPage() {
     [sandbox],
   );
 
-  const { messages, sendMessage, status, error } = useChat({
+  const { messages, sendMessage, status, error, setMessages } = useChat({
     id: sandbox ? "agendar-sandbox" : "agendar-session",
-    messages: [INITIAL_MESSAGE],
+    messages: [buildInitialMessage(welcomeText)],
     transport,
   });
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await fetchWelcome();
+        setWelcomeText(data.conteudo);
+        setMessages((prev) => {
+          if (prev.length <= 1) return [buildInitialMessage(data.conteudo)];
+          return prev;
+        });
+      } catch {
+        // mantém padrão
+      } finally {
+        setWelcomeLoaded(true);
+      }
+    })();
+  }, [fetchWelcome, setMessages]);
+  void welcomeLoaded;
 
   const busy = status === "submitted" || status === "streaming";
 
