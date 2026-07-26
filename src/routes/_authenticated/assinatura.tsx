@@ -172,26 +172,32 @@ function AssinaturaPage() {
               </div>
               <p className="text-xs text-muted-foreground">
                 O portal abre em uma nova aba para trocar de cartão, ver faturas
-                ou cancelar. A troca de plano abaixo é imediata, com cobrança
-                proporcional da diferença.
+                ou cancelar. Qualquer troca de plano abaixo é imediata, com
+                cobrança proporcional da diferença.
               </p>
             </CardContent>
           </Card>
         )}
 
-        {sub && !sub.cancel_at_period_end && (
+        {canSwap && (
           <div className="mt-8">
-            <h2 className="font-display text-xl">Trocar de plano</h2>
+            <h2 className="font-display text-xl">
+              {inGrace || sub?.cancel_at_period_end
+                ? "Reativar escolhendo um plano"
+                : "Trocar de plano"}
+            </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              O Stripe calcula a diferença proporcional e cobra na hora.
-              Downgrades passam a valer no próximo ciclo.
+              {inGrace || sub?.cancel_at_period_end
+                ? "Sua assinatura está marcada para encerrar. Escolha um plano abaixo para reativar imediatamente."
+                : "O Stripe cobra a diferença proporcional na hora em qualquer troca (upgrade ou downgrade)."}
             </p>
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {PLANS.map((p) => {
-                const isCurrent = p.id === currentPriceId;
+                const isCurrent = p.id === currentPriceId && !(inGrace || sub?.cancel_at_period_end);
                 const currentTier =
                   PLANS.find((x) => x.id === currentPriceId)?.tier ?? 0;
                 const isUpgrade = p.tier > currentTier;
+                const reactivate = inGrace || sub?.cancel_at_period_end;
                 return (
                   <Card
                     key={p.id}
@@ -211,21 +217,18 @@ function AssinaturaPage() {
                       ) : (
                         <Button
                           size="sm"
-                          variant={isUpgrade ? "default" : "outline"}
+                          variant={isUpgrade || reactivate ? "default" : "outline"}
                           disabled={swap.isPending}
                           onClick={() => {
-                            if (
-                              confirm(
-                                isUpgrade
-                                  ? `Fazer upgrade para ${p.name} ${p.cycle}? Cobraremos a diferença proporcional agora.`
-                                  : `Trocar para ${p.name} ${p.cycle}? A cobrança será ajustada proporcionalmente.`,
-                              )
-                            ) {
-                              swap.mutate(p.id);
-                            }
+                            const msg = reactivate
+                              ? `Reativar assinatura no plano ${p.name} ${p.cycle}?`
+                              : isUpgrade
+                                ? `Fazer upgrade para ${p.name} ${p.cycle}? Cobraremos a diferença proporcional agora.`
+                                : `Trocar para ${p.name} ${p.cycle}? Cobraremos a diferença proporcional agora.`;
+                            if (confirm(msg)) swap.mutate(p.id);
                           }}
                         >
-                          {isUpgrade ? "Fazer upgrade" : "Trocar"}
+                          {reactivate ? "Reativar" : isUpgrade ? "Fazer upgrade" : "Trocar"}
                           <ArrowUpRight className="ml-1 h-3 w-3" />
                         </Button>
                       )}
@@ -236,6 +239,8 @@ function AssinaturaPage() {
             </div>
           </div>
         )}
+
+
 
       </div>
     </main>
