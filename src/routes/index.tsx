@@ -148,6 +148,12 @@ function Dashboard() {
             <TabsTrigger value="whatsapp">
               <QrCode className="h-4 w-4 mr-1" /> WhatsApp
             </TabsTrigger>
+            <TabsTrigger value="atendidos">
+              <UserCheck className="h-4 w-4 mr-1" /> Clientes atendidos
+            </TabsTrigger>
+            <TabsTrigger value="handoff">
+              <LifeBuoy className="h-4 w-4 mr-1" /> Aguardando humano
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="catalogo">
@@ -165,7 +171,14 @@ function Dashboard() {
           <TabsContent value="whatsapp">
             <WhatsAppPanel />
           </TabsContent>
+          <TabsContent value="atendidos">
+            <ClientesAtendidosPanel />
+          </TabsContent>
+          <TabsContent value="handoff">
+            <AtendimentoHumanoPanel />
+          </TabsContent>
         </Tabs>
+
       </main>
     </div>
   );
