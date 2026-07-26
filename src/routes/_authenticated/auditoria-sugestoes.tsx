@@ -31,7 +31,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 
-export const Route = createFileRoute("/auditoria-sugestoes")({
+export const Route = createFileRoute("/_authenticated/auditoria-sugestoes")({
   head: () => ({
     meta: [
       { title: "Auditoria de sugestões — Bemp" },

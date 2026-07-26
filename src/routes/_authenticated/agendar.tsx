@@ -10,7 +10,7 @@ import { ArrowLeft, Bot, Send, User, Loader2 } from "lucide-react";
 import { SandboxToggle, SandboxBanner } from "@/components/sandbox-toggle";
 import { getSandbox, subscribeSandbox } from "@/lib/sandbox";
 
-export const Route = createFileRoute("/agendar")({
+export const Route = createFileRoute("/_authenticated/agendar")({
   head: () => ({
     meta: [
       { title: "Agendar consulta — Secretária virtual" },

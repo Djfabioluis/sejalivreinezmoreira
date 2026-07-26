@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { Pencil, Plus, Trash2, UserCog, Mail, Phone } from "lucide-react";
 
-export const Route = createFileRoute("/operadores")({
+export const Route = createFileRoute("/_authenticated/operadores")({
   head: () => ({
     meta: [
       { title: "Operadores — Seja Livre" },

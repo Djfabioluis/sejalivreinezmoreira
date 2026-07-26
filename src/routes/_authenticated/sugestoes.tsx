@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/dialog";
 import { ArrowLeft, Plus, Pencil, Trash2, Sparkles, History } from "lucide-react";
 
-export const Route = createFileRoute("/sugestoes")({
+export const Route = createFileRoute("/_authenticated/sugestoes")({
   head: () => ({
     meta: [
       { title: "Sugestões complementares — Bemp" },

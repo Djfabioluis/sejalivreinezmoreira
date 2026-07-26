@@ -7,6 +7,7 @@ import {
   ClipboardList,
   Flower2,
   UserCog,
+  LogOut,
 } from "lucide-react";
 
 import {
@@ -92,8 +93,20 @@ export function AppSidebar() {
 
       {!collapsed && (
         <SidebarFooter>
-          <div className="px-2 pb-2">
+          <div className="space-y-2 px-2 pb-2">
             <SandboxToggle compact />
+            <button
+              type="button"
+              onClick={async () => {
+                const { supabase } = await import("@/integrations/supabase/client");
+                await supabase.auth.signOut();
+                window.location.replace("/auth");
+              }}
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              Sair
+            </button>
           </div>
         </SidebarFooter>
       )}
