@@ -1,12 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Bot, Send, User, Wrench, Loader2 } from "lucide-react";
+import { SandboxToggle, SandboxBanner } from "@/components/sandbox-toggle";
+import { getSandbox, subscribeSandbox } from "@/lib/sandbox";
 
 export const Route = createFileRoute("/agendar")({
   head: () => ({
@@ -43,13 +45,28 @@ const INITIAL_MESSAGE: UIMessage = {
 
 function AgendarPage() {
   const [input, setInput] = useState("");
+  const [sandbox, setSandboxState] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
+  useEffect(() => {
+    setSandboxState(getSandbox());
+    return subscribeSandbox(setSandboxState);
+  }, []);
+
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: "/api/chat",
+        body: { sandbox },
+      }),
+    [sandbox],
+  );
+
   const { messages, sendMessage, status, error } = useChat({
-    id: "agendar-session",
+    id: sandbox ? "agendar-sandbox" : "agendar-session",
     messages: [INITIAL_MESSAGE],
-    transport: new DefaultChatTransport({ api: "/api/chat" }),
+    transport,
   });
 
   const busy = status === "submitted" || status === "streaming";
@@ -76,6 +93,7 @@ function AgendarPage() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
+      <SandboxBanner />
       <header className="border-b bg-card">
         <div className="mx-auto max-w-3xl px-4 py-4 flex items-center gap-3">
           <Link to="/" className="text-muted-foreground hover:text-foreground">
@@ -84,7 +102,7 @@ function AgendarPage() {
           <div className="rounded-lg bg-primary text-primary-foreground p-2">
             <Bot className="h-5 w-5" />
           </div>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <h1 className="text-base font-semibold tracking-tight truncate">
               Secretária virtual
             </h1>
@@ -92,8 +110,10 @@ function AgendarPage() {
               Agendamento integrado à Bemp
             </p>
           </div>
+          <SandboxToggle compact />
         </div>
       </header>
+
 
       <main
         ref={scrollRef}
@@ -198,6 +218,7 @@ function ToolChip({ name, state }: { name: string; state?: string }) {
     list_professionals: "Buscando profissionais",
     list_slots: "Verificando horários",
     create_appointment: "Criando agendamento",
+    create_appointment_sandbox: "Simulando agendamento",
   };
   const done = state === "output-available" || state === "result";
   return (
