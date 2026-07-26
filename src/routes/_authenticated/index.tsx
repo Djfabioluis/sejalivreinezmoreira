@@ -95,23 +95,25 @@ function Dashboard() {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
-        <div className="mx-auto max-w-6xl px-4 py-6 flex items-center gap-3">
-          <div className="rounded-lg bg-primary text-primary-foreground p-2">
+        <div className="mx-auto max-w-6xl px-4 py-4 sm:py-6 grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3 sm:flex sm:items-center">
+          <div className="rounded-lg bg-primary text-primary-foreground p-2 shrink-0">
             <CalendarClock className="h-5 w-5" />
           </div>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-semibold tracking-tight">Secretária Virtual — Bemp</h1>
-            <p className="text-sm text-muted-foreground">
+          <div className="min-w-0 sm:flex-1">
+            <h1 className="truncate text-lg sm:text-xl font-semibold tracking-tight">
+              Secretária Virtual — Bemp
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground">
               Dashboard integrado à sua conta Bemp.
             </p>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="col-span-2 flex flex-wrap items-center gap-2 sm:col-auto">
             <SandboxToggle />
             <Link
               to="/base-conhecimento"
               className="inline-flex items-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/90"
             >
-              <BookOpen className="h-4 w-4" /> Base de conhecimento
+              <BookOpen className="h-4 w-4" /> <span className="hidden sm:inline">Base de conhecimento</span><span className="sm:hidden">Base</span>
             </Link>
             <Link
               to="/sugestoes"
@@ -129,32 +131,34 @@ function Dashboard() {
               to="/agendar"
               className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
-              <Bot className="h-4 w-4" /> Agendar com IA
+              <Bot className="h-4 w-4" /> <span className="hidden sm:inline">Agendar com IA</span><span className="sm:hidden">Agendar</span>
             </Link>
           </div>
         </div>
       </header>
 
 
-      <main className="mx-auto max-w-6xl px-4 py-8">
+      <main className="mx-auto max-w-6xl px-3 sm:px-4 py-6 sm:py-8">
         <Tabs defaultValue="catalogo" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="catalogo">Catálogo</TabsTrigger>
-            <TabsTrigger value="agenda">Agenda por cliente</TabsTrigger>
-            <TabsTrigger value="horarios">Horários disponíveis</TabsTrigger>
-            <TabsTrigger value="leads">
-              <Users className="h-4 w-4 mr-1" /> Leads de assinatura
-            </TabsTrigger>
-            <TabsTrigger value="whatsapp">
-              <QrCode className="h-4 w-4 mr-1" /> WhatsApp
-            </TabsTrigger>
-            <TabsTrigger value="atendidos">
-              <UserCheck className="h-4 w-4 mr-1" /> Clientes atendidos
-            </TabsTrigger>
-            <TabsTrigger value="handoff">
-              <LifeBuoy className="h-4 w-4 mr-1" /> Aguardando humano
-            </TabsTrigger>
-          </TabsList>
+          <div className="-mx-3 sm:mx-0 overflow-x-auto pb-1">
+            <TabsList className="w-max min-w-full">
+              <TabsTrigger value="catalogo">Catálogo</TabsTrigger>
+              <TabsTrigger value="agenda">Agenda por cliente</TabsTrigger>
+              <TabsTrigger value="horarios">Horários</TabsTrigger>
+              <TabsTrigger value="leads">
+                <Users className="h-4 w-4 mr-1" /> Leads
+              </TabsTrigger>
+              <TabsTrigger value="whatsapp">
+                <QrCode className="h-4 w-4 mr-1" /> WhatsApp
+              </TabsTrigger>
+              <TabsTrigger value="atendidos">
+                <UserCheck className="h-4 w-4 mr-1" /> Atendidos
+              </TabsTrigger>
+              <TabsTrigger value="handoff">
+                <LifeBuoy className="h-4 w-4 mr-1" /> Aguardando humano
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="catalogo">
             <CatalogoPanel />
