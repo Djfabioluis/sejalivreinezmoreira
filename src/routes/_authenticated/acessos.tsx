@@ -36,10 +36,16 @@ function AcessosPage() {
   const qc = useQueryClient();
   const load = useServerFn(listAccessUsers);
   const save = useServerFn(setUserRole);
+  const loadAudit = useServerFn(listAccessAuditLog);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["access-users"],
     queryFn: () => load(),
+  });
+
+  const { data: audit, isLoading: auditLoading } = useQuery({
+    queryKey: ["access-audit"],
+    queryFn: () => loadAudit(),
   });
 
   const mutation = useMutation({
@@ -48,6 +54,7 @@ function AcessosPage() {
     onSuccess: () => {
       toast.success("Acessos atualizados.");
       qc.invalidateQueries({ queryKey: ["access-users"] });
+      qc.invalidateQueries({ queryKey: ["access-audit"] });
     },
     onError: (e: unknown) => {
       toast.error(e instanceof Error ? e.message : "Erro ao atualizar.");
