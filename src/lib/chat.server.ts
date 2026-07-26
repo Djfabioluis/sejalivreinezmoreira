@@ -317,6 +317,205 @@ function buildTools(sandbox: boolean) {
           };
         }),
     }),
+    list_cross_sell_suggestions: tool({
+      description:
+        "Retorna os serviços complementares elegíveis para oferecer ao paciente ANTES de finalizar o agendamento. Já aplica as regras cadastradas: unidade, serviço-gatilho, limites diários (por serviço e por cliente) e evita sugerir algo que o paciente já tem agendado no mesmo dia. Chame uma vez por agendamento, informando o serviço escolhido.",
+      inputSchema: z.object({
+        salon_id: z.union([z.string(), z.number()]),
+        trigger_service_id: z.union([z.string(), z.number()]),
+        date: z.string().describe("Data do agendamento no formato YYYY-MM-DD"),
+        phone_country_code: z.string(),
+        phone_area_code: z.string(),
+        phone_number: z.string(),
+      }),
+      execute: async ({
+        salon_id,
+        trigger_service_id,
+        date,
+        phone_country_code,
+        phone_area_code,
+        phone_number,
+      }) =>
+        safeTool("list_cross_sell_suggestions", async () => {
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          const salonKey = String(salon_id);
+          const triggerKey = String(trigger_service_id);
+          const phoneKey = `${phone_country_code}${phone_area_code}${phone_number}`;
+
+          const { data: regras, error } = await supabaseAdmin
+            .from("sugestoes_cross_sell" as never)
+            .select("*")
+            .eq("trigger_service_id", triggerKey)
+            .eq("ativo", true)
+            .order("ordem", { ascending: true });
+          if (error) throw new Error(error.message);
+
+          const rules = ((regras ?? []) as unknown as Array<{
+            id: string;
+            salon_id: string | null;
+            suggested_service_id: string;
+            suggested_service_nome: string | null;
+            ordem: number;
+            limite_por_servico_dia: number | null;
+            limite_por_cliente_dia: number | null;
+            limite_por_conversa: number | null;
+            observacoes: string | null;
+          }>).filter((r) => !r.salon_id || r.salon_id === salonKey);
+
+          if (rules.length === 0) return { suggestions: [], reason: "sem_regras" };
+
+          // Elegibilidade: já agendado no mesmo dia
+          let sameDayServiceIds = new Set<string>();
+          try {
+            const qs = new URLSearchParams({
+              phone_country_code,
+              phone_area_code,
+              phone_number,
+            });
+            const appts = await bempFetch(
+              `${BEMP_WEBHOOK_BASE}/whatsapp_schedule?${qs.toString()}`,
+            );
+            const list = Array.isArray(appts)
+              ? appts
+              : Array.isArray((appts as { data?: unknown[] })?.data)
+                ? (appts as { data: unknown[] }).data
+                : [];
+            for (const a of list) {
+              const rec = a as Record<string, unknown>;
+              const startStr = String(rec.start ?? rec.date ?? rec.datetime ?? "");
+              if (!startStr.startsWith(date)) continue;
+              const sid = rec.service_id ?? rec.serviceId ?? (rec.service as Record<string, unknown> | undefined)?.id;
+              if (sid != null) sameDayServiceIds.add(String(sid));
+            }
+          } catch {
+            // se falhar, apenas segue sem filtrar por já-agendado
+            sameDayServiceIds = new Set();
+          }
+
+          // Contagens do dia
+          const dayStart = `${date}T00:00:00.000Z`;
+          const dayEnd = `${date}T23:59:59.999Z`;
+          const { data: regs } = await supabaseAdmin
+            .from("sugestoes_registros" as never)
+            .select("suggested_service_id, phone, status")
+            .gte("created_at", dayStart)
+            .lte("created_at", dayEnd);
+          const registros = (regs ?? []) as Array<{
+            suggested_service_id: string;
+            phone: string | null;
+            status: string;
+          }>;
+
+          const countByService = new Map<string, number>();
+          const countByCustomer = new Map<string, number>();
+          for (const r of registros) {
+            if (r.status === "ofertado" || r.status === "aceito") {
+              countByService.set(
+                r.suggested_service_id,
+                (countByService.get(r.suggested_service_id) ?? 0) + 1,
+              );
+            }
+            if (r.status === "ofertado" && r.phone === phoneKey) {
+              countByCustomer.set(
+                r.suggested_service_id,
+                (countByCustomer.get(r.suggested_service_id) ?? 0) + 1,
+              );
+            }
+          }
+          const totalCustomerToday = Array.from(countByCustomer.values()).reduce(
+            (a, b) => a + b,
+            0,
+          );
+
+          const eligible: Array<{
+            regra_id: string;
+            suggested_service_id: string;
+            suggested_service_nome: string | null;
+            ordem: number;
+            observacoes: string | null;
+            limite_por_conversa: number | null;
+          }> = [];
+          const skipped: Array<{ suggested_service_id: string; motivo: string }> = [];
+
+          for (const r of rules) {
+            if (sameDayServiceIds.has(r.suggested_service_id)) {
+              skipped.push({ suggested_service_id: r.suggested_service_id, motivo: "ja_agendado_hoje" });
+              continue;
+            }
+            if (
+              r.limite_por_servico_dia != null &&
+              (countByService.get(r.suggested_service_id) ?? 0) >= r.limite_por_servico_dia
+            ) {
+              skipped.push({ suggested_service_id: r.suggested_service_id, motivo: "limite_servico_atingido" });
+              continue;
+            }
+            if (
+              r.limite_por_cliente_dia != null &&
+              totalCustomerToday >= r.limite_por_cliente_dia
+            ) {
+              skipped.push({ suggested_service_id: r.suggested_service_id, motivo: "limite_cliente_atingido" });
+              continue;
+            }
+            eligible.push({
+              regra_id: r.id,
+              suggested_service_id: r.suggested_service_id,
+              suggested_service_nome: r.suggested_service_nome,
+              ordem: r.ordem,
+              observacoes: r.observacoes,
+              limite_por_conversa: r.limite_por_conversa,
+            });
+          }
+
+          const conversaCap = eligible.reduce(
+            (min, e) => (e.limite_por_conversa != null ? Math.min(min, e.limite_por_conversa) : min),
+            Number.MAX_SAFE_INTEGER,
+          );
+          const capped = conversaCap === Number.MAX_SAFE_INTEGER ? eligible : eligible.slice(0, conversaCap);
+
+          return {
+            suggestions: capped,
+            skipped,
+            note:
+              "Use list_services(salon_id) para obter valor e duração de cada suggested_service_id antes de oferecer.",
+          };
+        }),
+    }),
+    record_suggestion: tool({
+      description:
+        "Registra o resultado de uma sugestão de serviço complementar feita ao paciente (ofertado, aceito ou recusado). Use logo depois de oferecer e novamente quando o paciente responder.",
+      inputSchema: z.object({
+        regra_id: z.string().uuid().optional(),
+        salon_id: z.union([z.string(), z.number()]).optional(),
+        trigger_service_id: z.union([z.string(), z.number()]).optional(),
+        suggested_service_id: z.union([z.string(), z.number()]),
+        suggested_service_nome: z.string().optional(),
+        phone_country_code: z.string(),
+        phone_area_code: z.string(),
+        phone_number: z.string(),
+        status: z.enum(["ofertado", "aceito", "recusado"]),
+        observacao: z.string().optional(),
+      }),
+      execute: async (input) =>
+        safeTool("record_suggestion", async () => {
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          const { error } = await supabaseAdmin
+            .from("sugestoes_registros" as never)
+            .insert({
+              regra_id: input.regra_id ?? null,
+              salon_id: input.salon_id != null ? String(input.salon_id) : null,
+              trigger_service_id:
+                input.trigger_service_id != null ? String(input.trigger_service_id) : null,
+              suggested_service_id: String(input.suggested_service_id),
+              suggested_service_nome: input.suggested_service_nome ?? null,
+              phone: `${input.phone_country_code}${input.phone_area_code}${input.phone_number}`,
+              status: input.status,
+              sandbox,
+              observacao: input.observacao ?? null,
+            } as never);
+          if (error) throw new Error(error.message);
+          return { ok: true };
+        }),
+    }),
   };
   return base;
 }
