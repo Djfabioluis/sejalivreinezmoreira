@@ -159,6 +159,51 @@ function AcessosPage() {
           )}
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <History className="h-4 w-4" /> Log de auditoria
+          </CardTitle>
+          <CardDescription>
+            Últimas 200 alterações de níveis de acesso (visível apenas para administradores).
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {auditLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </div>
+          ) : !audit || audit.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum registro ainda.</p>
+          ) : (
+            <ul className="divide-y text-sm">
+              {audit.map((entry) => (
+                <li key={entry.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate">
+                      <span className="font-medium">{entry.actor_email ?? "sistema"}</span>
+                      {" "}
+                      <Badge variant={entry.action === "granted" ? "default" : "secondary"}>
+                        {entry.action === "granted" ? "concedeu" : "removeu"}
+                      </Badge>
+                      {" "}
+                      <span className="font-medium">{ROLE_LABEL[entry.role]}</span>
+                      {" para "}
+                      <span className="font-medium">{entry.target_email ?? "usuário removido"}</span>
+                    </p>
+                  </div>
+                  <time className="shrink-0 text-xs text-muted-foreground" dateTime={entry.created_at}>
+                    {new Date(entry.created_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
+                  </time>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
