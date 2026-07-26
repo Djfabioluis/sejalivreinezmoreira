@@ -53,6 +53,8 @@ function AgendarPage() {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const spokenRef = useRef<Set<string>>(new Set());
+  // Só toca TTS quando a última entrada do usuário foi por voz.
+  const lastInputWasVoiceRef = useRef(false);
 
   useEffect(() => {
     setSandboxState(getSandbox());
