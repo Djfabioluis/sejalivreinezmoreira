@@ -132,6 +132,56 @@ function buildTools(sandbox: boolean) {
           });
         }),
     }),
+    list_customer_appointments: tool({
+      description:
+        "Lista os agendamentos existentes de um paciente pelo telefone. Use antes de cancelar para achar o ID correto.",
+      inputSchema: z.object({
+        phone_country_code: z.string(),
+        phone_area_code: z.string(),
+        phone_number: z.string(),
+      }),
+      execute: async ({ phone_country_code, phone_area_code, phone_number }) =>
+        safeTool("list_customer_appointments", async () => {
+          const qs = new URLSearchParams({
+            phone_country_code,
+            phone_area_code,
+            phone_number,
+          });
+          return await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule?${qs.toString()}`);
+        }),
+    }),
+    cancel_appointment: tool({
+      description:
+        "Cancela um agendamento existente na Bemp. Só chame após confirmação explícita do paciente sobre qual agendamento cancelar.",
+      inputSchema: z.object({
+        appointment_id: z.union([z.string(), z.number()]),
+        phone_country_code: z.string(),
+        phone_area_code: z.string(),
+        phone_number: z.string(),
+      }),
+      execute: async ({ appointment_id, phone_country_code, phone_area_code, phone_number }) =>
+        safeTool("cancel_appointment", async () => {
+          if (sandbox) {
+            return {
+              sandbox: true,
+              simulated: true,
+              id: String(appointment_id),
+              status: "simulated_cancelled",
+              message: "Cancelamento SIMULADO (modo sandbox). Nada foi alterado na Bemp.",
+              cancelled_at: new Date().toISOString(),
+            };
+          }
+          const qs = new URLSearchParams({
+            phone_country_code,
+            phone_area_code,
+            phone_number,
+            id: String(appointment_id),
+          });
+          return await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule?${qs.toString()}`, {
+            method: "DELETE",
+          });
+        }),
+    }),
   };
   return base;
 }
