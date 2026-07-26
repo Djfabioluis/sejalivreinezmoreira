@@ -125,12 +125,20 @@ function AgendarPage() {
     if (busy) return;
     const last = messages[messages.length - 1];
     if (!last || last.role !== "assistant") return;
+    // Validação: só sintetiza voz se o cliente enviou áudio por último.
+    if (!lastInputWasVoiceRef.current) {
+      spokenRef.current.add(last.id); // marca como consumido para não tocar depois
+      return;
+    }
     const text = last.parts
       .filter((p) => p.type === "text")
       .map((p) => (p as { text: string }).text)
       .join(" ")
       .trim();
-    if (text) void playAudio(last.id, text);
+    if (text) {
+      lastInputWasVoiceRef.current = false; // consome o "modo voz" para esta resposta
+      void playAudio(last.id, text);
+    }
   }, [messages, busy, playAudio]);
 
   const toggleVoice = () => {
