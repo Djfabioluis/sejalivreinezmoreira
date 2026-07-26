@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+
 import { ArrowLeft, Bot, Send, User, Loader2 } from "lucide-react";
 import { SandboxToggle, SandboxBanner } from "@/components/sandbox-toggle";
 import { getSandbox, subscribeSandbox } from "@/lib/sandbox";
