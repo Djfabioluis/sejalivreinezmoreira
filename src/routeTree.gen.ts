@@ -14,6 +14,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
 import { Route as AuthenticatedSugestoesRouteImport } from './routes/_authenticated/sugestoes'
 import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated/perfil'
 import { Route as AuthenticatedOperadoresRouteImport } from './routes/_authenticated/operadores'
@@ -50,6 +51,11 @@ const ApiChatRoute = ApiChatRouteImport.update({
   id: '/api/chat',
   path: '/api/chat',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedUsuariosRoute = AuthenticatedUsuariosRouteImport.update({
+  id: '/usuarios',
+  path: '/usuarios',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedSugestoesRoute = AuthenticatedSugestoesRouteImport.update({
   id: '/sugestoes',
@@ -130,6 +136,7 @@ export interface FileRoutesByFullPath {
   '/operadores': typeof AuthenticatedOperadoresRoute
   '/perfil': typeof AuthenticatedPerfilRoute
   '/sugestoes': typeof AuthenticatedSugestoesRoute
+  '/usuarios': typeof AuthenticatedUsuariosRoute
   '/api/chat': typeof ApiChatRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
@@ -147,6 +154,7 @@ export interface FileRoutesByTo {
   '/operadores': typeof AuthenticatedOperadoresRoute
   '/perfil': typeof AuthenticatedPerfilRoute
   '/sugestoes': typeof AuthenticatedSugestoesRoute
+  '/usuarios': typeof AuthenticatedUsuariosRoute
   '/api/chat': typeof ApiChatRoute
   '/': typeof AuthenticatedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -167,6 +175,7 @@ export interface FileRoutesById {
   '/_authenticated/operadores': typeof AuthenticatedOperadoresRoute
   '/_authenticated/perfil': typeof AuthenticatedPerfilRoute
   '/_authenticated/sugestoes': typeof AuthenticatedSugestoesRoute
+  '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
   '/api/chat': typeof ApiChatRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -188,6 +197,7 @@ export interface FileRouteTypes {
     | '/operadores'
     | '/perfil'
     | '/sugestoes'
+    | '/usuarios'
     | '/api/chat'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
@@ -205,6 +215,7 @@ export interface FileRouteTypes {
     | '/operadores'
     | '/perfil'
     | '/sugestoes'
+    | '/usuarios'
     | '/api/chat'
     | '/'
     | '/.lovable/oauth/consent'
@@ -224,6 +235,7 @@ export interface FileRouteTypes {
     | '/_authenticated/operadores'
     | '/_authenticated/perfil'
     | '/_authenticated/sugestoes'
+    | '/_authenticated/usuarios'
     | '/api/chat'
     | '/_authenticated/'
     | '/.lovable/oauth/consent'
@@ -279,6 +291,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/chat'
       preLoaderRoute: typeof ApiChatRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/usuarios': {
+      id: '/_authenticated/usuarios'
+      path: '/usuarios'
+      fullPath: '/usuarios'
+      preLoaderRoute: typeof AuthenticatedUsuariosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/sugestoes': {
       id: '/_authenticated/sugestoes'
@@ -375,6 +394,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedOperadoresRoute: typeof AuthenticatedOperadoresRoute
   AuthenticatedPerfilRoute: typeof AuthenticatedPerfilRoute
   AuthenticatedSugestoesRoute: typeof AuthenticatedSugestoesRoute
+  AuthenticatedUsuariosRoute: typeof AuthenticatedUsuariosRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
 }
 
@@ -386,6 +406,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedOperadoresRoute: AuthenticatedOperadoresRoute,
   AuthenticatedPerfilRoute: AuthenticatedPerfilRoute,
   AuthenticatedSugestoesRoute: AuthenticatedSugestoesRoute,
+  AuthenticatedUsuariosRoute: AuthenticatedUsuariosRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
 }
 
