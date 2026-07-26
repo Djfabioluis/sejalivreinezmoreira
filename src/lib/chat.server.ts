@@ -471,10 +471,40 @@ function buildTools(sandbox: boolean) {
             Number.MAX_SAFE_INTEGER,
           );
           const capped = conversaCap === Number.MAX_SAFE_INTEGER ? eligible : eligible.slice(0, conversaCap);
+          const cappedOut = eligible.slice(capped.length).map((e) => ({
+            suggested_service_id: e.suggested_service_id,
+            motivo: "limite_conversa_atingido",
+          }));
+          const allSkipped = [...skipped, ...cappedOut];
+
+          // Registra descartes para auditoria (não bloqueia se falhar)
+          if (allSkipped.length > 0) {
+            try {
+              const ruleById = new Map(rules.map((r) => [r.suggested_service_id, r]));
+              await supabaseAdmin.from("sugestoes_registros" as never).insert(
+                allSkipped.map((s) => {
+                  const r = ruleById.get(s.suggested_service_id);
+                  return {
+                    regra_id: r?.id ?? null,
+                    salon_id: salonKey,
+                    trigger_service_id: triggerKey,
+                    suggested_service_id: s.suggested_service_id,
+                    suggested_service_nome: r?.suggested_service_nome ?? null,
+                    phone: phoneKey,
+                    status: "descartado",
+                    sandbox,
+                    observacao: s.motivo,
+                  };
+                }) as never,
+              );
+            } catch {
+              // silencioso
+            }
+          }
 
           return {
             suggestions: capped,
-            skipped,
+            skipped: allSkipped,
             note:
               "Use list_services(salon_id) para obter valor e duração de cada suggested_service_id antes de oferecer.",
           };

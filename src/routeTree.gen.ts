@@ -13,6 +13,7 @@ import { Route as SugestoesRouteImport } from './routes/sugestoes'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as BaseConhecimentoRouteImport } from './routes/base-conhecimento'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuditoriaSugestoesRouteImport } from './routes/auditoria-sugestoes'
 import { Route as AgendarRouteImport } from './routes/agendar'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
@@ -40,6 +41,11 @@ const BaseConhecimentoRoute = BaseConhecimentoRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuditoriaSugestoesRoute = AuditoriaSugestoesRouteImport.update({
+  id: '/auditoria-sugestoes',
+  path: '/auditoria-sugestoes',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AgendarRoute = AgendarRouteImport.update({
@@ -89,6 +95,7 @@ const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/agendar': typeof AgendarRoute
+  '/auditoria-sugestoes': typeof AuditoriaSugestoesRoute
   '/auth': typeof AuthRoute
   '/base-conhecimento': typeof BaseConhecimentoRoute
   '/mcp': typeof McpRoute
@@ -103,6 +110,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/agendar': typeof AgendarRoute
+  '/auditoria-sugestoes': typeof AuditoriaSugestoesRoute
   '/auth': typeof AuthRoute
   '/base-conhecimento': typeof BaseConhecimentoRoute
   '/mcp': typeof McpRoute
@@ -118,6 +126,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/agendar': typeof AgendarRoute
+  '/auditoria-sugestoes': typeof AuditoriaSugestoesRoute
   '/auth': typeof AuthRoute
   '/base-conhecimento': typeof BaseConhecimentoRoute
   '/mcp': typeof McpRoute
@@ -134,6 +143,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/agendar'
+    | '/auditoria-sugestoes'
     | '/auth'
     | '/base-conhecimento'
     | '/mcp'
@@ -148,6 +158,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/agendar'
+    | '/auditoria-sugestoes'
     | '/auth'
     | '/base-conhecimento'
     | '/mcp'
@@ -162,6 +173,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/agendar'
+    | '/auditoria-sugestoes'
     | '/auth'
     | '/base-conhecimento'
     | '/mcp'
@@ -177,6 +189,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AgendarRoute: typeof AgendarRoute
+  AuditoriaSugestoesRoute: typeof AuditoriaSugestoesRoute
   AuthRoute: typeof AuthRoute
   BaseConhecimentoRoute: typeof BaseConhecimentoRoute
   McpRoute: typeof McpRoute
@@ -217,6 +230,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auditoria-sugestoes': {
+      id: '/auditoria-sugestoes'
+      path: '/auditoria-sugestoes'
+      fullPath: '/auditoria-sugestoes'
+      preLoaderRoute: typeof AuditoriaSugestoesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/agendar': {
@@ -281,6 +301,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AgendarRoute: AgendarRoute,
+  AuditoriaSugestoesRoute: AuditoriaSugestoesRoute,
   AuthRoute: AuthRoute,
   BaseConhecimentoRoute: BaseConhecimentoRoute,
   McpRoute: McpRoute,

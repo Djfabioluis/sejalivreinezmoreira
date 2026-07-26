@@ -134,3 +134,84 @@ export const listRegistrosSugestoes = createServerFn({ method: "GET" }).handler(
   if (error) throw new Error(error.message);
   return (data ?? []) as unknown as RegistroSugestao[];
 });
+
+export type AuditoriaConversa = {
+  key: string;
+  phone: string | null;
+  data: string;
+  primeiro_evento: string;
+  ultimo_evento: string;
+  ofertados: number;
+  aceitos: number;
+  recusados: number;
+  descartados: number;
+  sandbox: boolean;
+  eventos: RegistroSugestao[];
+};
+
+export const listAuditoriaSugestoes = createServerFn({ method: "GET" })
+  .inputValidator((input: unknown) =>
+    z
+      .object({
+        dias: z.number().int().min(1).max(90).default(14),
+        phone: z.string().trim().optional(),
+        status: z.enum(["ofertado", "aceito", "recusado", "descartado"]).optional(),
+        sandbox: z.enum(["all", "real", "sandbox"]).default("all"),
+      })
+      .parse(input ?? {}),
+  )
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const since = new Date(Date.now() - data.dias * 24 * 60 * 60 * 1000).toISOString();
+    let q = supabaseAdmin
+      .from("sugestoes_registros" as never)
+      .select("*")
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .limit(1000);
+    if (data.phone) q = q.ilike("phone", `%${data.phone}%`);
+    if (data.status) q = q.eq("status", data.status);
+    if (data.sandbox === "real") q = q.eq("sandbox", false);
+    if (data.sandbox === "sandbox") q = q.eq("sandbox", true);
+    const { data: rows, error } = await q;
+    if (error) throw new Error(error.message);
+    const registros = (rows ?? []) as unknown as RegistroSugestao[];
+
+    const groups = new Map<string, AuditoriaConversa>();
+    for (const r of registros) {
+      const day = (r.created_at ?? "").slice(0, 10);
+      const phone = r.phone ?? "desconhecido";
+      const key = `${phone}::${day}`;
+      let g = groups.get(key);
+      if (!g) {
+        g = {
+          key,
+          phone: r.phone,
+          data: day,
+          primeiro_evento: r.created_at,
+          ultimo_evento: r.created_at,
+          ofertados: 0,
+          aceitos: 0,
+          recusados: 0,
+          descartados: 0,
+          sandbox: r.sandbox,
+          eventos: [],
+        };
+        groups.set(key, g);
+      }
+      g.eventos.push(r);
+      if (r.status === "ofertado") g.ofertados++;
+      else if (r.status === "aceito") g.aceitos++;
+      else if (r.status === "recusado") g.recusados++;
+      else if (r.status === "descartado") g.descartados++;
+      if (r.sandbox) g.sandbox = true;
+      if (r.created_at < g.primeiro_evento) g.primeiro_evento = r.created_at;
+      if (r.created_at > g.ultimo_evento) g.ultimo_evento = r.created_at;
+    }
+    const conversas = Array.from(groups.values()).map((g) => ({
+      ...g,
+      eventos: g.eventos.slice().sort((a, b) => a.created_at.localeCompare(b.created_at)),
+    }));
+    conversas.sort((a, b) => b.ultimo_evento.localeCompare(a.ultimo_evento));
+    return { conversas, total_eventos: registros.length };
+  });
