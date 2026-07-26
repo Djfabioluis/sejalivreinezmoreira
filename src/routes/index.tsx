@@ -107,6 +107,12 @@ function Dashboard() {
               <BookOpen className="h-4 w-4" /> Base de conhecimento
             </Link>
             <Link
+              to="/sugestoes"
+              className="inline-flex items-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/90"
+            >
+              <Sparkles className="h-4 w-4" /> Sugestões
+            </Link>
+            <Link
               to="/agendar"
               className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
