@@ -1,14 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 
-import { ArrowLeft, Bot, Send, User, Loader2 } from "lucide-react";
+import { ArrowLeft, Bot, Send, User, Loader2, Volume2, VolumeX } from "lucide-react";
 import { SandboxToggle, SandboxBanner } from "@/components/sandbox-toggle";
 import { getSandbox, subscribeSandbox } from "@/lib/sandbox";
+import { MicRecorder } from "@/components/mic-recorder";
 
 export const Route = createFileRoute("/_authenticated/agendar")({
   head: () => ({
@@ -46,8 +47,12 @@ const INITIAL_MESSAGE: UIMessage = {
 function AgendarPage() {
   const [input, setInput] = useState("");
   const [sandbox, setSandboxState] = useState(false);
+  const [voiceOn, setVoiceOn] = useState(true);
+  const [speakingId, setSpeakingId] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const spokenRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     setSandboxState(getSandbox());
@@ -83,6 +88,59 @@ function AgendarPage() {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
   }, [messages, busy]);
 
+  // Auto-play TTS for finished assistant messages (once each).
+  const playAudio = useCallback(async (id: string, text: string) => {
+    if (!voiceOn || !text.trim()) return;
+    if (spokenRef.current.has(id)) return;
+    spokenRef.current.add(id);
+    try {
+      setSpeakingId(id);
+      const res = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      if (!res.ok) throw new Error(`TTS ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = audioRef.current ?? new Audio();
+      audioRef.current = audio;
+      audio.src = url;
+      audio.onended = () => {
+        setSpeakingId((cur) => (cur === id ? null : cur));
+        URL.revokeObjectURL(url);
+      };
+      await audio.play().catch(() => {
+        setSpeakingId(null);
+      });
+    } catch (e) {
+      console.error("[tts] falha", e);
+      setSpeakingId((cur) => (cur === id ? null : cur));
+    }
+  }, [voiceOn]);
+
+  useEffect(() => {
+    if (busy) return;
+    const last = messages[messages.length - 1];
+    if (!last || last.role !== "assistant") return;
+    const text = last.parts
+      .filter((p) => p.type === "text")
+      .map((p) => (p as { text: string }).text)
+      .join(" ")
+      .trim();
+    if (text) void playAudio(last.id, text);
+  }, [messages, busy, playAudio]);
+
+  const toggleVoice = () => {
+    setVoiceOn((v) => {
+      if (v && audioRef.current) {
+        audioRef.current.pause();
+        setSpeakingId(null);
+      }
+      return !v;
+    });
+  };
+
   async function submit(e?: React.FormEvent) {
     e?.preventDefault();
     const text = input.trim();
@@ -90,6 +148,12 @@ function AgendarPage() {
     setInput("");
     await sendMessage({ text });
   }
+
+  async function submitVoice(text: string) {
+    if (busy) return;
+    await sendMessage({ text });
+  }
+
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -110,6 +174,19 @@ function AgendarPage() {
               Agendamento integrado à Bemp
             </p>
           </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={toggleVoice}
+            title={voiceOn ? "Silenciar voz" : "Ativar voz"}
+          >
+            {voiceOn ? (
+              <Volume2 className={`h-4 w-4 ${speakingId ? "text-primary animate-pulse" : ""}`} />
+            ) : (
+              <VolumeX className="h-4 w-4 text-muted-foreground" />
+            )}
+          </Button>
           <SandboxToggle compact />
         </div>
       </header>
@@ -157,6 +234,7 @@ function AgendarPage() {
             className="resize-none min-h-[44px] max-h-40"
             disabled={busy}
           />
+          <MicRecorder disabled={busy} onTranscript={submitVoice} />
           <Button type="submit" size="icon" disabled={busy || !input.trim()}>
             <Send className="h-4 w-4" />
           </Button>
