@@ -9,6 +9,9 @@ import {
   listCustomerAppointments,
 } from "@/lib/bemp.functions";
 import { getWhatsAppPhoneNumber } from "@/lib/whatsapp.functions";
+import { listLeadsAssinatura, updateLeadStatus, type LeadAssinatura } from "@/lib/leads.functions";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { WhatsAppQr } from "@/components/whatsapp-qr";
 import { SandboxToggle } from "@/components/sandbox-toggle";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
