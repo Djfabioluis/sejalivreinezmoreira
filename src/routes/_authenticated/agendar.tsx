@@ -68,7 +68,7 @@ function AgendarPage() {
       new DefaultChatTransport({
         api: "/api/chat",
         body: { sandbox },
-        headers: async () => {
+        headers: async (): Promise<Record<string, string>> => {
           const { data } = await supabase.auth.getSession();
           const token = data.session?.access_token;
           return token ? { Authorization: `Bearer ${token}` } : {};
