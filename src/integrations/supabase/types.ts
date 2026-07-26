@@ -86,6 +86,110 @@ export type Database = {
         }
         Relationships: []
       }
+      sugestoes_cross_sell: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          limite_por_cliente_dia: number | null
+          limite_por_conversa: number | null
+          limite_por_servico_dia: number | null
+          observacoes: string | null
+          ordem: number
+          salon_id: string | null
+          salon_nome: string | null
+          suggested_service_id: string
+          suggested_service_nome: string | null
+          trigger_service_id: string
+          trigger_service_nome: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          limite_por_cliente_dia?: number | null
+          limite_por_conversa?: number | null
+          limite_por_servico_dia?: number | null
+          observacoes?: string | null
+          ordem?: number
+          salon_id?: string | null
+          salon_nome?: string | null
+          suggested_service_id: string
+          suggested_service_nome?: string | null
+          trigger_service_id: string
+          trigger_service_nome?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          limite_por_cliente_dia?: number | null
+          limite_por_conversa?: number | null
+          limite_por_servico_dia?: number | null
+          observacoes?: string | null
+          ordem?: number
+          salon_id?: string | null
+          salon_nome?: string | null
+          suggested_service_id?: string
+          suggested_service_nome?: string | null
+          trigger_service_id?: string
+          trigger_service_nome?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      sugestoes_registros: {
+        Row: {
+          created_at: string
+          id: string
+          observacao: string | null
+          phone: string | null
+          regra_id: string | null
+          salon_id: string | null
+          sandbox: boolean
+          status: string
+          suggested_service_id: string
+          suggested_service_nome: string | null
+          trigger_service_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          observacao?: string | null
+          phone?: string | null
+          regra_id?: string | null
+          salon_id?: string | null
+          sandbox?: boolean
+          status?: string
+          suggested_service_id: string
+          suggested_service_nome?: string | null
+          trigger_service_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          observacao?: string | null
+          phone?: string | null
+          regra_id?: string | null
+          salon_id?: string | null
+          sandbox?: boolean
+          status?: string
+          suggested_service_id?: string
+          suggested_service_nome?: string | null
+          trigger_service_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sugestoes_registros_regra_id_fkey"
+            columns: ["regra_id"]
+            isOneToOne: false
+            referencedRelation: "sugestoes_cross_sell"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wa_conversas: {
         Row: {
           messages: Json
