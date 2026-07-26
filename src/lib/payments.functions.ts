@@ -127,51 +127,56 @@ export const createPortalSession = createServerFn({ method: "POST" })
 
 export const getMyEntitlement = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<EntitlementResult> => {
+  .inputValidator((data: { environment: StripeEnv }) => data)
+  .handler(async ({ data, context }): Promise<EntitlementResult> => {
     const { supabase, userId } = context;
-    const { data } = await supabase
+    const { data: row } = await supabase
       .from("subscriptions")
       .select("status, price_id, current_period_end, cancel_at_period_end")
       .eq("user_id", userId)
+      .eq("environment", data.environment)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (!data) return { active: false, plan: null, status: null };
-    const now = Date.now();
-    const periodEnd = data.current_period_end
-      ? new Date(data.current_period_end as string).getTime()
-      : null;
-    const active =
-      (["active", "trialing", "past_due"].includes(data.status as string) &&
-        (!periodEnd || periodEnd > now)) ||
-      (data.status === "canceled" && periodEnd !== null && periodEnd > now);
 
-    // Admins bypass — always active
     const { data: isAdmin } = await supabase.rpc("has_role", {
       _user_id: userId,
       _role: "admin",
     });
 
+    if (!row) return { active: Boolean(isAdmin), plan: null, status: null };
+    const now = Date.now();
+    const periodEnd = row.current_period_end
+      ? new Date(row.current_period_end as string).getTime()
+      : null;
+    const active =
+      (["active", "trialing", "past_due"].includes(row.status as string) &&
+        (!periodEnd || periodEnd > now)) ||
+      (row.status === "canceled" && periodEnd !== null && periodEnd > now);
+
     return {
       active: active || Boolean(isAdmin),
-      plan: (data.price_id as string) ?? null,
-      status: (data.status as string) ?? null,
+      plan: (row.price_id as string) ?? null,
+      status: (row.status as string) ?? null,
     };
   });
 
 export const getMySubscription = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((data: { environment: StripeEnv }) => data)
+  .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { data } = await supabase
+    const { data: row } = await supabase
       .from("subscriptions")
       .select("*")
       .eq("user_id", userId)
+      .eq("environment", data.environment)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    return data;
+    return row;
   });
+
 
 type ChangePlanResult = { ok: true; newPriceId: string } | { error: string };
 
