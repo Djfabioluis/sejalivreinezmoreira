@@ -102,25 +102,23 @@ function AuditoriaPage() {
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4">
-          <div className="flex items-center gap-3">
-            <Link
-              to="/"
-              className="inline-flex items-center gap-2 rounded-md p-2 text-muted-foreground hover:bg-secondary hover:text-foreground"
-            >
-              <ArrowLeft className="h-4 w-4" />
-            </Link>
-            <div>
-              <h1 className="flex items-center gap-2 text-xl font-semibold">
-                <ClipboardList className="h-5 w-5" /> Auditoria de sugestões
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Ofertas de cross-sell feitas pela IA, agrupadas por conversa (telefone + dia).
-              </p>
-            </div>
+        <div className="mx-auto grid max-w-6xl grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-4">
+          <Link
+            to="/"
+            className="inline-flex shrink-0 items-center gap-2 rounded-md p-2 text-muted-foreground hover:bg-secondary hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+          <div className="min-w-0">
+            <h1 className="flex items-center gap-2 text-base sm:text-xl font-semibold">
+              <ClipboardList className="h-5 w-5 shrink-0" /> <span className="truncate">Auditoria de sugestões</span>
+            </h1>
+            <p className="hidden sm:block text-sm text-muted-foreground">
+              Ofertas de cross-sell feitas pela IA, agrupadas por conversa (telefone + dia).
+            </p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => query.refetch()} disabled={query.isFetching}>
-            <RefreshCw className={`mr-2 h-4 w-4 ${query.isFetching ? "animate-spin" : ""}`} /> Atualizar
+          <Button variant="outline" size="sm" className="shrink-0" onClick={() => query.refetch()} disabled={query.isFetching}>
+            <RefreshCw className={`sm:mr-2 h-4 w-4 ${query.isFetching ? "animate-spin" : ""}`} /> <span className="hidden sm:inline">Atualizar</span>
           </Button>
         </div>
       </header>
