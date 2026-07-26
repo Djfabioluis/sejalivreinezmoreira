@@ -68,6 +68,11 @@ function AgendarPage() {
       new DefaultChatTransport({
         api: "/api/chat",
         body: { sandbox },
+        headers: async () => {
+          const { data } = await supabase.auth.getSession();
+          const token = data.session?.access_token;
+          return token ? { Authorization: `Bearer ${token}` } : {};
+        },
       }),
     [sandbox],
   );
