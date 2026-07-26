@@ -12,7 +12,7 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/auth")({
   ssr: false,
   validateSearch: (s: Record<string, unknown>) => ({
-    next: typeof s.next === "string" ? s.next : "/",
+    next: typeof s.next === "string" ? s.next : "/painel",
   }),
   head: () => ({
     meta: [
@@ -25,7 +25,7 @@ export const Route = createFileRoute("/auth")({
 
 function safeNext(next: string): string {
   // Permitir só paths same-origin relativos.
-  if (!next.startsWith("/") || next.startsWith("//")) return "/";
+  if (!next.startsWith("/") || next.startsWith("//")) return "/painel";
   return next;
 }
 

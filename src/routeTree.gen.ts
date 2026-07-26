@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as IndexRouteImport } from './routes/index'
 import { Route as CheckoutReturnRouteImport } from './routes/checkout/return'
 import { Route as ApiTtsRouteImport } from './routes/api/tts'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
@@ -24,6 +25,7 @@ import { Route as AuthenticatedOperadoresRouteImport } from './routes/_authentic
 import { Route as AuthenticatedBoasVindasRouteImport } from './routes/_authenticated/boas-vindas'
 import { Route as AuthenticatedBaseConhecimentoRouteImport } from './routes/_authenticated/base-conhecimento'
 import { Route as AuthenticatedAuditoriaSugestoesRouteImport } from './routes/_authenticated/auditoria-sugestoes'
+import { Route as AuthenticatedAssinaturaRouteImport } from './routes/_authenticated/assinatura'
 import { Route as AuthenticatedAgendarRouteImport } from './routes/_authenticated/agendar'
 import { Route as AuthenticatedAcessosRouteImport } from './routes/_authenticated/acessos'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
@@ -46,6 +48,11 @@ const AuthRoute = AuthRouteImport.update({
 } as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CheckoutReturnRoute = CheckoutReturnRouteImport.update({
@@ -110,6 +117,11 @@ const AuthenticatedAuditoriaSugestoesRoute =
     path: '/auditoria-sugestoes',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAssinaturaRoute = AuthenticatedAssinaturaRouteImport.update({
+  id: '/assinatura',
+  path: '/assinatura',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAgendarRoute = AuthenticatedAgendarRouteImport.update({
   id: '/agendar',
   path: '/agendar',
@@ -161,13 +173,14 @@ const ApiPublicHooksLembretesRoute = ApiPublicHooksLembretesRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof AuthenticatedRouteRouteWithChildren
+  '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/mcp': typeof McpRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/acessos': typeof AuthenticatedAcessosRoute
   '/agendar': typeof AuthenticatedAgendarRoute
+  '/assinatura': typeof AuthenticatedAssinaturaRoute
   '/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
   '/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
   '/boas-vindas': typeof AuthenticatedBoasVindasRoute
@@ -187,13 +200,14 @@ export interface FileRoutesByFullPath {
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof AuthenticatedRouteRouteWithChildren
+  '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/mcp': typeof McpRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/acessos': typeof AuthenticatedAcessosRoute
   '/agendar': typeof AuthenticatedAgendarRoute
+  '/assinatura': typeof AuthenticatedAssinaturaRoute
   '/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
   '/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
   '/boas-vindas': typeof AuthenticatedBoasVindasRoute
@@ -214,6 +228,7 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/mcp': typeof McpRoute
@@ -221,6 +236,7 @@ export interface FileRoutesById {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/acessos': typeof AuthenticatedAcessosRoute
   '/_authenticated/agendar': typeof AuthenticatedAgendarRoute
+  '/_authenticated/assinatura': typeof AuthenticatedAssinaturaRoute
   '/_authenticated/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
   '/_authenticated/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
   '/_authenticated/boas-vindas': typeof AuthenticatedBoasVindasRoute
@@ -249,6 +265,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/acessos'
     | '/agendar'
+    | '/assinatura'
     | '/auditoria-sugestoes'
     | '/base-conhecimento'
     | '/boas-vindas'
@@ -275,6 +292,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/acessos'
     | '/agendar'
+    | '/assinatura'
     | '/auditoria-sugestoes'
     | '/base-conhecimento'
     | '/boas-vindas'
@@ -294,6 +312,7 @@ export interface FileRouteTypes {
     | '/api/public/payments/webhook'
   id:
     | '__root__'
+    | '/'
     | '/_authenticated'
     | '/auth'
     | '/mcp'
@@ -301,6 +320,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/_authenticated/acessos'
     | '/_authenticated/agendar'
+    | '/_authenticated/assinatura'
     | '/_authenticated/auditoria-sugestoes'
     | '/_authenticated/base-conhecimento'
     | '/_authenticated/boas-vindas'
@@ -321,6 +341,7 @@ export interface FileRouteTypes {
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   McpRoute: typeof McpRoute
@@ -358,6 +379,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/checkout/return': {
@@ -444,6 +472,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAuditoriaSugestoesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/assinatura': {
+      id: '/_authenticated/assinatura'
+      path: '/assinatura'
+      fullPath: '/assinatura'
+      preLoaderRoute: typeof AuthenticatedAssinaturaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/agendar': {
       id: '/_authenticated/agendar'
       path: '/agendar'
@@ -513,6 +548,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAcessosRoute: typeof AuthenticatedAcessosRoute
   AuthenticatedAgendarRoute: typeof AuthenticatedAgendarRoute
+  AuthenticatedAssinaturaRoute: typeof AuthenticatedAssinaturaRoute
   AuthenticatedAuditoriaSugestoesRoute: typeof AuthenticatedAuditoriaSugestoesRoute
   AuthenticatedBaseConhecimentoRoute: typeof AuthenticatedBaseConhecimentoRoute
   AuthenticatedBoasVindasRoute: typeof AuthenticatedBoasVindasRoute
@@ -526,6 +562,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAcessosRoute: AuthenticatedAcessosRoute,
   AuthenticatedAgendarRoute: AuthenticatedAgendarRoute,
+  AuthenticatedAssinaturaRoute: AuthenticatedAssinaturaRoute,
   AuthenticatedAuditoriaSugestoesRoute: AuthenticatedAuditoriaSugestoesRoute,
   AuthenticatedBaseConhecimentoRoute: AuthenticatedBaseConhecimentoRoute,
   AuthenticatedBoasVindasRoute: AuthenticatedBoasVindasRoute,
@@ -540,6 +577,7 @@ const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   McpRoute: McpRoute,
