@@ -21,7 +21,14 @@ export const Route = createFileRoute("/api/chat")({
         const sandbox = body.sandbox === true;
         try {
           const result = await streamAgent(uiMessages, { sandbox });
-          return result.toUIMessageStreamResponse({ originalMessages: uiMessages });
+          return result.toUIMessageStreamResponse({
+            originalMessages: uiMessages,
+            onError: (err) => {
+              const message = err instanceof Error ? err.message : String(err);
+              console.error("[chat] stream error:", message);
+              return message;
+            },
+          });
         } catch (err) {
           const message = err instanceof Error ? err.message : "Falha desconhecida";
           console.error("[chat] erro no streamText:", message);
