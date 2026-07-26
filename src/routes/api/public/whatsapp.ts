@@ -24,7 +24,10 @@ type WaPayload = { object?: string; entry?: WaEntry[] };
 
 async function verifySignature(request: Request, rawBody: string): Promise<boolean> {
   const appSecret = process.env.WHATSAPP_APP_SECRET;
-  if (!appSecret) return true; // sem segredo configurado ainda, aceita para permitir teste
+  if (!appSecret) {
+    console.error("[whatsapp] WHATSAPP_APP_SECRET não configurado — rejeitando webhook");
+    return false;
+  }
   const header = request.headers.get("x-hub-signature-256");
   if (!header?.startsWith("sha256=")) return false;
   const provided = header.slice("sha256=".length);
