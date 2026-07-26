@@ -114,5 +114,49 @@ export const setUserRole = createServerFn({ method: "POST" })
         .eq("role", data.role);
       if (error) throw new Error(error.message);
     }
+
+    // Registrar no log de auditoria (best-effort)
+    try {
+      const actorEmail = (context.claims as any)?.email ?? null;
+      const { data: targetUser } = await supabaseAdmin.auth.admin.getUserById(data.userId);
+      await supabaseAdmin.from("access_audit_log").insert({
+        actor_id: context.userId,
+        actor_email: actorEmail,
+        target_user_id: data.userId,
+        target_email: targetUser?.user?.email ?? null,
+        role: data.role,
+        action: data.enabled ? "granted" : "revoked",
+      });
+    } catch (e) {
+      console.error("[access-audit] falha ao registrar log", e);
+    }
+
     return { ok: true };
   });
+
+export type AuditEntry = {
+  id: string;
+  actor_email: string | null;
+  target_email: string | null;
+  role: AppRole;
+  action: "granted" | "revoked";
+  created_at: string;
+};
+
+export const listAccessAuditLog = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<AuditEntry[]> => {
+    const { data: isAdmin } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (!isAdmin) return [];
+    const { data, error } = await context.supabase
+      .from("access_audit_log")
+      .select("id, actor_email, target_email, role, action, created_at")
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) throw new Error(error.message);
+    return (data ?? []) as AuditEntry[];
+  });
+

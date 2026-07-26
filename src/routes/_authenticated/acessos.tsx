@@ -2,13 +2,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { listAccessUsers, setUserRole, type AppRole } from "@/lib/access.functions";
+import { listAccessUsers, setUserRole, listAccessAuditLog, type AppRole } from "@/lib/access.functions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ShieldCheck, Info } from "lucide-react";
+import { ShieldCheck, Info, History } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/acessos")({
   head: () => ({
@@ -36,10 +36,16 @@ function AcessosPage() {
   const qc = useQueryClient();
   const load = useServerFn(listAccessUsers);
   const save = useServerFn(setUserRole);
+  const loadAudit = useServerFn(listAccessAuditLog);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["access-users"],
     queryFn: () => load(),
+  });
+
+  const { data: audit, isLoading: auditLoading } = useQuery({
+    queryKey: ["access-audit"],
+    queryFn: () => loadAudit(),
   });
 
   const mutation = useMutation({
@@ -48,6 +54,7 @@ function AcessosPage() {
     onSuccess: () => {
       toast.success("Acessos atualizados.");
       qc.invalidateQueries({ queryKey: ["access-users"] });
+      qc.invalidateQueries({ queryKey: ["access-audit"] });
     },
     onError: (e: unknown) => {
       toast.error(e instanceof Error ? e.message : "Erro ao atualizar.");
@@ -148,6 +155,51 @@ function AcessosPage() {
                   </li>
                 );
               })}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <History className="h-4 w-4" /> Log de auditoria
+          </CardTitle>
+          <CardDescription>
+            Últimas 200 alterações de níveis de acesso (visível apenas para administradores).
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {auditLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
+            </div>
+          ) : !audit || audit.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum registro ainda.</p>
+          ) : (
+            <ul className="divide-y text-sm">
+              {audit.map((entry) => (
+                <li key={entry.id} className="flex flex-wrap items-center justify-between gap-2 py-3">
+                  <div className="min-w-0">
+                    <p className="truncate">
+                      <span className="font-medium">{entry.actor_email ?? "sistema"}</span>
+                      {" "}
+                      <Badge variant={entry.action === "granted" ? "default" : "secondary"}>
+                        {entry.action === "granted" ? "concedeu" : "removeu"}
+                      </Badge>
+                      {" "}
+                      <span className="font-medium">{ROLE_LABEL[entry.role]}</span>
+                      {" para "}
+                      <span className="font-medium">{entry.target_email ?? "usuário removido"}</span>
+                    </p>
+                  </div>
+                  <time className="shrink-0 text-xs text-muted-foreground" dateTime={entry.created_at}>
+                    {new Date(entry.created_at).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" })}
+                  </time>
+                </li>
+              ))}
             </ul>
           )}
         </CardContent>
