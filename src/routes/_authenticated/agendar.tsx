@@ -34,10 +34,6 @@ export const Route = createFileRoute("/_authenticated/agendar")({
   component: AgendarPage,
 });
 
-const INITIAL_MESSAGE: UIMessage = {
-  id: "welcome",
-  role: "assistant",
-  parts: [
 function buildInitialMessage(text: string): UIMessage {
   return {
     id: "welcome",
