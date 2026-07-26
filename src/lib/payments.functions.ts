@@ -172,3 +172,57 @@ export const getMySubscription = createServerFn({ method: "GET" })
       .maybeSingle();
     return data;
   });
+
+type ChangePlanResult = { ok: true; newPriceId: string } | { error: string };
+
+export const changePlan = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { newPriceId: string; environment: StripeEnv }) => {
+    if (!/^[a-zA-Z0-9_-]+$/.test(data.newPriceId)) throw new Error("Invalid priceId");
+    return data;
+  })
+  .handler(async ({ data, context }): Promise<ChangePlanResult> => {
+    const { supabase, userId } = context;
+    const { data: sub } = await supabase
+      .from("subscriptions")
+      .select("stripe_subscription_id, status, price_id")
+      .eq("user_id", userId)
+      .eq("environment", data.environment)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!sub?.stripe_subscription_id) {
+      return { error: "Nenhuma assinatura ativa encontrada." };
+    }
+    if (sub.price_id === data.newPriceId) {
+      return { error: "Você já está neste plano." };
+    }
+    if (!["active", "trialing", "past_due"].includes((sub.status as string) ?? "")) {
+      return { error: "Sua assinatura não está ativa. Assine novamente pelo painel." };
+    }
+
+    try {
+      const stripe = createStripeClient(data.environment);
+      // Resolve human-readable id to the Stripe price id
+      const prices = await stripe.prices.list({ lookup_keys: [data.newPriceId] });
+      if (!prices.data.length) return { error: "Plano não encontrado." };
+      const newPrice = prices.data[0];
+
+      const subscription = await stripe.subscriptions.retrieve(
+        sub.stripe_subscription_id as string,
+      );
+      const itemId = subscription.items.data[0]?.id;
+      if (!itemId) return { error: "Item da assinatura não encontrado." };
+
+      await stripe.subscriptions.update(sub.stripe_subscription_id as string, {
+        items: [{ id: itemId, price: newPrice.id }],
+        proration_behavior: "always_invoice",
+        payment_behavior: "pending_if_incomplete",
+      });
+
+      return { ok: true, newPriceId: data.newPriceId };
+    } catch (error) {
+      return { error: getStripeErrorMessage(error) };
+    }
+  });

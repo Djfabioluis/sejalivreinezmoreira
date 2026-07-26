@@ -1,12 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { getMySubscription, createPortalSession } from "@/lib/payments.functions";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  getMySubscription,
+  createPortalSession,
+  changePlan,
+} from "@/lib/payments.functions";
 import { getStripeEnvironment } from "@/lib/stripe";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { ExternalLink } from "lucide-react";
+import { ArrowUpRight, ExternalLink, Check } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/assinatura")({
   head: () => ({
@@ -34,7 +38,17 @@ const STATUS_LABEL: Record<string, string> = {
   paused: "Pausada",
 };
 
+const PLANS = [
+  { id: "starter_monthly", name: "Starter", cycle: "Mensal", price: "R$ 297/mês", tier: 1 },
+  { id: "starter_yearly", name: "Starter", cycle: "Anual", price: "R$ 2.970/ano", tier: 1 },
+  { id: "pro_monthly", name: "Pro", cycle: "Mensal", price: "R$ 597/mês", tier: 2 },
+  { id: "pro_yearly", name: "Pro", cycle: "Anual", price: "R$ 5.970/ano", tier: 2 },
+  { id: "business_monthly", name: "Business", cycle: "Mensal", price: "R$ 1.297/mês", tier: 3 },
+  { id: "business_yearly", name: "Business", cycle: "Anual", price: "R$ 12.970/ano", tier: 3 },
+] as const;
+
 function AssinaturaPage() {
+  const qc = useQueryClient();
   const { data: sub, isLoading } = useQuery({
     queryKey: ["my-subscription"],
     queryFn: () => getMySubscription(),
@@ -56,6 +70,24 @@ function AssinaturaPage() {
     },
     onError: (e: Error) => toast.error(e.message),
   });
+
+  const swap = useMutation({
+    mutationFn: async (newPriceId: string) => {
+      const res = await changePlan({
+        data: { newPriceId, environment: getStripeEnvironment() },
+      });
+      if ("error" in res) throw new Error(res.error);
+      return res;
+    },
+    onSuccess: () => {
+      toast.success("Plano atualizado! Diferença cobrada proporcionalmente.");
+      qc.invalidateQueries({ queryKey: ["my-subscription"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const currentPriceId = (sub?.price_id as string) ?? null;
+
 
   return (
     <main className="mx-auto max-w-3xl p-6">
@@ -124,20 +156,77 @@ function AssinaturaPage() {
                   onClick={() => portal.mutate()}
                   disabled={portal.isPending}
                 >
-                  {portal.isPending ? "Abrindo…" : "Gerenciar assinatura"}
+                  {portal.isPending ? "Abrindo…" : "Gerenciar cartão / cancelar"}
                   <ExternalLink className="ml-2 h-4 w-4" />
-                </Button>
-                <Button variant="outline" asChild>
-                  <Link to="/">Trocar de plano</Link>
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                O portal abre em uma nova aba com opções de cancelamento, troca de
-                cartão e histórico de faturas.
+                O portal abre em uma nova aba para trocar de cartão, ver faturas
+                ou cancelar. A troca de plano abaixo é imediata, com cobrança
+                proporcional da diferença.
               </p>
             </CardContent>
           </Card>
         )}
+
+        {sub && !sub.cancel_at_period_end && (
+          <div className="mt-8">
+            <h2 className="font-display text-xl">Trocar de plano</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              O Stripe calcula a diferença proporcional e cobra na hora.
+              Downgrades passam a valer no próximo ciclo.
+            </p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {PLANS.map((p) => {
+                const isCurrent = p.id === currentPriceId;
+                const currentTier =
+                  PLANS.find((x) => x.id === currentPriceId)?.tier ?? 0;
+                const isUpgrade = p.tier > currentTier;
+                return (
+                  <Card
+                    key={p.id}
+                    className={isCurrent ? "border-primary bg-primary/5" : ""}
+                  >
+                    <CardContent className="flex items-center justify-between gap-3 p-4">
+                      <div>
+                        <p className="font-medium">
+                          {p.name} · {p.cycle}
+                        </p>
+                        <p className="text-sm text-muted-foreground">{p.price}</p>
+                      </div>
+                      {isCurrent ? (
+                        <Badge variant="secondary">
+                          <Check className="mr-1 h-3 w-3" /> Atual
+                        </Badge>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant={isUpgrade ? "default" : "outline"}
+                          disabled={swap.isPending}
+                          onClick={() => {
+                            if (
+                              confirm(
+                                isUpgrade
+                                  ? `Fazer upgrade para ${p.name} ${p.cycle}? Cobraremos a diferença proporcional agora.`
+                                  : `Trocar para ${p.name} ${p.cycle}? A cobrança será ajustada proporcionalmente.`,
+                              )
+                            ) {
+                              swap.mutate(p.id);
+                            }
+                          }}
+                        >
+                          {isUpgrade ? "Fazer upgrade" : "Trocar"}
+                          <ArrowUpRight className="ml-1 h-3 w-3" />
+                        </Button>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
       </div>
     </main>
   );
