@@ -16,7 +16,7 @@ export const Route = createFileRoute("/api/tts")({
             return Response.json({ error: "Texto inválido." }, { status: 400 });
           }
           const mp3 = await synthesizeSpeechMp3(parsed.data.text);
-          return new Response(mp3, {
+          return new Response(new Uint8Array(mp3), {
             status: 200,
             headers: {
               "Content-Type": "audio/mpeg",
