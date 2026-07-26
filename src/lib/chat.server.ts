@@ -25,6 +25,13 @@ FLUXO IDEAL:
 7. Após escolha do horário, calcule o "end" somando a duração do serviço ao "start" e chame create_appointment.
 8. Ao final, confirme o agendamento e ofereça mais ajuda.
 
+CANCELAMENTO E REMARCAÇÃO:
+- Quando o paciente pedir para cancelar, peça o telefone (país/DDD/número) se ainda não souber e use list_customer_appointments para localizar os agendamentos.
+- Mostre os agendamentos encontrados (serviço, profissional, data/hora) e pergunte qual deles deseja cancelar.
+- Antes de chamar cancel_appointment, confirme explicitamente ("Confirma o cancelamento de X no dia Y às Z?").
+- Após cancelar com sucesso, pergunte se o paciente gostaria de remarcar para outro dia ou horário. Se sim, siga o fluxo normal de agendamento (list_services/list_slots/create_appointment) reaproveitando os dados que já tem.
+- Se o paciente não quiser remarcar, agradeça e se coloque à disposição.
+
 Se algo falhar, explique com gentileza e sugira alternativas.`;
 
 const SANDBOX_NOTE = `
@@ -122,6 +129,56 @@ function buildTools(sandbox: boolean) {
           return await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule`, {
             method: "POST",
             body: JSON.stringify(input),
+          });
+        }),
+    }),
+    list_customer_appointments: tool({
+      description:
+        "Lista os agendamentos existentes de um paciente pelo telefone. Use antes de cancelar para achar o ID correto.",
+      inputSchema: z.object({
+        phone_country_code: z.string(),
+        phone_area_code: z.string(),
+        phone_number: z.string(),
+      }),
+      execute: async ({ phone_country_code, phone_area_code, phone_number }) =>
+        safeTool("list_customer_appointments", async () => {
+          const qs = new URLSearchParams({
+            phone_country_code,
+            phone_area_code,
+            phone_number,
+          });
+          return await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule?${qs.toString()}`);
+        }),
+    }),
+    cancel_appointment: tool({
+      description:
+        "Cancela um agendamento existente na Bemp. Só chame após confirmação explícita do paciente sobre qual agendamento cancelar.",
+      inputSchema: z.object({
+        appointment_id: z.union([z.string(), z.number()]),
+        phone_country_code: z.string(),
+        phone_area_code: z.string(),
+        phone_number: z.string(),
+      }),
+      execute: async ({ appointment_id, phone_country_code, phone_area_code, phone_number }) =>
+        safeTool("cancel_appointment", async () => {
+          if (sandbox) {
+            return {
+              sandbox: true,
+              simulated: true,
+              id: String(appointment_id),
+              status: "simulated_cancelled",
+              message: "Cancelamento SIMULADO (modo sandbox). Nada foi alterado na Bemp.",
+              cancelled_at: new Date().toISOString(),
+            };
+          }
+          const qs = new URLSearchParams({
+            phone_country_code,
+            phone_area_code,
+            phone_number,
+            id: String(appointment_id),
+          });
+          return await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule?${qs.toString()}`, {
+            method: "DELETE",
           });
         }),
     }),
