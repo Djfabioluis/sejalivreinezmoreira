@@ -38,7 +38,17 @@ const STATUS_LABEL: Record<string, string> = {
   paused: "Pausada",
 };
 
+const PLANS = [
+  { id: "starter_monthly", name: "Starter", cycle: "Mensal", price: "R$ 297/mês", tier: 1 },
+  { id: "starter_yearly", name: "Starter", cycle: "Anual", price: "R$ 2.970/ano", tier: 1 },
+  { id: "pro_monthly", name: "Pro", cycle: "Mensal", price: "R$ 597/mês", tier: 2 },
+  { id: "pro_yearly", name: "Pro", cycle: "Anual", price: "R$ 5.970/ano", tier: 2 },
+  { id: "business_monthly", name: "Business", cycle: "Mensal", price: "R$ 1.297/mês", tier: 3 },
+  { id: "business_yearly", name: "Business", cycle: "Anual", price: "R$ 12.970/ano", tier: 3 },
+] as const;
+
 function AssinaturaPage() {
+  const qc = useQueryClient();
   const { data: sub, isLoading } = useQuery({
     queryKey: ["my-subscription"],
     queryFn: () => getMySubscription(),
