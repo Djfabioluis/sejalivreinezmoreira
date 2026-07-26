@@ -15,6 +15,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as AuthenticatedSugestoesRouteImport } from './routes/_authenticated/sugestoes'
+import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated/perfil'
 import { Route as AuthenticatedOperadoresRouteImport } from './routes/_authenticated/operadores'
 import { Route as AuthenticatedBaseConhecimentoRouteImport } from './routes/_authenticated/base-conhecimento'
 import { Route as AuthenticatedAuditoriaSugestoesRouteImport } from './routes/_authenticated/auditoria-sugestoes'
@@ -52,6 +53,11 @@ const ApiChatRoute = ApiChatRouteImport.update({
 const AuthenticatedSugestoesRoute = AuthenticatedSugestoesRouteImport.update({
   id: '/sugestoes',
   path: '/sugestoes',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPerfilRoute = AuthenticatedPerfilRouteImport.update({
+  id: '/perfil',
+  path: '/perfil',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedOperadoresRoute = AuthenticatedOperadoresRouteImport.update({
@@ -115,6 +121,7 @@ export interface FileRoutesByFullPath {
   '/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
   '/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
   '/operadores': typeof AuthenticatedOperadoresRoute
+  '/perfil': typeof AuthenticatedPerfilRoute
   '/sugestoes': typeof AuthenticatedSugestoesRoute
   '/api/chat': typeof ApiChatRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
@@ -130,6 +137,7 @@ export interface FileRoutesByTo {
   '/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
   '/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
   '/operadores': typeof AuthenticatedOperadoresRoute
+  '/perfil': typeof AuthenticatedPerfilRoute
   '/sugestoes': typeof AuthenticatedSugestoesRoute
   '/api/chat': typeof ApiChatRoute
   '/': typeof AuthenticatedIndexRoute
@@ -148,6 +156,7 @@ export interface FileRoutesById {
   '/_authenticated/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
   '/_authenticated/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
   '/_authenticated/operadores': typeof AuthenticatedOperadoresRoute
+  '/_authenticated/perfil': typeof AuthenticatedPerfilRoute
   '/_authenticated/sugestoes': typeof AuthenticatedSugestoesRoute
   '/api/chat': typeof ApiChatRoute
   '/_authenticated/': typeof AuthenticatedIndexRoute
@@ -167,6 +176,7 @@ export interface FileRouteTypes {
     | '/auditoria-sugestoes'
     | '/base-conhecimento'
     | '/operadores'
+    | '/perfil'
     | '/sugestoes'
     | '/api/chat'
     | '/.lovable/oauth/consent'
@@ -182,6 +192,7 @@ export interface FileRouteTypes {
     | '/auditoria-sugestoes'
     | '/base-conhecimento'
     | '/operadores'
+    | '/perfil'
     | '/sugestoes'
     | '/api/chat'
     | '/'
@@ -199,6 +210,7 @@ export interface FileRouteTypes {
     | '/_authenticated/auditoria-sugestoes'
     | '/_authenticated/base-conhecimento'
     | '/_authenticated/operadores'
+    | '/_authenticated/perfil'
     | '/_authenticated/sugestoes'
     | '/api/chat'
     | '/_authenticated/'
@@ -261,6 +273,13 @@ declare module '@tanstack/react-router' {
       path: '/sugestoes'
       fullPath: '/sugestoes'
       preLoaderRoute: typeof AuthenticatedSugestoesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/perfil': {
+      id: '/_authenticated/perfil'
+      path: '/perfil'
+      fullPath: '/perfil'
+      preLoaderRoute: typeof AuthenticatedPerfilRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/operadores': {
@@ -334,6 +353,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAuditoriaSugestoesRoute: typeof AuthenticatedAuditoriaSugestoesRoute
   AuthenticatedBaseConhecimentoRoute: typeof AuthenticatedBaseConhecimentoRoute
   AuthenticatedOperadoresRoute: typeof AuthenticatedOperadoresRoute
+  AuthenticatedPerfilRoute: typeof AuthenticatedPerfilRoute
   AuthenticatedSugestoesRoute: typeof AuthenticatedSugestoesRoute
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
 }
@@ -343,6 +363,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAuditoriaSugestoesRoute: AuthenticatedAuditoriaSugestoesRoute,
   AuthenticatedBaseConhecimentoRoute: AuthenticatedBaseConhecimentoRoute,
   AuthenticatedOperadoresRoute: AuthenticatedOperadoresRoute,
+  AuthenticatedPerfilRoute: AuthenticatedPerfilRoute,
   AuthenticatedSugestoesRoute: AuthenticatedSugestoesRoute,
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
 }
