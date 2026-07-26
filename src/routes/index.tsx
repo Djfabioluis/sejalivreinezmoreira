@@ -521,3 +521,222 @@ function WhatsAppPanel() {
     </Card>
   );
 }
+
+// ---------- Leads de Assinatura ----------
+const STATUS_LABEL: Record<string, string> = {
+  novo: "Novo",
+  em_atendimento: "Em atendimento",
+  convertido: "Convertido",
+  descartado: "Descartado",
+};
+const STATUS_VARIANT: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
+  novo: "default",
+  em_atendimento: "secondary",
+  convertido: "outline",
+  descartado: "destructive",
+};
+
+function formatPhone(l: LeadAssinatura) {
+  const cc = l.phone_country_code ?? "";
+  const ac = l.phone_area_code ?? "";
+  const nu = l.phone_number ?? "";
+  if (!cc && !ac && !nu) return "—";
+  return `+${cc} (${ac}) ${nu}`.trim();
+}
+
+function LeadsPanel() {
+  const qc = useQueryClient();
+  const q = useQuery({
+    queryKey: ["leads-assinatura"],
+    queryFn: () => listLeadsAssinatura(),
+    refetchInterval: 30_000,
+  });
+  const [status, setStatus] = useState<string>("todos");
+  const [origem, setOrigem] = useState<string>("todos");
+  const [search, setSearch] = useState("");
+
+  const leads = (q.data ?? []) as LeadAssinatura[];
+  const origens = useMemo(
+    () => Array.from(new Set(leads.map((l) => l.origem).filter(Boolean))),
+    [leads],
+  );
+
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return leads.filter((l) => {
+      if (status !== "todos" && l.status !== status) return false;
+      if (origem !== "todos" && l.origem !== origem) return false;
+      if (!term) return true;
+      const hay = [
+        l.nome,
+        l.email,
+        l.cpf,
+        l.plano_nome,
+        l.phone_area_code,
+        l.phone_number,
+        l.observacoes,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(term);
+    });
+  }, [leads, status, origem, search]);
+
+  const mut = useMutation({
+    mutationFn: (input: { id: string; status: "novo" | "em_atendimento" | "convertido" | "descartado" }) =>
+      updateLeadStatus({ data: input }),
+    onSuccess: () => {
+      toast.success("Status atualizado");
+      qc.invalidateQueries({ queryKey: ["leads-assinatura"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const counts = useMemo(() => {
+    const c: Record<string, number> = { todos: leads.length };
+    for (const l of leads) c[l.status] = (c[l.status] ?? 0) + 1;
+    return c;
+  }, [leads]);
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+        <div>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Users className="h-4 w-4" /> Leads de assinatura
+          </CardTitle>
+          <CardDescription>
+            Interesses coletados pela IA. Atualize o status conforme o atendimento.
+          </CardDescription>
+        </div>
+        <Button variant="ghost" size="sm" onClick={() => q.refetch()}>
+          <RefreshCw className="h-4 w-4" />
+        </Button>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-[1fr_180px_180px]">
+          <div>
+            <Label htmlFor="lead-search">Buscar</Label>
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                id="lead-search"
+                className="pl-8"
+                placeholder="Nome, email, CPF, plano, telefone…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+          </div>
+          <div>
+            <Label>Status</Label>
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos ({counts.todos ?? 0})</SelectItem>
+                <SelectItem value="novo">Novo ({counts.novo ?? 0})</SelectItem>
+                <SelectItem value="em_atendimento">Em atendimento ({counts.em_atendimento ?? 0})</SelectItem>
+                <SelectItem value="convertido">Convertido ({counts.convertido ?? 0})</SelectItem>
+                <SelectItem value="descartado">Descartado ({counts.descartado ?? 0})</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Origem</Label>
+            <Select value={origem} onValueChange={setOrigem}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todas</SelectItem>
+                {origens.map((o) => (
+                  <SelectItem key={o} value={o}>
+                    {o}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Filter className="h-3 w-3" />
+          Mostrando {filtered.length} de {leads.length}
+        </div>
+
+        {q.isLoading && <Skeleton className="h-32 w-full" />}
+        {q.isError && (
+          <p className="text-sm text-destructive">{(q.error as Error).message}</p>
+        )}
+        {!q.isLoading && filtered.length === 0 && (
+          <p className="text-sm text-muted-foreground">Nenhum lead encontrado.</p>
+        )}
+
+        <div className="space-y-3">
+          {filtered.map((l) => (
+            <div key={l.id} className="rounded-lg border p-4 space-y-2">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="font-medium truncate">{l.nome}</span>
+                    <Badge variant={STATUS_VARIANT[l.status] ?? "secondary"}>
+                      {STATUS_LABEL[l.status] ?? l.status}
+                    </Badge>
+                    {l.sandbox && <Badge variant="outline">simulação</Badge>}
+                    <Badge variant="outline">{l.origem}</Badge>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {new Date(l.created_at).toLocaleString("pt-BR")}
+                  </div>
+                </div>
+                <Select
+                  value={l.status}
+                  onValueChange={(v) =>
+                    mut.mutate({ id: l.id, status: v as "novo" | "em_atendimento" | "convertido" | "descartado" })
+                  }
+                >
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="novo">Novo</SelectItem>
+                    <SelectItem value="em_atendimento">Em atendimento</SelectItem>
+                    <SelectItem value="convertido">Convertido</SelectItem>
+                    <SelectItem value="descartado">Descartado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-1 text-sm sm:grid-cols-2">
+                <div>
+                  <span className="text-muted-foreground">Plano: </span>
+                  {l.plano_nome ?? "—"}
+                  {l.plano_id ? <span className="text-muted-foreground"> (#{l.plano_id})</span> : null}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Telefone: </span>
+                  {formatPhone(l)}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">Email: </span>
+                  {l.email ?? "—"}
+                </div>
+                <div>
+                  <span className="text-muted-foreground">CPF: </span>
+                  {l.cpf ?? "—"}
+                </div>
+              </div>
+
+              {l.observacoes && (
+                <p className="text-sm bg-muted/50 rounded p-2 whitespace-pre-wrap">{l.observacoes}</p>
+              )}
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
