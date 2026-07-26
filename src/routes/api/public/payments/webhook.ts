@@ -37,7 +37,7 @@ async function handleSubscriptionCreated(subscription: any, env: StripeEnv) {
   await getSupabase()
     .from("subscriptions" as never)
     .upsert(
-      {
+      ({
         user_id: userId,
         stripe_subscription_id: subscription.id,
         stripe_customer_id: subscription.customer,
@@ -53,7 +53,7 @@ async function handleSubscriptionCreated(subscription: any, env: StripeEnv) {
         cancel_at_period_end: subscription.cancel_at_period_end ?? false,
         environment: env,
         updated_at: new Date().toISOString(),
-      },
+      }) as never,
       { onConflict: "stripe_subscription_id" },
     );
 }
@@ -77,7 +77,7 @@ async function handleSubscriptionUpdated(subscription: any, env: StripeEnv) {
       current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
       cancel_at_period_end: subscription.cancel_at_period_end ?? false,
       updated_at: new Date().toISOString(),
-    })
+    } as never)
     .eq("stripe_subscription_id", subscription.id)
     .eq("environment", env);
 }
@@ -85,7 +85,7 @@ async function handleSubscriptionUpdated(subscription: any, env: StripeEnv) {
 async function handleSubscriptionDeleted(subscription: any, env: StripeEnv) {
   await getSupabase()
     .from("subscriptions" as never)
-    .update({ status: "canceled", updated_at: new Date().toISOString() })
+    .update({ status: "canceled", updated_at: new Date().toISOString() } as never)
     .eq("stripe_subscription_id", subscription.id)
     .eq("environment", env);
 }
