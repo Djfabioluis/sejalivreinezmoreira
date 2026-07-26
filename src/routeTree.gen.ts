@@ -12,17 +12,20 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
-import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
+import { Route as IndexRouteImport } from './routes/index'
+import { Route as CheckoutReturnRouteImport } from './routes/checkout/return'
 import { Route as ApiTtsRouteImport } from './routes/api/tts'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
 import { Route as AuthenticatedSugestoesRouteImport } from './routes/_authenticated/sugestoes'
 import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated/perfil'
+import { Route as AuthenticatedPainelRouteImport } from './routes/_authenticated/painel'
 import { Route as AuthenticatedOperadoresRouteImport } from './routes/_authenticated/operadores'
 import { Route as AuthenticatedBoasVindasRouteImport } from './routes/_authenticated/boas-vindas'
 import { Route as AuthenticatedBaseConhecimentoRouteImport } from './routes/_authenticated/base-conhecimento'
 import { Route as AuthenticatedAuditoriaSugestoesRouteImport } from './routes/_authenticated/auditoria-sugestoes'
+import { Route as AuthenticatedAssinaturaRouteImport } from './routes/_authenticated/assinatura'
 import { Route as AuthenticatedAgendarRouteImport } from './routes/_authenticated/agendar'
 import { Route as AuthenticatedAcessosRouteImport } from './routes/_authenticated/acessos'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
@@ -30,6 +33,7 @@ import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]
 import { Route as ApiPublicWhatsappRouteImport } from './routes/api/public/whatsapp'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
+import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicHooksLembretesRouteImport } from './routes/api/public/hooks/lembretes'
 
 const McpRoute = McpRouteImport.update({
@@ -46,10 +50,15 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
+const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => AuthenticatedRouteRoute,
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckoutReturnRoute = CheckoutReturnRouteImport.update({
+  id: '/checkout/return',
+  path: '/checkout/return',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiTtsRoute = ApiTtsRouteImport.update({
   id: '/api/tts',
@@ -81,6 +90,11 @@ const AuthenticatedPerfilRoute = AuthenticatedPerfilRouteImport.update({
   path: '/perfil',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedPainelRoute = AuthenticatedPainelRouteImport.update({
+  id: '/painel',
+  path: '/painel',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedOperadoresRoute = AuthenticatedOperadoresRouteImport.update({
   id: '/operadores',
   path: '/operadores',
@@ -103,6 +117,11 @@ const AuthenticatedAuditoriaSugestoesRoute =
     path: '/auditoria-sugestoes',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAssinaturaRoute = AuthenticatedAssinaturaRouteImport.update({
+  id: '/assinatura',
+  path: '/assinatura',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAgendarRoute = AuthenticatedAgendarRouteImport.update({
   id: '/agendar',
   path: '/agendar',
@@ -141,6 +160,12 @@ const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
   path: '/.lovable/oauth/consent',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicPaymentsWebhookRoute =
+  ApiPublicPaymentsWebhookRouteImport.update({
+    id: '/api/public/payments/webhook',
+    path: '/api/public/payments/webhook',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksLembretesRoute = ApiPublicHooksLembretesRouteImport.update({
   id: '/api/public/hooks/lembretes',
   path: '/api/public/hooks/lembretes',
@@ -148,53 +173,62 @@ const ApiPublicHooksLembretesRoute = ApiPublicHooksLembretesRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof AuthenticatedIndexRoute
+  '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/mcp': typeof McpRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/acessos': typeof AuthenticatedAcessosRoute
   '/agendar': typeof AuthenticatedAgendarRoute
+  '/assinatura': typeof AuthenticatedAssinaturaRoute
   '/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
   '/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
   '/boas-vindas': typeof AuthenticatedBoasVindasRoute
   '/operadores': typeof AuthenticatedOperadoresRoute
+  '/painel': typeof AuthenticatedPainelRoute
   '/perfil': typeof AuthenticatedPerfilRoute
   '/sugestoes': typeof AuthenticatedSugestoesRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/api/chat': typeof ApiChatRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
+  '/checkout/return': typeof CheckoutReturnRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/public/whatsapp': typeof ApiPublicWhatsappRoute
   '/api/public/hooks/lembretes': typeof ApiPublicHooksLembretesRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesByTo {
+  '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/mcp': typeof McpRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/acessos': typeof AuthenticatedAcessosRoute
   '/agendar': typeof AuthenticatedAgendarRoute
+  '/assinatura': typeof AuthenticatedAssinaturaRoute
   '/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
   '/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
   '/boas-vindas': typeof AuthenticatedBoasVindasRoute
   '/operadores': typeof AuthenticatedOperadoresRoute
+  '/painel': typeof AuthenticatedPainelRoute
   '/perfil': typeof AuthenticatedPerfilRoute
   '/sugestoes': typeof AuthenticatedSugestoesRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/api/chat': typeof ApiChatRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
-  '/': typeof AuthenticatedIndexRoute
+  '/checkout/return': typeof CheckoutReturnRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/public/whatsapp': typeof ApiPublicWhatsappRoute
   '/api/public/hooks/lembretes': typeof ApiPublicHooksLembretesRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/mcp': typeof McpRoute
@@ -202,21 +236,24 @@ export interface FileRoutesById {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/acessos': typeof AuthenticatedAcessosRoute
   '/_authenticated/agendar': typeof AuthenticatedAgendarRoute
+  '/_authenticated/assinatura': typeof AuthenticatedAssinaturaRoute
   '/_authenticated/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
   '/_authenticated/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
   '/_authenticated/boas-vindas': typeof AuthenticatedBoasVindasRoute
   '/_authenticated/operadores': typeof AuthenticatedOperadoresRoute
+  '/_authenticated/painel': typeof AuthenticatedPainelRoute
   '/_authenticated/perfil': typeof AuthenticatedPerfilRoute
   '/_authenticated/sugestoes': typeof AuthenticatedSugestoesRoute
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
   '/api/chat': typeof ApiChatRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
-  '/_authenticated/': typeof AuthenticatedIndexRoute
+  '/checkout/return': typeof CheckoutReturnRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/public/whatsapp': typeof ApiPublicWhatsappRoute
   '/api/public/hooks/lembretes': typeof ApiPublicHooksLembretesRoute
+  '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -228,45 +265,54 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/acessos'
     | '/agendar'
+    | '/assinatura'
     | '/auditoria-sugestoes'
     | '/base-conhecimento'
     | '/boas-vindas'
     | '/operadores'
+    | '/painel'
     | '/perfil'
     | '/sugestoes'
     | '/usuarios'
     | '/api/chat'
     | '/api/transcribe'
     | '/api/tts'
+    | '/checkout/return'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/api/public/whatsapp'
     | '/api/public/hooks/lembretes'
+    | '/api/public/payments/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/'
     | '/auth'
     | '/mcp'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/acessos'
     | '/agendar'
+    | '/assinatura'
     | '/auditoria-sugestoes'
     | '/base-conhecimento'
     | '/boas-vindas'
     | '/operadores'
+    | '/painel'
     | '/perfil'
     | '/sugestoes'
     | '/usuarios'
     | '/api/chat'
     | '/api/transcribe'
     | '/api/tts'
-    | '/'
+    | '/checkout/return'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/api/public/whatsapp'
     | '/api/public/hooks/lembretes'
+    | '/api/public/payments/webhook'
   id:
     | '__root__'
+    | '/'
     | '/_authenticated'
     | '/auth'
     | '/mcp'
@@ -274,24 +320,28 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/_authenticated/acessos'
     | '/_authenticated/agendar'
+    | '/_authenticated/assinatura'
     | '/_authenticated/auditoria-sugestoes'
     | '/_authenticated/base-conhecimento'
     | '/_authenticated/boas-vindas'
     | '/_authenticated/operadores'
+    | '/_authenticated/painel'
     | '/_authenticated/perfil'
     | '/_authenticated/sugestoes'
     | '/_authenticated/usuarios'
     | '/api/chat'
     | '/api/transcribe'
     | '/api/tts'
-    | '/_authenticated/'
+    | '/checkout/return'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/api/public/whatsapp'
     | '/api/public/hooks/lembretes'
+    | '/api/public/payments/webhook'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   McpRoute: typeof McpRoute
@@ -300,10 +350,12 @@ export interface RootRouteChildren {
   ApiChatRoute: typeof ApiChatRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
   ApiTtsRoute: typeof ApiTtsRoute
+  CheckoutReturnRoute: typeof CheckoutReturnRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicWhatsappRoute: typeof ApiPublicWhatsappRoute
   ApiPublicHooksLembretesRoute: typeof ApiPublicHooksLembretesRoute
+  ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -329,12 +381,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/': {
-      id: '/_authenticated/'
+    '/': {
+      id: '/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof AuthenticatedIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout/return': {
+      id: '/checkout/return'
+      path: '/checkout/return'
+      fullPath: '/checkout/return'
+      preLoaderRoute: typeof CheckoutReturnRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/tts': {
       id: '/api/tts'
@@ -378,6 +437,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPerfilRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/painel': {
+      id: '/_authenticated/painel'
+      path: '/painel'
+      fullPath: '/painel'
+      preLoaderRoute: typeof AuthenticatedPainelRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/operadores': {
       id: '/_authenticated/operadores'
       path: '/operadores'
@@ -404,6 +470,13 @@ declare module '@tanstack/react-router' {
       path: '/auditoria-sugestoes'
       fullPath: '/auditoria-sugestoes'
       preLoaderRoute: typeof AuthenticatedAuditoriaSugestoesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/assinatura': {
+      id: '/_authenticated/assinatura'
+      path: '/assinatura'
+      fullPath: '/assinatura'
+      preLoaderRoute: typeof AuthenticatedAssinaturaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/agendar': {
@@ -455,6 +528,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DotlovableOauthConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/payments/webhook': {
+      id: '/api/public/payments/webhook'
+      path: '/api/public/payments/webhook'
+      fullPath: '/api/public/payments/webhook'
+      preLoaderRoute: typeof ApiPublicPaymentsWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/lembretes': {
       id: '/api/public/hooks/lembretes'
       path: '/api/public/hooks/lembretes'
@@ -468,33 +548,36 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAcessosRoute: typeof AuthenticatedAcessosRoute
   AuthenticatedAgendarRoute: typeof AuthenticatedAgendarRoute
+  AuthenticatedAssinaturaRoute: typeof AuthenticatedAssinaturaRoute
   AuthenticatedAuditoriaSugestoesRoute: typeof AuthenticatedAuditoriaSugestoesRoute
   AuthenticatedBaseConhecimentoRoute: typeof AuthenticatedBaseConhecimentoRoute
   AuthenticatedBoasVindasRoute: typeof AuthenticatedBoasVindasRoute
   AuthenticatedOperadoresRoute: typeof AuthenticatedOperadoresRoute
+  AuthenticatedPainelRoute: typeof AuthenticatedPainelRoute
   AuthenticatedPerfilRoute: typeof AuthenticatedPerfilRoute
   AuthenticatedSugestoesRoute: typeof AuthenticatedSugestoesRoute
   AuthenticatedUsuariosRoute: typeof AuthenticatedUsuariosRoute
-  AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAcessosRoute: AuthenticatedAcessosRoute,
   AuthenticatedAgendarRoute: AuthenticatedAgendarRoute,
+  AuthenticatedAssinaturaRoute: AuthenticatedAssinaturaRoute,
   AuthenticatedAuditoriaSugestoesRoute: AuthenticatedAuditoriaSugestoesRoute,
   AuthenticatedBaseConhecimentoRoute: AuthenticatedBaseConhecimentoRoute,
   AuthenticatedBoasVindasRoute: AuthenticatedBoasVindasRoute,
   AuthenticatedOperadoresRoute: AuthenticatedOperadoresRoute,
+  AuthenticatedPainelRoute: AuthenticatedPainelRoute,
   AuthenticatedPerfilRoute: AuthenticatedPerfilRoute,
   AuthenticatedSugestoesRoute: AuthenticatedSugestoesRoute,
   AuthenticatedUsuariosRoute: AuthenticatedUsuariosRoute,
-  AuthenticatedIndexRoute: AuthenticatedIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
+  IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   McpRoute: McpRoute,
@@ -504,10 +587,12 @@ const rootRouteChildren: RootRouteChildren = {
   ApiChatRoute: ApiChatRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,
   ApiTtsRoute: ApiTtsRoute,
+  CheckoutReturnRoute: CheckoutReturnRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicWhatsappRoute: ApiPublicWhatsappRoute,
   ApiPublicHooksLembretesRoute: ApiPublicHooksLembretesRoute,
+  ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   Users,
   Hand,
+  CreditCard,
 
 } from "lucide-react";
 
@@ -31,7 +32,7 @@ import {
 import { SandboxToggle } from "@/components/sandbox-toggle";
 
 const items = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard, group: "Operação" },
+  { title: "Dashboard", url: "/painel", icon: LayoutDashboard, group: "Operação" },
   { title: "Secretária virtual", url: "/agendar", icon: MessageCircle, group: "Operação" },
   { title: "Base de conhecimento", url: "/base-conhecimento", icon: BookOpen, group: "Configuração" },
   { title: "Boas-vindas", url: "/boas-vindas", icon: Hand, group: "Configuração" },
@@ -40,6 +41,7 @@ const items = [
   { title: "Auditoria de sugestões", url: "/auditoria-sugestoes", icon: ClipboardList, group: "Configuração" },
   { title: "Níveis de acesso", url: "/acessos", icon: ShieldCheck, group: "Configuração" },
   { title: "Usuários", url: "/usuarios", icon: Users, group: "Configuração" },
+  { title: "Minha assinatura", url: "/assinatura", icon: CreditCard, group: "Conta" },
   { title: "Meu perfil", url: "/perfil", icon: UserCircle, group: "Conta" },
 ] as const;
 

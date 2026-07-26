@@ -37,7 +37,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CalendarClock, Building2, Scissors, Bot, Clock, DollarSign, Phone, RefreshCw, Search, BookOpen, QrCode, Users, Filter, Sparkles, ClipboardList, UserCheck, LifeBuoy, MessageSquare, CheckCircle2 } from "lucide-react";
 
-export const Route = createFileRoute("/_authenticated/")({
+export const Route = createFileRoute("/_authenticated/painel")({
   head: () => ({
     meta: [
       { title: "Dashboard Bemp — Agenda em tempo real" },
