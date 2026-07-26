@@ -20,6 +20,7 @@ import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedSugestoesRouteImport } from './routes/_authenticated/sugestoes'
 import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated/perfil'
 import { Route as AuthenticatedOperadoresRouteImport } from './routes/_authenticated/operadores'
+import { Route as AuthenticatedBoasVindasRouteImport } from './routes/_authenticated/boas-vindas'
 import { Route as AuthenticatedBaseConhecimentoRouteImport } from './routes/_authenticated/base-conhecimento'
 import { Route as AuthenticatedAuditoriaSugestoesRouteImport } from './routes/_authenticated/auditoria-sugestoes'
 import { Route as AuthenticatedAgendarRouteImport } from './routes/_authenticated/agendar'
@@ -84,6 +85,11 @@ const AuthenticatedOperadoresRoute = AuthenticatedOperadoresRouteImport.update({
   path: '/operadores',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedBoasVindasRoute = AuthenticatedBoasVindasRouteImport.update({
+  id: '/boas-vindas',
+  path: '/boas-vindas',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedBaseConhecimentoRoute =
   AuthenticatedBaseConhecimentoRouteImport.update({
     id: '/base-conhecimento',
@@ -145,6 +151,7 @@ export interface FileRoutesByFullPath {
   '/agendar': typeof AuthenticatedAgendarRoute
   '/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
   '/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
+  '/boas-vindas': typeof AuthenticatedBoasVindasRoute
   '/operadores': typeof AuthenticatedOperadoresRoute
   '/perfil': typeof AuthenticatedPerfilRoute
   '/sugestoes': typeof AuthenticatedSugestoesRoute
@@ -165,6 +172,7 @@ export interface FileRoutesByTo {
   '/agendar': typeof AuthenticatedAgendarRoute
   '/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
   '/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
+  '/boas-vindas': typeof AuthenticatedBoasVindasRoute
   '/operadores': typeof AuthenticatedOperadoresRoute
   '/perfil': typeof AuthenticatedPerfilRoute
   '/sugestoes': typeof AuthenticatedSugestoesRoute
@@ -188,6 +196,7 @@ export interface FileRoutesById {
   '/_authenticated/agendar': typeof AuthenticatedAgendarRoute
   '/_authenticated/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
   '/_authenticated/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
+  '/_authenticated/boas-vindas': typeof AuthenticatedBoasVindasRoute
   '/_authenticated/operadores': typeof AuthenticatedOperadoresRoute
   '/_authenticated/perfil': typeof AuthenticatedPerfilRoute
   '/_authenticated/sugestoes': typeof AuthenticatedSugestoesRoute
@@ -212,6 +221,7 @@ export interface FileRouteTypes {
     | '/agendar'
     | '/auditoria-sugestoes'
     | '/base-conhecimento'
+    | '/boas-vindas'
     | '/operadores'
     | '/perfil'
     | '/sugestoes'
@@ -232,6 +242,7 @@ export interface FileRouteTypes {
     | '/agendar'
     | '/auditoria-sugestoes'
     | '/base-conhecimento'
+    | '/boas-vindas'
     | '/operadores'
     | '/perfil'
     | '/sugestoes'
@@ -254,6 +265,7 @@ export interface FileRouteTypes {
     | '/_authenticated/agendar'
     | '/_authenticated/auditoria-sugestoes'
     | '/_authenticated/base-conhecimento'
+    | '/_authenticated/boas-vindas'
     | '/_authenticated/operadores'
     | '/_authenticated/perfil'
     | '/_authenticated/sugestoes'
@@ -360,6 +372,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOperadoresRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/boas-vindas': {
+      id: '/_authenticated/boas-vindas'
+      path: '/boas-vindas'
+      fullPath: '/boas-vindas'
+      preLoaderRoute: typeof AuthenticatedBoasVindasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/base-conhecimento': {
       id: '/_authenticated/base-conhecimento'
       path: '/base-conhecimento'
@@ -431,6 +450,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAgendarRoute: typeof AuthenticatedAgendarRoute
   AuthenticatedAuditoriaSugestoesRoute: typeof AuthenticatedAuditoriaSugestoesRoute
   AuthenticatedBaseConhecimentoRoute: typeof AuthenticatedBaseConhecimentoRoute
+  AuthenticatedBoasVindasRoute: typeof AuthenticatedBoasVindasRoute
   AuthenticatedOperadoresRoute: typeof AuthenticatedOperadoresRoute
   AuthenticatedPerfilRoute: typeof AuthenticatedPerfilRoute
   AuthenticatedSugestoesRoute: typeof AuthenticatedSugestoesRoute
@@ -443,6 +463,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAgendarRoute: AuthenticatedAgendarRoute,
   AuthenticatedAuditoriaSugestoesRoute: AuthenticatedAuditoriaSugestoesRoute,
   AuthenticatedBaseConhecimentoRoute: AuthenticatedBaseConhecimentoRoute,
+  AuthenticatedBoasVindasRoute: AuthenticatedBoasVindasRoute,
   AuthenticatedOperadoresRoute: AuthenticatedOperadoresRoute,
   AuthenticatedPerfilRoute: AuthenticatedPerfilRoute,
   AuthenticatedSugestoesRoute: AuthenticatedSugestoesRoute,
