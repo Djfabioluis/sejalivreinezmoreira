@@ -1,12 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { getMySubscription, createPortalSession } from "@/lib/payments.functions";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  getMySubscription,
+  createPortalSession,
+  changePlan,
+} from "@/lib/payments.functions";
 import { getStripeEnvironment } from "@/lib/stripe";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { ExternalLink } from "lucide-react";
+import { ArrowUpRight, ExternalLink, Check } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/assinatura")({
   head: () => ({
