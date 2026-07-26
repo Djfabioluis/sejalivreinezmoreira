@@ -169,7 +169,6 @@ function AgendarPage() {
 function MessageBubble({ message }: { message: UIMessage }) {
   const isUser = message.role === "user";
   const textParts = message.parts.filter((p) => p.type === "text");
-  const toolParts = message.parts.filter((p) => p.type.startsWith("tool-"));
 
   return (
     <div className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}>
@@ -179,9 +178,6 @@ function MessageBubble({ message }: { message: UIMessage }) {
         </div>
       )}
       <div className={`max-w-[80%] space-y-2 ${isUser ? "items-end" : "items-start"} flex flex-col`}>
-        {toolParts.map((p, i) => (
-          <ToolChip key={i} name={p.type.replace(/^tool-/, "")} state={(p as { state?: string }).state} />
-        ))}
         {textParts.map((p, i) => {
           const text = (p as { text: string }).text;
           if (!text) return null;
@@ -208,24 +204,5 @@ function MessageBubble({ message }: { message: UIMessage }) {
         </div>
       )}
     </div>
-  );
-}
-
-function ToolChip({ name, state }: { name: string; state?: string }) {
-  const label: Record<string, string> = {
-    list_salons: "Consultando unidades",
-    list_services: "Buscando serviços",
-    list_professionals: "Buscando profissionais",
-    list_slots: "Verificando horários",
-    create_appointment: "Criando agendamento",
-    create_appointment_sandbox: "Simulando agendamento",
-  };
-  const done = state === "output-available" || state === "result";
-  return (
-    <Badge variant="outline" className="gap-1 text-xs font-normal">
-      {done ? <Wrench className="h-3 w-3" /> : <Loader2 className="h-3 w-3 animate-spin" />}
-      {label[name] ?? name}
-      {done ? " ✓" : "…"}
-    </Badge>
   );
 }
