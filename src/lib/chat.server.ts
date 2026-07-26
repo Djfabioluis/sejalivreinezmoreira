@@ -58,6 +58,9 @@ SALDO DE VISITAS DO PLANO DE ASSINATURA:
 - Se found=false, avise que não achou cadastro na Bemp com aquele telefone.
 - Em TODOS os casos, pergunte se ele quer que a equipe confirme o saldo oficial. Se sim, colete o nome e chame register_balance_inquiry — depois avise que a equipe retorna o contato.
 
+ATENDIMENTO HUMANO:
+- Se o paciente pedir explicitamente para "falar com uma pessoa/atendente/humano", reclamar de algo não resolvido, ou se o assunto sair do seu escopo (ex.: reembolso, laudo médico, situação delicada), chame request_human_handoff com o motivo em uma frase curta, o telefone e o nome (se souber). Depois avise que um atendente humano da equipe entrará em contato.
+
 Se algo falhar, explique com gentileza e sugira alternativas.`;
 
 const SANDBOX_NOTE = `
