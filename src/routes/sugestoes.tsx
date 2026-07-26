@@ -130,9 +130,23 @@ function SugestoesPage() {
     qc.invalidateQueries({ queryKey: ["cross-sell-registros"] });
   };
 
+  type RegraPayload = {
+    salon_id: string | null;
+    salon_nome: string | null;
+    trigger_service_id: string;
+    trigger_service_nome: string | null;
+    suggested_service_id: string;
+    suggested_service_nome: string | null;
+    ordem: number;
+    ativo: boolean;
+    limite_por_servico_dia: number | null;
+    limite_por_cliente_dia: number | null;
+    limite_por_conversa: number | null;
+    observacoes: string | null;
+  };
+
   const createMut = useMutation({
-    mutationFn: (data: Parameters<typeof createRegraCrossSell>[0]["data"]) =>
-      createRegraCrossSell({ data }),
+    mutationFn: (data: RegraPayload) => createRegraCrossSell({ data }),
     onSuccess: () => {
       toast.success("Regra criada");
       setOpen(false);
@@ -142,8 +156,7 @@ function SugestoesPage() {
   });
 
   const updateMut = useMutation({
-    mutationFn: (data: Parameters<typeof updateRegraCrossSell>[0]["data"]) =>
-      updateRegraCrossSell({ data }),
+    mutationFn: (data: RegraPayload & { id: string }) => updateRegraCrossSell({ data }),
     onSuccess: () => {
       toast.success("Regra atualizada");
       setOpen(false);
