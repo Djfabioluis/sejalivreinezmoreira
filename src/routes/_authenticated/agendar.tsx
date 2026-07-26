@@ -39,7 +39,7 @@ const INITIAL_MESSAGE: UIMessage = {
     {
       type: "text",
       text:
-        "Oi! 👋 Sou a secretária virtual do consultório. Vou te ajudar a agendar sua consulta em pouquinhos passos. Para começar, como posso te chamar?",
+        "Oi! 👋 Sou a Julia, recepcionista do Salão Seja Livre. Vou te ajudar a agendar sua consulta em pouquinhos passos. Para começar, como posso te chamar?",
     },
   ],
 };
