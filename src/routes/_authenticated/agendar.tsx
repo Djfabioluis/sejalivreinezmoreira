@@ -53,6 +53,8 @@ function AgendarPage() {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const spokenRef = useRef<Set<string>>(new Set());
+  // Só toca TTS quando a última entrada do usuário foi por voz.
+  const lastInputWasVoiceRef = useRef(false);
 
   useEffect(() => {
     setSandboxState(getSandbox());
@@ -123,12 +125,20 @@ function AgendarPage() {
     if (busy) return;
     const last = messages[messages.length - 1];
     if (!last || last.role !== "assistant") return;
+    // Validação: só sintetiza voz se o cliente enviou áudio por último.
+    if (!lastInputWasVoiceRef.current) {
+      spokenRef.current.add(last.id); // marca como consumido para não tocar depois
+      return;
+    }
     const text = last.parts
       .filter((p) => p.type === "text")
       .map((p) => (p as { text: string }).text)
       .join(" ")
       .trim();
-    if (text) void playAudio(last.id, text);
+    if (text) {
+      lastInputWasVoiceRef.current = false; // consome o "modo voz" para esta resposta
+      void playAudio(last.id, text);
+    }
   }, [messages, busy, playAudio]);
 
   const toggleVoice = () => {
@@ -146,11 +156,13 @@ function AgendarPage() {
     const text = input.trim();
     if (!text || busy) return;
     setInput("");
+    lastInputWasVoiceRef.current = false;
     await sendMessage({ text });
   }
 
   async function submitVoice(text: string) {
     if (busy) return;
+    lastInputWasVoiceRef.current = true;
     await sendMessage({ text });
   }
 
