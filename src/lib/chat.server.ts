@@ -150,17 +150,63 @@ function buildTools(sandbox: boolean) {
               id: `SIM-${Date.now()}`,
               status: "simulated",
               message:
-                "Agendamento SIMULADO (modo sandbox). Nada foi gravado na Bemp.",
+                "Agendamento SIMULADO (modo sandbox). Nada foi gravado na Bemp. (Confirmação por WhatsApp não é enviada em sandbox.)",
               appointment: input,
               created_at: new Date().toISOString(),
             };
           }
-          return await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule`, {
+          const result = await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule`, {
             method: "POST",
             body: JSON.stringify(input),
           });
+          // Registra e envia confirmação por WhatsApp (best-effort, não bloqueia o fluxo).
+          try {
+            const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+            const { sendWhatsAppText, formatBrDateTime } = await import(
+              "@/lib/whatsapp-send.server"
+            );
+            const phone = `${input.phone_country_code}${input.phone_area_code}${input.phone_number}`;
+            const bempId =
+              (result as { id?: string | number } | null)?.id != null
+                ? String((result as { id: string | number }).id)
+                : null;
+            // Tenta descobrir o nome do serviço (para uma mensagem mais humana).
+            let serviceName: string | null = null;
+            try {
+              const cfg = getBempConfig();
+              const services = (await bempFetch(
+                `${cfg.apiBase}/salons/${input.salon_id}/services`,
+              )) as Array<Record<string, unknown>> | null;
+              if (Array.isArray(services)) {
+                const found = services.find((s) => Number(s.id) === input.service_id);
+                if (found && typeof found.name === "string") serviceName = found.name;
+              }
+            } catch {
+              // ignora — mensagem segue sem nome do serviço
+            }
+            const when = formatBrDateTime(input.start);
+            const msg = serviceName
+              ? `Oi ${input.name}! 💜 Seu agendamento de *${serviceName}* está confirmado para ${when}.\n\nSe precisar remarcar ou cancelar, é só me chamar por aqui. Até lá! ✨\n— Julia, Salão Seja Livre`
+              : `Oi ${input.name}! 💜 Seu agendamento está confirmado para ${when}.\n\nSe precisar remarcar ou cancelar, é só me chamar por aqui. Até lá! ✨\n— Julia, Salão Seja Livre`;
+            const sent = await sendWhatsAppText(phone, msg);
+            await supabaseAdmin.from("agendamentos_notif" as never).insert({
+              bemp_appointment_id: bempId,
+              salon_id: String(input.salon_id),
+              service_id: String(input.service_id),
+              service_name: serviceName,
+              start_at: input.start,
+              phone,
+              name: input.name,
+              sandbox: false,
+              confirmation_sent_at: sent ? new Date().toISOString() : null,
+            } as never);
+          } catch (err) {
+            console.error("[create_appointment] falha ao registrar/notificar:", err);
+          }
+          return result;
         }),
     }),
+
     list_customer_appointments: tool({
       description:
         "Lista os agendamentos existentes de um paciente pelo telefone. Use antes de cancelar para achar o ID correto.",
