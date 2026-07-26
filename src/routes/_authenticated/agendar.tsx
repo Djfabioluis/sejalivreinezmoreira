@@ -156,11 +156,13 @@ function AgendarPage() {
     const text = input.trim();
     if (!text || busy) return;
     setInput("");
+    lastInputWasVoiceRef.current = false;
     await sendMessage({ text });
   }
 
   async function submitVoice(text: string) {
     if (busy) return;
+    lastInputWasVoiceRef.current = true;
     await sendMessage({ text });
   }
 
