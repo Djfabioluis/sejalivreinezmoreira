@@ -161,9 +161,33 @@ function envSandbox(): boolean {
   return process.env.SANDBOX_MODE === "1" || process.env.SANDBOX_MODE === "true";
 }
 
+function currentDateNote(): string {
+  const tz = "America/Sao_Paulo";
+  const now = new Date();
+  const iso = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now);
+  const humano = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: tz,
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+    year: "numeric",
+  }).format(now);
+  const hora = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: tz,
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(now);
+  return `\n\nCONTEXTO TEMPORAL (fuso America/Sao_Paulo):\n- Hoje é ${humano} (${iso}), ${hora}.\n- SEMPRE use o ano ${iso.slice(0, 4)} ao montar datas para list_slots e create_appointment.\n- Quando o paciente disser "amanhã", "sexta", "próxima semana" etc., calcule a partir de ${iso}.\n- Nunca use datas de anos anteriores; se o ano não for informado, assuma o ano corrente e, se a data já passou, use o próximo ano.`;
+}
+
 export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = {}) {
   const sandbox = opts.sandbox === true || envSandbox();
-  const system = (await loadSystemPrompt()) + (sandbox ? SANDBOX_NOTE : "");
+  const system = (await loadSystemPrompt()) + currentDateNote() + (sandbox ? SANDBOX_NOTE : "");
   return streamText({
     model: getModel(),
     system,
@@ -176,7 +200,7 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
 // Non-streaming run used by the WhatsApp webhook (needs the final text).
 export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {}): Promise<string> {
   const sandbox = opts.sandbox === true || envSandbox();
-  const system = (await loadSystemPrompt()) + (sandbox ? SANDBOX_NOTE : "");
+  const system = (await loadSystemPrompt()) + currentDateNote() + (sandbox ? SANDBOX_NOTE : "");
   const result = await generateText({
     model: getModel(),
     system,
