@@ -221,15 +221,22 @@ export const Route = createFileRoute("/api/public/whatsapp")({
                   const reply = await runAgent(nextIn);
                   const nextOut = [...nextIn, textMessage("assistant", reply)];
                   await saveHistory(phone, nextOut);
-                  await sendWhatsAppText(phone, reply);
                   if (wasVoice) {
                     try {
                       const mp3 = await synthesizeSpeechMp3(reply);
                       const mediaId = await uploadWaAudioMp3(mp3);
-                      if (mediaId) await sendWhatsAppAudio(phone, mediaId);
+                      if (mediaId) {
+                        await sendWhatsAppAudio(phone, mediaId);
+                      } else {
+                        // Fallback para texto se upload falhar
+                        await sendWhatsAppText(phone, reply);
+                      }
                     } catch (err) {
-                      console.error("[whatsapp] TTS/upload falhou:", err);
+                      console.error("[whatsapp] TTS/upload falhou, enviando texto:", err);
+                      await sendWhatsAppText(phone, reply);
                     }
+                  } else {
+                    await sendWhatsAppText(phone, reply);
                   }
                 } catch (err) {
                   console.error("[whatsapp] erro processando mensagem:", err);
