@@ -123,6 +123,9 @@ function Dashboard() {
             <TabsTrigger value="catalogo">Catálogo</TabsTrigger>
             <TabsTrigger value="agenda">Agenda por cliente</TabsTrigger>
             <TabsTrigger value="horarios">Horários disponíveis</TabsTrigger>
+            <TabsTrigger value="leads">
+              <Users className="h-4 w-4 mr-1" /> Leads de assinatura
+            </TabsTrigger>
             <TabsTrigger value="whatsapp">
               <QrCode className="h-4 w-4 mr-1" /> WhatsApp
             </TabsTrigger>
@@ -136,6 +139,9 @@ function Dashboard() {
           </TabsContent>
           <TabsContent value="horarios">
             <SlotsPanel />
+          </TabsContent>
+          <TabsContent value="leads">
+            <LeadsPanel />
           </TabsContent>
           <TabsContent value="whatsapp">
             <WhatsAppPanel />
