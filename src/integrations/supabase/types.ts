@@ -32,6 +32,60 @@ export type Database = {
         }
         Relationships: []
       }
+      leads_assinatura: {
+        Row: {
+          cpf: string | null
+          created_at: string
+          email: string | null
+          id: string
+          nome: string
+          observacoes: string | null
+          origem: string
+          phone_area_code: string | null
+          phone_country_code: string | null
+          phone_number: string | null
+          plano_id: number | null
+          plano_nome: string | null
+          sandbox: boolean
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          cpf?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          nome: string
+          observacoes?: string | null
+          origem?: string
+          phone_area_code?: string | null
+          phone_country_code?: string | null
+          phone_number?: string | null
+          plano_id?: number | null
+          plano_nome?: string | null
+          sandbox?: boolean
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          cpf?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          nome?: string
+          observacoes?: string | null
+          origem?: string
+          phone_area_code?: string | null
+          phone_country_code?: string | null
+          phone_number?: string | null
+          plano_id?: number | null
+          plano_nome?: string | null
+          sandbox?: boolean
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       wa_conversas: {
         Row: {
           messages: Json
