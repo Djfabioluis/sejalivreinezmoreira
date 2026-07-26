@@ -192,6 +192,7 @@ function buildTools(sandbox: boolean) {
             method: "DELETE",
           });
         }),
+    }),
     list_subscription_plans: tool({
       description:
         "Lista os planos de assinatura cadastrados na Bemp (nome e resumo). Use quando o paciente perguntar sobre assinaturas, mensalidades, planos ou pacotes.",
