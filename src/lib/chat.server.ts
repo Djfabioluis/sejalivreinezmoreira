@@ -34,33 +34,44 @@ MODO SANDBOX ATIVO:
 - Ao chamar create_appointment, o sistema devolverá um comprovante SIMULADO.
 - Ao final, deixe claro para o paciente que se trata de uma simulação de teste.`;
 
+function safeTool<T>(label: string, fn: () => Promise<T>) {
+  return fn().catch((err) => {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[chat] tool ${label} falhou:`, message);
+    return { error: message } as const;
+  });
+}
+
 function buildTools(sandbox: boolean) {
   const base = {
     list_salons: tool({
       description: "Lista todas as unidades (salões) disponíveis na conta Bemp.",
       inputSchema: z.object({}),
-      execute: async () => {
-        const cfg = getBempConfig();
-        return await bempFetch(`${cfg.apiBase}/salons`);
-      },
+      execute: async () =>
+        safeTool("list_salons", async () => {
+          const cfg = getBempConfig();
+          return await bempFetch(`${cfg.apiBase}/salons`);
+        }),
     }),
     list_services: tool({
       description: "Lista serviços de uma unidade, com preço e duração.",
       inputSchema: z.object({ salon_id: z.number() }),
-      execute: async ({ salon_id }) => {
-        const cfg = getBempConfig();
-        return await bempFetch(`${cfg.apiBase}/salons/${salon_id}/services`);
-      },
+      execute: async ({ salon_id }) =>
+        safeTool("list_services", async () => {
+          const cfg = getBempConfig();
+          return await bempFetch(`${cfg.apiBase}/salons/${salon_id}/services`);
+        }),
     }),
     list_professionals: tool({
       description: "Lista profissionais disponíveis para um serviço em uma unidade.",
       inputSchema: z.object({ salon_id: z.number(), service_id: z.number() }),
-      execute: async ({ salon_id, service_id }) => {
-        const cfg = getBempConfig();
-        return await bempFetch(
-          `${cfg.apiBase}/salons/${salon_id}/services/${service_id}/professionals`,
-        );
-      },
+      execute: async ({ salon_id, service_id }) =>
+        safeTool("list_professionals", async () => {
+          const cfg = getBempConfig();
+          return await bempFetch(
+            `${cfg.apiBase}/salons/${salon_id}/services/${service_id}/professionals`,
+          );
+        }),
     }),
     list_slots: tool({
       description:
@@ -71,13 +82,14 @@ function buildTools(sandbox: boolean) {
         professional_id: z.number().optional(),
         date: z.string().describe("Data no formato YYYY-MM-DD"),
       }),
-      execute: async ({ salon_id, service_id, professional_id, date }) => {
-        const cfg = getBempConfig();
-        const url = professional_id
-          ? `${cfg.apiBase}/salons/${salon_id}/services/${service_id}/professionals/${professional_id}/slots/${date}`
-          : `${cfg.apiBase}/salons/${salon_id}/services/${service_id}/slots/${date}`;
-        return await bempFetch(url);
-      },
+      execute: async ({ salon_id, service_id, professional_id, date }) =>
+        safeTool("list_slots", async () => {
+          const cfg = getBempConfig();
+          const url = professional_id
+            ? `${cfg.apiBase}/salons/${salon_id}/services/${service_id}/professionals/${professional_id}/slots/${date}`
+            : `${cfg.apiBase}/salons/${salon_id}/services/${service_id}/slots/${date}`;
+          return await bempFetch(url);
+        }),
     }),
     create_appointment: tool({
       description:
@@ -93,24 +105,25 @@ function buildTools(sandbox: boolean) {
         phone_area_code: z.string(),
         phone_number: z.string(),
       }),
-      execute: async (input) => {
-        if (sandbox) {
-          return {
-            sandbox: true,
-            simulated: true,
-            id: `SIM-${Date.now()}`,
-            status: "simulated",
-            message:
-              "Agendamento SIMULADO (modo sandbox). Nada foi gravado na Bemp.",
-            appointment: input,
-            created_at: new Date().toISOString(),
-          };
-        }
-        return await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule`, {
-          method: "POST",
-          body: JSON.stringify(input),
-        });
-      },
+      execute: async (input) =>
+        safeTool("create_appointment", async () => {
+          if (sandbox) {
+            return {
+              sandbox: true,
+              simulated: true,
+              id: `SIM-${Date.now()}`,
+              status: "simulated",
+              message:
+                "Agendamento SIMULADO (modo sandbox). Nada foi gravado na Bemp.",
+              appointment: input,
+              created_at: new Date().toISOString(),
+            };
+          }
+          return await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule`, {
+            method: "POST",
+            body: JSON.stringify(input),
+          });
+        }),
     }),
   };
   return base;
