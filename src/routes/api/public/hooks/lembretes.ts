@@ -49,10 +49,30 @@ async function processReminders() {
   return { checked: rows.length, sent, failed };
 }
 
+function checkCronSecret(request: Request): Response | null {
+  const expected = process.env.CRON_SECRET;
+  if (!expected) {
+    console.error("[lembretes] CRON_SECRET não configurado");
+    return new Response("Server misconfigured", { status: 500 });
+  }
+  const url = new URL(request.url);
+  const provided =
+    request.headers.get("x-cron-secret") ??
+    request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ??
+    url.searchParams.get("token") ??
+    "";
+  if (provided !== expected) {
+    return new Response("Unauthorized", { status: 401 });
+  }
+  return null;
+}
+
 export const Route = createFileRoute("/api/public/hooks/lembretes")({
   server: {
     handlers: {
-      POST: async () => {
+      POST: async ({ request }) => {
+        const unauth = checkCronSecret(request);
+        if (unauth) return unauth;
         try {
           const result = await processReminders();
           return Response.json({ ok: true, ...result });
@@ -65,8 +85,9 @@ export const Route = createFileRoute("/api/public/hooks/lembretes")({
           });
         }
       },
-      GET: async () => {
-        // Permite disparo manual para testes.
+      GET: async ({ request }) => {
+        const unauth = checkCronSecret(request);
+        if (unauth) return unauth;
         try {
           const result = await processReminders();
           return Response.json({ ok: true, ...result });
