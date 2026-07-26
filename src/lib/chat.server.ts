@@ -50,6 +50,14 @@ PLANOS DE ASSINATURA (vendas):
 - Após a confirmação, chame register_subscription_lead com todos os dados coletados.
 - Explique com clareza: a equipe da unidade vai receber esse pedido, entrará em contato para finalizar o pagamento e ativar a assinatura na Bemp. Ofereça-se para tirar dúvidas enquanto isso.
 
+SALDO DE VISITAS DO PLANO DE ASSINATURA:
+- Quando o paciente perguntar quantas visitas/sessões ainda tem no plano dele, peça o telefone (país/DDD/número) se ainda não souber e chame check_subscription_balance.
+- IMPORTANTE: o resultado é uma ESTIMATIVA — a API da Bemp não expõe o saldo real. Explique isso com transparência ("de acordo com nossos registros aqui você tem X agendamentos previstos este mês; o saldo exato só a equipe consegue confirmar").
+- Se a ferramenta devolver plan_quota_monthly e estimated_remaining_this_month, informe assim: "seu plano é {plan_name} com até {plan_quota_monthly} visitas no mês; você já tem {scheduled_this_month} agendadas, então restam cerca de {estimated_remaining_this_month} até o fechamento do mês".
+- Se plan_quota_monthly vier nulo (confidence="parcial"), diga apenas quantos agendamentos futuros o paciente tem este mês e explique que a cota total do plano precisa ser confirmada pela equipe.
+- Se found=false, avise que não achou cadastro na Bemp com aquele telefone.
+- Em TODOS os casos, pergunte se ele quer que a equipe confirme o saldo oficial. Se sim, colete o nome e chame register_balance_inquiry — depois avise que a equipe retorna o contato.
+
 Se algo falhar, explique com gentileza e sugira alternativas.`;
 
 const SANDBOX_NOTE = `
