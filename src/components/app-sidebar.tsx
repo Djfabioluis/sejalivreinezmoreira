@@ -10,6 +10,8 @@ import {
   LogOut,
   UserCircle,
   ShieldCheck,
+  Users,
+
 } from "lucide-react";
 
 import {
@@ -35,6 +37,7 @@ const items = [
   { title: "Sugestões", url: "/sugestoes", icon: Sparkles, group: "Configuração" },
   { title: "Auditoria de sugestões", url: "/auditoria-sugestoes", icon: ClipboardList, group: "Configuração" },
   { title: "Níveis de acesso", url: "/acessos", icon: ShieldCheck, group: "Configuração" },
+  { title: "Usuários", url: "/usuarios", icon: Users, group: "Configuração" },
   { title: "Meu perfil", url: "/perfil", icon: UserCircle, group: "Conta" },
 ] as const;
 
