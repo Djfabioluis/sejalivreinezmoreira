@@ -27,72 +27,97 @@ FLUXO IDEAL:
 
 Se algo falhar, explique com gentileza e sugira alternativas.`;
 
-export const bempTools = {
-  list_salons: tool({
-    description: "Lista todas as unidades (salões) disponíveis na conta Bemp.",
-    inputSchema: z.object({}),
-    execute: async () => {
-      const cfg = getBempConfig();
-      return await bempFetch(`${cfg.apiBase}/salons`);
-    },
-  }),
-  list_services: tool({
-    description: "Lista serviços de uma unidade, com preço e duração.",
-    inputSchema: z.object({ salon_id: z.number() }),
-    execute: async ({ salon_id }) => {
-      const cfg = getBempConfig();
-      return await bempFetch(`${cfg.apiBase}/salons/${salon_id}/services`);
-    },
-  }),
-  list_professionals: tool({
-    description: "Lista profissionais disponíveis para um serviço em uma unidade.",
-    inputSchema: z.object({ salon_id: z.number(), service_id: z.number() }),
-    execute: async ({ salon_id, service_id }) => {
-      const cfg = getBempConfig();
-      return await bempFetch(
-        `${cfg.apiBase}/salons/${salon_id}/services/${service_id}/professionals`,
-      );
-    },
-  }),
-  list_slots: tool({
-    description:
-      "Lista horários disponíveis. Passe professional_id apenas se o paciente escolheu um profissional específico.",
-    inputSchema: z.object({
-      salon_id: z.number(),
-      service_id: z.number(),
-      professional_id: z.number().optional(),
-      date: z.string().describe("Data no formato YYYY-MM-DD"),
+const SANDBOX_NOTE = `
+
+MODO SANDBOX ATIVO:
+- Nenhum agendamento será gravado no sistema real (Bemp).
+- Ao chamar create_appointment, o sistema devolverá um comprovante SIMULADO.
+- Ao final, deixe claro para o paciente que se trata de uma simulação de teste.`;
+
+function buildTools(sandbox: boolean) {
+  const base = {
+    list_salons: tool({
+      description: "Lista todas as unidades (salões) disponíveis na conta Bemp.",
+      inputSchema: z.object({}),
+      execute: async () => {
+        const cfg = getBempConfig();
+        return await bempFetch(`${cfg.apiBase}/salons`);
+      },
     }),
-    execute: async ({ salon_id, service_id, professional_id, date }) => {
-      const cfg = getBempConfig();
-      const url = professional_id
-        ? `${cfg.apiBase}/salons/${salon_id}/services/${service_id}/professionals/${professional_id}/slots/${date}`
-        : `${cfg.apiBase}/salons/${salon_id}/services/${service_id}/slots/${date}`;
-      return await bempFetch(url);
-    },
-  }),
-  create_appointment: tool({
-    description:
-      "Cria o agendamento na Bemp. Só chame após confirmação explícita do paciente. O 'end' deve ser o 'start' + duração do serviço em minutos.",
-    inputSchema: z.object({
-      salon_id: z.number(),
-      service_id: z.number(),
-      professional_id: z.number().optional(),
-      start: z.string().describe("ISO 8601, ex.: 2025-09-12T13:30:00.000-03:00"),
-      end: z.string().describe("ISO 8601 correspondente ao término"),
-      name: z.string(),
-      phone_country_code: z.string(),
-      phone_area_code: z.string(),
-      phone_number: z.string(),
+    list_services: tool({
+      description: "Lista serviços de uma unidade, com preço e duração.",
+      inputSchema: z.object({ salon_id: z.number() }),
+      execute: async ({ salon_id }) => {
+        const cfg = getBempConfig();
+        return await bempFetch(`${cfg.apiBase}/salons/${salon_id}/services`);
+      },
     }),
-    execute: async (input) => {
-      return await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule`, {
-        method: "POST",
-        body: JSON.stringify(input),
-      });
-    },
-  }),
-};
+    list_professionals: tool({
+      description: "Lista profissionais disponíveis para um serviço em uma unidade.",
+      inputSchema: z.object({ salon_id: z.number(), service_id: z.number() }),
+      execute: async ({ salon_id, service_id }) => {
+        const cfg = getBempConfig();
+        return await bempFetch(
+          `${cfg.apiBase}/salons/${salon_id}/services/${service_id}/professionals`,
+        );
+      },
+    }),
+    list_slots: tool({
+      description:
+        "Lista horários disponíveis. Passe professional_id apenas se o paciente escolheu um profissional específico.",
+      inputSchema: z.object({
+        salon_id: z.number(),
+        service_id: z.number(),
+        professional_id: z.number().optional(),
+        date: z.string().describe("Data no formato YYYY-MM-DD"),
+      }),
+      execute: async ({ salon_id, service_id, professional_id, date }) => {
+        const cfg = getBempConfig();
+        const url = professional_id
+          ? `${cfg.apiBase}/salons/${salon_id}/services/${service_id}/professionals/${professional_id}/slots/${date}`
+          : `${cfg.apiBase}/salons/${salon_id}/services/${service_id}/slots/${date}`;
+        return await bempFetch(url);
+      },
+    }),
+    create_appointment: tool({
+      description:
+        "Cria o agendamento na Bemp. Só chame após confirmação explícita do paciente. O 'end' deve ser o 'start' + duração do serviço em minutos.",
+      inputSchema: z.object({
+        salon_id: z.number(),
+        service_id: z.number(),
+        professional_id: z.number().optional(),
+        start: z.string().describe("ISO 8601, ex.: 2025-09-12T13:30:00.000-03:00"),
+        end: z.string().describe("ISO 8601 correspondente ao término"),
+        name: z.string(),
+        phone_country_code: z.string(),
+        phone_area_code: z.string(),
+        phone_number: z.string(),
+      }),
+      execute: async (input) => {
+        if (sandbox) {
+          return {
+            sandbox: true,
+            simulated: true,
+            id: `SIM-${Date.now()}`,
+            status: "simulated",
+            message:
+              "Agendamento SIMULADO (modo sandbox). Nada foi gravado na Bemp.",
+            appointment: input,
+            created_at: new Date().toISOString(),
+          };
+        }
+        return await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule`, {
+          method: "POST",
+          body: JSON.stringify(input),
+        });
+      },
+    }),
+  };
+  return base;
+}
+
+// Backwards-compat export (used by any older imports).
+export const bempTools = buildTools(false);
 
 function getModel() {
   const key = process.env.LOVABLE_API_KEY;
@@ -117,26 +142,35 @@ export async function loadSystemPrompt(): Promise<string> {
   }
 }
 
-export async function streamAgent(uiMessages: UIMessage[]) {
-  const system = await loadSystemPrompt();
+export type AgentOptions = { sandbox?: boolean };
+
+function envSandbox(): boolean {
+  return process.env.SANDBOX_MODE === "1" || process.env.SANDBOX_MODE === "true";
+}
+
+export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = {}) {
+  const sandbox = opts.sandbox === true || envSandbox();
+  const system = (await loadSystemPrompt()) + (sandbox ? SANDBOX_NOTE : "");
   return streamText({
     model: getModel(),
     system,
     messages: await convertToModelMessages(uiMessages),
-    tools: bempTools,
+    tools: buildTools(sandbox),
     stopWhen: stepCountIs(50),
   });
 }
 
 // Non-streaming run used by the WhatsApp webhook (needs the final text).
-export async function runAgent(uiMessages: UIMessage[]): Promise<string> {
-  const system = await loadSystemPrompt();
+export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {}): Promise<string> {
+  const sandbox = opts.sandbox === true || envSandbox();
+  const system = (await loadSystemPrompt()) + (sandbox ? SANDBOX_NOTE : "");
   const result = await generateText({
     model: getModel(),
     system,
     messages: await convertToModelMessages(uiMessages),
-    tools: bempTools,
+    tools: buildTools(sandbox),
     stopWhen: stepCountIs(50),
   });
   return result.text?.trim() || "Desculpe, tive um probleminha aqui. Pode repetir?";
 }
+

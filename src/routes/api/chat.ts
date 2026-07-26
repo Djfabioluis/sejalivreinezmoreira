@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { type UIMessage } from "ai";
 import { streamAgent } from "@/lib/chat.server";
 
-type ChatBody = { messages?: unknown };
+type ChatBody = { messages?: unknown; sandbox?: unknown };
 
 export const Route = createFileRoute("/api/chat")({
   server: {
@@ -18,8 +18,9 @@ export const Route = createFileRoute("/api/chat")({
           return new Response("messages é obrigatório", { status: 400 });
         }
         const uiMessages = body.messages as UIMessage[];
+        const sandbox = body.sandbox === true;
         try {
-          const result = await streamAgent(uiMessages);
+          const result = await streamAgent(uiMessages, { sandbox });
           return result.toUIMessageStreamResponse({ originalMessages: uiMessages });
         } catch (err) {
           const message = err instanceof Error ? err.message : "Falha desconhecida";
