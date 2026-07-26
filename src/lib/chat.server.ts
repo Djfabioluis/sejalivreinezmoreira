@@ -25,6 +25,13 @@ FLUXO IDEAL:
 7. Após escolha do horário, calcule o "end" somando a duração do serviço ao "start" e chame create_appointment.
 8. Ao final, confirme o agendamento e ofereça mais ajuda.
 
+CANCELAMENTO E REMARCAÇÃO:
+- Quando o paciente pedir para cancelar, peça o telefone (país/DDD/número) se ainda não souber e use list_customer_appointments para localizar os agendamentos.
+- Mostre os agendamentos encontrados (serviço, profissional, data/hora) e pergunte qual deles deseja cancelar.
+- Antes de chamar cancel_appointment, confirme explicitamente ("Confirma o cancelamento de X no dia Y às Z?").
+- Após cancelar com sucesso, pergunte se o paciente gostaria de remarcar para outro dia ou horário. Se sim, siga o fluxo normal de agendamento (list_services/list_slots/create_appointment) reaproveitando os dados que já tem.
+- Se o paciente não quiser remarcar, agradeça e se coloque à disposição.
+
 Se algo falhar, explique com gentileza e sugira alternativas.`;
 
 const SANDBOX_NOTE = `
