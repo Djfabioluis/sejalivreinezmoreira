@@ -47,6 +47,54 @@ export type Database = {
         }
         Relationships: []
       }
+      agendamentos_notif: {
+        Row: {
+          bemp_appointment_id: string | null
+          confirmation_sent_at: string | null
+          created_at: string
+          id: string
+          name: string | null
+          phone: string
+          professional_name: string | null
+          reminder_24h_sent_at: string | null
+          salon_id: string | null
+          sandbox: boolean
+          service_id: string | null
+          service_name: string | null
+          start_at: string
+        }
+        Insert: {
+          bemp_appointment_id?: string | null
+          confirmation_sent_at?: string | null
+          created_at?: string
+          id?: string
+          name?: string | null
+          phone: string
+          professional_name?: string | null
+          reminder_24h_sent_at?: string | null
+          salon_id?: string | null
+          sandbox?: boolean
+          service_id?: string | null
+          service_name?: string | null
+          start_at: string
+        }
+        Update: {
+          bemp_appointment_id?: string | null
+          confirmation_sent_at?: string | null
+          created_at?: string
+          id?: string
+          name?: string | null
+          phone?: string
+          professional_name?: string | null
+          reminder_24h_sent_at?: string | null
+          salon_id?: string | null
+          sandbox?: boolean
+          service_id?: string | null
+          service_name?: string | null
+          start_at?: string
+        }
+        Relationships: []
+      }
       atendimentos_humanos: {
         Row: {
           canal: string
