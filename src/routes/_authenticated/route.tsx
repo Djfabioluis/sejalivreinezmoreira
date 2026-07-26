@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { getMyEntitlement } from "@/lib/payments.functions";
+import { getStripeEnvironment } from "@/lib/stripe";
 
 const ENTITLEMENT_EXEMPT = new Set<string>(["/assinatura"]);
 
@@ -13,16 +14,13 @@ export const Route = createFileRoute("/_authenticated")({
     if (error || !data.user) {
       throw redirect({ to: "/auth", search: { next: location.href } });
     }
-    // Entitlement gate — admins bypass in the server fn
     if (!ENTITLEMENT_EXEMPT.has(location.pathname)) {
       try {
-        const ent = await getMyEntitlement();
-        if (!ent.active) {
-          throw redirect({ to: "/assinatura" });
-        }
+        const ent = await getMyEntitlement({
+          data: { environment: getStripeEnvironment() },
+        });
+        if (!ent.active) throw redirect({ to: "/assinatura" });
       } catch (e) {
-        // If entitlement check throws a redirect, propagate; otherwise let user through and
-        // the Minha assinatura page will handle nudging.
         if (e && typeof e === "object" && "to" in (e as object)) throw e;
       }
     }
@@ -30,6 +28,7 @@ export const Route = createFileRoute("/_authenticated")({
   },
   component: AuthenticatedLayout,
 });
+
 
 function AuthenticatedLayout() {
   return (
