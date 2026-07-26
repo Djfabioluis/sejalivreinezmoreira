@@ -71,6 +71,24 @@ function AssinaturaPage() {
     onError: (e: Error) => toast.error(e.message),
   });
 
+  const swap = useMutation({
+    mutationFn: async (newPriceId: string) => {
+      const res = await changePlan({
+        data: { newPriceId, environment: getStripeEnvironment() },
+      });
+      if ("error" in res) throw new Error(res.error);
+      return res;
+    },
+    onSuccess: () => {
+      toast.success("Plano atualizado! Diferença cobrada proporcionalmente.");
+      qc.invalidateQueries({ queryKey: ["my-subscription"] });
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const currentPriceId = (sub?.price_id as string) ?? null;
+
+
   return (
     <main className="mx-auto max-w-3xl p-6">
       <h1 className="font-display text-3xl">Minha assinatura</h1>
