@@ -24,6 +24,7 @@ export function getBempConfig() {
       Authorization: `Token ${token}`,
       "Content-Type": "application/json",
       Accept: "application/json",
+      "User-Agent": "BempSecretariaVirtual/1.0 (+https://helpful-scheduling-bot.lovable.app)",
     } as Record<string, string>,
   };
 }
