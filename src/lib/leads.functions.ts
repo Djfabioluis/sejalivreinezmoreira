@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type LeadAssinatura = {
   id: string;
@@ -19,7 +20,9 @@ export type LeadAssinatura = {
   observacoes: string | null;
 };
 
-export const listLeadsAssinatura = createServerFn({ method: "GET" }).handler(async () => {
+export const listLeadsAssinatura = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("leads_assinatura" as never)
@@ -31,6 +34,7 @@ export const listLeadsAssinatura = createServerFn({ method: "GET" }).handler(asy
 });
 
 export const updateLeadStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
       .object({

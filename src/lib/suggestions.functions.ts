@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type RegraCrossSell = {
   id: string;
@@ -68,7 +69,9 @@ function normalize(input: z.infer<typeof RegraInput>) {
   };
 }
 
-export const listRegrasCrossSell = createServerFn({ method: "GET" }).handler(async () => {
+export const listRegrasCrossSell = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("sugestoes_cross_sell" as never)
@@ -80,6 +83,7 @@ export const listRegrasCrossSell = createServerFn({ method: "GET" }).handler(asy
 });
 
 export const createRegraCrossSell = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => RegraInput.parse(input))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -93,6 +97,7 @@ export const createRegraCrossSell = createServerFn({ method: "POST" })
   });
 
 export const updateRegraCrossSell = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     RegraInput.extend({ id: z.string().uuid() }).parse(input),
   )
@@ -111,6 +116,7 @@ export const updateRegraCrossSell = createServerFn({ method: "POST" })
   });
 
 export const deleteRegraCrossSell = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -122,7 +128,9 @@ export const deleteRegraCrossSell = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-export const listRegistrosSugestoes = createServerFn({ method: "GET" }).handler(async () => {
+export const listRegistrosSugestoes = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabaseAdmin
@@ -150,6 +158,7 @@ export type AuditoriaConversa = {
 };
 
 export const listAuditoriaSugestoes = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
       .object({

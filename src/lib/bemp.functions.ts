@@ -1,13 +1,17 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { bempFetch, getBempConfig, BEMP_WEBHOOK_BASE, type JsonValue } from "./bemp.server";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-export const listSalons = createServerFn({ method: "GET" }).handler(async () => {
-  const cfg = getBempConfig();
-  return (await bempFetch(`${cfg.apiBase}/salons`)) as JsonValue;
-});
+export const listSalons = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const cfg = getBempConfig();
+    return (await bempFetch(`${cfg.apiBase}/salons`)) as JsonValue;
+  });
 
 export const listServices = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z.object({ salonId: z.union([z.string(), z.number()]) }).parse(input),
   )
@@ -17,6 +21,7 @@ export const listServices = createServerFn({ method: "GET" })
   });
 
 export const listProfessionals = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
       .object({
@@ -33,6 +38,7 @@ export const listProfessionals = createServerFn({ method: "GET" })
   });
 
 export const listSlots = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
       .object({
@@ -52,6 +58,7 @@ export const listSlots = createServerFn({ method: "GET" })
   });
 
 export const listCustomerAppointments = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
       .object({
@@ -71,6 +78,7 @@ export const listCustomerAppointments = createServerFn({ method: "GET" })
   });
 
 export const getCustomer = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
       .object({
@@ -90,6 +98,7 @@ export const getCustomer = createServerFn({ method: "GET" })
   });
 
 export const createAppointment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
       .object({
@@ -113,6 +122,7 @@ export const createAppointment = createServerFn({ method: "POST" })
   });
 
 export const cancelAppointment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) =>
     z
       .object({

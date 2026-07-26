@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type Operador = {
   id: string;
@@ -11,7 +12,9 @@ export type Operador = {
   updated_at: string;
 };
 
-export const listOperadores = createServerFn({ method: "GET" }).handler(
+export const listOperadores = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(
   async (): Promise<Operador[]> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await supabaseAdmin
@@ -24,6 +27,7 @@ export const listOperadores = createServerFn({ method: "GET" }).handler(
 );
 
 export const createOperador = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator(
     (input: {
       nome: string;
@@ -55,6 +59,7 @@ export const createOperador = createServerFn({ method: "POST" })
   });
 
 export const updateOperador = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator(
     (input: {
       id: string;
@@ -85,6 +90,7 @@ export const updateOperador = createServerFn({ method: "POST" })
   });
 
 export const deleteOperador = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: { id: string }) => {
     if (!input.id) throw new Error("ID obrigatório");
     return input;
