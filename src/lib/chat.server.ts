@@ -192,6 +192,123 @@ function buildTools(sandbox: boolean) {
             method: "DELETE",
           });
         }),
+    list_subscription_plans: tool({
+      description:
+        "Lista os planos de assinatura cadastrados na Bemp (nome e resumo). Use quando o paciente perguntar sobre assinaturas, mensalidades, planos ou pacotes.",
+      inputSchema: z.object({}),
+      execute: async () =>
+        safeTool("list_subscription_plans", async () => {
+          const cfg = getBempConfig();
+          const data = await bempFetch(`${cfg.apiBase}/subscription_plans`);
+          if (Array.isArray(data)) {
+            return data.map((p) => {
+              const plan = p as Record<string, unknown>;
+              const desc = typeof plan.description === "string" ? plan.description : "";
+              return {
+                id: plan.id,
+                name: plan.name,
+                price: plan.price ?? plan.value ?? plan.total_price ?? null,
+                summary: desc.length > 240 ? `${desc.slice(0, 237)}…` : desc,
+              };
+            });
+          }
+          return data;
+        }),
+    }),
+    get_subscription_plan: tool({
+      description:
+        "Retorna os detalhes completos de um plano de assinatura (descrição, benefícios, valores, condições).",
+      inputSchema: z.object({ plan_id: z.number() }),
+      execute: async ({ plan_id }) =>
+        safeTool("get_subscription_plan", async () => {
+          const cfg = getBempConfig();
+          return await bempFetch(`${cfg.apiBase}/subscription_plans/${plan_id}`);
+        }),
+    }),
+    lookup_customer: tool({
+      description:
+        "Verifica se um cliente já possui cadastro na Bemp pelo telefone. Retorna os dados quando existe, ou uma indicação de que precisa ser cadastrado.",
+      inputSchema: z.object({
+        phone_country_code: z.string(),
+        phone_area_code: z.string(),
+        phone_number: z.string(),
+      }),
+      execute: async ({ phone_country_code, phone_area_code, phone_number }) =>
+        safeTool("lookup_customer", async () => {
+          const qs = new URLSearchParams({
+            phone_country_code,
+            phone_area_code,
+            phone_number,
+          });
+          try {
+            const data = await bempFetch(
+              `${BEMP_WEBHOOK_BASE}/whatsapp_customer?${qs.toString()}`,
+            );
+            return { exists: true, customer: data };
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            if (/404|not\s*found|não encontrado/i.test(message)) {
+              return { exists: false, message: "Cliente ainda não cadastrado na Bemp." };
+            }
+            throw err;
+          }
+        }),
+    }),
+    register_subscription_lead: tool({
+      description:
+        "Registra o interesse do cliente em um plano de assinatura (cria o cadastro no nosso backend). Use SOMENTE após confirmação explícita do paciente. A equipe da unidade finaliza o pagamento e ativa a assinatura na Bemp.",
+      inputSchema: z.object({
+        plan_id: z.number(),
+        plan_name: z.string(),
+        name: z.string(),
+        email: z.string().optional(),
+        cpf: z.string().optional(),
+        phone_country_code: z.string(),
+        phone_area_code: z.string(),
+        phone_number: z.string(),
+        notes: z.string().optional(),
+      }),
+      execute: async (input) =>
+        safeTool("register_subscription_lead", async () => {
+          if (sandbox) {
+            return {
+              sandbox: true,
+              simulated: true,
+              id: `SIM-LEAD-${Date.now()}`,
+              status: "simulated",
+              message:
+                "Interesse em assinatura SIMULADO (modo sandbox). Nada foi gravado.",
+              lead: input,
+              created_at: new Date().toISOString(),
+            };
+          }
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          const { data, error } = await supabaseAdmin
+            .from("leads_assinatura" as never)
+            .insert({
+              plano_id: input.plan_id,
+              plano_nome: input.plan_name,
+              nome: input.name,
+              email: input.email ?? null,
+              cpf: input.cpf ?? null,
+              phone_country_code: input.phone_country_code,
+              phone_area_code: input.phone_area_code,
+              phone_number: input.phone_number,
+              observacoes: input.notes ?? null,
+              origem: "chat",
+              sandbox: false,
+              status: "novo",
+            } as never)
+            .select("id, created_at")
+            .single();
+          if (error) throw new Error(error.message);
+          return {
+            ok: true,
+            lead_id: (data as { id: string } | null)?.id,
+            message:
+              "Interesse registrado com sucesso. A equipe da unidade receberá o pedido e entrará em contato para finalizar o pagamento e ativar a assinatura na Bemp.",
+          };
+        }),
     }),
   };
   return base;
