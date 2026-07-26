@@ -127,51 +127,56 @@ export const createPortalSession = createServerFn({ method: "POST" })
 
 export const getMyEntitlement = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<EntitlementResult> => {
+  .inputValidator((data: { environment: StripeEnv }) => data)
+  .handler(async ({ data, context }): Promise<EntitlementResult> => {
     const { supabase, userId } = context;
-    const { data } = await supabase
+    const { data: row } = await supabase
       .from("subscriptions")
       .select("status, price_id, current_period_end, cancel_at_period_end")
       .eq("user_id", userId)
+      .eq("environment", data.environment)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    if (!data) return { active: false, plan: null, status: null };
-    const now = Date.now();
-    const periodEnd = data.current_period_end
-      ? new Date(data.current_period_end as string).getTime()
-      : null;
-    const active =
-      (["active", "trialing", "past_due"].includes(data.status as string) &&
-        (!periodEnd || periodEnd > now)) ||
-      (data.status === "canceled" && periodEnd !== null && periodEnd > now);
 
-    // Admins bypass — always active
     const { data: isAdmin } = await supabase.rpc("has_role", {
       _user_id: userId,
       _role: "admin",
     });
 
+    if (!row) return { active: Boolean(isAdmin), plan: null, status: null };
+    const now = Date.now();
+    const periodEnd = row.current_period_end
+      ? new Date(row.current_period_end as string).getTime()
+      : null;
+    const active =
+      (["active", "trialing", "past_due"].includes(row.status as string) &&
+        (!periodEnd || periodEnd > now)) ||
+      (row.status === "canceled" && periodEnd !== null && periodEnd > now);
+
     return {
       active: active || Boolean(isAdmin),
-      plan: (data.price_id as string) ?? null,
-      status: (data.status as string) ?? null,
+      plan: (row.price_id as string) ?? null,
+      status: (row.status as string) ?? null,
     };
   });
 
 export const getMySubscription = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .inputValidator((data: { environment: StripeEnv }) => data)
+  .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { data } = await supabase
+    const { data: row } = await supabase
       .from("subscriptions")
       .select("*")
       .eq("user_id", userId)
+      .eq("environment", data.environment)
       .order("created_at", { ascending: false })
       .limit(1)
       .maybeSingle();
-    return data;
+    return row;
   });
+
 
 type ChangePlanResult = { ok: true; newPriceId: string } | { error: string };
 
@@ -185,7 +190,7 @@ export const changePlan = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { data: sub } = await supabase
       .from("subscriptions")
-      .select("stripe_subscription_id, status, price_id")
+      .select("stripe_subscription_id, status, price_id, current_period_end, cancel_at_period_end")
       .eq("user_id", userId)
       .eq("environment", data.environment)
       .order("created_at", { ascending: false })
@@ -193,18 +198,27 @@ export const changePlan = createServerFn({ method: "POST" })
       .maybeSingle();
 
     if (!sub?.stripe_subscription_id) {
-      return { error: "Nenhuma assinatura ativa encontrada." };
+      return { error: "Nenhuma assinatura encontrada." };
     }
-    if (sub.price_id === data.newPriceId) {
+    if (sub.price_id === data.newPriceId && !sub.cancel_at_period_end) {
       return { error: "Você já está neste plano." };
     }
-    if (!["active", "trialing", "past_due"].includes((sub.status as string) ?? "")) {
-      return { error: "Sua assinatura não está ativa. Assine novamente pelo painel." };
+    const periodEnd = sub.current_period_end
+      ? new Date(sub.current_period_end as string).getTime()
+      : 0;
+    const inGrace =
+      sub.status === "canceled" && periodEnd > Date.now();
+    const canChange =
+      ["active", "trialing", "past_due"].includes((sub.status as string) ?? "") ||
+      inGrace ||
+      sub.cancel_at_period_end === true;
+
+    if (!canChange) {
+      return { error: "Sua assinatura expirou. Assine novamente pelo painel." };
     }
 
     try {
       const stripe = createStripeClient(data.environment);
-      // Resolve human-readable id to the Stripe price id
       const prices = await stripe.prices.list({ lookup_keys: [data.newPriceId] });
       if (!prices.data.length) return { error: "Plano não encontrado." };
       const newPrice = prices.data[0];
@@ -215,10 +229,18 @@ export const changePlan = createServerFn({ method: "POST" })
       const itemId = subscription.items.data[0]?.id;
       if (!itemId) return { error: "Item da assinatura não encontrado." };
 
+      const samePlan = sub.price_id === data.newPriceId;
+
       await stripe.subscriptions.update(sub.stripe_subscription_id as string, {
-        items: [{ id: itemId, price: newPrice.id }],
-        proration_behavior: "always_invoice",
-        payment_behavior: "pending_if_incomplete",
+        ...(samePlan
+          ? {}
+          : {
+              items: [{ id: itemId, price: newPrice.id }],
+              proration_behavior: "always_invoice",
+              payment_behavior: "pending_if_incomplete",
+            }),
+        // Se estava cancelado / marcado p/ cancelar, reativa
+        cancel_at_period_end: false,
       });
 
       return { ok: true, newPriceId: data.newPriceId };
@@ -226,3 +248,4 @@ export const changePlan = createServerFn({ method: "POST" })
       return { error: getStripeErrorMessage(error) };
     }
   });
+
