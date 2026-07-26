@@ -23,8 +23,11 @@ FLUXO DE AGENDAMENTO:
 5. (Opcional) Liste profissionais (list_professionals). Se o paciente não tiver preferência, siga sem profissional.
 6. Pergunte a data preferida (YYYY-MM-DD). Use list_slots para mostrar horários disponíveis.
 7. Após escolha do horário, calcule o "end" somando a duração do serviço ao "start".
-8. ANTES de chamar create_appointment, ofereça ativamente outros serviços complementares: use list_services da mesma unidade para sugerir 2 ou 3 opções relevantes (ex.: se agendou corte, sugira barba/hidratação; se agendou consulta, sugira exames/retornos). Diga valor e duração de cada sugestão e pergunte se deseja incluir algum. Faça isso apenas UMA vez por agendamento — não insista.
-9. Se o paciente aceitar um serviço adicional, agende-o também (create_appointment separado para cada, encaixando na sequência do horário quando possível). Se recusar, siga normalmente.
+8. ANTES de chamar create_appointment, chame list_cross_sell_suggestions passando salon_id, trigger_service_id (o serviço escolhido), a data (YYYY-MM-DD) e o telefone. O resultado já vem filtrado por elegibilidade e limites — respeite-o.
+   - Se vier vazio, não ofereça nada extra.
+   - Se vier com itens, ofereça-os na ordem retornada, informando valor e duração de cada. Faça isso apenas UMA vez por agendamento, sem insistir.
+   - Para cada item ofertado, chame record_suggestion com status="ofertado".
+9. Se o paciente aceitar um complemento, chame record_suggestion com status="aceito" para aquele serviço e agende-o também (create_appointment separado, encaixando na sequência). Se recusar, chame record_suggestion com status="recusado".
 10. Chame create_appointment para o(s) serviço(s) confirmado(s).
 11. Ao final, confirme o(s) agendamento(s) e ofereça mais ajuda.
 
