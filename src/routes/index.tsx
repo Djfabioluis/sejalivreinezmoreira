@@ -94,7 +94,8 @@ function Dashboard() {
               Dashboard integrado à sua conta Bemp.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <SandboxToggle />
             <Link
               to="/base-conhecimento"
               className="inline-flex items-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/90"
@@ -110,6 +111,7 @@ function Dashboard() {
           </div>
         </div>
       </header>
+
 
       <main className="mx-auto max-w-6xl px-4 py-8">
         <Tabs defaultValue="catalogo" className="space-y-6">
