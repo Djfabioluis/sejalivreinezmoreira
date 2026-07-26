@@ -10,6 +10,8 @@ import { ArrowLeft, Bot, Send, User, Loader2, Volume2, VolumeX } from "lucide-re
 import { SandboxToggle, SandboxBanner } from "@/components/sandbox-toggle";
 import { getSandbox, subscribeSandbox } from "@/lib/sandbox";
 import { MicRecorder } from "@/components/mic-recorder";
+import { useServerFn } from "@tanstack/react-start";
+import { getWelcomeMessage, DEFAULT_WELCOME } from "@/lib/welcome.functions";
 
 export const Route = createFileRoute("/_authenticated/agendar")({
   head: () => ({
@@ -32,19 +34,18 @@ export const Route = createFileRoute("/_authenticated/agendar")({
   component: AgendarPage,
 });
 
-const INITIAL_MESSAGE: UIMessage = {
-  id: "welcome",
-  role: "assistant",
-  parts: [
-    {
-      type: "text",
-      text:
-        "Oi! 👋 Sou a Julia, recepcionista do Salão Seja Livre. Vou te ajudar a agendar sua consulta em pouquinhos passos. Para começar, como posso te chamar?",
-    },
-  ],
-};
+function buildInitialMessage(text: string): UIMessage {
+  return {
+    id: "welcome",
+    role: "assistant",
+    parts: [{ type: "text", text }],
+  };
+}
 
 function AgendarPage() {
+  const fetchWelcome = useServerFn(getWelcomeMessage);
+  const [welcomeText, setWelcomeText] = useState(DEFAULT_WELCOME);
+  const [welcomeLoaded, setWelcomeLoaded] = useState(false);
   const [input, setInput] = useState("");
   const [sandbox, setSandboxState] = useState(false);
   const [voiceOn, setVoiceOn] = useState(true);
@@ -70,11 +71,29 @@ function AgendarPage() {
     [sandbox],
   );
 
-  const { messages, sendMessage, status, error } = useChat({
+  const { messages, sendMessage, status, error, setMessages } = useChat({
     id: sandbox ? "agendar-sandbox" : "agendar-session",
-    messages: [INITIAL_MESSAGE],
+    messages: [buildInitialMessage(welcomeText)],
     transport,
   });
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await fetchWelcome();
+        setWelcomeText(data.conteudo);
+        setMessages((prev) => {
+          if (prev.length <= 1) return [buildInitialMessage(data.conteudo)];
+          return prev;
+        });
+      } catch {
+        // mantém padrão
+      } finally {
+        setWelcomeLoaded(true);
+      }
+    })();
+  }, [fetchWelcome, setMessages]);
+  void welcomeLoaded;
 
   const busy = status === "submitted" || status === "streaming";
 

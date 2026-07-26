@@ -11,6 +11,7 @@ import {
   UserCircle,
   ShieldCheck,
   Users,
+  Hand,
 
 } from "lucide-react";
 
@@ -33,6 +34,7 @@ const items = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard, group: "Operação" },
   { title: "Secretária virtual", url: "/agendar", icon: MessageCircle, group: "Operação" },
   { title: "Base de conhecimento", url: "/base-conhecimento", icon: BookOpen, group: "Configuração" },
+  { title: "Boas-vindas", url: "/boas-vindas", icon: Hand, group: "Configuração" },
   { title: "Operadores", url: "/operadores", icon: UserCog, group: "Configuração" },
   { title: "Sugestões", url: "/sugestoes", icon: Sparkles, group: "Configuração" },
   { title: "Auditoria de sugestões", url: "/auditoria-sugestoes", icon: ClipboardList, group: "Configuração" },
