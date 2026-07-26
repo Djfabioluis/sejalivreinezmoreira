@@ -156,20 +156,77 @@ function AssinaturaPage() {
                   onClick={() => portal.mutate()}
                   disabled={portal.isPending}
                 >
-                  {portal.isPending ? "Abrindo…" : "Gerenciar assinatura"}
+                  {portal.isPending ? "Abrindo…" : "Gerenciar cartão / cancelar"}
                   <ExternalLink className="ml-2 h-4 w-4" />
-                </Button>
-                <Button variant="outline" asChild>
-                  <Link to="/">Trocar de plano</Link>
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                O portal abre em uma nova aba com opções de cancelamento, troca de
-                cartão e histórico de faturas.
+                O portal abre em uma nova aba para trocar de cartão, ver faturas
+                ou cancelar. A troca de plano abaixo é imediata, com cobrança
+                proporcional da diferença.
               </p>
             </CardContent>
           </Card>
         )}
+
+        {sub && !sub.cancel_at_period_end && (
+          <div className="mt-8">
+            <h2 className="font-display text-xl">Trocar de plano</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              O Stripe calcula a diferença proporcional e cobra na hora.
+              Downgrades passam a valer no próximo ciclo.
+            </p>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              {PLANS.map((p) => {
+                const isCurrent = p.id === currentPriceId;
+                const currentTier =
+                  PLANS.find((x) => x.id === currentPriceId)?.tier ?? 0;
+                const isUpgrade = p.tier > currentTier;
+                return (
+                  <Card
+                    key={p.id}
+                    className={isCurrent ? "border-primary bg-primary/5" : ""}
+                  >
+                    <CardContent className="flex items-center justify-between gap-3 p-4">
+                      <div>
+                        <p className="font-medium">
+                          {p.name} · {p.cycle}
+                        </p>
+                        <p className="text-sm text-muted-foreground">{p.price}</p>
+                      </div>
+                      {isCurrent ? (
+                        <Badge variant="secondary">
+                          <Check className="mr-1 h-3 w-3" /> Atual
+                        </Badge>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant={isUpgrade ? "default" : "outline"}
+                          disabled={swap.isPending}
+                          onClick={() => {
+                            if (
+                              confirm(
+                                isUpgrade
+                                  ? `Fazer upgrade para ${p.name} ${p.cycle}? Cobraremos a diferença proporcional agora.`
+                                  : `Trocar para ${p.name} ${p.cycle}? A cobrança será ajustada proporcionalmente.`,
+                              )
+                            ) {
+                              swap.mutate(p.id);
+                            }
+                          }}
+                        >
+                          {isUpgrade ? "Fazer upgrade" : "Trocar"}
+                          <ArrowUpRight className="ml-1 h-3 w-3" />
+                        </Button>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
       </div>
     </main>
   );
