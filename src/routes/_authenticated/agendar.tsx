@@ -38,15 +38,18 @@ const INITIAL_MESSAGE: UIMessage = {
   id: "welcome",
   role: "assistant",
   parts: [
-    {
-      type: "text",
-      text:
-        "Oi! 👋 Sou a Julia, recepcionista do Salão Seja Livre. Vou te ajudar a agendar sua consulta em pouquinhos passos. Para começar, como posso te chamar?",
-    },
-  ],
-};
+function buildInitialMessage(text: string): UIMessage {
+  return {
+    id: "welcome",
+    role: "assistant",
+    parts: [{ type: "text", text }],
+  };
+}
 
 function AgendarPage() {
+  const fetchWelcome = useServerFn(getWelcomeMessage);
+  const [welcomeText, setWelcomeText] = useState(DEFAULT_WELCOME);
+  const [welcomeLoaded, setWelcomeLoaded] = useState(false);
   const [input, setInput] = useState("");
   const [sandbox, setSandboxState] = useState(false);
   const [voiceOn, setVoiceOn] = useState(true);
