@@ -186,16 +186,51 @@ export const Route = createFileRoute("/api/public/whatsapp")({
             for (const change of entry.changes ?? []) {
               const value = change.value;
               for (const msg of value?.messages ?? []) {
-                if (msg.type !== "text" || !msg.text?.body) continue;
                 const phone = msg.from;
-                const text = msg.text.body;
+                let userText: string | null = null;
+                let wasVoice = false;
+
+                if (msg.type === "text" && msg.text?.body) {
+                  userText = msg.text.body;
+                } else if ((msg.type === "audio" || msg.type === "voice") && (msg.audio ?? msg.voice)) {
+                  wasVoice = true;
+                  const ref = msg.audio ?? msg.voice!;
+                  try {
+                    const media = await downloadWaMedia(ref.id);
+                    if (!media) {
+                      await sendWhatsAppText(phone, "Não consegui baixar seu áudio, pode tentar de novo?");
+                      continue;
+                    }
+                    userText = await transcribeAudio(media.bytes, ref.mime_type ?? media.mime);
+                    if (!userText?.trim()) {
+                      await sendWhatsAppText(phone, "Não entendi o áudio, pode repetir por favor?");
+                      continue;
+                    }
+                  } catch (err) {
+                    console.error("[whatsapp] transcrição falhou:", err);
+                    await sendWhatsAppText(phone, "Tive um problema ao ouvir seu áudio. Pode tentar de novo?");
+                    continue;
+                  }
+                } else {
+                  continue;
+                }
+
                 try {
                   const history = await loadHistory(phone);
-                  const nextIn = [...history, textMessage("user", text)];
+                  const nextIn = [...history, textMessage("user", userText)];
                   const reply = await runAgent(nextIn);
                   const nextOut = [...nextIn, textMessage("assistant", reply)];
                   await saveHistory(phone, nextOut);
                   await sendWhatsAppText(phone, reply);
+                  if (wasVoice) {
+                    try {
+                      const mp3 = await synthesizeSpeechMp3(reply);
+                      const mediaId = await uploadWaAudioMp3(mp3);
+                      if (mediaId) await sendWhatsAppAudio(phone, mediaId);
+                    } catch (err) {
+                      console.error("[whatsapp] TTS/upload falhou:", err);
+                    }
+                  }
                 } catch (err) {
                   console.error("[whatsapp] erro processando mensagem:", err);
                   await sendWhatsAppText(
