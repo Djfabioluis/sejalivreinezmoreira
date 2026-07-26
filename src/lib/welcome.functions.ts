@@ -4,7 +4,7 @@ import { z } from "zod";
 const WELCOME_ID = 2;
 
 export const DEFAULT_WELCOME =
-  "Oi! 👋 Sou a Julia, recepcionista do Salão Seja Livre. Vou te ajudar a agendar sua consulta em pouquinhos passos. Para começar, como posso te chamar?";
+  "Oi! 👋 Sou a Julia, recepcionista do Salão Seja Livre. Estou aqui para te ajudar. Para começar, como posso te chamar?";
 
 export const getWelcomeMessage = createServerFn({ method: "GET" }).handler(async () => {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
