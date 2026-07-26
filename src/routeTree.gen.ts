@@ -20,6 +20,7 @@ import { Route as AuthenticatedOperadoresRouteImport } from './routes/_authentic
 import { Route as AuthenticatedBaseConhecimentoRouteImport } from './routes/_authenticated/base-conhecimento'
 import { Route as AuthenticatedAuditoriaSugestoesRouteImport } from './routes/_authenticated/auditoria-sugestoes'
 import { Route as AuthenticatedAgendarRouteImport } from './routes/_authenticated/agendar'
+import { Route as AuthenticatedAcessosRouteImport } from './routes/_authenticated/acessos'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as ApiPublicWhatsappRouteImport } from './routes/api/public/whatsapp'
@@ -82,6 +83,11 @@ const AuthenticatedAgendarRoute = AuthenticatedAgendarRouteImport.update({
   path: '/agendar',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAcessosRoute = AuthenticatedAcessosRouteImport.update({
+  id: '/acessos',
+  path: '/acessos',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const Char91DotwellKnownChar93OauthProtectedResourceRoute =
   Char91DotwellKnownChar93OauthProtectedResourceRouteImport.update({
     id: '/.well-known/oauth-protected-resource',
@@ -117,6 +123,7 @@ export interface FileRoutesByFullPath {
   '/mcp': typeof McpRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/acessos': typeof AuthenticatedAcessosRoute
   '/agendar': typeof AuthenticatedAgendarRoute
   '/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
   '/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
@@ -133,6 +140,7 @@ export interface FileRoutesByTo {
   '/mcp': typeof McpRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/acessos': typeof AuthenticatedAcessosRoute
   '/agendar': typeof AuthenticatedAgendarRoute
   '/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
   '/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
@@ -152,6 +160,7 @@ export interface FileRoutesById {
   '/mcp': typeof McpRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/_authenticated/acessos': typeof AuthenticatedAcessosRoute
   '/_authenticated/agendar': typeof AuthenticatedAgendarRoute
   '/_authenticated/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
   '/_authenticated/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
@@ -172,6 +181,7 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/acessos'
     | '/agendar'
     | '/auditoria-sugestoes'
     | '/base-conhecimento'
@@ -188,6 +198,7 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/acessos'
     | '/agendar'
     | '/auditoria-sugestoes'
     | '/base-conhecimento'
@@ -206,6 +217,7 @@ export interface FileRouteTypes {
     | '/mcp'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/_authenticated/acessos'
     | '/_authenticated/agendar'
     | '/_authenticated/auditoria-sugestoes'
     | '/_authenticated/base-conhecimento'
@@ -310,6 +322,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAgendarRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/acessos': {
+      id: '/_authenticated/acessos'
+      path: '/acessos'
+      fullPath: '/acessos'
+      preLoaderRoute: typeof AuthenticatedAcessosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/.well-known/oauth-protected-resource': {
       id: '/.well-known/oauth-protected-resource'
       path: '/.well-known/oauth-protected-resource'
@@ -349,6 +368,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAcessosRoute: typeof AuthenticatedAcessosRoute
   AuthenticatedAgendarRoute: typeof AuthenticatedAgendarRoute
   AuthenticatedAuditoriaSugestoesRoute: typeof AuthenticatedAuditoriaSugestoesRoute
   AuthenticatedBaseConhecimentoRoute: typeof AuthenticatedBaseConhecimentoRoute
@@ -359,6 +379,7 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAcessosRoute: AuthenticatedAcessosRoute,
   AuthenticatedAgendarRoute: AuthenticatedAgendarRoute,
   AuthenticatedAuditoriaSugestoesRoute: AuthenticatedAuditoriaSugestoesRoute,
   AuthenticatedBaseConhecimentoRoute: AuthenticatedBaseConhecimentoRoute,
