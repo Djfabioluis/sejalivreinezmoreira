@@ -9,39 +9,24 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as SugestoesRouteImport } from './routes/sugestoes'
-import { Route as OperadoresRouteImport } from './routes/operadores'
 import { Route as McpRouteImport } from './routes/mcp'
-import { Route as BaseConhecimentoRouteImport } from './routes/base-conhecimento'
 import { Route as AuthRouteImport } from './routes/auth'
-import { Route as AuditoriaSugestoesRouteImport } from './routes/auditoria-sugestoes'
-import { Route as AgendarRouteImport } from './routes/agendar'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedIndexRouteImport } from './routes/_authenticated/index'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as AuthenticatedSugestoesRouteImport } from './routes/_authenticated/sugestoes'
+import { Route as AuthenticatedOperadoresRouteImport } from './routes/_authenticated/operadores'
+import { Route as AuthenticatedBaseConhecimentoRouteImport } from './routes/_authenticated/base-conhecimento'
+import { Route as AuthenticatedAuditoriaSugestoesRouteImport } from './routes/_authenticated/auditoria-sugestoes'
+import { Route as AuthenticatedAgendarRouteImport } from './routes/_authenticated/agendar'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as ApiPublicWhatsappRouteImport } from './routes/api/public/whatsapp'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 
-const SugestoesRoute = SugestoesRouteImport.update({
-  id: '/sugestoes',
-  path: '/sugestoes',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const OperadoresRoute = OperadoresRouteImport.update({
-  id: '/operadores',
-  path: '/operadores',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const McpRoute = McpRouteImport.update({
   id: '/mcp',
   path: '/mcp',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const BaseConhecimentoRoute = BaseConhecimentoRouteImport.update({
-  id: '/base-conhecimento',
-  path: '/base-conhecimento',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -49,24 +34,41 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AuditoriaSugestoesRoute = AuditoriaSugestoesRouteImport.update({
-  id: '/auditoria-sugestoes',
-  path: '/auditoria-sugestoes',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AgendarRoute = AgendarRouteImport.update({
-  id: '/agendar',
-  path: '/agendar',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
+const AuthenticatedIndexRoute = AuthenticatedIndexRouteImport.update({
+  id: '/_authenticated/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiChatRoute = ApiChatRouteImport.update({
   id: '/api/chat',
   path: '/api/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedSugestoesRoute = AuthenticatedSugestoesRouteImport.update({
+  id: '/_authenticated/sugestoes',
+  path: '/sugestoes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedOperadoresRoute = AuthenticatedOperadoresRouteImport.update({
+  id: '/_authenticated/operadores',
+  path: '/operadores',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedBaseConhecimentoRoute =
+  AuthenticatedBaseConhecimentoRouteImport.update({
+    id: '/_authenticated/base-conhecimento',
+    path: '/base-conhecimento',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AuthenticatedAuditoriaSugestoesRoute =
+  AuthenticatedAuditoriaSugestoesRouteImport.update({
+    id: '/_authenticated/auditoria-sugestoes',
+    path: '/auditoria-sugestoes',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const AuthenticatedAgendarRoute = AuthenticatedAgendarRouteImport.update({
+  id: '/_authenticated/agendar',
+  path: '/agendar',
   getParentRoute: () => rootRouteImport,
 } as any)
 const Char91DotwellKnownChar93OauthProtectedResourceRoute =
@@ -99,50 +101,50 @@ const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
 } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/agendar': typeof AgendarRoute
-  '/auditoria-sugestoes': typeof AuditoriaSugestoesRoute
   '/auth': typeof AuthRoute
-  '/base-conhecimento': typeof BaseConhecimentoRoute
   '/mcp': typeof McpRoute
-  '/operadores': typeof OperadoresRoute
-  '/sugestoes': typeof SugestoesRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/agendar': typeof AuthenticatedAgendarRoute
+  '/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
+  '/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
+  '/operadores': typeof AuthenticatedOperadoresRoute
+  '/sugestoes': typeof AuthenticatedSugestoesRoute
   '/api/chat': typeof ApiChatRoute
+  '/': typeof AuthenticatedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/public/whatsapp': typeof ApiPublicWhatsappRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/agendar': typeof AgendarRoute
-  '/auditoria-sugestoes': typeof AuditoriaSugestoesRoute
   '/auth': typeof AuthRoute
-  '/base-conhecimento': typeof BaseConhecimentoRoute
   '/mcp': typeof McpRoute
-  '/operadores': typeof OperadoresRoute
-  '/sugestoes': typeof SugestoesRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/agendar': typeof AuthenticatedAgendarRoute
+  '/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
+  '/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
+  '/operadores': typeof AuthenticatedOperadoresRoute
+  '/sugestoes': typeof AuthenticatedSugestoesRoute
   '/api/chat': typeof ApiChatRoute
+  '/': typeof AuthenticatedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/public/whatsapp': typeof ApiPublicWhatsappRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/agendar': typeof AgendarRoute
-  '/auditoria-sugestoes': typeof AuditoriaSugestoesRoute
   '/auth': typeof AuthRoute
-  '/base-conhecimento': typeof BaseConhecimentoRoute
   '/mcp': typeof McpRoute
-  '/operadores': typeof OperadoresRoute
-  '/sugestoes': typeof SugestoesRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  '/_authenticated/agendar': typeof AuthenticatedAgendarRoute
+  '/_authenticated/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
+  '/_authenticated/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
+  '/_authenticated/operadores': typeof AuthenticatedOperadoresRoute
+  '/_authenticated/sugestoes': typeof AuthenticatedSugestoesRoute
   '/api/chat': typeof ApiChatRoute
+  '/_authenticated/': typeof AuthenticatedIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/public/whatsapp': typeof ApiPublicWhatsappRoute
@@ -150,66 +152,66 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/'
-    | '/agendar'
-    | '/auditoria-sugestoes'
     | '/auth'
-    | '/base-conhecimento'
     | '/mcp'
-    | '/operadores'
-    | '/sugestoes'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/agendar'
+    | '/auditoria-sugestoes'
+    | '/base-conhecimento'
+    | '/operadores'
+    | '/sugestoes'
     | '/api/chat'
+    | '/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/api/public/whatsapp'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
-    | '/agendar'
-    | '/auditoria-sugestoes'
     | '/auth'
-    | '/base-conhecimento'
     | '/mcp'
-    | '/operadores'
-    | '/sugestoes'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/agendar'
+    | '/auditoria-sugestoes'
+    | '/base-conhecimento'
+    | '/operadores'
+    | '/sugestoes'
     | '/api/chat'
+    | '/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/api/public/whatsapp'
   id:
     | '__root__'
-    | '/'
-    | '/agendar'
-    | '/auditoria-sugestoes'
     | '/auth'
-    | '/base-conhecimento'
     | '/mcp'
-    | '/operadores'
-    | '/sugestoes'
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
+    | '/_authenticated/agendar'
+    | '/_authenticated/auditoria-sugestoes'
+    | '/_authenticated/base-conhecimento'
+    | '/_authenticated/operadores'
+    | '/_authenticated/sugestoes'
     | '/api/chat'
+    | '/_authenticated/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/api/public/whatsapp'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  AgendarRoute: typeof AgendarRoute
-  AuditoriaSugestoesRoute: typeof AuditoriaSugestoesRoute
   AuthRoute: typeof AuthRoute
-  BaseConhecimentoRoute: typeof BaseConhecimentoRoute
   McpRoute: typeof McpRoute
-  OperadoresRoute: typeof OperadoresRoute
-  SugestoesRoute: typeof SugestoesRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  AuthenticatedAgendarRoute: typeof AuthenticatedAgendarRoute
+  AuthenticatedAuditoriaSugestoesRoute: typeof AuthenticatedAuditoriaSugestoesRoute
+  AuthenticatedBaseConhecimentoRoute: typeof AuthenticatedBaseConhecimentoRoute
+  AuthenticatedOperadoresRoute: typeof AuthenticatedOperadoresRoute
+  AuthenticatedSugestoesRoute: typeof AuthenticatedSugestoesRoute
   ApiChatRoute: typeof ApiChatRoute
+  AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicWhatsappRoute: typeof ApiPublicWhatsappRoute
@@ -217,32 +219,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/sugestoes': {
-      id: '/sugestoes'
-      path: '/sugestoes'
-      fullPath: '/sugestoes'
-      preLoaderRoute: typeof SugestoesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/operadores': {
-      id: '/operadores'
-      path: '/operadores'
-      fullPath: '/operadores'
-      preLoaderRoute: typeof OperadoresRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/mcp': {
       id: '/mcp'
       path: '/mcp'
       fullPath: '/mcp'
       preLoaderRoute: typeof McpRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/base-conhecimento': {
-      id: '/base-conhecimento'
-      path: '/base-conhecimento'
-      fullPath: '/base-conhecimento'
-      preLoaderRoute: typeof BaseConhecimentoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -252,25 +233,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/auditoria-sugestoes': {
-      id: '/auditoria-sugestoes'
-      path: '/auditoria-sugestoes'
-      fullPath: '/auditoria-sugestoes'
-      preLoaderRoute: typeof AuditoriaSugestoesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/agendar': {
-      id: '/agendar'
-      path: '/agendar'
-      fullPath: '/agendar'
-      preLoaderRoute: typeof AgendarRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/': {
-      id: '/'
+    '/_authenticated/': {
+      id: '/_authenticated/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof AuthenticatedIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/chat': {
@@ -278,6 +245,41 @@ declare module '@tanstack/react-router' {
       path: '/api/chat'
       fullPath: '/api/chat'
       preLoaderRoute: typeof ApiChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/sugestoes': {
+      id: '/_authenticated/sugestoes'
+      path: '/sugestoes'
+      fullPath: '/sugestoes'
+      preLoaderRoute: typeof AuthenticatedSugestoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/operadores': {
+      id: '/_authenticated/operadores'
+      path: '/operadores'
+      fullPath: '/operadores'
+      preLoaderRoute: typeof AuthenticatedOperadoresRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/base-conhecimento': {
+      id: '/_authenticated/base-conhecimento'
+      path: '/base-conhecimento'
+      fullPath: '/base-conhecimento'
+      preLoaderRoute: typeof AuthenticatedBaseConhecimentoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/auditoria-sugestoes': {
+      id: '/_authenticated/auditoria-sugestoes'
+      path: '/auditoria-sugestoes'
+      fullPath: '/auditoria-sugestoes'
+      preLoaderRoute: typeof AuthenticatedAuditoriaSugestoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/agendar': {
+      id: '/_authenticated/agendar'
+      path: '/agendar'
+      fullPath: '/agendar'
+      preLoaderRoute: typeof AuthenticatedAgendarRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/.well-known/oauth-protected-resource': {
@@ -319,18 +321,18 @@ declare module '@tanstack/react-router' {
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  AgendarRoute: AgendarRoute,
-  AuditoriaSugestoesRoute: AuditoriaSugestoesRoute,
   AuthRoute: AuthRoute,
-  BaseConhecimentoRoute: BaseConhecimentoRoute,
   McpRoute: McpRoute,
-  OperadoresRoute: OperadoresRoute,
-  SugestoesRoute: SugestoesRoute,
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  AuthenticatedAgendarRoute: AuthenticatedAgendarRoute,
+  AuthenticatedAuditoriaSugestoesRoute: AuthenticatedAuditoriaSugestoesRoute,
+  AuthenticatedBaseConhecimentoRoute: AuthenticatedBaseConhecimentoRoute,
+  AuthenticatedOperadoresRoute: AuthenticatedOperadoresRoute,
+  AuthenticatedSugestoesRoute: AuthenticatedSugestoesRoute,
   ApiChatRoute: ApiChatRoute,
+  AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicWhatsappRoute: ApiPublicWhatsappRoute,

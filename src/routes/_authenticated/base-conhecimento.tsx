@@ -8,7 +8,7 @@ import { ArrowLeft, BookOpen, Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 import { getBaseConhecimento, saveBaseConhecimento } from "@/lib/knowledge.functions";
 
-export const Route = createFileRoute("/base-conhecimento")({
+export const Route = createFileRoute("/_authenticated/base-conhecimento")({
   head: () => ({
     meta: [
       { title: "Base de conhecimento — Secretária virtual" },
