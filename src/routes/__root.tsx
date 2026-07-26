@@ -12,8 +12,6 @@ import { Toaster } from "sonner";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
-import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/app-sidebar";
 
 function NotFoundComponent() {
   return (
@@ -124,21 +122,7 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SidebarProvider>
-        <AppSidebar />
-        <SidebarInset>
-          <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-border/60 bg-background/80 px-3 backdrop-blur">
-            <SidebarTrigger />
-            <div className="ml-1 hidden text-sm text-muted-foreground sm:block">
-              <span className="font-display text-base text-foreground">Seja Livre</span>
-              <span className="mx-2 text-border">/</span>
-              <span>Painel da secretária virtual</span>
-            </div>
-          </header>
-          {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-          <Outlet />
-        </SidebarInset>
-      </SidebarProvider>
+      <Outlet />
       <Toaster position="bottom-center" richColors />
     </QueryClientProvider>
   );

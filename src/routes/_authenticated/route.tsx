@@ -1,0 +1,35 @@
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { supabase } from "@/integrations/supabase/client";
+import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
+import { AppSidebar } from "@/components/app-sidebar";
+
+export const Route = createFileRoute("/_authenticated")({
+  ssr: false,
+  beforeLoad: async ({ location }) => {
+    const { data, error } = await supabase.auth.getUser();
+    if (error || !data.user) {
+      throw redirect({ to: "/auth", search: { next: location.href } });
+    }
+    return { user: data.user };
+  },
+  component: AuthenticatedLayout,
+});
+
+function AuthenticatedLayout() {
+  return (
+    <SidebarProvider>
+      <AppSidebar />
+      <SidebarInset>
+        <header className="sticky top-0 z-20 flex h-14 items-center gap-2 border-b border-border/60 bg-background/80 px-3 backdrop-blur">
+          <SidebarTrigger />
+          <div className="ml-1 hidden text-sm text-muted-foreground sm:block">
+            <span className="font-display text-base text-foreground">Seja Livre</span>
+            <span className="mx-2 text-border">/</span>
+            <span>Painel da secretária virtual</span>
+          </div>
+        </header>
+        <Outlet />
+      </SidebarInset>
+    </SidebarProvider>
+  );
+}
