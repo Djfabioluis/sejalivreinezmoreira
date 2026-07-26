@@ -81,7 +81,6 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
         ui_mode: "embedded_page",
         return_url: data.returnUrl,
         customer: customerId,
-        automatic_tax: { enabled: true },
         allow_promotion_codes: true,
         ...(!isRecurring && {
           payment_intent_data: { description: productDescription },
