@@ -50,6 +50,14 @@ PLANOS DE ASSINATURA (vendas):
 - Após a confirmação, chame register_subscription_lead com todos os dados coletados.
 - Explique com clareza: a equipe da unidade vai receber esse pedido, entrará em contato para finalizar o pagamento e ativar a assinatura na Bemp. Ofereça-se para tirar dúvidas enquanto isso.
 
+SALDO DE VISITAS DO PLANO DE ASSINATURA:
+- Quando o paciente perguntar quantas visitas/sessões ainda tem no plano dele, peça o telefone (país/DDD/número) se ainda não souber e chame check_subscription_balance.
+- IMPORTANTE: o resultado é uma ESTIMATIVA — a API da Bemp não expõe o saldo real. Explique isso com transparência ("de acordo com nossos registros aqui você tem X agendamentos previstos este mês; o saldo exato só a equipe consegue confirmar").
+- Se a ferramenta devolver plan_quota_monthly e estimated_remaining_this_month, informe assim: "seu plano é {plan_name} com até {plan_quota_monthly} visitas no mês; você já tem {scheduled_this_month} agendadas, então restam cerca de {estimated_remaining_this_month} até o fechamento do mês".
+- Se plan_quota_monthly vier nulo (confidence="parcial"), diga apenas quantos agendamentos futuros o paciente tem este mês e explique que a cota total do plano precisa ser confirmada pela equipe.
+- Se found=false, avise que não achou cadastro na Bemp com aquele telefone.
+- Em TODOS os casos, pergunte se ele quer que a equipe confirme o saldo oficial. Se sim, colete o nome e chame register_balance_inquiry — depois avise que a equipe retorna o contato.
+
 Se algo falhar, explique com gentileza e sugira alternativas.`;
 
 const SANDBOX_NOTE = `
@@ -547,9 +555,172 @@ function buildTools(sandbox: boolean) {
           return { ok: true };
         }),
     }),
+    check_subscription_balance: tool({
+      description:
+        "Estima quantas visitas restam no plano de assinatura de um cliente. Combina os dados de cadastro na Bemp (plano ativo e cota informada) com a contagem de agendamentos futuros do cliente no mês atual. É uma ESTIMATIVA — a API pública da Bemp não expõe o saldo real. Sempre ofereça ao paciente a opção de pedir uma verificação manual pela equipe.",
+      inputSchema: z.object({
+        phone_country_code: z.string(),
+        phone_area_code: z.string(),
+        phone_number: z.string(),
+      }),
+      execute: async ({ phone_country_code, phone_area_code, phone_number }) =>
+        safeTool("check_subscription_balance", async () => {
+          const qs = new URLSearchParams({
+            phone_country_code,
+            phone_area_code,
+            phone_number,
+          });
+
+          let customer: Record<string, unknown> | null = null;
+          try {
+            const data = await bempFetch(
+              `${BEMP_WEBHOOK_BASE}/whatsapp_customer?${qs.toString()}`,
+            );
+            customer = (data ?? null) as Record<string, unknown> | null;
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            if (/404|not\s*found|não encontrado/i.test(message)) {
+              return {
+                found: false,
+                message:
+                  "Não encontramos cadastro na Bemp para esse telefone. Ofereça registrar uma consulta de saldo com a equipe usando register_balance_inquiry.",
+              };
+            }
+            throw err;
+          }
+
+          const pickPlan = (obj: Record<string, unknown> | null | undefined) => {
+            if (!obj || typeof obj !== "object") return null;
+            const candidates = [
+              obj.subscription,
+              obj.subscription_plan,
+              obj.plan,
+              obj.active_subscription,
+              (obj as { customer?: Record<string, unknown> }).customer?.subscription,
+            ];
+            for (const c of candidates) {
+              if (c && typeof c === "object") return c as Record<string, unknown>;
+            }
+            return null;
+          };
+          const plan = pickPlan(customer);
+          const planName =
+            (plan?.name as string | undefined) ??
+            (plan?.plan_name as string | undefined) ??
+            (customer?.plan_name as string | undefined) ??
+            null;
+          const planQuotaRaw =
+            plan?.monthly_quota ??
+            plan?.visits_per_month ??
+            plan?.quota ??
+            plan?.limit ??
+            plan?.max_visits ??
+            null;
+          const planQuota =
+            typeof planQuotaRaw === "number"
+              ? planQuotaRaw
+              : typeof planQuotaRaw === "string" && /^\d+$/.test(planQuotaRaw)
+                ? Number(planQuotaRaw)
+                : null;
+
+          let scheduledThisMonth = 0;
+          let listedTotal = 0;
+          try {
+            const appts = await bempFetch(
+              `${BEMP_WEBHOOK_BASE}/whatsapp_schedule?${qs.toString()}`,
+            );
+            const list = Array.isArray(appts)
+              ? appts
+              : Array.isArray((appts as { data?: unknown[] })?.data)
+                ? (appts as { data: unknown[] }).data
+                : [];
+            listedTotal = list.length;
+            const now = new Date();
+            const y = now.getFullYear();
+            const m = String(now.getMonth() + 1).padStart(2, "0");
+            const monthPrefix = `${y}-${m}`;
+            for (const a of list) {
+              const rec = a as Record<string, unknown>;
+              const startStr = String(rec.start ?? rec.date ?? rec.datetime ?? "");
+              const status = String(rec.status ?? "").toLowerCase();
+              if (!startStr.startsWith(monthPrefix)) continue;
+              if (/cancel/.test(status)) continue;
+              scheduledThisMonth += 1;
+            }
+          } catch {
+            // silencioso; devolve estimativa parcial
+          }
+
+          const remaining =
+            planQuota != null ? Math.max(planQuota - scheduledThisMonth, 0) : null;
+
+          return {
+            found: true,
+            plan_name: planName,
+            plan_quota_monthly: planQuota,
+            scheduled_this_month: scheduledThisMonth,
+            estimated_remaining_this_month: remaining,
+            appointments_listed: listedTotal,
+            confidence: planQuota != null ? "estimativa" : "parcial",
+            disclaimer:
+              "A API pública da Bemp não expõe o saldo real do plano. Estes números são uma ESTIMATIVA baseada nos agendamentos futuros do mês. Ofereça ao paciente encaminhar para a equipe (use register_balance_inquiry) para confirmação oficial.",
+          };
+        }),
+    }),
+    register_balance_inquiry: tool({
+      description:
+        "Registra um pedido de verificação de saldo de visitas do plano de assinatura para a equipe humana confirmar na Bemp. Use quando o paciente quiser o número exato ou quando a estimativa não estiver disponível.",
+      inputSchema: z.object({
+        name: z.string(),
+        phone_country_code: z.string(),
+        phone_area_code: z.string(),
+        phone_number: z.string(),
+        plan_name: z.string().optional(),
+        notes: z.string().optional(),
+      }),
+      execute: async (input) =>
+        safeTool("register_balance_inquiry", async () => {
+          if (sandbox) {
+            return {
+              sandbox: true,
+              simulated: true,
+              id: `SIM-SALDO-${Date.now()}`,
+              message:
+                "Pedido de verificação de saldo SIMULADO (sandbox). Nada foi gravado.",
+            };
+          }
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          const { data, error } = await supabaseAdmin
+            .from("leads_assinatura" as never)
+            .insert({
+              plano_id: null,
+              plano_nome: input.plan_name ?? null,
+              nome: input.name,
+              email: null,
+              cpf: null,
+              phone_country_code: input.phone_country_code,
+              phone_area_code: input.phone_area_code,
+              phone_number: input.phone_number,
+              observacoes: `[Consulta de saldo] ${input.notes ?? "Cliente solicitou verificação do saldo de visitas do plano."}`,
+              origem: "consulta_saldo",
+              sandbox: false,
+              status: "novo",
+            } as never)
+            .select("id, created_at")
+            .single();
+          if (error) throw new Error(error.message);
+          return {
+            ok: true,
+            lead_id: (data as { id: string } | null)?.id,
+            message:
+              "Pedido registrado. A equipe da unidade vai confirmar o saldo real na Bemp e retornar o contato.",
+          };
+        }),
+    }),
   };
   return base;
 }
+
 
 // Backwards-compat export (used by any older imports).
 export const bempTools = buildTools(false);
