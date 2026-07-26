@@ -2,13 +2,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
-import { listAccessUsers, setUserRole, type AppRole } from "@/lib/access.functions";
+import { listAccessUsers, setUserRole, listAccessAuditLog, type AppRole } from "@/lib/access.functions";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { ShieldCheck, Info } from "lucide-react";
+import { ShieldCheck, Info, History } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/acessos")({
   head: () => ({
