@@ -9,6 +9,7 @@ import {
   UserCog,
   LogOut,
   UserCircle,
+  ShieldCheck,
 } from "lucide-react";
 
 import {
