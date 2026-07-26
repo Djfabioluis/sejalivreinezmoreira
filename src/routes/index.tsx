@@ -10,6 +10,13 @@ import {
 } from "@/lib/bemp.functions";
 import { getWhatsAppPhoneNumber } from "@/lib/whatsapp.functions";
 import { listLeadsAssinatura, updateLeadStatus, type LeadAssinatura } from "@/lib/leads.functions";
+import {
+  listClientesAtendidos,
+  listAtendimentosHumanos,
+  updateAtendimentoStatus,
+  type ClienteAtendido,
+  type AtendimentoHumano,
+} from "@/lib/atendimentos.functions";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { WhatsAppQr } from "@/components/whatsapp-qr";
@@ -28,7 +35,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CalendarClock, Building2, Scissors, Bot, Clock, DollarSign, Phone, RefreshCw, Search, BookOpen, QrCode, Users, Filter, Sparkles, ClipboardList } from "lucide-react";
+import { CalendarClock, Building2, Scissors, Bot, Clock, DollarSign, Phone, RefreshCw, Search, BookOpen, QrCode, Users, Filter, Sparkles, ClipboardList, UserCheck, LifeBuoy, MessageSquare, CheckCircle2 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
