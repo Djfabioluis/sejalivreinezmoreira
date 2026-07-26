@@ -82,13 +82,21 @@ function AssinaturaPage() {
       return res;
     },
     onSuccess: () => {
-      toast.success("Plano atualizado! Diferença cobrada proporcionalmente.");
-      qc.invalidateQueries({ queryKey: ["my-subscription"] });
+      toast.success("Plano atualizado! Cobrança proporcional aplicada.");
+      qc.invalidateQueries({ queryKey: ["my-subscription", env] });
     },
     onError: (e: Error) => toast.error(e.message),
   });
 
   const currentPriceId = (sub?.price_id as string) ?? null;
+  const periodEndMs = sub?.current_period_end
+    ? new Date(sub.current_period_end as string).getTime()
+    : 0;
+  const inGrace =
+    (sub?.status as string) === "canceled" && periodEndMs > Date.now();
+  const canSwap = !!sub && (inGrace || sub.cancel_at_period_end || ["active", "trialing", "past_due"].includes((sub.status as string) ?? ""));
+
+
 
 
   return (
