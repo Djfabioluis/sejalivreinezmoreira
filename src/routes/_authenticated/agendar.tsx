@@ -10,6 +10,8 @@ import { ArrowLeft, Bot, Send, User, Loader2, Volume2, VolumeX } from "lucide-re
 import { SandboxToggle, SandboxBanner } from "@/components/sandbox-toggle";
 import { getSandbox, subscribeSandbox } from "@/lib/sandbox";
 import { MicRecorder } from "@/components/mic-recorder";
+import { useServerFn } from "@tanstack/react-start";
+import { getWelcomeMessage, DEFAULT_WELCOME } from "@/lib/welcome.functions";
 
 export const Route = createFileRoute("/_authenticated/agendar")({
   head: () => ({
