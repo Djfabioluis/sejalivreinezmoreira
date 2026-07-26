@@ -10,6 +10,7 @@ import {
 } from "@/lib/bemp.functions";
 import { getWhatsAppPhoneNumber } from "@/lib/whatsapp.functions";
 import { WhatsAppQr } from "@/components/whatsapp-qr";
+import { SandboxToggle } from "@/components/sandbox-toggle";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
