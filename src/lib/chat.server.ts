@@ -717,9 +717,60 @@ function buildTools(sandbox: boolean) {
           };
         }),
     }),
+
+    request_human_handoff: tool({
+      description:
+        "Registra que o paciente deseja falar com um atendente humano. Use quando o paciente pedir para falar com uma pessoa, quando reclamar de problema não resolvido, ou quando o assunto sair do escopo (reembolso, laudo, situação delicada). Confirme o motivo antes de chamar.",
+      inputSchema: z.object({
+        name: z.string().optional(),
+        phone_country_code: z.string().optional(),
+        phone_area_code: z.string().optional(),
+        phone_number: z.string().optional(),
+        phone: z.string().optional().describe("telefone completo, se conhecido"),
+        motivo: z.string().describe("resumo curto do motivo do contato humano"),
+        canal: z.enum(["chat", "whatsapp"]).default("chat"),
+        observacoes: z.string().optional(),
+      }),
+      execute: async (input) =>
+        safeTool("request_human_handoff", async () => {
+          if (sandbox) {
+            return {
+              sandbox: true,
+              simulated: true,
+              id: `SIM-HANDOFF-${Date.now()}`,
+              message: "Solicitação de atendimento humano SIMULADA (sandbox).",
+            };
+          }
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          const { data, error } = await supabaseAdmin
+            .from("atendimentos_humanos" as never)
+            .insert({
+              nome: input.name ?? null,
+              phone: input.phone ?? null,
+              phone_country_code: input.phone_country_code ?? null,
+              phone_area_code: input.phone_area_code ?? null,
+              phone_number: input.phone_number ?? null,
+              motivo: input.motivo,
+              canal: input.canal ?? "chat",
+              observacoes: input.observacoes ?? null,
+              status: "aguardando",
+              sandbox: false,
+            } as never)
+            .select("id, created_at")
+            .single();
+          if (error) throw new Error(error.message);
+          return {
+            ok: true,
+            id: (data as { id: string } | null)?.id,
+            message:
+              "Solicitação registrada. Um atendente humano vai retornar o contato em breve.",
+          };
+        }),
+    }),
   };
   return base;
 }
+
 
 
 // Backwards-compat export (used by any older imports).
