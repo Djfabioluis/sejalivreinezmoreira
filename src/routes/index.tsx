@@ -772,3 +772,248 @@ function LeadsPanel() {
     </Card>
   );
 }
+
+// ---------- Clientes atendidos (histórico de conversas) ----------
+function ClientesAtendidosPanel() {
+  const [q, setQ] = useState("");
+  const query = useQuery({
+    queryKey: ["clientes-atendidos"],
+    queryFn: () => listClientesAtendidos(),
+    refetchInterval: 60_000,
+  });
+
+  const rows: ClienteAtendido[] = query.data ?? [];
+  const filtered = useMemo(() => {
+    const t = q.trim().toLowerCase();
+    if (!t) return rows;
+    return rows.filter(
+      (r) =>
+        r.phone.toLowerCase().includes(t) ||
+        (r.ultima_mensagem ?? "").toLowerCase().includes(t),
+    );
+  }, [rows, q]);
+
+  return (
+    <Card>
+      <CardHeader className="gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <UserCheck className="h-5 w-5" />
+              Clientes atendidos pela secretária
+            </CardTitle>
+            <CardDescription>
+              Todas as conversas iniciadas pela IA no WhatsApp e no chat da web.
+            </CardDescription>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => query.refetch()}
+            disabled={query.isFetching}
+          >
+            <RefreshCw className={`h-4 w-4 mr-1 ${query.isFetching ? "animate-spin" : ""}`} />
+            Atualizar
+          </Button>
+        </div>
+        <div className="relative max-w-sm">
+          <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            className="pl-8"
+            placeholder="Buscar por telefone ou mensagem…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+        </div>
+      </CardHeader>
+      <CardContent>
+        {query.isLoading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-16 w-full" />
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Nenhuma conversa registrada ainda.</p>
+        ) : (
+          <div className="space-y-2">
+            {filtered.map((c) => (
+              <div
+                key={c.phone}
+                className="rounded-lg border bg-card p-3 flex flex-col gap-1 sm:grid sm:grid-cols-[1fr_auto] sm:items-center"
+              >
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 text-sm font-medium">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <span className="truncate">{c.phone}</span>
+                    <Badge variant="secondary" className="ml-1">
+                      <MessageSquare className="h-3 w-3 mr-1" />
+                      {c.total_mensagens} msg
+                    </Badge>
+                  </div>
+                  {c.ultima_mensagem && (
+                    <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
+                      {c.ultima_mensagem}
+                    </p>
+                  )}
+                </div>
+                <div className="text-xs text-muted-foreground sm:text-right">
+                  {c.ultima_atividade
+                    ? new Date(c.ultima_atividade).toLocaleString("pt-BR")
+                    : "—"}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ---------- Aguardando contato com humano ----------
+function AtendimentoHumanoPanel() {
+  const [status, setStatus] = useState<string>("aguardando");
+  const qc = useQueryClient();
+  const query = useQuery({
+    queryKey: ["atendimentos-humanos", status],
+    queryFn: () => listAtendimentosHumanos({ data: { status } }),
+    refetchInterval: 30_000,
+  });
+
+  const mut = useMutation({
+    mutationFn: (p: { id: string; status: string }) =>
+      updateAtendimentoStatus({ data: p }),
+    onSuccess: () => {
+      toast.success("Status atualizado");
+      qc.invalidateQueries({ queryKey: ["atendimentos-humanos"] });
+    },
+    onError: (e: unknown) =>
+      toast.error(e instanceof Error ? e.message : "Erro ao atualizar"),
+  });
+
+  const rows: AtendimentoHumano[] = query.data ?? [];
+
+  const statusBadge: Record<string, string> = {
+    aguardando: "bg-amber-100 text-amber-900 border-amber-300",
+    em_atendimento: "bg-blue-100 text-blue-900 border-blue-300",
+    resolvido: "bg-emerald-100 text-emerald-900 border-emerald-300",
+  };
+
+  return (
+    <Card>
+      <CardHeader className="gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <LifeBuoy className="h-5 w-5" />
+              Aguardando contato com humano
+            </CardTitle>
+            <CardDescription>
+              Clientes que a IA sinalizou para atendimento pessoal da equipe.
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <Select value={status} onValueChange={setStatus}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="aguardando">Aguardando</SelectItem>
+                <SelectItem value="em_atendimento">Em atendimento</SelectItem>
+                <SelectItem value="resolvido">Resolvido</SelectItem>
+                <SelectItem value="todos">Todos</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => query.refetch()}
+              disabled={query.isFetching}
+            >
+              <RefreshCw className={`h-4 w-4 ${query.isFetching ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {query.isLoading ? (
+          <div className="space-y-2">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-24 w-full" />
+            ))}
+          </div>
+        ) : rows.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            Nenhuma solicitação nesse status.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {rows.map((a) => (
+              <div key={a.id} className="rounded-lg border bg-card p-3 space-y-2">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                      <span className="truncate">{a.nome ?? "Sem nome"}</span>
+                      <Badge variant="outline" className={statusBadge[a.status] ?? ""}>
+                        {a.status}
+                      </Badge>
+                      <Badge variant="outline">{a.canal}</Badge>
+                      {a.sandbox && <Badge variant="outline">simulação</Badge>}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {new Date(a.created_at).toLocaleString("pt-BR")}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Select
+                      value={a.status}
+                      onValueChange={(v) => mut.mutate({ id: a.id, status: v })}
+                    >
+                      <SelectTrigger className="w-[170px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="aguardando">Aguardando</SelectItem>
+                        <SelectItem value="em_atendimento">Em atendimento</SelectItem>
+                        <SelectItem value="resolvido">Resolvido</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {a.status !== "resolvido" && (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => mut.mutate({ id: a.id, status: "resolvido" })}
+                      >
+                        <CheckCircle2 className="h-4 w-4 mr-1" /> Concluir
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="grid gap-1 text-sm sm:grid-cols-2">
+                  <div>
+                    <span className="text-muted-foreground">Telefone: </span>
+                    {a.phone ?? "—"}
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Motivo: </span>
+                    {a.motivo ?? "—"}
+                  </div>
+                </div>
+
+                {a.observacoes && (
+                  <p className="text-sm bg-muted/50 rounded p-2 whitespace-pre-wrap">
+                    {a.observacoes}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
