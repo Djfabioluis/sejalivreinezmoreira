@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { type UIMessage } from "ai";
 import { streamAgent } from "@/lib/chat.server";
+import { requireSupabaseUser } from "@/lib/http-auth.server";
 
 type ChatBody = { messages?: unknown; sandbox?: unknown };
 
@@ -8,6 +9,12 @@ export const Route = createFileRoute("/api/chat")({
   server: {
     handlers: {
       POST: async ({ request }) => {
+        try {
+          await requireSupabaseUser(request);
+        } catch (res) {
+          if (res instanceof Response) return res;
+          return new Response("Unauthorized", { status: 401 });
+        }
         let body: ChatBody;
         try {
           body = (await request.json()) as ChatBody;

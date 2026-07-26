@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 export type ClienteAtendido = {
   phone: string;
@@ -38,7 +39,9 @@ function formatPhone(row: {
   return joined || null;
 }
 
-export const listClientesAtendidos = createServerFn({ method: "GET" }).handler(
+export const listClientesAtendidos = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(
   async (): Promise<ClienteAtendido[]> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await supabaseAdmin
@@ -68,6 +71,7 @@ export const listClientesAtendidos = createServerFn({ method: "GET" }).handler(
 );
 
 export const listAtendimentosHumanos = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: { status?: string } | undefined) => input ?? {})
   .handler(async ({ data }): Promise<AtendimentoHumano[]> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -86,6 +90,7 @@ export const listAtendimentosHumanos = createServerFn({ method: "GET" })
   });
 
 export const updateAtendimentoStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((input: { id: string; status: string; observacoes?: string }) => input)
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
