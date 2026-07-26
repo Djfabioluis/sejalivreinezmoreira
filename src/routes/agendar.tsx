@@ -218,6 +218,7 @@ function ToolChip({ name, state }: { name: string; state?: string }) {
     list_professionals: "Buscando profissionais",
     list_slots: "Verificando horários",
     create_appointment: "Criando agendamento",
+    create_appointment_sandbox: "Simulando agendamento",
   };
   const done = state === "output-available" || state === "result";
   return (
