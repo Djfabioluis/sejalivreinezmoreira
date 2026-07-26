@@ -14,6 +14,57 @@ export type Database = {
   }
   public: {
     Tables: {
+      atendimentos_humanos: {
+        Row: {
+          canal: string
+          created_at: string
+          id: string
+          motivo: string | null
+          nome: string | null
+          observacoes: string | null
+          phone: string | null
+          phone_area_code: string | null
+          phone_country_code: string | null
+          phone_number: string | null
+          resolved_at: string | null
+          sandbox: boolean
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          canal?: string
+          created_at?: string
+          id?: string
+          motivo?: string | null
+          nome?: string | null
+          observacoes?: string | null
+          phone?: string | null
+          phone_area_code?: string | null
+          phone_country_code?: string | null
+          phone_number?: string | null
+          resolved_at?: string | null
+          sandbox?: boolean
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          canal?: string
+          created_at?: string
+          id?: string
+          motivo?: string | null
+          nome?: string | null
+          observacoes?: string | null
+          phone?: string | null
+          phone_area_code?: string | null
+          phone_country_code?: string | null
+          phone_number?: string | null
+          resolved_at?: string | null
+          sandbox?: boolean
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       base_conhecimento: {
         Row: {
           conteudo: string
