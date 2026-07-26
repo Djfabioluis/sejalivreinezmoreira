@@ -49,10 +49,12 @@ const PLANS = [
 
 function AssinaturaPage() {
   const qc = useQueryClient();
+  const env = getStripeEnvironment();
   const { data: sub, isLoading } = useQuery({
-    queryKey: ["my-subscription"],
-    queryFn: () => getMySubscription(),
+    queryKey: ["my-subscription", env],
+    queryFn: () => getMySubscription({ data: { environment: env } }),
   });
+
 
   const portal = useMutation({
     mutationFn: async () => {
