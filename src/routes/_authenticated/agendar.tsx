@@ -12,6 +12,7 @@ import { getSandbox, subscribeSandbox } from "@/lib/sandbox";
 import { MicRecorder } from "@/components/mic-recorder";
 import { useServerFn } from "@tanstack/react-start";
 import { getWelcomeMessage, DEFAULT_WELCOME } from "@/lib/welcome.functions";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/agendar")({
   head: () => ({
