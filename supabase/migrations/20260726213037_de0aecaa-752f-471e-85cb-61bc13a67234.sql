@@ -1,0 +1,1 @@
+ALTER TABLE public.base_conhecimento DROP CONSTRAINT IF EXISTS base_conhecimento_singleton;
