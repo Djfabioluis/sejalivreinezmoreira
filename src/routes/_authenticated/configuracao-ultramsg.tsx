@@ -130,12 +130,12 @@ function ConfiguracaoUltraMsgPage() {
     setTesting(true);
     setTestResult(null);
     try {
-      const r = await testConn();
+      const r = (await testConn()) as { ok: true } | { ok: false; error: string };
       if (r.ok) {
         setTestResult({ ok: true });
         toast.success("Conexão com UltraMsg OK");
       } else {
-        setTestResult({ ok: false, error: (r as { error: string }).error });
+        setTestResult({ ok: false, error: r.error });
         toast.error("Falha na conexão");
       }
     } catch (err) {

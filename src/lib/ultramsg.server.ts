@@ -176,7 +176,7 @@ export async function uploadAudioSignedUrl(mp3: Buffer): Promise<string | null> 
 
 /** Testa se as credenciais respondem no endpoint /instance/me. */
 export async function pingUltraMsg(): Promise<
-  { ok: true; account?: unknown } | { ok: false; error: string }
+  { ok: true } | { ok: false; error: string }
 > {
   let cfg: UltraMsgSettings;
   try {
@@ -190,7 +190,7 @@ export async function pingUltraMsg(): Promise<
     if (!res.ok || data.error) {
       return { ok: false, error: data.error ?? `UltraMsg respondeu ${res.status}` };
     }
-    return { ok: true, account: data };
+    return { ok: true };
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : "Erro" };
   }
