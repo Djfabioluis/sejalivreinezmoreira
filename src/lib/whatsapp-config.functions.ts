@@ -34,7 +34,7 @@ export const saveWhatsAppSettings = createServerFn({ method: "POST" })
         accessToken: z.string().trim().min(20, "Access Token muito curto").max(800),
         phoneNumberId: z.string().trim().min(5, "Phone Number ID obrigatório").max(120),
         appSecret: z.string().trim().min(10, "App Secret muito curto").max(800),
-        verifyToken: z.string().trim().min(4, "Verify Token obrigatório").max(300),
+        verifyToken: z.string().trim().min(4, "Verify Token obrigatório").max(2000),
       })
       .parse(input),
   )
