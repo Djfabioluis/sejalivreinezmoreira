@@ -935,10 +935,8 @@ function AtendidosList({ items }: { items: ClienteAtendido[] }) {
     </div>
   );
 }
-      </CardContent>
-    </Card>
-  );
-}
+
+
 
 // ---------- Aguardando contato com humano ----------
 function AtendimentoHumanoPanel() {
