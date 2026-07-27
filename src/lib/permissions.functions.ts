@@ -24,7 +24,8 @@ export async function assertPermission(
   ctx: { supabase: any; userId: string },
   perm: PermissionKey,
 ) {
-  const { data, error } = await ctx.supabase.rpc("user_has_permission", {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin.rpc("user_has_permission", {
     _user_id: ctx.userId,
     _perm: perm,
   });
