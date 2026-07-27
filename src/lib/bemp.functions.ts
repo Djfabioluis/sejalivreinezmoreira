@@ -2,10 +2,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { bempFetch, getBempConfig, BEMP_WEBHOOK_BASE, type JsonValue } from "./bemp.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertPermission } from "./permissions.functions";
 
 export const listSalons = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async () => {
+  .handler(async ({ context }) => {
     const cfg = await getBempConfig();
     return (await bempFetch(`${cfg.apiBase}/salons`)) as JsonValue;
   });
@@ -15,7 +16,7 @@ export const listServices = createServerFn({ method: "GET" })
   .inputValidator((input: unknown) =>
     z.object({ salonId: z.union([z.string(), z.number()]) }).parse(input),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const cfg = await getBempConfig();
     return (await bempFetch(`${cfg.apiBase}/salons/${data.salonId}/services`)) as JsonValue;
   });
@@ -30,7 +31,7 @@ export const listProfessionals = createServerFn({ method: "GET" })
       })
       .parse(input),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const cfg = await getBempConfig();
     return (await bempFetch(
       `${cfg.apiBase}/salons/${data.salonId}/services/${data.serviceId}/professionals`,
@@ -49,7 +50,7 @@ export const listSlots = createServerFn({ method: "GET" })
       })
       .parse(input),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const cfg = await getBempConfig();
     const url = data.professionalId
       ? `${cfg.apiBase}/salons/${data.salonId}/services/${data.serviceId}/professionals/${data.professionalId}/slots/${data.date}`
@@ -68,7 +69,7 @@ export const listCustomerAppointments = createServerFn({ method: "GET" })
       })
       .parse(input),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const qs = new URLSearchParams({
       phone_country_code: data.phoneCountry,
       phone_area_code: data.phoneArea,
@@ -88,7 +89,7 @@ export const getCustomer = createServerFn({ method: "GET" })
       })
       .parse(input),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const qs = new URLSearchParams({
       phone_country_code: data.phoneCountry,
       phone_area_code: data.phoneArea,
@@ -114,7 +115,7 @@ export const createAppointment = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     return (await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule`, {
       method: "POST",
       body: JSON.stringify(data),
@@ -133,7 +134,7 @@ export const cancelAppointment = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const qs = new URLSearchParams({
       phone_country_code: data.phoneCountry,
       phone_area_code: data.phoneArea,
