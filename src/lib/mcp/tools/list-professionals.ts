@@ -12,7 +12,7 @@ export default defineTool({
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ salon_id, service_id }) => {
-    const cfg = getBempConfig();
+    const cfg = await getBempConfig();
     const data = await bempFetch(
       `${cfg.apiBase}/salons/${salon_id}/services/${service_id}/professionals`,
     );

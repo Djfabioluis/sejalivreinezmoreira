@@ -9,7 +9,7 @@ export default defineTool({
   inputSchema: {},
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async () => {
-    const cfg = getBempConfig();
+    const cfg = await getBempConfig();
     const data = await bempFetch(`${cfg.apiBase}/salons`);
     return {
       content: [{ type: "text", text: JSON.stringify(data) }],

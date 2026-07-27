@@ -6,7 +6,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 export const listSalons = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async () => {
-    const cfg = getBempConfig();
+    const cfg = await getBempConfig();
     return (await bempFetch(`${cfg.apiBase}/salons`)) as JsonValue;
   });
 
@@ -16,7 +16,7 @@ export const listServices = createServerFn({ method: "GET" })
     z.object({ salonId: z.union([z.string(), z.number()]) }).parse(input),
   )
   .handler(async ({ data }) => {
-    const cfg = getBempConfig();
+    const cfg = await getBempConfig();
     return (await bempFetch(`${cfg.apiBase}/salons/${data.salonId}/services`)) as JsonValue;
   });
 
@@ -31,7 +31,7 @@ export const listProfessionals = createServerFn({ method: "GET" })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    const cfg = getBempConfig();
+    const cfg = await getBempConfig();
     return (await bempFetch(
       `${cfg.apiBase}/salons/${data.salonId}/services/${data.serviceId}/professionals`,
     )) as JsonValue;
@@ -50,7 +50,7 @@ export const listSlots = createServerFn({ method: "GET" })
       .parse(input),
   )
   .handler(async ({ data }) => {
-    const cfg = getBempConfig();
+    const cfg = await getBempConfig();
     const url = data.professionalId
       ? `${cfg.apiBase}/salons/${data.salonId}/services/${data.serviceId}/professionals/${data.professionalId}/slots/${data.date}`
       : `${cfg.apiBase}/salons/${data.salonId}/services/${data.serviceId}/slots/${data.date}`;

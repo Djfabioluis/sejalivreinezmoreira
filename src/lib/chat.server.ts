@@ -85,7 +85,7 @@ function buildTools(sandbox: boolean) {
       inputSchema: z.object({}),
       execute: async () =>
         safeTool("list_salons", async () => {
-          const cfg = getBempConfig();
+          const cfg = await getBempConfig();
           return await bempFetch(`${cfg.apiBase}/salons`);
         }),
     }),
@@ -94,7 +94,7 @@ function buildTools(sandbox: boolean) {
       inputSchema: z.object({ salon_id: z.number() }),
       execute: async ({ salon_id }) =>
         safeTool("list_services", async () => {
-          const cfg = getBempConfig();
+          const cfg = await getBempConfig();
           return await bempFetch(`${cfg.apiBase}/salons/${salon_id}/services`);
         }),
     }),
@@ -103,7 +103,7 @@ function buildTools(sandbox: boolean) {
       inputSchema: z.object({ salon_id: z.number(), service_id: z.number() }),
       execute: async ({ salon_id, service_id }) =>
         safeTool("list_professionals", async () => {
-          const cfg = getBempConfig();
+          const cfg = await getBempConfig();
           return await bempFetch(
             `${cfg.apiBase}/salons/${salon_id}/services/${service_id}/professionals`,
           );
@@ -120,7 +120,7 @@ function buildTools(sandbox: boolean) {
       }),
       execute: async ({ salon_id, service_id, professional_id, date }) =>
         safeTool("list_slots", async () => {
-          const cfg = getBempConfig();
+          const cfg = await getBempConfig();
           const url = professional_id
             ? `${cfg.apiBase}/salons/${salon_id}/services/${service_id}/professionals/${professional_id}/slots/${date}`
             : `${cfg.apiBase}/salons/${salon_id}/services/${service_id}/slots/${date}`;
@@ -173,7 +173,7 @@ function buildTools(sandbox: boolean) {
             // Tenta descobrir o nome do serviço (para uma mensagem mais humana).
             let serviceName: string | null = null;
             try {
-              const cfg = getBempConfig();
+              const cfg = await getBempConfig();
               const services = (await bempFetch(
                 `${cfg.apiBase}/salons/${input.salon_id}/services`,
               )) as Array<Record<string, unknown>> | null;
@@ -263,7 +263,7 @@ function buildTools(sandbox: boolean) {
       inputSchema: z.object({}),
       execute: async () =>
         safeTool("list_subscription_plans", async () => {
-          const cfg = getBempConfig();
+          const cfg = await getBempConfig();
           const data = await bempFetch(`${cfg.apiBase}/subscription_plans`);
           if (Array.isArray(data)) {
             return data.map((p) => {
@@ -286,7 +286,7 @@ function buildTools(sandbox: boolean) {
       inputSchema: z.object({ plan_id: z.number() }),
       execute: async ({ plan_id }) =>
         safeTool("get_subscription_plan", async () => {
-          const cfg = getBempConfig();
+          const cfg = await getBempConfig();
           return await bempFetch(`${cfg.apiBase}/subscription_plans/${plan_id}`);
         }),
     }),
