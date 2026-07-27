@@ -90,6 +90,28 @@ async function handleSubscriptionDeleted(subscription: any, env: StripeEnv) {
     .eq("environment", env);
 }
 
+async function handleInvoicePaymentFailed(invoice: any, env: StripeEnv) {
+  const subId = invoice.subscription;
+  if (!subId) return;
+  await getSupabase()
+    .from("subscriptions" as never)
+    .update({ status: "past_due", updated_at: new Date().toISOString() } as never)
+    .eq("stripe_subscription_id", subId)
+    .eq("environment", env);
+}
+
+async function handleInvoicePaymentSucceeded(invoice: any, env: StripeEnv) {
+  const subId = invoice.subscription;
+  if (!subId) return;
+  // Renewal paid — clear past_due immediately for UX; period_end is refreshed
+  // authoritatively by the paired customer.subscription.updated event.
+  await getSupabase()
+    .from("subscriptions" as never)
+    .update({ status: "active", updated_at: new Date().toISOString() } as never)
+    .eq("stripe_subscription_id", subId)
+    .eq("environment", env);
+}
+
 async function handleWebhook(req: Request, env: StripeEnv) {
   const event = await verifyWebhook(req, env);
   switch (event.type) {
@@ -101,6 +123,15 @@ async function handleWebhook(req: Request, env: StripeEnv) {
       break;
     case "customer.subscription.deleted":
       await handleSubscriptionDeleted(event.data.object, env);
+      break;
+    case "invoice.payment_failed":
+      await handleInvoicePaymentFailed(event.data.object, env);
+      break;
+    case "invoice.payment_succeeded":
+      await handleInvoicePaymentSucceeded(event.data.object, env);
+      break;
+    case "checkout.session.completed":
+      console.log("Checkout completed:", (event.data.object as any)?.id);
       break;
     default:
       console.log("Unhandled event:", event.type);

@@ -1,16 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
 import {
   getMySubscription,
   createPortalSession,
   changePlan,
 } from "@/lib/payments.functions";
 import { getStripeEnvironment } from "@/lib/stripe";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { ArrowUpRight, ExternalLink, Check } from "lucide-react";
+import { ArrowUpRight, ExternalLink, Check, AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/assinatura")({
   head: () => ({
@@ -54,6 +56,27 @@ function AssinaturaPage() {
     queryKey: ["my-subscription", env],
     queryFn: () => getMySubscription({ data: { environment: env } }),
   });
+
+  // Realtime: refetch on any change to this user's subscription rows.
+  useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      const uid = data.user?.id;
+      if (!uid) return;
+      channel = supabase
+        .channel(`subscriptions-${uid}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "subscriptions", filter: `user_id=eq.${uid}` },
+          () => qc.invalidateQueries({ queryKey: ["my-subscription", env] }),
+        )
+        .subscribe();
+    })();
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [env, qc]);
 
 
   const portal = useMutation({
@@ -107,6 +130,18 @@ function AssinaturaPage() {
       </p>
 
       <div className="mt-6">
+        {sub && (sub.status as string) === "past_due" && (
+          <div className="mb-4 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p className="font-medium">Pagamento pendente</p>
+              <p className="mt-1">
+                O Stripe está tentando cobrar seu cartão novamente. Seu acesso segue liberado enquanto isso.
+                Atualize o cartão no portal para evitar a suspensão da assinatura.
+              </p>
+            </div>
+          </div>
+        )}
         {isLoading ? (
           <Card>
             <CardContent className="p-6 text-sm text-muted-foreground">

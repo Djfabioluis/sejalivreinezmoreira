@@ -110,6 +110,11 @@ export function AppSidebar() {
               type="button"
               onClick={async () => {
                 const { supabase } = await import("@/integrations/supabase/client");
+                try {
+                  const qc = (window as unknown as { __queryClient?: { cancelQueries: () => void; clear: () => void } }).__queryClient;
+                  qc?.cancelQueries();
+                  qc?.clear();
+                } catch { /* noop */ }
                 await supabase.auth.signOut();
                 window.location.replace("/auth");
               }}
