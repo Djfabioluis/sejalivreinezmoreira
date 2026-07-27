@@ -94,10 +94,22 @@ export const deleteAppUser = createServerFn({ method: "POST" })
     const { data: target } = await supabaseAdmin.auth.admin.getUserById(data.userId);
     const targetEmail = target?.user?.email ?? null;
 
-    await supabaseAdmin.from("user_roles").delete().eq("user_id", data.userId);
+    const { error: rolesErr } = await supabaseAdmin.from("user_roles").delete().eq("user_id", data.userId);
+    if (rolesErr) {
+      console.error("[deleteAppUser] user_roles delete failed", rolesErr);
+      throw new Error(`Falha ao remover papéis: ${rolesErr.message}`);
+    }
 
     const { error } = await supabaseAdmin.auth.admin.deleteUser(data.userId);
-    if (error) throw new Error(error.message);
+    if (error) {
+      console.error("[deleteAppUser] auth.admin.deleteUser failed", {
+        userId: data.userId,
+        message: error.message,
+        status: (error as any).status,
+        code: (error as any).code,
+      });
+      throw new Error(`Falha ao excluir usuário: ${error.message}`);
+    }
 
     try {
       const actorEmail = (context.claims as any)?.email ?? null;
