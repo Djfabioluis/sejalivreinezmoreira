@@ -305,7 +305,7 @@ function SugestoesPage() {
             to="/"
             className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground shrink-0"
           >
-            <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Dashboard</span>
+            <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Painel</span>
           </Link>
           <div className="min-w-0">
             <h1 className="truncate text-base sm:text-lg font-semibold flex items-center gap-2">
