@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowLeft, MessageCircle, Save, PlugZap, CheckCircle2, XCircle, Copy, ExternalLink, QrCode, Loader2, AlertCircle } from "lucide-react";
+import { ArrowLeft, MessageCircle, Save, PlugZap, CheckCircle2, XCircle, Copy, ExternalLink, QrCode, Loader2, AlertCircle, RefreshCw, ShieldAlert, Activity } from "lucide-react";
 import { toast } from "sonner";
 import { WhatsAppQr } from "@/components/whatsapp-qr";
 import {
@@ -13,6 +13,19 @@ import {
   saveWhatsAppSettings,
   testWhatsAppConnection,
 } from "@/lib/whatsapp-config.functions";
+import {
+  getWhatsAppHealth,
+  refreshWhatsAppHealth,
+} from "@/lib/whatsapp-health.functions";
+
+type Health = {
+  checkedAt: string;
+  ok: boolean;
+  status: "connected" | "expired" | "invalid" | "unconfigured" | "error";
+  message: string;
+  displayPhoneNumber?: string;
+  verifiedName?: string;
+};
 
 export const Route = createFileRoute("/_authenticated/configuracao-whatsapp")({
   head: () => ({
@@ -38,6 +51,8 @@ function ConfiguracaoWhatsAppPage() {
   const fetchSettings = useServerFn(getWhatsAppSettings);
   const saveSettings = useServerFn(saveWhatsAppSettings);
   const testConn = useServerFn(testWhatsAppConnection);
+  const fetchHealth = useServerFn(getWhatsAppHealth);
+  const runHealth = useServerFn(refreshWhatsAppHealth);
 
   const [accessToken, setAccessToken] = useState("");
   const [phoneNumberId, setPhoneNumberId] = useState("");
@@ -58,6 +73,9 @@ function ConfiguracaoWhatsAppPage() {
     | { ok: false; error: string }
     | null
   >(null);
+
+  const [health, setHealth] = useState<Health | null>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
 
   const [webhookUrl, setWebhookUrl] = useState("");
 
@@ -82,6 +100,38 @@ function ConfiguracaoWhatsAppPage() {
       }
     })();
   }, [fetchSettings]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const h = (await fetchHealth()) as Health | null;
+        if (!cancelled) setHealth(h);
+      } catch {
+        // silencia — permissões podem faltar
+      }
+    }
+    load();
+    const id = setInterval(load, 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [fetchHealth]);
+
+  async function onRefreshHealth() {
+    setHealthLoading(true);
+    try {
+      const h = (await runHealth()) as Health;
+      setHealth(h);
+      if (h.ok) toast.success("Conexão OK");
+      else toast.error(h.message);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao verificar");
+    } finally {
+      setHealthLoading(false);
+    }
+  }
 
   async function onSave() {
     if (!accessToken.trim() || !phoneNumberId.trim() || !appSecret.trim() || !verifyToken.trim()) {
@@ -160,6 +210,9 @@ function ConfiguracaoWhatsAppPage() {
       </header>
 
       <main className="mx-auto max-w-3xl px-4 py-6 space-y-4">
+        <HealthCard health={health} loading={healthLoading} onRefresh={onRefreshHealth} />
+
+
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Status da conexão</CardTitle>
@@ -402,5 +455,82 @@ function BadgeStatus({ ok, label }: { ok: boolean; label: string }) {
       {ok ? <CheckCircle2 className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
       {label}
     </span>
+  );
+}
+
+function HealthCard({
+  health,
+  loading,
+  onRefresh,
+}: {
+  health: Health | null;
+  loading: boolean;
+  onRefresh: () => void;
+}) {
+  const tone =
+    health?.status === "connected"
+      ? { bg: "border-emerald-200 bg-emerald-50", text: "text-emerald-900", Icon: CheckCircle2, label: "Conectado" }
+      : health?.status === "expired"
+        ? { bg: "border-destructive/30 bg-destructive/10", text: "text-destructive", Icon: ShieldAlert, label: "Token expirado" }
+        : health?.status === "invalid"
+          ? { bg: "border-destructive/30 bg-destructive/10", text: "text-destructive", Icon: ShieldAlert, label: "Token inválido" }
+          : health?.status === "unconfigured"
+            ? { bg: "border-amber-200 bg-amber-50", text: "text-amber-900", Icon: AlertCircle, label: "Não configurado" }
+            : health?.status === "error"
+              ? { bg: "border-amber-200 bg-amber-50", text: "text-amber-900", Icon: XCircle, label: "Erro de conexão" }
+              : { bg: "border-muted bg-muted/40", text: "text-muted-foreground", Icon: Activity, label: "Aguardando primeira verificação" };
+
+  const checkedAt = health?.checkedAt
+    ? new Date(health.checkedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
+    : null;
+
+  return (
+    <Card>
+      <CardHeader className="pb-2 flex-row items-start justify-between gap-3 space-y-0">
+        <div>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Activity className="h-4 w-4" /> Saúde da conexão
+          </CardTitle>
+          <CardDescription>
+            Verificação automática a cada 15 min direto na Meta.
+          </CardDescription>
+        </div>
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={loading}
+          className="shrink-0 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:bg-accent disabled:opacity-50"
+          title="Verificar agora"
+        >
+          {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+          Verificar
+        </button>
+      </CardHeader>
+      <CardContent>
+        <div className={`flex items-start gap-2 rounded-md border p-3 text-xs ${tone.bg} ${tone.text}`}>
+          <tone.Icon className="h-4 w-4 shrink-0 mt-0.5" />
+          <div className="space-y-1 min-w-0">
+            <p className="font-medium">{tone.label}</p>
+            {health && (
+              <>
+                <p className="opacity-90">{health.message}</p>
+                {health.displayPhoneNumber && (
+                  <p>
+                    Número: <span className="font-medium">{health.displayPhoneNumber}</span>
+                    {health.verifiedName ? ` — ${health.verifiedName}` : ""}
+                  </p>
+                )}
+                {checkedAt && <p className="opacity-70">Última verificação: {checkedAt}</p>}
+              </>
+            )}
+            {!health && (
+              <p className="opacity-80">
+                Clique em "Verificar" para executar a primeira checagem.
+              </p>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
