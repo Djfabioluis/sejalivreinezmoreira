@@ -1,6 +1,7 @@
 // Server-only helpers for calling the Bemp API. Never import this from a component.
 
 export const BEMP_WEBHOOK_BASE = "https://webhooks.bemp.app/webhooks";
+const BEMP_SETTINGS_ID = 3;
 
 export type JsonValue =
   | string
@@ -10,11 +11,46 @@ export type JsonValue =
   | JsonValue[]
   | { [k: string]: JsonValue };
 
-export function getBempConfig() {
-  const dominio = process.env.BEMP_DOMINIO;
-  const token = process.env.BEMP_TOKEN;
+export type BempSettings = { dominio: string; token: string };
+
+async function readSettingsFromDb(): Promise<BempSettings | null> {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin
+      .from("base_conhecimento" as never)
+      .select("conteudo")
+      .eq("id", BEMP_SETTINGS_ID)
+      .maybeSingle();
+    if (error || !data) return null;
+    const raw = (data as { conteudo: string }).conteudo;
+    const parsed = JSON.parse(raw) as Partial<BempSettings>;
+    if (!parsed.dominio || !parsed.token) return null;
+    return { dominio: parsed.dominio, token: parsed.token };
+  } catch {
+    return null;
+  }
+}
+
+export async function saveSettingsToDb(settings: BempSettings): Promise<void> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { error } = await supabaseAdmin
+    .from("base_conhecimento" as never)
+    .upsert({
+      id: BEMP_SETTINGS_ID,
+      conteudo: JSON.stringify(settings),
+      updated_at: new Date().toISOString(),
+    } as never);
+  if (error) throw new Error(error.message);
+}
+
+export async function getBempConfig() {
+  const dbSettings = await readSettingsFromDb();
+  const dominio = dbSettings?.dominio ?? process.env.BEMP_DOMINIO;
+  const token = dbSettings?.token ?? process.env.BEMP_TOKEN;
   if (!dominio || !token) {
-    throw new Error("BEMP_DOMINIO/BEMP_TOKEN não configurados no servidor");
+    throw new Error(
+      "Credenciais Bemp não configuradas. Acesse Configuração → Integração Bemp para inserir domínio e token.",
+    );
   }
   return {
     dominio,
@@ -29,8 +65,17 @@ export function getBempConfig() {
   };
 }
 
+export async function getBempSettingsSafe(): Promise<{ dominio: string; hasToken: boolean; source: "db" | "env" | "none" }> {
+  const db = await readSettingsFromDb();
+  if (db) return { dominio: db.dominio, hasToken: !!db.token, source: "db" };
+  const envDom = process.env.BEMP_DOMINIO;
+  const envTok = process.env.BEMP_TOKEN;
+  if (envDom && envTok) return { dominio: envDom, hasToken: true, source: "env" };
+  return { dominio: envDom ?? "", hasToken: !!envTok, source: "none" };
+}
+
 export async function bempFetch(url: string, init?: RequestInit): Promise<JsonValue> {
-  const cfg = getBempConfig();
+  const cfg = await getBempConfig();
   const res = await fetch(url, {
     ...init,
     headers: { ...cfg.headers, ...(init?.headers as Record<string, string> | undefined) },

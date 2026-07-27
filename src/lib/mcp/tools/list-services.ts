@@ -9,7 +9,7 @@ export default defineTool({
   inputSchema: { salon_id: z.number().describe("ID da unidade (salon).") },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ salon_id }) => {
-    const cfg = getBempConfig();
+    const cfg = await getBempConfig();
     const data = await bempFetch(`${cfg.apiBase}/salons/${salon_id}/services`);
     return {
       content: [{ type: "text", text: JSON.stringify(data) }],

@@ -15,7 +15,7 @@ export default defineTool({
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ salon_id, service_id, date, professional_id }) => {
-    const cfg = getBempConfig();
+    const cfg = await getBempConfig();
     const url = professional_id
       ? `${cfg.apiBase}/salons/${salon_id}/services/${service_id}/professionals/${professional_id}/slots/${date}`
       : `${cfg.apiBase}/salons/${salon_id}/services/${service_id}/slots/${date}`;
