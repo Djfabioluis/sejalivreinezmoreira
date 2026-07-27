@@ -91,9 +91,11 @@ function ConfiguracaoUltraMsgPage() {
   const webhookUrl = useMemo(() => {
     if (!origin) return "";
     const t = webhookToken.trim();
-    const suffix = t ? `?token=${encodeURIComponent(t)}` : "";
-    return `${origin}/api/public/ultramsg${suffix}`;
+    if (!t) return "";
+    return `${origin}/api/public/ultramsg?token=${encodeURIComponent(t)}`;
   }, [origin, webhookToken]);
+
+  const needsWebhookTokenToCopy = configured && hasWebhookToken && !webhookToken.trim();
 
   const qrPanelUrl = savedInstanceId
     ? `https://user.ultramsg.com/instance/${encodeURIComponent(savedInstanceId)}`
@@ -308,7 +310,12 @@ function ConfiguracaoUltraMsgPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex items-center gap-2 rounded-md border bg-muted/40 p-3 text-xs font-mono break-all">
-              <span className="flex-1">{webhookUrl || "Preencha o Webhook Token para gerar a URL"}</span>
+              <span className="flex-1">
+                {webhookUrl ||
+                  (needsWebhookTokenToCopy
+                    ? "Digite o mesmo Webhook Token salvo para gerar a URL completa"
+                    : "Preencha o Webhook Token para gerar a URL")}
+              </span>
               <button
                 type="button"
                 onClick={() => webhookUrl && copy(webhookUrl)}
@@ -322,8 +329,9 @@ function ConfiguracaoUltraMsgPage() {
             <div className="space-y-1 text-xs text-muted-foreground">
               <p>1. Acesse o painel do UltraMsg: <a href={qrPanelUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">{qrPanelUrl}</a></p>
               <p>2. Vá em <em>Instance settings → Webhook URL</em> e cole a URL acima.</p>
-              <p>3. Marque <em>message received</em> e salve.</p>
-              <p>4. Envie uma mensagem de teste — a Julia responderá automaticamente.</p>
+              <p>3. A URL precisa terminar com <code>?token=...</code>; sem esse token o webhook será bloqueado.</p>
+              <p>4. Marque <em>message received</em> e salve.</p>
+              <p>5. Envie uma mensagem de teste — a Julia responderá automaticamente.</p>
             </div>
           </CardContent>
         </Card>
