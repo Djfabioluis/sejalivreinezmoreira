@@ -1027,3 +1027,86 @@ function AtendimentoHumanoPanel() {
   );
 }
 
+function HandoffList({
+  items,
+  statusBadge,
+  onStatusChange,
+}: {
+  items: AtendimentoHumano[];
+  statusBadge: Record<string, string>;
+  onStatusChange: (id: string, status: string) => void;
+}) {
+  const [page, setPage] = useState(0);
+  useEffect(() => setPage(0), [items]);
+  const pageItems = items.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  return (
+    <div>
+      <VirtualRows
+        items={pageItems}
+        estimateSize={180}
+        maxHeight={640}
+        getKey={(a) => a.id}
+        renderItem={(a) => (
+          <div className="rounded-lg border bg-card p-3 space-y-2">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                  <span className="truncate">{a.nome ?? "Sem nome"}</span>
+                  <Badge variant="outline" className={statusBadge[a.status] ?? ""}>
+                    {a.status}
+                  </Badge>
+                  <Badge variant="outline">{a.canal}</Badge>
+                  {a.sandbox && <Badge variant="outline">simulação</Badge>}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {new Date(a.created_at).toLocaleString("pt-BR")}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Select value={a.status} onValueChange={(v) => onStatusChange(a.id, v)}>
+                  <SelectTrigger className="w-[170px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="aguardando">Aguardando</SelectItem>
+                    <SelectItem value="em_atendimento">Em atendimento</SelectItem>
+                    <SelectItem value="resolvido">Resolvido</SelectItem>
+                  </SelectContent>
+                </Select>
+                {a.status !== "resolvido" && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => onStatusChange(a.id, "resolvido")}
+                  >
+                    <CheckCircle2 className="h-4 w-4 mr-1" /> Concluir
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            <div className="grid gap-1 text-sm sm:grid-cols-2">
+              <div>
+                <span className="text-muted-foreground">Telefone: </span>
+                {a.phone ?? "—"}
+              </div>
+              <div>
+                <span className="text-muted-foreground">Motivo: </span>
+                {a.motivo ?? "—"}
+              </div>
+            </div>
+
+            {a.observacoes && (
+              <p className="text-sm bg-muted/50 rounded p-2 whitespace-pre-wrap">
+                {a.observacoes}
+              </p>
+            )}
+          </div>
+        )}
+      />
+      <Pagination page={page} pageSize={PAGE_SIZE} total={items.length} onPageChange={setPage} />
+    </div>
+  );
+}
+
+
