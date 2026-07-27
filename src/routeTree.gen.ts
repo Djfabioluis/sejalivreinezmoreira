@@ -38,6 +38,7 @@ import { Route as ApiPublicWhatsappRouteImport } from './routes/api/public/whats
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
+import { Route as ApiPublicHooksWhatsappHealthRouteImport } from './routes/api/public/hooks/whatsapp-health'
 import { Route as ApiPublicHooksLembretesRouteImport } from './routes/api/public/hooks/lembretes'
 
 const McpRoute = McpRouteImport.update({
@@ -192,6 +193,12 @@ const ApiPublicPaymentsWebhookRoute =
     path: '/api/public/payments/webhook',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicHooksWhatsappHealthRoute =
+  ApiPublicHooksWhatsappHealthRouteImport.update({
+    id: '/api/public/hooks/whatsapp-health',
+    path: '/api/public/hooks/whatsapp-health',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicHooksLembretesRoute = ApiPublicHooksLembretesRouteImport.update({
   id: '/api/public/hooks/lembretes',
   path: '/api/public/hooks/lembretes',
@@ -227,6 +234,7 @@ export interface FileRoutesByFullPath {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/public/whatsapp': typeof ApiPublicWhatsappRoute
   '/api/public/hooks/lembretes': typeof ApiPublicHooksLembretesRoute
+  '/api/public/hooks/whatsapp-health': typeof ApiPublicHooksWhatsappHealthRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesByTo {
@@ -258,6 +266,7 @@ export interface FileRoutesByTo {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/public/whatsapp': typeof ApiPublicWhatsappRoute
   '/api/public/hooks/lembretes': typeof ApiPublicHooksLembretesRoute
+  '/api/public/hooks/whatsapp-health': typeof ApiPublicHooksWhatsappHealthRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRoutesById {
@@ -291,6 +300,7 @@ export interface FileRoutesById {
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/public/whatsapp': typeof ApiPublicWhatsappRoute
   '/api/public/hooks/lembretes': typeof ApiPublicHooksLembretesRoute
+  '/api/public/hooks/whatsapp-health': typeof ApiPublicHooksWhatsappHealthRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
 }
 export interface FileRouteTypes {
@@ -324,6 +334,7 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/api/public/whatsapp'
     | '/api/public/hooks/lembretes'
+    | '/api/public/hooks/whatsapp-health'
     | '/api/public/payments/webhook'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -355,6 +366,7 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/api/public/whatsapp'
     | '/api/public/hooks/lembretes'
+    | '/api/public/hooks/whatsapp-health'
     | '/api/public/payments/webhook'
   id:
     | '__root__'
@@ -387,6 +399,7 @@ export interface FileRouteTypes {
     | '/.mcp/invoke-tool/$tool'
     | '/api/public/whatsapp'
     | '/api/public/hooks/lembretes'
+    | '/api/public/hooks/whatsapp-health'
     | '/api/public/payments/webhook'
   fileRoutesById: FileRoutesById
 }
@@ -405,6 +418,7 @@ export interface RootRouteChildren {
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicWhatsappRoute: typeof ApiPublicWhatsappRoute
   ApiPublicHooksLembretesRoute: typeof ApiPublicHooksLembretesRoute
+  ApiPublicHooksWhatsappHealthRoute: typeof ApiPublicHooksWhatsappHealthRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
 }
 
@@ -613,6 +627,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicPaymentsWebhookRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/whatsapp-health': {
+      id: '/api/public/hooks/whatsapp-health'
+      path: '/api/public/hooks/whatsapp-health'
+      fullPath: '/api/public/hooks/whatsapp-health'
+      preLoaderRoute: typeof ApiPublicHooksWhatsappHealthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/hooks/lembretes': {
       id: '/api/public/hooks/lembretes'
       path: '/api/public/hooks/lembretes'
@@ -679,6 +700,7 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicWhatsappRoute: ApiPublicWhatsappRoute,
   ApiPublicHooksLembretesRoute: ApiPublicHooksLembretesRoute,
+  ApiPublicHooksWhatsappHealthRoute: ApiPublicHooksWhatsappHealthRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
 }
 export const routeTree = rootRouteImport
