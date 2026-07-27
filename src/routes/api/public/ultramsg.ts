@@ -83,6 +83,14 @@ export const Route = createFileRoute("/api/public/ultramsg")({
       // Ping de verificação — retorna 200 para o painel do UltraMsg testar
       GET: async () => new Response("ok", { status: 200 }),
       POST: async ({ request }) => {
+        const url = new URL(request.url);
+        const ct = request.headers.get("content-type") ?? "";
+        console.log("[ultramsg] webhook hit", {
+          ct,
+          hasQueryToken: !!url.searchParams.get("token"),
+          hasHeaderToken: !!request.headers.get("x-webhook-token"),
+        });
+
         // Validação de token compartilhado (fail closed)
         let expectedToken: string;
         try {
@@ -92,22 +100,44 @@ export const Route = createFileRoute("/api/public/ultramsg")({
           console.error("[ultramsg] credenciais ausentes — rejeitando webhook");
           return new Response("Unauthorized", { status: 401 });
         }
-        const url = new URL(request.url);
         const provided =
           url.searchParams.get("token") ??
           request.headers.get("x-webhook-token") ??
           "";
         if (!provided || provided !== expectedToken) {
+          console.warn("[ultramsg] token inválido");
           return new Response("Invalid token", { status: 401 });
         }
 
+        // UltraMsg pode enviar JSON ou form-urlencoded — aceitamos ambos.
         let payload: UmPayload;
         try {
-          payload = (await request.json()) as UmPayload;
-        } catch {
-          return new Response("Bad JSON", { status: 400 });
+          if (ct.includes("application/json")) {
+            payload = (await request.json()) as UmPayload;
+          } else if (ct.includes("application/x-www-form-urlencoded") || ct.includes("multipart/form-data")) {
+            const form = await request.formData();
+            const obj: Record<string, unknown> = {};
+            for (const [k, v] of form.entries()) obj[k] = typeof v === "string" ? v : String(v);
+            if (typeof obj.body === "string" && obj.body.trim().startsWith("{")) {
+              try { payload = JSON.parse(obj.body) as UmPayload; }
+              catch { payload = obj as UmPayload; }
+            } else {
+              payload = obj as UmPayload;
+            }
+          } else {
+            const text = await request.text();
+            try { payload = JSON.parse(text) as UmPayload; }
+            catch {
+              console.error("[ultramsg] body não parseável", { ct, preview: text.slice(0, 200) });
+              return new Response("Bad body", { status: 400 });
+            }
+          }
+        } catch (err) {
+          console.error("[ultramsg] falha ao ler body:", err);
+          return new Response("Bad body", { status: 400 });
         }
 
+        console.log("[ultramsg] payload", JSON.stringify(payload).slice(0, 400));
         const msg = extractMessage(payload);
         if (!msg || msg.fromMe) {
           return new Response("ok", { status: 200 });
