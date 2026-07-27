@@ -13,7 +13,12 @@ export type JsonValue =
 
 export type BempSettings = { dominio: string; token: string };
 
+let _settingsCache: { value: BempSettings | null; expiresAt: number } | null = null;
+const SETTINGS_TTL_MS = 60_000;
+
 async function readSettingsFromDb(): Promise<BempSettings | null> {
+  const now = Date.now();
+  if (_settingsCache && _settingsCache.expiresAt > now) return _settingsCache.value;
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await supabaseAdmin
@@ -21,11 +26,18 @@ async function readSettingsFromDb(): Promise<BempSettings | null> {
       .select("conteudo")
       .eq("id", BEMP_SETTINGS_ID)
       .maybeSingle();
-    if (error || !data) return null;
+    if (error || !data) {
+      _settingsCache = { value: null, expiresAt: now + SETTINGS_TTL_MS };
+      return null;
+    }
     const raw = (data as { conteudo: string }).conteudo;
     const parsed = JSON.parse(raw) as Partial<BempSettings>;
-    if (!parsed.dominio || !parsed.token) return null;
-    return { dominio: parsed.dominio, token: parsed.token };
+    const value: BempSettings | null =
+      parsed.dominio && parsed.token
+        ? { dominio: parsed.dominio, token: parsed.token }
+        : null;
+    _settingsCache = { value, expiresAt: now + SETTINGS_TTL_MS };
+    return value;
   } catch {
     return null;
   }
@@ -41,6 +53,7 @@ export async function saveSettingsToDb(settings: BempSettings): Promise<void> {
       updated_at: new Date().toISOString(),
     } as never);
   if (error) throw new Error(error.message);
+  _settingsCache = null;
 }
 
 export async function getBempConfig() {
