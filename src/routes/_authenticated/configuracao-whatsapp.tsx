@@ -210,6 +210,9 @@ function ConfiguracaoWhatsAppPage() {
       </header>
 
       <main className="mx-auto max-w-3xl px-4 py-6 space-y-4">
+        <HealthCard health={health} loading={healthLoading} onRefresh={onRefreshHealth} />
+
+
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Status da conexão</CardTitle>
