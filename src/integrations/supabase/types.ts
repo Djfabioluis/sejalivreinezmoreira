@@ -499,6 +499,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      user_has_permission: {
+        Args: { _perm: string; _user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role: "admin" | "operador"
