@@ -22,6 +22,44 @@ function resolvePriceId(item: any): string {
   );
 }
 
+const ACTIVE_STATUSES = new Set(["active", "trialing", "past_due"]);
+
+async function syncOperadorRole(userId: string, status: string) {
+  if (!userId) return;
+  const sb = getSupabase();
+  if (ACTIVE_STATUSES.has(status)) {
+    await sb
+      .from("user_roles" as never)
+      .upsert({ user_id: userId, role: "operador" } as never, {
+        onConflict: "user_id,role",
+      });
+  } else if (status === "canceled" || status === "unpaid" || status === "incomplete_expired") {
+    // Só remove se não houver outra assinatura ativa
+    const { data: others } = await sb
+      .from("subscriptions" as never)
+      .select("status")
+      .eq("user_id", userId as never);
+    const stillActive = (others ?? []).some((s: any) => ACTIVE_STATUSES.has(s.status));
+    if (!stillActive) {
+      await sb
+        .from("user_roles" as never)
+        .delete()
+        .eq("user_id", userId as never)
+        .eq("role", "operador" as never);
+    }
+  }
+}
+
+async function findUserIdBySubscription(subId: string, env: StripeEnv): Promise<string | null> {
+  const { data } = await getSupabase()
+    .from("subscriptions" as never)
+    .select("user_id")
+    .eq("stripe_subscription_id", subId as never)
+    .eq("environment", env as never)
+    .maybeSingle();
+  return (data as any)?.user_id ?? null;
+}
+
 async function handleSubscriptionCreated(subscription: any, env: StripeEnv) {
   const userId = subscription.metadata?.userId;
   if (!userId) {
