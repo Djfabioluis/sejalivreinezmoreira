@@ -57,6 +57,27 @@ function AssinaturaPage() {
     queryFn: () => getMySubscription({ data: { environment: env } }),
   });
 
+  // Realtime: refetch on any change to this user's subscription rows.
+  useEffect(() => {
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    (async () => {
+      const { data } = await supabase.auth.getUser();
+      const uid = data.user?.id;
+      if (!uid) return;
+      channel = supabase
+        .channel(`subscriptions-${uid}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "subscriptions", filter: `user_id=eq.${uid}` },
+          () => qc.invalidateQueries({ queryKey: ["my-subscription", env] }),
+        )
+        .subscribe();
+    })();
+    return () => {
+      if (channel) supabase.removeChannel(channel);
+    };
+  }, [env, qc]);
+
 
   const portal = useMutation({
     mutationFn: async () => {
