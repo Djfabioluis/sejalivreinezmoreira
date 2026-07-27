@@ -49,11 +49,32 @@ export const getMyPermissions = createServerFn({ method: "GET" })
       _user_id: context.userId,
       _role: "admin",
     });
-    const { data, error } = await context.supabase.rpc("get_my_permissoes");
-    if (error) throw new Error(error.message);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    // Emulate get_my_permissoes() using admin client, scoped to the caller.
+    if (isAdmin) {
+      return {
+        isAdmin: true,
+        permissions: [...ALL_PERMISSIONS] as string[],
+      };
+    }
+    const { data: own, error: ownErr } = await supabaseAdmin
+      .from("operador_permissoes")
+      .select("permissoes")
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (ownErr) throw new Error(ownErr.message);
+    let permissions: string[] | null = (own?.permissoes as string[] | undefined) ?? null;
+    if (!permissions) {
+      const { data: def } = await supabaseAdmin
+        .from("operador_permissoes_default")
+        .select("permissoes")
+        .eq("id", 1)
+        .maybeSingle();
+      permissions = (def?.permissoes as string[] | undefined) ?? [];
+    }
     return {
-      isAdmin: Boolean(isAdmin),
-      permissions: (data as string[]) ?? [],
+      isAdmin: false,
+      permissions,
     };
   });
 
