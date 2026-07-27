@@ -43,6 +43,7 @@ const items = [
   { title: "Integração Bemp", url: "/integracao-bemp", icon: KeyRound, group: "Configuração" },
   { title: "Níveis de acesso", url: "/acessos", icon: ShieldCheck, group: "Configuração" },
   { title: "Usuários", url: "/usuarios", icon: Users, group: "Configuração" },
+  { title: "Assinantes", url: "/assinantes", icon: CreditCard, group: "Configuração" },
   { title: "Minha assinatura", url: "/assinatura", icon: CreditCard, group: "Conta" },
   { title: "Meu perfil", url: "/perfil", icon: UserCircle, group: "Conta" },
 ] as const;
