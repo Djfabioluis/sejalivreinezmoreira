@@ -260,7 +260,8 @@ function ServicosCard({ salonId }: { salonId: string }) {
     queryKey: ["services", salonId],
     queryFn: () => listServices({ data: { salonId } }),
     enabled: !!salonId,
-    refetchInterval: 60_000,
+    staleTime: 5 * 60_000,
+    gcTime: 30 * 60_000,
   });
   const services = asArray(q.data);
 
