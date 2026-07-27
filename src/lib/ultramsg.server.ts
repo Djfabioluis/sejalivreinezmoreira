@@ -7,7 +7,7 @@ export type UltraMsgSettings = {
   webhookToken: string;   // token compartilhado que validamos nos webhooks
 };
 
-const ULTRAMSG_SETTINGS_ID = 5;
+const ULTRAMSG_SETTINGS_ID = 6;
 
 let _cache: { value: UltraMsgSettings | null; expiresAt: number } | null = null;
 const TTL_MS = 60_000;
