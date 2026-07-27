@@ -19,6 +19,7 @@ import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
 import { Route as AuthenticatedSugestoesRouteImport } from './routes/_authenticated/sugestoes'
+import { Route as AuthenticatedPermissoesRouteImport } from './routes/_authenticated/permissoes'
 import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated/perfil'
 import { Route as AuthenticatedPainelRouteImport } from './routes/_authenticated/painel'
 import { Route as AuthenticatedOperadoresRouteImport } from './routes/_authenticated/operadores'
@@ -85,6 +86,11 @@ const AuthenticatedUsuariosRoute = AuthenticatedUsuariosRouteImport.update({
 const AuthenticatedSugestoesRoute = AuthenticatedSugestoesRouteImport.update({
   id: '/sugestoes',
   path: '/sugestoes',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPermissoesRoute = AuthenticatedPermissoesRouteImport.update({
+  id: '/permissoes',
+  path: '/permissoes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedPerfilRoute = AuthenticatedPerfilRouteImport.update({
@@ -202,6 +208,7 @@ export interface FileRoutesByFullPath {
   '/operadores': typeof AuthenticatedOperadoresRoute
   '/painel': typeof AuthenticatedPainelRoute
   '/perfil': typeof AuthenticatedPerfilRoute
+  '/permissoes': typeof AuthenticatedPermissoesRoute
   '/sugestoes': typeof AuthenticatedSugestoesRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/api/chat': typeof ApiChatRoute
@@ -231,6 +238,7 @@ export interface FileRoutesByTo {
   '/operadores': typeof AuthenticatedOperadoresRoute
   '/painel': typeof AuthenticatedPainelRoute
   '/perfil': typeof AuthenticatedPerfilRoute
+  '/permissoes': typeof AuthenticatedPermissoesRoute
   '/sugestoes': typeof AuthenticatedSugestoesRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/api/chat': typeof ApiChatRoute
@@ -262,6 +270,7 @@ export interface FileRoutesById {
   '/_authenticated/operadores': typeof AuthenticatedOperadoresRoute
   '/_authenticated/painel': typeof AuthenticatedPainelRoute
   '/_authenticated/perfil': typeof AuthenticatedPerfilRoute
+  '/_authenticated/permissoes': typeof AuthenticatedPermissoesRoute
   '/_authenticated/sugestoes': typeof AuthenticatedSugestoesRoute
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
   '/api/chat': typeof ApiChatRoute
@@ -293,6 +302,7 @@ export interface FileRouteTypes {
     | '/operadores'
     | '/painel'
     | '/perfil'
+    | '/permissoes'
     | '/sugestoes'
     | '/usuarios'
     | '/api/chat'
@@ -322,6 +332,7 @@ export interface FileRouteTypes {
     | '/operadores'
     | '/painel'
     | '/perfil'
+    | '/permissoes'
     | '/sugestoes'
     | '/usuarios'
     | '/api/chat'
@@ -352,6 +363,7 @@ export interface FileRouteTypes {
     | '/_authenticated/operadores'
     | '/_authenticated/painel'
     | '/_authenticated/perfil'
+    | '/_authenticated/permissoes'
     | '/_authenticated/sugestoes'
     | '/_authenticated/usuarios'
     | '/api/chat'
@@ -453,6 +465,13 @@ declare module '@tanstack/react-router' {
       path: '/sugestoes'
       fullPath: '/sugestoes'
       preLoaderRoute: typeof AuthenticatedSugestoesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/permissoes': {
+      id: '/_authenticated/permissoes'
+      path: '/permissoes'
+      fullPath: '/permissoes'
+      preLoaderRoute: typeof AuthenticatedPermissoesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/perfil': {
@@ -596,6 +615,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedOperadoresRoute: typeof AuthenticatedOperadoresRoute
   AuthenticatedPainelRoute: typeof AuthenticatedPainelRoute
   AuthenticatedPerfilRoute: typeof AuthenticatedPerfilRoute
+  AuthenticatedPermissoesRoute: typeof AuthenticatedPermissoesRoute
   AuthenticatedSugestoesRoute: typeof AuthenticatedSugestoesRoute
   AuthenticatedUsuariosRoute: typeof AuthenticatedUsuariosRoute
 }
@@ -612,6 +632,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedOperadoresRoute: AuthenticatedOperadoresRoute,
   AuthenticatedPainelRoute: AuthenticatedPainelRoute,
   AuthenticatedPerfilRoute: AuthenticatedPerfilRoute,
+  AuthenticatedPermissoesRoute: AuthenticatedPermissoesRoute,
   AuthenticatedSugestoesRoute: AuthenticatedSugestoesRoute,
   AuthenticatedUsuariosRoute: AuthenticatedUsuariosRoute,
 }

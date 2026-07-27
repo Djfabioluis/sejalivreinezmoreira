@@ -14,6 +14,7 @@ import {
   Hand,
   CreditCard,
   KeyRound,
+  Lock,
 
 } from "lucide-react";
 
@@ -31,21 +32,23 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { SandboxToggle } from "@/components/sandbox-toggle";
+import { useMyPermissions } from "@/hooks/use-my-permissions";
 
 const items = [
-  { title: "Dashboard", url: "/painel", icon: LayoutDashboard, group: "Operação" },
-  { title: "Secretária virtual", url: "/agendar", icon: MessageCircle, group: "Operação" },
-  { title: "Base de conhecimento", url: "/base-conhecimento", icon: BookOpen, group: "Configuração" },
-  { title: "Boas-vindas", url: "/boas-vindas", icon: Hand, group: "Configuração" },
-  { title: "Operadores", url: "/operadores", icon: UserCog, group: "Configuração" },
-  { title: "Sugestões", url: "/sugestoes", icon: Sparkles, group: "Configuração" },
-  { title: "Auditoria de sugestões", url: "/auditoria-sugestoes", icon: ClipboardList, group: "Configuração" },
-  { title: "Integração Bemp", url: "/integracao-bemp", icon: KeyRound, group: "Configuração" },
-  { title: "Níveis de acesso", url: "/acessos", icon: ShieldCheck, group: "Configuração" },
-  { title: "Usuários", url: "/usuarios", icon: Users, group: "Configuração" },
-  { title: "Assinantes", url: "/assinantes", icon: CreditCard, group: "Configuração" },
-  { title: "Minha assinatura", url: "/assinatura", icon: CreditCard, group: "Conta" },
-  { title: "Meu perfil", url: "/perfil", icon: UserCircle, group: "Conta" },
+  { title: "Dashboard", url: "/painel", icon: LayoutDashboard, group: "Operação", key: "painel" },
+  { title: "Secretária virtual", url: "/agendar", icon: MessageCircle, group: "Operação", key: "agendar" },
+  { title: "Base de conhecimento", url: "/base-conhecimento", icon: BookOpen, group: "Configuração", key: "base-conhecimento" },
+  { title: "Boas-vindas", url: "/boas-vindas", icon: Hand, group: "Configuração", key: "boas-vindas" },
+  { title: "Operadores", url: "/operadores", icon: UserCog, group: "Configuração", key: "operadores" },
+  { title: "Sugestões", url: "/sugestoes", icon: Sparkles, group: "Configuração", key: "sugestoes" },
+  { title: "Auditoria de sugestões", url: "/auditoria-sugestoes", icon: ClipboardList, group: "Configuração", key: "auditoria-sugestoes" },
+  { title: "Integração Bemp", url: "/integracao-bemp", icon: KeyRound, group: "Configuração", key: "integracao-bemp" },
+  { title: "Níveis de acesso", url: "/acessos", icon: ShieldCheck, group: "Configuração", key: "acessos" },
+  { title: "Usuários", url: "/usuarios", icon: Users, group: "Configuração", key: "usuarios" },
+  { title: "Permissões", url: "/permissoes", icon: Lock, group: "Configuração", key: "permissoes" },
+  { title: "Assinantes", url: "/assinantes", icon: CreditCard, group: "Configuração", key: "assinantes" },
+  { title: "Minha assinatura", url: "/assinatura", icon: CreditCard, group: "Conta", key: "__always" },
+  { title: "Meu perfil", url: "/perfil", icon: UserCircle, group: "Conta", key: "__always" },
 ] as const;
 
 export function AppSidebar() {
@@ -55,7 +58,17 @@ export function AppSidebar() {
   const isActive = (path: string) =>
     path === "/" ? currentPath === "/" : currentPath.startsWith(path);
 
-  const groups = Array.from(new Set(items.map((i) => i.group)));
+  const { data: perms } = useMyPermissions();
+  const allowed = new Set(perms?.permissions ?? []);
+  const isAdmin = perms?.isAdmin ?? false;
+
+  const visibleItems = items.filter((i) => {
+    if (i.key === "__always") return true;
+    if (isAdmin) return true;
+    return allowed.has(i.key);
+  });
+
+  const groups = Array.from(new Set(visibleItems.map((i) => i.group)));
 
   return (
     <Sidebar collapsible="icon">
@@ -83,7 +96,7 @@ export function AppSidebar() {
             <SidebarGroupLabel>{group}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {items
+                {visibleItems
                   .filter((i) => i.group === group)
                   .map((item) => (
                     <SidebarMenuItem key={item.url}>

@@ -218,6 +218,45 @@ export type Database = {
         }
         Relationships: []
       }
+      operador_permissoes: {
+        Row: {
+          created_at: string
+          permissoes: string[]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          permissoes?: string[]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          permissoes?: string[]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      operador_permissoes_default: {
+        Row: {
+          id: number
+          permissoes: string[]
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          permissoes?: string[]
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          permissoes?: string[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       operadores: {
         Row: {
           ativo: boolean
@@ -447,6 +486,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_my_permissoes: { Args: never; Returns: string[] }
       has_active_subscription: {
         Args: { check_env?: string; user_uuid: string }
         Returns: boolean
