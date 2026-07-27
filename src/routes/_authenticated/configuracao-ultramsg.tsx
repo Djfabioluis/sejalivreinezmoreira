@@ -114,7 +114,7 @@ function ConfiguracaoUltraMsgPage() {
     }
     setSaving(true);
     try {
-      await saveSettings({
+      const result = await saveSettings({
         data: {
           instanceId: instanceId.trim(),
           token: token.trim(),
