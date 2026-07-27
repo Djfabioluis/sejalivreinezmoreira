@@ -94,6 +94,8 @@ async function handleSubscriptionCreated(subscription: any, env: StripeEnv) {
       }) as never,
       { onConflict: "stripe_subscription_id" },
     );
+  await syncOperadorRole(userId, subscription.status);
+
 }
 
 async function handleSubscriptionUpdated(subscription: any, env: StripeEnv) {
