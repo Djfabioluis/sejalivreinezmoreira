@@ -40,6 +40,7 @@ const items = [
   { title: "Operadores", url: "/operadores", icon: UserCog, group: "Configuração" },
   { title: "Sugestões", url: "/sugestoes", icon: Sparkles, group: "Configuração" },
   { title: "Auditoria de sugestões", url: "/auditoria-sugestoes", icon: ClipboardList, group: "Configuração" },
+  { title: "Integração Bemp", url: "/integracao-bemp", icon: KeyRound, group: "Configuração" },
   { title: "Níveis de acesso", url: "/acessos", icon: ShieldCheck, group: "Configuração" },
   { title: "Usuários", url: "/usuarios", icon: Users, group: "Configuração" },
   { title: "Minha assinatura", url: "/assinatura", icon: CreditCard, group: "Conta" },
