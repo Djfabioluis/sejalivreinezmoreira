@@ -6,7 +6,7 @@ export default defineTool({
   name: "create_appointment",
   title: "Criar agendamento",
   description:
-    "Cria um agendamento na Bemp. O 'end' deve ser 'start' + duração do serviço em minutos. Só chame após confirmação explícita do paciente.",
+    "Cria um agendamento na Bemp. O 'end' deve ser 'start' + duração do serviço em minutos. Só chame após confirmação explícita do cliente.",
   inputSchema: {
     salon_id: z.number(),
     service_id: z.number(),

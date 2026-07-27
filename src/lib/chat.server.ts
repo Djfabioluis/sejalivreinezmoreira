@@ -9,7 +9,7 @@ Sua função é conversar de forma humanizada, calorosa e objetiva, em portuguê
 para agendar consultas e vender planos de assinatura.
 
 REGRAS DE CONDUTA:
-- Cumprimente com empatia. Chame o paciente pelo nome quando souber.
+- Cumprimente com empatia. Chame o cliente pelo nome quando souber.
 - Nunca invente serviços, profissionais, valores, durações, planos ou horários. Consulte SEMPRE as ferramentas.
 - Confirme cada informação coletada em uma frase curta antes de seguir.
 - Antes de criar o agendamento ou registrar interesse em assinatura, resuma tudo e peça uma confirmação explícita ("posso confirmar?").
@@ -18,32 +18,32 @@ REGRAS DE CONDUTA:
 
 FLUXO DE AGENDAMENTO:
 1. Cumprimente e pergunte o nome.
-2. Peça telefone (país/DDD/número). Se o paciente não informar país, assuma 55.
+2. Peça telefone (país/DDD/número). Se o cliente não informar país, assuma 55.
 3. Liste unidades usando list_salons e pergunte qual escolhe.
-4. Liste serviços da unidade (list_services) com valor e duração; ajude o paciente a escolher.
-5. (Opcional) Liste profissionais (list_professionals). Se o paciente não tiver preferência, siga sem profissional.
+4. Liste serviços da unidade (list_services) com valor e duração; ajude o cliente a escolher.
+5. (Opcional) Liste profissionais (list_professionals). Se o cliente não tiver preferência, siga sem profissional.
 6. Pergunte a data preferida (YYYY-MM-DD). Use list_slots para mostrar horários disponíveis.
 7. Após escolha do horário, calcule o "end" somando a duração do serviço ao "start".
 8. ANTES de chamar create_appointment, chame list_cross_sell_suggestions passando salon_id, trigger_service_id (o serviço escolhido), a data (YYYY-MM-DD) e o telefone. O resultado já vem filtrado por elegibilidade e limites — respeite-o.
    - Se vier vazio, não ofereça nada extra.
    - Se vier com itens, ofereça-os na ordem retornada, informando valor e duração de cada. Faça isso apenas UMA vez por agendamento, sem insistir.
    - Para cada item ofertado, chame record_suggestion com status="ofertado".
-9. Se o paciente aceitar um complemento, chame record_suggestion com status="aceito" para aquele serviço e agende-o também (create_appointment separado, encaixando na sequência). Se recusar, chame record_suggestion com status="recusado".
+9. Se o cliente aceitar um complemento, chame record_suggestion com status="aceito" para aquele serviço e agende-o também (create_appointment separado, encaixando na sequência). Se recusar, chame record_suggestion com status="recusado".
 10. Chame create_appointment para o(s) serviço(s) confirmado(s).
 11. Ao final, confirme o(s) agendamento(s) e ofereça mais ajuda.
 
 CANCELAMENTO E REMARCAÇÃO:
-- Quando o paciente pedir para cancelar, peça o telefone (país/DDD/número) se ainda não souber e use list_customer_appointments para localizar os agendamentos.
+- Quando o cliente pedir para cancelar, peça o telefone (país/DDD/número) se ainda não souber e use list_customer_appointments para localizar os agendamentos.
 - Mostre os agendamentos encontrados (serviço, profissional, data/hora) e pergunte qual deles deseja cancelar.
 - Antes de chamar cancel_appointment, confirme explicitamente ("Confirma o cancelamento de X no dia Y às Z?").
-- Após cancelar com sucesso, pergunte se o paciente gostaria de remarcar para outro dia ou horário. Se sim, siga o fluxo normal de agendamento (list_services/list_slots/create_appointment) reaproveitando os dados que já tem.
-- Se o paciente não quiser remarcar, agradeça e se coloque à disposição.
+- Após cancelar com sucesso, pergunte se o cliente gostaria de remarcar para outro dia ou horário. Se sim, siga o fluxo normal de agendamento (list_services/list_slots/create_appointment) reaproveitando os dados que já tem.
+- Se o cliente não quiser remarcar, agradeça e se coloque à disposição.
 
 PLANOS DE ASSINATURA (vendas):
-- IMPORTANTE: os planos de assinatura NÃO são válidos para a unidade do Centro Cívico. Se o paciente demonstrar interesse em assinar e estiver vinculado (ou pedir atendimento) à unidade do Centro Cívico, avise gentilmente que essa unidade não participa dos planos de assinatura e ofereça as demais unidades como alternativa. Nunca registre lead de assinatura para a unidade do Centro Cívico.
-- Quando o paciente perguntar sobre assinaturas, mensalidades, planos, pacotes ou pedir para "assinar", use list_subscription_plans para listar os planos disponíveis com nome e valor. SEMPRE informe, de forma natural, que neste mês nossos planos estão SEM TAXA DE ADESÃO — destaque isso como um benefício por tempo limitado. Deixe claro que os planos valem para todas as unidades, EXCETO Centro Cívico.
+- IMPORTANTE: os planos de assinatura NÃO são válidos para a unidade do Centro Cívico. Se o cliente demonstrar interesse em assinar e estiver vinculado (ou pedir atendimento) à unidade do Centro Cívico, avise gentilmente que essa unidade não participa dos planos de assinatura e ofereça as demais unidades como alternativa. Nunca registre lead de assinatura para a unidade do Centro Cívico.
+- Quando o cliente perguntar sobre assinaturas, mensalidades, planos, pacotes ou pedir para "assinar", use list_subscription_plans para listar os planos disponíveis com nome e valor. SEMPRE informe, de forma natural, que neste mês nossos planos estão SEM TAXA DE ADESÃO — destaque isso como um benefício por tempo limitado. Deixe claro que os planos valem para todas as unidades, EXCETO Centro Cívico.
 - Se ele demonstrar interesse em um plano específico, use get_subscription_plan para trazer descrição completa, benefícios, condições e valores.
-- Antes de registrar o interesse, colete: nome completo, telefone (país/DDD/número) e e-mail. Peça CPF quando o paciente ofertar ou quando perguntar sobre pagamento/nota fiscal.
+- Antes de registrar o interesse, colete: nome completo, telefone (país/DDD/número) e e-mail. Peça CPF quando o cliente ofertar ou quando perguntar sobre pagamento/nota fiscal.
 - Use lookup_customer com o telefone para verificar se ele já tem cadastro na Bemp.
   * Se JÁ TIVER cadastro, confirme os dados encontrados ("Confirma que é você, {nome}?") e siga direto.
   * Se NÃO TIVER cadastro, avise gentilmente que o cadastro será criado junto com a assinatura e colete os dados que ainda faltam.
@@ -52,15 +52,15 @@ PLANOS DE ASSINATURA (vendas):
 - Explique com clareza: a equipe da unidade vai receber esse pedido, entrará em contato para finalizar o pagamento e ativar a assinatura na Bemp. Ofereça-se para tirar dúvidas enquanto isso.
 
 SALDO DE VISITAS DO PLANO DE ASSINATURA:
-- Quando o paciente perguntar quantas visitas/sessões ainda tem no plano dele, peça o telefone (país/DDD/número) se ainda não souber e chame check_subscription_balance.
+- Quando o cliente perguntar quantas visitas/sessões ainda tem no plano dele, peça o telefone (país/DDD/número) se ainda não souber e chame check_subscription_balance.
 - IMPORTANTE: o resultado é uma ESTIMATIVA — a API da Bemp não expõe o saldo real. Explique isso com transparência ("de acordo com nossos registros aqui você tem X agendamentos previstos este mês; o saldo exato só a equipe consegue confirmar").
 - Se a ferramenta devolver plan_quota_monthly e estimated_remaining_this_month, informe assim: "seu plano é {plan_name} com até {plan_quota_monthly} visitas no mês; você já tem {scheduled_this_month} agendadas, então restam cerca de {estimated_remaining_this_month} até o fechamento do mês".
-- Se plan_quota_monthly vier nulo (confidence="parcial"), diga apenas quantos agendamentos futuros o paciente tem este mês e explique que a cota total do plano precisa ser confirmada pela equipe.
+- Se plan_quota_monthly vier nulo (confidence="parcial"), diga apenas quantos agendamentos futuros o cliente tem este mês e explique que a cota total do plano precisa ser confirmada pela equipe.
 - Se found=false, avise que não achou cadastro na Bemp com aquele telefone.
 - Em TODOS os casos, pergunte se ele quer que a equipe confirme o saldo oficial. Se sim, colete o nome e chame register_balance_inquiry — depois avise que a equipe retorna o contato.
 
 ATENDIMENTO HUMANO:
-- Se o paciente pedir explicitamente para "falar com uma pessoa/atendente/humano", reclamar de algo não resolvido, ou se o assunto sair do seu escopo (ex.: reembolso, laudo médico, situação delicada), chame request_human_handoff com o motivo em uma frase curta, o telefone e o nome (se souber). Depois avise que um atendente humano da equipe entrará em contato.
+- Se o cliente pedir explicitamente para "falar com uma pessoa/atendente/humano", reclamar de algo não resolvido, ou se o assunto sair do seu escopo (ex.: reembolso, laudo médico, situação delicada), chame request_human_handoff com o motivo em uma frase curta, o telefone e o nome (se souber). Depois avise que um atendente humano da equipe entrará em contato.
 
 Se algo falhar, explique com gentileza e sugira alternativas.`;
 
@@ -69,7 +69,7 @@ const SANDBOX_NOTE = `
 MODO SANDBOX ATIVO:
 - Nenhum agendamento será gravado no sistema real (Bemp).
 - Ao chamar create_appointment, o sistema devolverá um comprovante SIMULADO.
-- Ao final, deixe claro para o paciente que se trata de uma simulação de teste.`;
+- Ao final, deixe claro para o cliente que se trata de uma simulação de teste.`;
 
 function safeTool<T>(label: string, fn: () => Promise<T>) {
   return fn().catch((err) => {
@@ -112,7 +112,7 @@ function buildTools(sandbox: boolean) {
     }),
     list_slots: tool({
       description:
-        "Lista horários disponíveis. Passe professional_id apenas se o paciente escolheu um profissional específico.",
+        "Lista horários disponíveis. Passe professional_id apenas se o cliente escolheu um profissional específico.",
       inputSchema: z.object({
         salon_id: z.number(),
         service_id: z.number(),
@@ -130,7 +130,7 @@ function buildTools(sandbox: boolean) {
     }),
     create_appointment: tool({
       description:
-        "Cria o agendamento na Bemp. Só chame após confirmação explícita do paciente. O 'end' deve ser o 'start' + duração do serviço em minutos.",
+        "Cria o agendamento na Bemp. Só chame após confirmação explícita do cliente. O 'end' deve ser o 'start' + duração do serviço em minutos.",
       inputSchema: z.object({
         salon_id: z.number(),
         service_id: z.number(),
@@ -156,7 +156,7 @@ function buildTools(sandbox: boolean) {
               created_at: new Date().toISOString(),
             };
           }
-          // Quando o paciente escolheu um profissional específico, sinaliza "com preferência"
+          // Quando o cliente escolheu um profissional específico, sinaliza "com preferência"
           // na observação do agendamento (enviado em múltiplos campos para compatibilidade).
           const payload: Record<string, unknown> = { ...input };
           if (input.professional_id != null) {
@@ -229,7 +229,7 @@ function buildTools(sandbox: boolean) {
 
     list_customer_appointments: tool({
       description:
-        "Lista os agendamentos existentes de um paciente pelo telefone. Use antes de cancelar para achar o ID correto.",
+        "Lista os agendamentos existentes de um cliente pelo telefone. Use antes de cancelar para achar o ID correto.",
       inputSchema: z.object({
         phone_country_code: z.string(),
         phone_area_code: z.string(),
@@ -247,7 +247,7 @@ function buildTools(sandbox: boolean) {
     }),
     cancel_appointment: tool({
       description:
-        "Cancela um agendamento existente na Bemp. Só chame após confirmação explícita do paciente sobre qual agendamento cancelar.",
+        "Cancela um agendamento existente na Bemp. Só chame após confirmação explícita do cliente sobre qual agendamento cancelar.",
       inputSchema: z.object({
         appointment_id: z.union([z.string(), z.number()]),
         phone_country_code: z.string(),
@@ -279,7 +279,7 @@ function buildTools(sandbox: boolean) {
     }),
     list_subscription_plans: tool({
       description:
-        "Lista os planos de assinatura cadastrados na Bemp (nome e resumo). Use quando o paciente perguntar sobre assinaturas, mensalidades, planos ou pacotes.",
+        "Lista os planos de assinatura cadastrados na Bemp (nome e resumo). Use quando o cliente perguntar sobre assinaturas, mensalidades, planos ou pacotes.",
       inputSchema: z.object({}),
       execute: async () =>
         safeTool("list_subscription_plans", async () => {
@@ -341,7 +341,7 @@ function buildTools(sandbox: boolean) {
     }),
     register_subscription_lead: tool({
       description:
-        "Registra o interesse do cliente em um plano de assinatura (cria o cadastro no nosso backend). Use SOMENTE após confirmação explícita do paciente. A equipe da unidade finaliza o pagamento e ativa a assinatura na Bemp.",
+        "Registra o interesse do cliente em um plano de assinatura (cria o cadastro no nosso backend). Use SOMENTE após confirmação explícita do cliente. A equipe da unidade finaliza o pagamento e ativa a assinatura na Bemp.",
       inputSchema: z.object({
         plan_id: z.number(),
         plan_name: z.string(),
@@ -397,7 +397,7 @@ function buildTools(sandbox: boolean) {
     }),
     list_cross_sell_suggestions: tool({
       description:
-        "Retorna os serviços complementares elegíveis para oferecer ao paciente ANTES de finalizar o agendamento. Já aplica as regras cadastradas: unidade, serviço-gatilho, limites diários (por serviço e por cliente) e evita sugerir algo que o paciente já tem agendado no mesmo dia. Chame uma vez por agendamento, informando o serviço escolhido.",
+        "Retorna os serviços complementares elegíveis para oferecer ao cliente ANTES de finalizar o agendamento. Já aplica as regras cadastradas: unidade, serviço-gatilho, limites diários (por serviço e por cliente) e evita sugerir algo que o cliente já tem agendado no mesmo dia. Chame uma vez por agendamento, informando o serviço escolhido.",
       inputSchema: z.object({
         salon_id: z.union([z.string(), z.number()]),
         trigger_service_id: z.union([z.string(), z.number()]),
@@ -590,7 +590,7 @@ function buildTools(sandbox: boolean) {
     }),
     record_suggestion: tool({
       description:
-        "Registra o resultado de uma sugestão de serviço complementar feita ao paciente (ofertado, aceito ou recusado). Use logo depois de oferecer e novamente quando o paciente responder.",
+        "Registra o resultado de uma sugestão de serviço complementar feita ao cliente (ofertado, aceito ou recusado). Use logo depois de oferecer e novamente quando o cliente responder.",
       inputSchema: z.object({
         regra_id: z.string().uuid().optional(),
         salon_id: z.union([z.string(), z.number()]).optional(),
@@ -626,7 +626,7 @@ function buildTools(sandbox: boolean) {
     }),
     check_subscription_balance: tool({
       description:
-        "Estima quantas visitas restam no plano de assinatura de um cliente. Combina os dados de cadastro na Bemp (plano ativo e cota informada) com a contagem de agendamentos futuros do cliente no mês atual. É uma ESTIMATIVA — a API pública da Bemp não expõe o saldo real. Sempre ofereça ao paciente a opção de pedir uma verificação manual pela equipe.",
+        "Estima quantas visitas restam no plano de assinatura de um cliente. Combina os dados de cadastro na Bemp (plano ativo e cota informada) com a contagem de agendamentos futuros do cliente no mês atual. É uma ESTIMATIVA — a API pública da Bemp não expõe o saldo real. Sempre ofereça ao cliente a opção de pedir uma verificação manual pela equipe.",
       inputSchema: z.object({
         phone_country_code: z.string(),
         phone_area_code: z.string(),
@@ -732,13 +732,13 @@ function buildTools(sandbox: boolean) {
             appointments_listed: listedTotal,
             confidence: planQuota != null ? "estimativa" : "parcial",
             disclaimer:
-              "A API pública da Bemp não expõe o saldo real do plano. Estes números são uma ESTIMATIVA baseada nos agendamentos futuros do mês. Ofereça ao paciente encaminhar para a equipe (use register_balance_inquiry) para confirmação oficial.",
+              "A API pública da Bemp não expõe o saldo real do plano. Estes números são uma ESTIMATIVA baseada nos agendamentos futuros do mês. Ofereça ao cliente encaminhar para a equipe (use register_balance_inquiry) para confirmação oficial.",
           };
         }),
     }),
     register_balance_inquiry: tool({
       description:
-        "Registra um pedido de verificação de saldo de visitas do plano de assinatura para a equipe humana confirmar na Bemp. Use quando o paciente quiser o número exato ou quando a estimativa não estiver disponível.",
+        "Registra um pedido de verificação de saldo de visitas do plano de assinatura para a equipe humana confirmar na Bemp. Use quando o cliente quiser o número exato ou quando a estimativa não estiver disponível.",
       inputSchema: z.object({
         name: z.string(),
         phone_country_code: z.string(),
@@ -789,7 +789,7 @@ function buildTools(sandbox: boolean) {
 
     request_human_handoff: tool({
       description:
-        "Registra que o paciente deseja falar com um atendente humano. Use quando o paciente pedir para falar com uma pessoa, quando reclamar de problema não resolvido, ou quando o assunto sair do escopo (reembolso, laudo, situação delicada). Confirme o motivo antes de chamar.",
+        "Registra que o cliente deseja falar com um atendente humano. Use quando o cliente pedir para falar com uma pessoa, quando reclamar de problema não resolvido, ou quando o assunto sair do escopo (reembolso, laudo, situação delicada). Confirme o motivo antes de chamar.",
       inputSchema: z.object({
         name: z.string().optional(),
         phone_country_code: z.string().optional(),
@@ -895,10 +895,10 @@ function currentDateNote(): string {
     hour: "2-digit",
     minute: "2-digit",
   }).format(now);
-  return `\n\nCONTEXTO TEMPORAL (fuso America/Sao_Paulo):\n- Hoje é ${humano} (${iso}), ${hora}.\n- SEMPRE use o ano ${iso.slice(0, 4)} ao montar datas para list_slots e create_appointment.\n- Quando o paciente disser "amanhã", "sexta", "próxima semana" etc., calcule a partir de ${iso}.\n- Nunca use datas de anos anteriores; se o ano não for informado, assuma o ano corrente e, se a data já passou, use o próximo ano.`;
+  return `\n\nCONTEXTO TEMPORAL (fuso America/Sao_Paulo):\n- Hoje é ${humano} (${iso}), ${hora}.\n- SEMPRE use o ano ${iso.slice(0, 4)} ao montar datas para list_slots e create_appointment.\n- Quando o cliente disser "amanhã", "sexta", "próxima semana" etc., calcule a partir de ${iso}.\n- Nunca use datas de anos anteriores; se o ano não for informado, assuma o ano corrente e, se a data já passou, use o próximo ano.`;
 }
 
-const LANGUAGE_GUARD = `\n\nREFORÇO DE ESCRITA (obrigatório):\n- Escreva em português brasileiro correto, sem engolir letras nem trocar verbos parecidos.\n- Ao pedir o nome do paciente, use exatamente a frase "como posso te chamar?". Nunca escreva "te ligar", "te chegar", "te chamo" ou variações estranhas.\n- Nunca troque "chamar" por "ligar", "ajudar" por "ajeitar", "marcar" por "mandar", "confirmar" por "conformar" — releia mentalmente cada frase antes de enviar.\n- Se perceber uma palavra estranha ou incompleta, reescreva a frase inteira antes de responder.`;
+const LANGUAGE_GUARD = `\n\nREFORÇO DE ESCRITA (obrigatório):\n- Escreva em português brasileiro correto, sem engolir letras nem trocar verbos parecidos.\n- Ao pedir o nome do cliente, use exatamente a frase "como posso te chamar?". Nunca escreva "te ligar", "te chegar", "te chamo" ou variações estranhas.\n- Nunca troque "chamar" por "ligar", "ajudar" por "ajeitar", "marcar" por "mandar", "confirmar" por "conformar" — releia mentalmente cada frase antes de enviar.\n- Se perceber uma palavra estranha ou incompleta, reescreva a frase inteira antes de responder.`;
 
 export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = {}) {
   const sandbox = opts.sandbox === true || envSandbox();
