@@ -101,6 +101,38 @@ function ConfiguracaoWhatsAppPage() {
     })();
   }, [fetchSettings]);
 
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const h = (await fetchHealth()) as Health | null;
+        if (!cancelled) setHealth(h);
+      } catch {
+        // silencia — permissões podem faltar
+      }
+    }
+    load();
+    const id = setInterval(load, 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [fetchHealth]);
+
+  async function onRefreshHealth() {
+    setHealthLoading(true);
+    try {
+      const h = (await runHealth()) as Health;
+      setHealth(h);
+      if (h.ok) toast.success("Conexão OK");
+      else toast.error(h.message);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao verificar");
+    } finally {
+      setHealthLoading(false);
+    }
+  }
+
   async function onSave() {
     if (!accessToken.trim() || !phoneNumberId.trim() || !appSecret.trim() || !verifyToken.trim()) {
       toast.error("Preencha todos os campos");
