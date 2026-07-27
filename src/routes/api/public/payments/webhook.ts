@@ -120,7 +120,10 @@ async function handleSubscriptionUpdated(subscription: any, env: StripeEnv) {
     } as never)
     .eq("stripe_subscription_id", subscription.id)
     .eq("environment", env);
+  const uid = subscription.metadata?.userId ?? (await findUserIdBySubscription(subscription.id, env));
+  if (uid) await syncOperadorRole(uid, subscription.status);
 }
+
 
 async function handleSubscriptionDeleted(subscription: any, env: StripeEnv) {
   await getSupabase()
