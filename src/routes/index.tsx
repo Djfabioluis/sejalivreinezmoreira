@@ -264,7 +264,7 @@ function LandingPage() {
               },
               {
                 icon: BarChart3,
-                title: "Dashboard em tempo real",
+                title: "Painel em tempo real",
                 text: "Veja leads, atendimentos, sugestões e auditoria de tudo o que a IA fez.",
               },
             ].map((f) => (
