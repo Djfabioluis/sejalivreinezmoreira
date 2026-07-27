@@ -1,15 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getWhatsAppConfig } from "@/lib/whatsapp-config.server";
 
 export const getWhatsAppPhoneNumber = createServerFn({ method: "GET" }).handler(async () => {
-  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  const token = process.env.WHATSAPP_ACCESS_TOKEN;
-  if (!phoneId || !token) {
-    return { ok: false as const, error: "WhatsApp não configurado" };
-  }
   try {
+    const cfg = await getWhatsAppConfig();
     const res = await fetch(
-      `https://graph.facebook.com/v20.0/${phoneId}?fields=display_phone_number`,
-      { headers: { Authorization: `Bearer ${token}` } },
+      `https://graph.facebook.com/v20.0/${cfg.phoneNumberId}?fields=display_phone_number`,
+      { headers: { Authorization: `Bearer ${cfg.accessToken}` } },
     );
     const data = (await res.json()) as { display_phone_number?: string; error?: { message?: string } };
     if (!res.ok) {
