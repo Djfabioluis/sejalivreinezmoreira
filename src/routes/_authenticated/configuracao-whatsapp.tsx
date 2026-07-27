@@ -457,3 +457,80 @@ function BadgeStatus({ ok, label }: { ok: boolean; label: string }) {
     </span>
   );
 }
+
+function HealthCard({
+  health,
+  loading,
+  onRefresh,
+}: {
+  health: Health | null;
+  loading: boolean;
+  onRefresh: () => void;
+}) {
+  const tone =
+    health?.status === "connected"
+      ? { bg: "border-emerald-200 bg-emerald-50", text: "text-emerald-900", Icon: CheckCircle2, label: "Conectado" }
+      : health?.status === "expired"
+        ? { bg: "border-destructive/30 bg-destructive/10", text: "text-destructive", Icon: ShieldAlert, label: "Token expirado" }
+        : health?.status === "invalid"
+          ? { bg: "border-destructive/30 bg-destructive/10", text: "text-destructive", Icon: ShieldAlert, label: "Token inválido" }
+          : health?.status === "unconfigured"
+            ? { bg: "border-amber-200 bg-amber-50", text: "text-amber-900", Icon: AlertCircle, label: "Não configurado" }
+            : health?.status === "error"
+              ? { bg: "border-amber-200 bg-amber-50", text: "text-amber-900", Icon: XCircle, label: "Erro de conexão" }
+              : { bg: "border-muted bg-muted/40", text: "text-muted-foreground", Icon: Activity, label: "Aguardando primeira verificação" };
+
+  const checkedAt = health?.checkedAt
+    ? new Date(health.checkedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })
+    : null;
+
+  return (
+    <Card>
+      <CardHeader className="pb-2 flex-row items-start justify-between gap-3 space-y-0">
+        <div>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Activity className="h-4 w-4" /> Saúde da conexão
+          </CardTitle>
+          <CardDescription>
+            Verificação automática a cada 15 min direto na Meta.
+          </CardDescription>
+        </div>
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={loading}
+          className="shrink-0 inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:bg-accent disabled:opacity-50"
+          title="Verificar agora"
+        >
+          {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+          Verificar
+        </button>
+      </CardHeader>
+      <CardContent>
+        <div className={`flex items-start gap-2 rounded-md border p-3 text-xs ${tone.bg} ${tone.text}`}>
+          <tone.Icon className="h-4 w-4 shrink-0 mt-0.5" />
+          <div className="space-y-1 min-w-0">
+            <p className="font-medium">{tone.label}</p>
+            {health && (
+              <>
+                <p className="opacity-90">{health.message}</p>
+                {health.displayPhoneNumber && (
+                  <p>
+                    Número: <span className="font-medium">{health.displayPhoneNumber}</span>
+                    {health.verifiedName ? ` — ${health.verifiedName}` : ""}
+                  </p>
+                )}
+                {checkedAt && <p className="opacity-70">Última verificação: {checkedAt}</p>}
+              </>
+            )}
+            {!health && (
+              <p className="opacity-80">
+                Clique em "Verificar" para executar a primeira checagem.
+              </p>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
