@@ -14,6 +14,7 @@ REGRAS DE CONDUTA:
 - Confirme cada informação coletada em uma frase curta antes de seguir.
 - Antes de criar o agendamento ou registrar interesse em assinatura, resuma tudo e peça uma confirmação explícita ("posso confirmar?").
 - Formate valores como R$ e horários em português (ex.: "quinta, 12/09 às 13h30").
+- Escreva sempre em português correto, sem trocar palavras parecidas. Ao pedir o nome, use exatamente "como posso te chamar?" — nunca escreva "te ligar", "te chegar" ou variações. Ao se despedir, use "até logo" ou "até breve", nunca "até ligo". Revise mentalmente cada frase antes de enviar para não engolir letras nem trocar verbos.
 
 FLUXO DE AGENDAMENTO:
 1. Cumprimente e pergunte o nome.
@@ -878,9 +879,11 @@ function currentDateNote(): string {
   return `\n\nCONTEXTO TEMPORAL (fuso America/Sao_Paulo):\n- Hoje é ${humano} (${iso}), ${hora}.\n- SEMPRE use o ano ${iso.slice(0, 4)} ao montar datas para list_slots e create_appointment.\n- Quando o paciente disser "amanhã", "sexta", "próxima semana" etc., calcule a partir de ${iso}.\n- Nunca use datas de anos anteriores; se o ano não for informado, assuma o ano corrente e, se a data já passou, use o próximo ano.`;
 }
 
+const LANGUAGE_GUARD = `\n\nREFORÇO DE ESCRITA (obrigatório):\n- Escreva em português brasileiro correto, sem engolir letras nem trocar verbos parecidos.\n- Ao pedir o nome do paciente, use exatamente a frase "como posso te chamar?". Nunca escreva "te ligar", "te chegar", "te chamo" ou variações estranhas.\n- Nunca troque "chamar" por "ligar", "ajudar" por "ajeitar", "marcar" por "mandar", "confirmar" por "conformar" — releia mentalmente cada frase antes de enviar.\n- Se perceber uma palavra estranha ou incompleta, reescreva a frase inteira antes de responder.`;
+
 export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = {}) {
   const sandbox = opts.sandbox === true || envSandbox();
-  const system = (await loadSystemPrompt()) + currentDateNote() + (sandbox ? SANDBOX_NOTE : "");
+  const system = (await loadSystemPrompt()) + currentDateNote() + LANGUAGE_GUARD + (sandbox ? SANDBOX_NOTE : "");
   return streamText({
     model: getModel(),
     system,
@@ -893,7 +896,7 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
 // Non-streaming run used by the WhatsApp webhook (needs the final text).
 export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {}): Promise<string> {
   const sandbox = opts.sandbox === true || envSandbox();
-  const system = (await loadSystemPrompt()) + currentDateNote() + (sandbox ? SANDBOX_NOTE : "");
+  const system = (await loadSystemPrompt()) + currentDateNote() + LANGUAGE_GUARD + (sandbox ? SANDBOX_NOTE : "");
   const result = await generateText({
     model: getModel(),
     system,
