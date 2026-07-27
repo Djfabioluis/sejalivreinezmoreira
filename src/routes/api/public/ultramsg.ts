@@ -23,8 +23,8 @@ type UmMessage = {
 };
 
 type UmPayload =
-  | { event_type?: string; data?: UmMessage; instanceId?: string }
-  | UmMessage;
+  | { event_type?: string; data?: UmMessage; instanceId?: string; token?: string; webhookToken?: string }
+  | (UmMessage & { token?: string; webhookToken?: string });
 
 function extractMessage(payload: UmPayload): UmMessage | null {
   if (!payload) return null;
@@ -36,6 +36,21 @@ function extractMessage(payload: UmPayload): UmMessage | null {
 function phoneOf(from: string | undefined): string {
   if (!from) return "";
   return from.split("@")[0].replace(/\D/g, "");
+}
+
+function stringValue(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+function tokenFromPayload(payload: UmPayload): string {
+  const root = payload as Record<string, unknown>;
+  const nested = "data" in payload && payload.data ? (payload.data as Record<string, unknown>) : {};
+  return (
+    stringValue(root.webhookToken) ||
+    stringValue(root.token) ||
+    stringValue(nested.webhookToken) ||
+    stringValue(nested.token)
+  );
 }
 
 async function loadHistory(phone: string): Promise<UIMessage[]> {
@@ -91,24 +106,6 @@ export const Route = createFileRoute("/api/public/ultramsg")({
           hasHeaderToken: !!request.headers.get("x-webhook-token"),
         });
 
-        // Validação de token compartilhado (fail closed)
-        let expectedToken: string;
-        try {
-          const cfg = await getUltraMsgConfig();
-          expectedToken = cfg.webhookToken;
-        } catch {
-          console.error("[ultramsg] credenciais ausentes — rejeitando webhook");
-          return new Response("Unauthorized", { status: 401 });
-        }
-        const provided =
-          url.searchParams.get("token") ??
-          request.headers.get("x-webhook-token") ??
-          "";
-        if (!provided || provided !== expectedToken) {
-          console.warn("[ultramsg] token inválido");
-          return new Response("Invalid token", { status: 401 });
-        }
-
         // UltraMsg pode enviar JSON ou form-urlencoded — aceitamos ambos.
         let payload: UmPayload;
         try {
@@ -137,6 +134,29 @@ export const Route = createFileRoute("/api/public/ultramsg")({
           return new Response("Bad body", { status: 400 });
         }
 
+        // Validação de token compartilhado (fail closed). Também aceitamos token no body,
+        // pois algumas configurações do UltraMsg não preservam query string no teste.
+        let expectedToken: string;
+        try {
+          const cfg = await getUltraMsgConfig();
+          expectedToken = cfg.webhookToken;
+        } catch {
+          console.error("[ultramsg] credenciais ausentes — rejeitando webhook");
+          return new Response("Unauthorized", { status: 401 });
+        }
+        const provided =
+          url.searchParams.get("token") ??
+          request.headers.get("x-webhook-token") ??
+          request.headers.get("x-ultramsg-token") ??
+          tokenFromPayload(payload);
+        if (!provided || provided !== expectedToken) {
+          console.warn("[ultramsg] token inválido", {
+            hasProvidedToken: !!provided,
+            hasPayloadToken: !!tokenFromPayload(payload),
+          });
+          return new Response("Invalid token", { status: 401 });
+        }
+
         console.log("[ultramsg] payload", JSON.stringify(payload).slice(0, 400));
         const msg = extractMessage(payload);
         if (!msg || msg.fromMe) {
@@ -146,7 +166,6 @@ export const Route = createFileRoute("/api/public/ultramsg")({
         const phone = phoneOf(msg.from);
         if (!phone) return new Response("ok", { status: 200 });
 
-        // Processa em background para responder rápido ao UltraMsg.
         const process = async () => {
           let userText: string | null = null;
           let wasVoice = false;
@@ -210,7 +229,7 @@ export const Route = createFileRoute("/api/public/ultramsg")({
           }
         };
 
-        void process();
+        await process();
         return new Response("ok", { status: 200 });
       },
     },
