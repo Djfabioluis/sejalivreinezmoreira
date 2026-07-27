@@ -2,7 +2,15 @@
 import { convertToModelMessages, streamText, generateText, stepCountIs, tool, type UIMessage } from "ai";
 import { z } from "zod";
 import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
-import { bempFetch, getBempConfig, BEMP_WEBHOOK_BASE } from "@/lib/bemp.server";
+import {
+  bempFetch,
+  getBempConfig,
+  BEMP_WEBHOOK_BASE,
+  PROFESSIONAL_PREFERENCE_NOTE,
+  extractBempAppointmentId,
+  tryUpdateBempScheduleNote,
+  withProfessionalPreferenceNote,
+} from "@/lib/bemp.server";
 
 export const DEFAULT_SYSTEM_PROMPT = `Você é a secretária virtual de um consultório integrado à plataforma Bemp.
 Sua função é conversar de forma humanizada, calorosa e objetiva, em português do Brasil,
@@ -156,29 +164,14 @@ function buildTools(sandbox: boolean) {
               created_at: new Date().toISOString(),
             };
           }
-          // Quando o cliente escolheu um profissional específico, sinaliza "com preferência"
-          // na observação do agendamento (enviado em múltiplos campos para compatibilidade).
-          const payload: Record<string, unknown> = { ...input };
-          if (input.professional_id != null) {
-            const OBS = "com preferência";
-            payload.observation = OBS;
-            payload.observacao = OBS;
-            payload.observacoes = OBS;
-            payload.observations = OBS;
-            payload.note = OBS;
-            payload.notes = OBS;
-            payload.comment = OBS;
-            payload.comments = OBS;
-            payload.comentario = OBS;
-            payload.comentarios = OBS;
-            payload.description = OBS;
-            payload.descricao = OBS;
-            payload.obs = OBS;
-          }
+          const payload = withProfessionalPreferenceNote(input);
           const result = await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule`, {
             method: "POST",
             body: JSON.stringify(payload),
           });
+          if (input.professional_id != null) {
+            await tryUpdateBempScheduleNote(result, PROFESSIONAL_PREFERENCE_NOTE);
+          }
           // Registra e envia confirmação por WhatsApp (best-effort, não bloqueia o fluxo).
           try {
             const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -186,10 +179,7 @@ function buildTools(sandbox: boolean) {
               "@/lib/whatsapp-send.server"
             );
             const phone = `${input.phone_country_code}${input.phone_area_code}${input.phone_number}`;
-            const bempId =
-              (result as { id?: string | number } | null)?.id != null
-                ? String((result as { id: string | number }).id)
-                : null;
+            const bempId = extractBempAppointmentId(result);
             // Tenta descobrir o nome do serviço (para uma mensagem mais humana).
             let serviceName: string | null = null;
             try {
