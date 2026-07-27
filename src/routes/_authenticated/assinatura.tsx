@@ -130,6 +130,18 @@ function AssinaturaPage() {
       </p>
 
       <div className="mt-6">
+        {sub && (sub.status as string) === "past_due" && (
+          <div className="mb-4 flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <div>
+              <p className="font-medium">Pagamento pendente</p>
+              <p className="mt-1">
+                O Stripe está tentando cobrar seu cartão novamente. Seu acesso segue liberado enquanto isso.
+                Atualize o cartão no portal para evitar a suspensão da assinatura.
+              </p>
+            </div>
+          </div>
+        )}
         {isLoading ? (
           <Card>
             <CardContent className="p-6 text-sm text-muted-foreground">
