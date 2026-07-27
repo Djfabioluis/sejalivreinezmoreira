@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { ArrowLeft, MessageCircle, Save, PlugZap, CheckCircle2, XCircle, Copy, ExternalLink, QrCode, Loader2, AlertCircle } from "lucide-react";
+import { ArrowLeft, MessageCircle, Save, PlugZap, CheckCircle2, XCircle, Copy, ExternalLink, QrCode, Loader2, AlertCircle, RefreshCw, ShieldAlert, Activity } from "lucide-react";
 import { toast } from "sonner";
 import { WhatsAppQr } from "@/components/whatsapp-qr";
 import {
@@ -13,6 +13,19 @@ import {
   saveWhatsAppSettings,
   testWhatsAppConnection,
 } from "@/lib/whatsapp-config.functions";
+import {
+  getWhatsAppHealth,
+  refreshWhatsAppHealth,
+} from "@/lib/whatsapp-health.functions";
+
+type Health = {
+  checkedAt: string;
+  ok: boolean;
+  status: "connected" | "expired" | "invalid" | "unconfigured" | "error";
+  message: string;
+  displayPhoneNumber?: string;
+  verifiedName?: string;
+};
 
 export const Route = createFileRoute("/_authenticated/configuracao-whatsapp")({
   head: () => ({
