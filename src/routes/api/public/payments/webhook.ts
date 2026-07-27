@@ -131,6 +131,8 @@ async function handleSubscriptionDeleted(subscription: any, env: StripeEnv) {
     .update({ status: "canceled", updated_at: new Date().toISOString() } as never)
     .eq("stripe_subscription_id", subscription.id)
     .eq("environment", env);
+  const uid = subscription.metadata?.userId ?? (await findUserIdBySubscription(subscription.id, env));
+  if (uid) await syncOperadorRole(uid, "canceled");
 }
 
 async function handleInvoicePaymentFailed(invoice: any, env: StripeEnv) {
@@ -141,19 +143,22 @@ async function handleInvoicePaymentFailed(invoice: any, env: StripeEnv) {
     .update({ status: "past_due", updated_at: new Date().toISOString() } as never)
     .eq("stripe_subscription_id", subId)
     .eq("environment", env);
+  const uid = await findUserIdBySubscription(subId, env);
+  if (uid) await syncOperadorRole(uid, "past_due");
 }
 
 async function handleInvoicePaymentSucceeded(invoice: any, env: StripeEnv) {
   const subId = invoice.subscription;
   if (!subId) return;
-  // Renewal paid — clear past_due immediately for UX; period_end is refreshed
-  // authoritatively by the paired customer.subscription.updated event.
   await getSupabase()
     .from("subscriptions" as never)
     .update({ status: "active", updated_at: new Date().toISOString() } as never)
     .eq("stripe_subscription_id", subId)
     .eq("environment", env);
+  const uid = await findUserIdBySubscription(subId, env);
+  if (uid) await syncOperadorRole(uid, "active");
 }
+
 
 async function handleWebhook(req: Request, env: StripeEnv) {
   const event = await verifyWebhook(req, env);
