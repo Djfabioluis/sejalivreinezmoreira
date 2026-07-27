@@ -5,6 +5,7 @@ import { z } from "zod";
 export const ALL_PERMISSIONS = [
   "painel",
   "agendar",
+  "bemp",
   "base-conhecimento",
   "boas-vindas",
   "operadores",
@@ -18,6 +19,18 @@ export const ALL_PERMISSIONS = [
 ] as const;
 
 export type PermissionKey = (typeof ALL_PERMISSIONS)[number];
+
+export async function assertPermission(
+  ctx: { supabase: any; userId: string },
+  perm: PermissionKey,
+) {
+  const { data, error } = await ctx.supabase.rpc("user_has_permission", {
+    _user_id: ctx.userId,
+    _perm: perm,
+  });
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Você não tem permissão para esta ação.");
+}
 
 async function assertAdmin(ctx: { supabase: any; userId: string }) {
   const { data: isAdmin, error } = await ctx.supabase.rpc("has_role", {
