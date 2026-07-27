@@ -883,7 +883,7 @@ const LANGUAGE_GUARD = `\n\nREFORÇO DE ESCRITA (obrigatório):\n- Escreva em po
 
 export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = {}) {
   const sandbox = opts.sandbox === true || envSandbox();
-  const system = (await loadSystemPrompt()) + currentDateNote() + (sandbox ? SANDBOX_NOTE : "");
+  const system = (await loadSystemPrompt()) + currentDateNote() + LANGUAGE_GUARD + (sandbox ? SANDBOX_NOTE : "");
   return streamText({
     model: getModel(),
     system,
