@@ -40,13 +40,13 @@ import { CalendarClock, Building2, Scissors, Bot, Clock, DollarSign, Phone, Refr
 export const Route = createFileRoute("/_authenticated/painel")({
   head: () => ({
     meta: [
-      { title: "Dashboard Bemp — Agenda em tempo real" },
+      { title: "Painel Bemp — Agenda em tempo real" },
       {
         name: "description",
         content:
           "Painel para acompanhar unidades, serviços, profissionais e agendamentos integrados à plataforma Bemp.",
       },
-      { property: "og:title", content: "Dashboard Bemp — Agenda em tempo real" },
+      { property: "og:title", content: "Painel Bemp — Agenda em tempo real" },
       {
         property: "og:description",
         content: "Consulte serviços, valores, durações e agendamentos direto da API Bemp.",
