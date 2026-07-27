@@ -123,9 +123,15 @@ export const createAppointment = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertPermission(context, "bemp");
+    const payload: Record<string, unknown> = { ...data };
+    if (data.professional_id != null) {
+      payload.observation = "com preferência";
+      payload.observacao = "com preferência";
+      payload.note = "com preferência";
+    }
     return (await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule`, {
       method: "POST",
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     })) as JsonValue;
   });
 

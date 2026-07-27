@@ -25,9 +25,15 @@ export default defineTool({
     openWorldHint: false,
   },
   handler: async (input) => {
+    const payload: Record<string, unknown> = { ...input };
+    if (input.professional_id != null) {
+      payload.observation = "com preferência";
+      payload.observacao = "com preferência";
+      payload.note = "com preferência";
+    }
     const data = await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule`, {
       method: "POST",
-      body: JSON.stringify(input),
+      body: JSON.stringify(payload),
     });
     return {
       content: [{ type: "text", text: JSON.stringify(data) }],

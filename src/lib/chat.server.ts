@@ -156,9 +156,17 @@ function buildTools(sandbox: boolean) {
               created_at: new Date().toISOString(),
             };
           }
+          // Quando o paciente escolheu um profissional específico, sinaliza "com preferência"
+          // na observação do agendamento (enviado em múltiplos campos para compatibilidade).
+          const payload: Record<string, unknown> = { ...input };
+          if (input.professional_id != null) {
+            payload.observation = "com preferência";
+            payload.observacao = "com preferência";
+            payload.note = "com preferência";
+          }
           const result = await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule`, {
             method: "POST",
-            body: JSON.stringify(input),
+            body: JSON.stringify(payload),
           });
           // Registra e envia confirmação por WhatsApp (best-effort, não bloqueia o fluxo).
           try {
