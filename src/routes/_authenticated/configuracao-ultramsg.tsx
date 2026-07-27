@@ -21,8 +21,11 @@ import { toast } from "sonner";
 import {
   getUltraMsgSettings,
   saveUltraMsgSettings,
+  syncUltraMsgWebhook,
   testUltraMsgConnection,
 } from "@/lib/ultramsg-config.functions";
+
+const PUBLIC_WEBHOOK_ORIGIN = "https://sejalivreinezmoreira.lovable.app";
 
 export const Route = createFileRoute("/_authenticated/configuracao-ultramsg")({
   head: () => ({
@@ -49,6 +52,7 @@ function ConfiguracaoUltraMsgPage() {
   const fetchSettings = useServerFn(getUltraMsgSettings);
   const saveSettings = useServerFn(saveUltraMsgSettings);
   const testConn = useServerFn(testUltraMsgConnection);
+  const syncWebhook = useServerFn(syncUltraMsgWebhook);
 
   const [instanceId, setInstanceId] = useState("");
   const [token, setToken] = useState("");
@@ -62,13 +66,17 @@ function ConfiguracaoUltraMsgPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+  const [syncingWebhook, setSyncingWebhook] = useState(false);
   const [testResult, setTestResult] = useState<
     { ok: true } | { ok: false; error: string } | null
+  >(null);
+  const [webhookResult, setWebhookResult] = useState<
+    { ok: true; webhookUrl: string } | { ok: false; error: string; webhookUrl?: string } | null
   >(null);
 
   const [origin, setOrigin] = useState("");
   useEffect(() => {
-    setOrigin(window.location.origin);
+    setOrigin(PUBLIC_WEBHOOK_ORIGIN || window.location.origin);
   }, []);
 
   useEffect(() => {
@@ -108,14 +116,22 @@ function ConfiguracaoUltraMsgPage() {
     }
     setSaving(true);
     try {
-      await saveSettings({
+      const result = await saveSettings({
         data: {
           instanceId: instanceId.trim(),
           token: token.trim(),
           webhookToken: webhookToken.trim(),
+          origin,
         },
       });
       toast.success("Credenciais do UltraMsg salvas");
+      if (result.webhook?.ok) {
+        setWebhookResult(result.webhook);
+        toast.success("Webhook ativado automaticamente na UltraMsg");
+      } else if (result.webhook) {
+        setWebhookResult(result.webhook);
+        toast.warning("Credenciais salvas, mas o webhook não foi ativado automaticamente");
+      }
       setSavedInstanceId(instanceId.trim());
       setHasToken(true);
       setHasWebhookToken(true);
@@ -125,6 +141,30 @@ function ConfiguracaoUltraMsgPage() {
       toast.error(err instanceof Error ? err.message : "Erro ao salvar");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function onSyncWebhook() {
+    if (!origin) {
+      toast.error("Origem da página indisponível");
+      return;
+    }
+    setSyncingWebhook(true);
+    setWebhookResult(null);
+    try {
+      const result = await syncWebhook({ data: { origin } });
+      setWebhookResult(result);
+      if (result.ok) {
+        toast.success("Webhook ativado na UltraMsg");
+      } else {
+        toast.error(result.error);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Erro ao ativar webhook";
+      setWebhookResult({ ok: false, error: message });
+      toast.error(message);
+    } finally {
+      setSyncingWebhook(false);
     }
   }
 
@@ -268,6 +308,15 @@ function ConfiguracaoUltraMsgPage() {
                 Testar conexão
               </Button>
               <Button
+                variant="outline"
+                size="sm"
+                onClick={onSyncWebhook}
+                disabled={syncingWebhook || saving || !configured}
+              >
+                {syncingWebhook ? <Loader2 className="h-4 w-4 animate-spin" /> : <QrCode className="h-4 w-4" />}
+                Ativar webhook
+              </Button>
+              <Button
                 onClick={onSave}
                 disabled={saving || !instanceId.trim() || !token.trim() || !webhookToken.trim()}
               >
@@ -294,6 +343,32 @@ function ConfiguracaoUltraMsgPage() {
                     <p>UltraMsg respondeu com sucesso.</p>
                   ) : (
                     <p>{testResult.error}</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {webhookResult && (
+              <div
+                className={`flex items-start gap-2 rounded-md border p-3 text-xs ${
+                  webhookResult.ok
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+                    : "border-destructive/30 bg-destructive/10 text-destructive"
+                }`}
+              >
+                {webhookResult.ok ? (
+                  <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5" />
+                ) : (
+                  <XCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                )}
+                <div className="space-y-1">
+                  {webhookResult.ok ? (
+                    <p>Webhook configurado na UltraMsg para receber mensagens.</p>
+                  ) : (
+                    <p>{webhookResult.error}</p>
+                  )}
+                  {webhookResult.webhookUrl && (
+                    <p className="font-mono break-all">{webhookResult.webhookUrl}</p>
                   )}
                 </div>
               </div>
@@ -330,8 +405,9 @@ function ConfiguracaoUltraMsgPage() {
               <p>1. Acesse o painel do UltraMsg: <a href={qrPanelUrl} target="_blank" rel="noreferrer" className="text-primary hover:underline">{qrPanelUrl}</a></p>
               <p>2. Vá em <em>Instance settings → Webhook URL</em> e cole a URL acima.</p>
               <p>3. A URL precisa terminar com <code>?token=...</code>; sem esse token o webhook será bloqueado.</p>
-              <p>4. Marque <em>message received</em> e salve.</p>
-              <p>5. Envie uma mensagem de teste — a Julia responderá automaticamente.</p>
+              <p>4. Se preferir, clique em <strong>Ativar webhook</strong> acima para o sistema configurar isso automaticamente.</p>
+              <p>5. Marque <em>message received</em> e salve.</p>
+              <p>6. Envie uma mensagem de teste — a Julia responderá automaticamente.</p>
             </div>
           </CardContent>
         </Card>
