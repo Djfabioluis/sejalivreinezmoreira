@@ -56,6 +56,11 @@ export async function saveUltraMsgSettingsToDb(settings: UltraMsgSettings): Prom
   _cache = null;
 }
 
+export function buildUltraMsgWebhookUrl(origin: string, webhookToken: string): string {
+  const base = origin.replace(/\/$/, "");
+  return `${base}/api/public/ultramsg?token=${encodeURIComponent(webhookToken)}`;
+}
+
 export async function getUltraMsgConfig(): Promise<UltraMsgSettings> {
   const db = await readFromDb();
   if (!db) {
@@ -145,6 +150,49 @@ export async function sendUltraMsgAudio(to: string, audioUrl: string): Promise<b
   } catch (err) {
     console.error("[ultramsg-send] erro áudio:", err);
     return false;
+  }
+}
+
+export async function configureUltraMsgWebhook(origin: string): Promise<
+  { ok: true; webhookUrl: string } | { ok: false; error: string; webhookUrl?: string }
+> {
+  let cfg: UltraMsgSettings;
+  try {
+    cfg = await getUltraMsgConfig();
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Erro" };
+  }
+
+  const webhookUrl = buildUltraMsgWebhookUrl(origin, cfg.webhookToken);
+  const form = new URLSearchParams();
+  form.set("token", cfg.token);
+  form.set("sendDelay", "1");
+  form.set("sendDelayMax", "15");
+  form.set("webhook_url", webhookUrl);
+  form.set("webhook_message_received", "true");
+  form.set("webhook_message_create", "false");
+  form.set("webhook_message_ack", "false");
+  form.set("webhook_message_download_media", "true");
+
+  try {
+    const res = await fetch(`${UM_BASE}/${cfg.instanceId}/instance/settings`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: form.toString(),
+    });
+    const text = await res.text();
+    if (!res.ok) {
+      console.error("[ultramsg-settings] webhook falhou:", res.status, text.slice(0, 500));
+      return { ok: false, error: `UltraMsg respondeu ${res.status}`, webhookUrl };
+    }
+    if (/error|invalid|false/i.test(text) && !/success|true|ok/i.test(text)) {
+      console.error("[ultramsg-settings] resposta inesperada:", text.slice(0, 500));
+      return { ok: false, error: "UltraMsg não confirmou a configuração do webhook", webhookUrl };
+    }
+    return { ok: true, webhookUrl };
+  } catch (err) {
+    console.error("[ultramsg-settings] erro:", err);
+    return { ok: false, error: err instanceof Error ? err.message : "Erro", webhookUrl };
   }
 }
 
