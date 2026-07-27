@@ -822,11 +822,8 @@ function LeadsList({
   );
 }
 
-function _LeadsPanelEnd() { return null;
-      </CardContent>
-    </Card>
-  );
-}
+
+
 
 // ---------- Clientes atendidos (histórico de conversas) ----------
 function ClientesAtendidosPanel() {
