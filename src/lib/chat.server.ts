@@ -160,9 +160,20 @@ function buildTools(sandbox: boolean) {
           // na observação do agendamento (enviado em múltiplos campos para compatibilidade).
           const payload: Record<string, unknown> = { ...input };
           if (input.professional_id != null) {
-            payload.observation = "com preferência";
-            payload.observacao = "com preferência";
-            payload.note = "com preferência";
+            const OBS = "com preferência";
+            payload.observation = OBS;
+            payload.observacao = OBS;
+            payload.observacoes = OBS;
+            payload.observations = OBS;
+            payload.note = OBS;
+            payload.notes = OBS;
+            payload.comment = OBS;
+            payload.comments = OBS;
+            payload.comentario = OBS;
+            payload.comentarios = OBS;
+            payload.description = OBS;
+            payload.descricao = OBS;
+            payload.obs = OBS;
           }
           const result = await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule`, {
             method: "POST",
