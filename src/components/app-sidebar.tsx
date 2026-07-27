@@ -96,7 +96,7 @@ export function AppSidebar() {
             <SidebarGroupLabel>{group}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {items
+                {visibleItems
                   .filter((i) => i.group === group)
                   .map((item) => (
                     <SidebarMenuItem key={item.url}>
