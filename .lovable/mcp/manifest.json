@@ -156,7 +156,7 @@
       {
         "name": "create_appointment",
         "title": "Criar agendamento",
-        "description": "Cria um agendamento na Bemp. O 'end' deve ser 'start' + duração do serviço em minutos. Só chame após confirmação explícita do paciente.",
+        "description": "Cria um agendamento na Bemp. O 'end' deve ser 'start' + duração do serviço em minutos. Só chame após confirmação explícita do cliente.",
         "annotations": {
           "readOnlyHint": false,
           "destructiveHint": false,
