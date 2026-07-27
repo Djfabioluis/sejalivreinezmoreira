@@ -27,7 +27,7 @@ export const Route = createFileRoute("/_authenticated/permissoes")({
 });
 
 const LABELS: Record<PermissionKey, string> = {
-  painel: "Dashboard",
+  painel: "Painel",
   agendar: "Secretária virtual",
   bemp: "Interagir com a Bemp (criar/cancelar/consultar)",
   "base-conhecimento": "Base de conhecimento",
