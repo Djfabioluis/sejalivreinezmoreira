@@ -1,6 +1,12 @@
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
-import { bempFetch, BEMP_WEBHOOK_BASE } from "@/lib/bemp.server";
+import {
+  bempFetch,
+  BEMP_WEBHOOK_BASE,
+  PROFESSIONAL_PREFERENCE_NOTE,
+  tryUpdateBempScheduleNote,
+  withProfessionalPreferenceNote,
+} from "@/lib/bemp.server";
 
 export default defineTool({
   name: "create_appointment",
@@ -25,27 +31,14 @@ export default defineTool({
     openWorldHint: false,
   },
   handler: async (input) => {
-    const payload: Record<string, unknown> = { ...input };
-    if (input.professional_id != null) {
-      const OBS = "com preferência";
-      payload.observation = OBS;
-      payload.observacao = OBS;
-      payload.observacoes = OBS;
-      payload.observations = OBS;
-      payload.note = OBS;
-      payload.notes = OBS;
-      payload.comment = OBS;
-      payload.comments = OBS;
-      payload.comentario = OBS;
-      payload.comentarios = OBS;
-      payload.description = OBS;
-      payload.descricao = OBS;
-      payload.obs = OBS;
-    }
+    const payload = withProfessionalPreferenceNote(input);
     const data = await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule`, {
       method: "POST",
       body: JSON.stringify(payload),
     });
+    if (input.professional_id != null) {
+      await tryUpdateBempScheduleNote(data, PROFESSIONAL_PREFERENCE_NOTE);
+    }
     return {
       content: [{ type: "text", text: JSON.stringify(data) }],
       structuredContent: { appointment: data as unknown },

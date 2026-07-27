@@ -1,6 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { bempFetch, getBempConfig, BEMP_WEBHOOK_BASE, type JsonValue } from "./bemp.server";
+import {
+  bempFetch,
+  getBempConfig,
+  BEMP_WEBHOOK_BASE,
+  PROFESSIONAL_PREFERENCE_NOTE,
+  tryUpdateBempScheduleNote,
+  withProfessionalPreferenceNote,
+  type JsonValue,
+} from "./bemp.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertPermission } from "./permissions.functions";
 
@@ -123,27 +131,15 @@ export const createAppointment = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await assertPermission(context, "bemp");
-    const payload: Record<string, unknown> = { ...data };
-    if (data.professional_id != null) {
-      const OBS = "com preferência";
-      payload.observation = OBS;
-      payload.observacao = OBS;
-      payload.observacoes = OBS;
-      payload.observations = OBS;
-      payload.note = OBS;
-      payload.notes = OBS;
-      payload.comment = OBS;
-      payload.comments = OBS;
-      payload.comentario = OBS;
-      payload.comentarios = OBS;
-      payload.description = OBS;
-      payload.descricao = OBS;
-      payload.obs = OBS;
-    }
-    return (await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule`, {
+    const payload = withProfessionalPreferenceNote(data);
+    const result = (await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule`, {
       method: "POST",
       body: JSON.stringify(payload),
     })) as JsonValue;
+    if (data.professional_id != null) {
+      await tryUpdateBempScheduleNote(result, PROFESSIONAL_PREFERENCE_NOTE);
+    }
+    return result;
   });
 
 export const cancelAppointment = createServerFn({ method: "POST" })
