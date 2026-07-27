@@ -1,52 +1,33 @@
-# Plano: Configurar WhatsApp Cloud API no dashboard
+## Diagnóstico
 
-## Objetivo
-Criar uma área dentro do painel administrativo para inserir, visualizar e testar as credenciais do WhatsApp Cloud API (Meta), sem depender de edição manual de variáveis de ambiente.
+Nenhuma requisição está chegando em `/api/public/whatsapp` — apenas o cron de health check aparece nos logs da última hora. O webhook está configurado no Meta, mas você está mandando mensagem para o **número de teste da Meta (+1 555-161-9096)**. Esse número tem uma restrição obrigatória:
 
-## O que será construído
+> **Só entrega mensagens de números de telefone previamente cadastrados** na lista de destinatários permitidos do painel Meta. Números fora dessa lista simplesmente não disparam o webhook — nem erro aparece.
 
-### 1. Server functions de configuração do WhatsApp
-- Criar `src/lib/whatsapp-config.functions.ts` com três funções protegidas a administradores:
-  - `getWhatsAppSettings`: retorna domínio/fonte (db/env/none) e se há token salvo.
-  - `saveWhatsAppSettings`: valida e persiste Access Token, Phone Number ID, App Secret e Verify Token.
-  - `testWhatsAppConnection`: chama a Meta Graph API para confirmar que o número está acessível.
-- As credenciais serão salvas no banco (`base_conhecimento` id=4), mantendo o mesmo padrão já usado para a Bemp, com RLS restrito a administradores.
-- O código do webhook e do envio de mensagens passará a ler primeiro o banco e usar `process.env` como fallback, para que a tela funcione sem reimplantação.
+Essa é a causa mais provável da IA não estar recebendo nada.
 
-### 2. Página de configuração no dashboard
-- Criar `src/routes/_authenticated/configuracao-whatsapp.tsx` com:
-  - Campos para Access Token, Phone Number ID, App Secret e Verify Token.
-  - Indicador de status (não configurado / usando env / salvo no banco).
-  - Botão "Testar conexão" que exibe o número conectado ou erro da Meta.
-  - Instruções com a URL exata do webhook a colar no Meta Developers.
-  - Link `https://wa.me/{numero}` e QR Code para o usuário escanear.
-- A tela será restrita a administradores.
+## Passos para resolver
 
-### 3. Menu lateral
-- Adicionar item "Configuração do WhatsApp" no `AppSidebar` dentro do grupo "Configuração", com permissão `config-whatsapp` (visível por padrão para administradores).
+### 1. Adicionar seu WhatsApp à allow list (você faz no Meta)
+1. Acesse [developers.facebook.com](https://developers.facebook.com) → seu App → **WhatsApp → API Setup**.
+2. Na seção **"To"** (Para), clique em **Manage phone number list**.
+3. Clique **Add phone number**, informe seu número com DDI (ex.: +55 41 9xxxx-xxxx) e confirme com o código que chega no seu WhatsApp.
+4. Envie uma mensagem do número recém-adicionado para o **+1 555-161-9096**.
 
-### 4. Ajustes nos pontos de leitura de credenciais
-- Atualizar `src/routes/api/public/whatsapp.ts` para ler credenciais do banco quando disponíveis.
-- Atualizar `src/lib/whatsapp-send.server.ts` para o mesmo comportamento.
-- Atualizar `src/lib/whatsapp.functions.ts` para usar a nova fonte de configuração.
+### 2. Validação técnica (eu faço)
+Após você cadastrar o número e enviar uma mensagem de teste, vou:
+- Checar em tempo real os logs do worker para confirmar que o POST em `/api/public/whatsapp` chegou.
+- Verificar se a assinatura HMAC foi validada com sucesso (App Secret correto).
+- Verificar se `wa_conversas` recebeu o histórico e se a Julia respondeu.
 
-## Como você usará depois
-1. Acesse **Configuração → WhatsApp** no menu lateral.
-2. Cole as credenciais obtidas no Meta Developers.
-3. Clique em **Testar conexão**.
-4. Copie a URL do webhook exibida na tela e cole no campo "Webhook URL" do Meta Developers, junto com o Verify Token.
-5. Salve e envie uma mensagem de teste pelo WhatsApp.
+### 3. Se ainda não chegar, investigar
+- Confirmar que o **App Secret salvo no sistema** é exatamente o do app Meta (um App Secret errado faz o webhook rejeitar com 401 silencioso).
+- Confirmar no painel Meta → Webhooks que **Recent Deliveries** mostra tentativas (se estiver vazio, o problema é do lado Meta; se mostra 401/erro, é assinatura).
+- Confirmar a subscrição do campo `messages` no **WhatsApp Business Account** (não só no app).
 
-## Observações importantes
-- As credenciais serão armazenadas de forma segura, acessíveis apenas a administradores via RLS.
-- O webhook continuará em `/api/public/whatsapp`, já configurado para validar assinatura e processar mensagens.
-- Nenhuma alteração será feita no fluxo de conversação da IA Julia nem nos agendamentos.
+### 4. Passo seguinte (produção)
+O número de teste é ideal só para desenvolvimento. Para atender clientes reais sem allow list, você precisa **adicionar o número real da empresa** no WhatsApp Business Platform (Meta Business → WhatsApp Manager → Adicionar número), o que remove todas as restrições de destinatário.
 
-## Arquivos que serão alterados/criados
-- `src/lib/whatsapp-config.functions.ts` (novo)
-- `src/routes/_authenticated/configuracao-whatsapp.tsx` (novo)
-- `src/components/app-sidebar.tsx` (editar)
-- `src/lib/whatsapp.functions.ts` (editar)
-- `src/lib/whatsapp-send.server.ts` (editar)
-- `src/routes/api/public/whatsapp.ts` (editar)
-- `src/lib/bemp.server.ts` (pequeno ajuste para expor helper de leitura genérico, se necessário)
+---
+
+Não vou alterar código nesta etapa — a integração está funcionando; o bloqueio é de configuração no Meta. Assim que você cadastrar o número e testar, valido nos logs.
