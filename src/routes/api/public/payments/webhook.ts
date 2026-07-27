@@ -22,6 +22,44 @@ function resolvePriceId(item: any): string {
   );
 }
 
+const ACTIVE_STATUSES = new Set(["active", "trialing", "past_due"]);
+
+async function syncOperadorRole(userId: string, status: string) {
+  if (!userId) return;
+  const sb = getSupabase();
+  if (ACTIVE_STATUSES.has(status)) {
+    await sb
+      .from("user_roles" as never)
+      .upsert({ user_id: userId, role: "operador" } as never, {
+        onConflict: "user_id,role",
+      });
+  } else if (status === "canceled" || status === "unpaid" || status === "incomplete_expired") {
+    // Só remove se não houver outra assinatura ativa
+    const { data: others } = await sb
+      .from("subscriptions" as never)
+      .select("status")
+      .eq("user_id", userId as never);
+    const stillActive = (others ?? []).some((s: any) => ACTIVE_STATUSES.has(s.status));
+    if (!stillActive) {
+      await sb
+        .from("user_roles" as never)
+        .delete()
+        .eq("user_id", userId as never)
+        .eq("role", "operador" as never);
+    }
+  }
+}
+
+async function findUserIdBySubscription(subId: string, env: StripeEnv): Promise<string | null> {
+  const { data } = await getSupabase()
+    .from("subscriptions" as never)
+    .select("user_id")
+    .eq("stripe_subscription_id", subId as never)
+    .eq("environment", env as never)
+    .maybeSingle();
+  return (data as any)?.user_id ?? null;
+}
+
 async function handleSubscriptionCreated(subscription: any, env: StripeEnv) {
   const userId = subscription.metadata?.userId;
   if (!userId) {
@@ -56,6 +94,8 @@ async function handleSubscriptionCreated(subscription: any, env: StripeEnv) {
       }) as never,
       { onConflict: "stripe_subscription_id" },
     );
+  await syncOperadorRole(userId, subscription.status);
+
 }
 
 async function handleSubscriptionUpdated(subscription: any, env: StripeEnv) {
@@ -80,7 +120,10 @@ async function handleSubscriptionUpdated(subscription: any, env: StripeEnv) {
     } as never)
     .eq("stripe_subscription_id", subscription.id)
     .eq("environment", env);
+  const uid = subscription.metadata?.userId ?? (await findUserIdBySubscription(subscription.id, env));
+  if (uid) await syncOperadorRole(uid, subscription.status);
 }
+
 
 async function handleSubscriptionDeleted(subscription: any, env: StripeEnv) {
   await getSupabase()
@@ -88,6 +131,8 @@ async function handleSubscriptionDeleted(subscription: any, env: StripeEnv) {
     .update({ status: "canceled", updated_at: new Date().toISOString() } as never)
     .eq("stripe_subscription_id", subscription.id)
     .eq("environment", env);
+  const uid = subscription.metadata?.userId ?? (await findUserIdBySubscription(subscription.id, env));
+  if (uid) await syncOperadorRole(uid, "canceled");
 }
 
 async function handleInvoicePaymentFailed(invoice: any, env: StripeEnv) {
@@ -98,19 +143,22 @@ async function handleInvoicePaymentFailed(invoice: any, env: StripeEnv) {
     .update({ status: "past_due", updated_at: new Date().toISOString() } as never)
     .eq("stripe_subscription_id", subId)
     .eq("environment", env);
+  const uid = await findUserIdBySubscription(subId, env);
+  if (uid) await syncOperadorRole(uid, "past_due");
 }
 
 async function handleInvoicePaymentSucceeded(invoice: any, env: StripeEnv) {
   const subId = invoice.subscription;
   if (!subId) return;
-  // Renewal paid — clear past_due immediately for UX; period_end is refreshed
-  // authoritatively by the paired customer.subscription.updated event.
   await getSupabase()
     .from("subscriptions" as never)
     .update({ status: "active", updated_at: new Date().toISOString() } as never)
     .eq("stripe_subscription_id", subId)
     .eq("environment", env);
+  const uid = await findUserIdBySubscription(subId, env);
+  if (uid) await syncOperadorRole(uid, "active");
 }
+
 
 async function handleWebhook(req: Request, env: StripeEnv) {
   const event = await verifyWebhook(req, env);
