@@ -362,6 +362,9 @@ function AgendaPanel() {
       listCustomerAppointments({ data: input }),
   });
   const appointments = asArray(mut.data);
+  const [page, setPage] = useState(0);
+  useEffect(() => setPage(0), [mut.data]);
+  const pageItems = appointments.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   return (
     <Card>
@@ -407,19 +410,30 @@ function AgendaPanel() {
           {mut.isSuccess && appointments.length === 0 && (
             <p className="text-sm text-muted-foreground">Nenhum agendamento aberto para este cliente.</p>
           )}
-          {appointments.map((a, i) => (
-            <div key={str(a.id) || i} className="rounded-lg border p-3 flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <div className="font-medium truncate">
-                  {str(a.service_name || a.service || "Agendamento")}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {str(a.start || a.date || a.datetime)} {a.professional_name ? `• ${str(a.professional_name)}` : ""}
-                </div>
-              </div>
-              <Badge variant="secondary">#{str(a.id)}</Badge>
-            </div>
-          ))}
+          {appointments.length > 0 && (
+            <>
+              <VirtualRows
+                items={pageItems}
+                estimateSize={72}
+                maxHeight={520}
+                getKey={(a, i) => str(a.id) || i}
+                renderItem={(a) => (
+                  <div className="rounded-lg border p-3 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">
+                        {str(a.service_name || a.service || "Agendamento")}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {str(a.start || a.date || a.datetime)} {a.professional_name ? `• ${str(a.professional_name)}` : ""}
+                      </div>
+                    </div>
+                    <Badge variant="secondary">#{str(a.id)}</Badge>
+                  </div>
+                )}
+              />
+              <Pagination page={page} pageSize={PAGE_SIZE} total={appointments.length} onPageChange={setPage} />
+            </>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -716,67 +730,99 @@ function LeadsPanel() {
           <p className="text-sm text-muted-foreground">Nenhum lead encontrado.</p>
         )}
 
-        <div className="space-y-3">
-          {filtered.map((l) => (
-            <div key={l.id} className="rounded-lg border p-4 space-y-2">
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-medium truncate">{l.nome}</span>
-                    <Badge variant={STATUS_VARIANT[l.status] ?? "secondary"}>
-                      {STATUS_LABEL[l.status] ?? l.status}
-                    </Badge>
-                    {l.sandbox && <Badge variant="outline">simulação</Badge>}
-                    <Badge variant="outline">{l.origem}</Badge>
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {new Date(l.created_at).toLocaleString("pt-BR")}
-                  </div>
-                </div>
-                <Select
-                  value={l.status}
-                  onValueChange={(v) =>
-                    mut.mutate({ id: l.id, status: v as "novo" | "em_atendimento" | "convertido" | "descartado" })
-                  }
-                >
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="novo">Novo</SelectItem>
-                    <SelectItem value="em_atendimento">Em atendimento</SelectItem>
-                    <SelectItem value="convertido">Convertido</SelectItem>
-                    <SelectItem value="descartado">Descartado</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+        <LeadsList
+          items={filtered}
+          onStatusChange={(id, status) => mut.mutate({ id, status })}
+        />
+      </CardContent>
+    </Card>
+  );
+}
 
-              <div className="grid gap-1 text-sm sm:grid-cols-2">
-                <div>
-                  <span className="text-muted-foreground">Plano: </span>
-                  {l.plano_nome ?? "—"}
-                  {l.plano_id ? <span className="text-muted-foreground"> (#{l.plano_id})</span> : null}
+function LeadsList({
+  items,
+  onStatusChange,
+}: {
+  items: LeadAssinatura[];
+  onStatusChange: (id: string, status: "novo" | "em_atendimento" | "convertido" | "descartado") => void;
+}) {
+  const [page, setPage] = useState(0);
+  useEffect(() => setPage(0), [items]);
+  const pageItems = items.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  if (items.length === 0) return null;
+  return (
+    <div>
+      <VirtualRows
+        items={pageItems}
+        estimateSize={180}
+        maxHeight={640}
+        getKey={(l) => l.id}
+        renderItem={(l) => (
+          <div className="rounded-lg border p-4 space-y-2">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-medium truncate">{l.nome}</span>
+                  <Badge variant={STATUS_VARIANT[l.status] ?? "secondary"}>
+                    {STATUS_LABEL[l.status] ?? l.status}
+                  </Badge>
+                  {l.sandbox && <Badge variant="outline">simulação</Badge>}
+                  <Badge variant="outline">{l.origem}</Badge>
                 </div>
-                <div>
-                  <span className="text-muted-foreground">Telefone: </span>
-                  {formatPhone(l)}
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Email: </span>
-                  {l.email ?? "—"}
-                </div>
-                <div>
-                  <span className="text-muted-foreground">CPF: </span>
-                  {l.cpf ?? "—"}
+                <div className="text-xs text-muted-foreground mt-1">
+                  {new Date(l.created_at).toLocaleString("pt-BR")}
                 </div>
               </div>
-
-              {l.observacoes && (
-                <p className="text-sm bg-muted/50 rounded p-2 whitespace-pre-wrap">{l.observacoes}</p>
-              )}
+              <Select
+                value={l.status}
+                onValueChange={(v) =>
+                  onStatusChange(l.id, v as "novo" | "em_atendimento" | "convertido" | "descartado")
+                }
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="novo">Novo</SelectItem>
+                  <SelectItem value="em_atendimento">Em atendimento</SelectItem>
+                  <SelectItem value="convertido">Convertido</SelectItem>
+                  <SelectItem value="descartado">Descartado</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          ))}
-        </div>
+
+            <div className="grid gap-1 text-sm sm:grid-cols-2">
+              <div>
+                <span className="text-muted-foreground">Plano: </span>
+                {l.plano_nome ?? "—"}
+                {l.plano_id ? <span className="text-muted-foreground"> (#{l.plano_id})</span> : null}
+              </div>
+              <div>
+                <span className="text-muted-foreground">Telefone: </span>
+                {formatPhone(l)}
+              </div>
+              <div>
+                <span className="text-muted-foreground">Email: </span>
+                {l.email ?? "—"}
+              </div>
+              <div>
+                <span className="text-muted-foreground">CPF: </span>
+                {l.cpf ?? "—"}
+              </div>
+            </div>
+
+            {l.observacoes && (
+              <p className="text-sm bg-muted/50 rounded p-2 whitespace-pre-wrap">{l.observacoes}</p>
+            )}
+          </div>
+        )}
+      />
+      <Pagination page={page} pageSize={PAGE_SIZE} total={items.length} onPageChange={setPage} />
+    </div>
+  );
+}
+
+function _LeadsPanelEnd() { return null;
       </CardContent>
     </Card>
   );
