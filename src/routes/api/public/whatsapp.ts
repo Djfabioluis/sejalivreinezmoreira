@@ -4,6 +4,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { type UIMessage } from "ai";
 import { runAgent } from "@/lib/chat.server";
 import { transcribeAudio, synthesizeSpeechMp3 } from "@/lib/ai-audio.server";
+import { getWhatsAppConfig } from "@/lib/whatsapp-config.server";
 
 type WaMediaRef = { id: string; mime_type?: string };
 type WaMessage = {
@@ -23,9 +24,12 @@ type WaEntry = { changes?: Array<{ value?: WaValue; field?: string }> };
 type WaPayload = { object?: string; entry?: WaEntry[] };
 
 async function verifySignature(request: Request, rawBody: string): Promise<boolean> {
-  const appSecret = process.env.WHATSAPP_APP_SECRET;
-  if (!appSecret) {
-    console.error("[whatsapp] WHATSAPP_APP_SECRET não configurado — rejeitando webhook");
+  let appSecret: string;
+  try {
+    const cfg = await getWhatsAppConfig();
+    appSecret = cfg.appSecret;
+  } catch {
+    console.error("[whatsapp] App Secret não configurado — rejeitando webhook");
     return false;
   }
   const header = request.headers.get("x-hub-signature-256");
@@ -39,16 +43,17 @@ async function verifySignature(request: Request, rawBody: string): Promise<boole
 }
 
 async function sendWhatsAppText(to: string, body: string) {
-  const token = process.env.WHATSAPP_ACCESS_TOKEN;
-  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  if (!token || !phoneId) {
-    console.error("[whatsapp] WHATSAPP_ACCESS_TOKEN/WHATSAPP_PHONE_NUMBER_ID ausentes");
+  let cfg;
+  try {
+    cfg = await getWhatsAppConfig();
+  } catch {
+    console.error("[whatsapp] credenciais do WhatsApp não configuradas");
     return;
   }
-  const res = await fetch(`https://graph.facebook.com/v20.0/${phoneId}/messages`, {
+  const res = await fetch(`https://graph.facebook.com/v20.0/${cfg.phoneNumberId}/messages`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${cfg.accessToken}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -66,10 +71,14 @@ async function sendWhatsAppText(to: string, body: string) {
 async function downloadWaMedia(
   mediaId: string,
 ): Promise<{ bytes: Uint8Array; mime: string } | null> {
-  const token = process.env.WHATSAPP_ACCESS_TOKEN;
-  if (!token) return null;
+  let cfg;
+  try {
+    cfg = await getWhatsAppConfig();
+  } catch {
+    return null;
+  }
   const meta = await fetch(`https://graph.facebook.com/v20.0/${mediaId}`, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: `Bearer ${cfg.accessToken}` },
   });
   if (!meta.ok) {
     console.error("[whatsapp] falha ao obter URL de mídia:", meta.status, await meta.text());
@@ -77,7 +86,7 @@ async function downloadWaMedia(
   }
   const info = (await meta.json()) as { url?: string; mime_type?: string };
   if (!info.url) return null;
-  const file = await fetch(info.url, { headers: { Authorization: `Bearer ${token}` } });
+  const file = await fetch(info.url, { headers: { Authorization: `Bearer ${cfg.accessToken}` } });
   if (!file.ok) {
     console.error("[whatsapp] falha ao baixar mídia:", file.status);
     return null;
@@ -87,16 +96,19 @@ async function downloadWaMedia(
 }
 
 async function uploadWaAudioMp3(mp3: Buffer): Promise<string | null> {
-  const token = process.env.WHATSAPP_ACCESS_TOKEN;
-  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  if (!token || !phoneId) return null;
+  let cfg;
+  try {
+    cfg = await getWhatsAppConfig();
+  } catch {
+    return null;
+  }
   const form = new FormData();
   form.append("messaging_product", "whatsapp");
   form.append("type", "audio/mpeg");
   form.append("file", new Blob([new Uint8Array(mp3)], { type: "audio/mpeg" }), "reply.mp3");
-  const res = await fetch(`https://graph.facebook.com/v20.0/${phoneId}/media`, {
+  const res = await fetch(`https://graph.facebook.com/v20.0/${cfg.phoneNumberId}/media`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
+    headers: { Authorization: `Bearer ${cfg.accessToken}` },
     body: form,
   });
   if (!res.ok) {
@@ -108,13 +120,16 @@ async function uploadWaAudioMp3(mp3: Buffer): Promise<string | null> {
 }
 
 async function sendWhatsAppAudio(to: string, mediaId: string) {
-  const token = process.env.WHATSAPP_ACCESS_TOKEN;
-  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  if (!token || !phoneId) return;
-  const res = await fetch(`https://graph.facebook.com/v20.0/${phoneId}/messages`, {
+  let cfg;
+  try {
+    cfg = await getWhatsAppConfig();
+  } catch {
+    return;
+  }
+  const res = await fetch(`https://graph.facebook.com/v20.0/${cfg.phoneNumberId}/messages`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${cfg.accessToken}`,
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -165,7 +180,13 @@ export const Route = createFileRoute("/api/public/whatsapp")({
         const mode = url.searchParams.get("hub.mode");
         const token = url.searchParams.get("hub.verify_token");
         const challenge = url.searchParams.get("hub.challenge");
-        const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN;
+        let verifyToken: string | undefined;
+        try {
+          const cfg = await getWhatsAppConfig();
+          verifyToken = cfg.verifyToken;
+        } catch {
+          verifyToken = undefined;
+        }
         if (mode === "subscribe" && verifyToken && token === verifyToken && challenge) {
           return new Response(challenge, { status: 200 });
         }

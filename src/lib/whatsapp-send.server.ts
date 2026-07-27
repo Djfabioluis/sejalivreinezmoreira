@@ -1,17 +1,20 @@
 // Server-only helper para enviar mensagens WhatsApp via Meta Cloud API.
+import { getWhatsAppConfig } from "@/lib/whatsapp-config.server";
+
 export async function sendWhatsAppText(to: string, body: string): Promise<boolean> {
-  const token = process.env.WHATSAPP_ACCESS_TOKEN;
-  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  if (!token || !phoneId) {
-    console.error("[whatsapp-send] credenciais ausentes");
+  let cfg;
+  try {
+    cfg = await getWhatsAppConfig();
+  } catch (err) {
+    console.error("[whatsapp-send] credenciais ausentes:", err instanceof Error ? err.message : err);
     return false;
   }
   const digits = to.replace(/\D/g, "");
   try {
-    const res = await fetch(`https://graph.facebook.com/v20.0/${phoneId}/messages`, {
+    const res = await fetch(`https://graph.facebook.com/v20.0/${cfg.phoneNumberId}/messages`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${cfg.accessToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({

@@ -24,6 +24,7 @@ import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedPainelRouteImport } from './routes/_authenticated/painel'
 import { Route as AuthenticatedOperadoresRouteImport } from './routes/_authenticated/operadores'
 import { Route as AuthenticatedIntegracaoBempRouteImport } from './routes/_authenticated/integracao-bemp'
+import { Route as AuthenticatedConfiguracaoWhatsappRouteImport } from './routes/_authenticated/configuracao-whatsapp'
 import { Route as AuthenticatedBoasVindasRouteImport } from './routes/_authenticated/boas-vindas'
 import { Route as AuthenticatedBaseConhecimentoRouteImport } from './routes/_authenticated/base-conhecimento'
 import { Route as AuthenticatedAuditoriaSugestoesRouteImport } from './routes/_authenticated/auditoria-sugestoes'
@@ -112,6 +113,12 @@ const AuthenticatedIntegracaoBempRoute =
   AuthenticatedIntegracaoBempRouteImport.update({
     id: '/integracao-bemp',
     path: '/integracao-bemp',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedConfiguracaoWhatsappRoute =
+  AuthenticatedConfiguracaoWhatsappRouteImport.update({
+    id: '/configuracao-whatsapp',
+    path: '/configuracao-whatsapp',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedBoasVindasRoute = AuthenticatedBoasVindasRouteImport.update({
@@ -204,6 +211,7 @@ export interface FileRoutesByFullPath {
   '/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
   '/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
   '/boas-vindas': typeof AuthenticatedBoasVindasRoute
+  '/configuracao-whatsapp': typeof AuthenticatedConfiguracaoWhatsappRoute
   '/integracao-bemp': typeof AuthenticatedIntegracaoBempRoute
   '/operadores': typeof AuthenticatedOperadoresRoute
   '/painel': typeof AuthenticatedPainelRoute
@@ -234,6 +242,7 @@ export interface FileRoutesByTo {
   '/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
   '/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
   '/boas-vindas': typeof AuthenticatedBoasVindasRoute
+  '/configuracao-whatsapp': typeof AuthenticatedConfiguracaoWhatsappRoute
   '/integracao-bemp': typeof AuthenticatedIntegracaoBempRoute
   '/operadores': typeof AuthenticatedOperadoresRoute
   '/painel': typeof AuthenticatedPainelRoute
@@ -266,6 +275,7 @@ export interface FileRoutesById {
   '/_authenticated/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
   '/_authenticated/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
   '/_authenticated/boas-vindas': typeof AuthenticatedBoasVindasRoute
+  '/_authenticated/configuracao-whatsapp': typeof AuthenticatedConfiguracaoWhatsappRoute
   '/_authenticated/integracao-bemp': typeof AuthenticatedIntegracaoBempRoute
   '/_authenticated/operadores': typeof AuthenticatedOperadoresRoute
   '/_authenticated/painel': typeof AuthenticatedPainelRoute
@@ -298,6 +308,7 @@ export interface FileRouteTypes {
     | '/auditoria-sugestoes'
     | '/base-conhecimento'
     | '/boas-vindas'
+    | '/configuracao-whatsapp'
     | '/integracao-bemp'
     | '/operadores'
     | '/painel'
@@ -328,6 +339,7 @@ export interface FileRouteTypes {
     | '/auditoria-sugestoes'
     | '/base-conhecimento'
     | '/boas-vindas'
+    | '/configuracao-whatsapp'
     | '/integracao-bemp'
     | '/operadores'
     | '/painel'
@@ -359,6 +371,7 @@ export interface FileRouteTypes {
     | '/_authenticated/auditoria-sugestoes'
     | '/_authenticated/base-conhecimento'
     | '/_authenticated/boas-vindas'
+    | '/_authenticated/configuracao-whatsapp'
     | '/_authenticated/integracao-bemp'
     | '/_authenticated/operadores'
     | '/_authenticated/painel'
@@ -502,6 +515,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedIntegracaoBempRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/configuracao-whatsapp': {
+      id: '/_authenticated/configuracao-whatsapp'
+      path: '/configuracao-whatsapp'
+      fullPath: '/configuracao-whatsapp'
+      preLoaderRoute: typeof AuthenticatedConfiguracaoWhatsappRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/boas-vindas': {
       id: '/_authenticated/boas-vindas'
       path: '/boas-vindas'
@@ -611,6 +631,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAuditoriaSugestoesRoute: typeof AuthenticatedAuditoriaSugestoesRoute
   AuthenticatedBaseConhecimentoRoute: typeof AuthenticatedBaseConhecimentoRoute
   AuthenticatedBoasVindasRoute: typeof AuthenticatedBoasVindasRoute
+  AuthenticatedConfiguracaoWhatsappRoute: typeof AuthenticatedConfiguracaoWhatsappRoute
   AuthenticatedIntegracaoBempRoute: typeof AuthenticatedIntegracaoBempRoute
   AuthenticatedOperadoresRoute: typeof AuthenticatedOperadoresRoute
   AuthenticatedPainelRoute: typeof AuthenticatedPainelRoute
@@ -628,6 +649,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAuditoriaSugestoesRoute: AuthenticatedAuditoriaSugestoesRoute,
   AuthenticatedBaseConhecimentoRoute: AuthenticatedBaseConhecimentoRoute,
   AuthenticatedBoasVindasRoute: AuthenticatedBoasVindasRoute,
+  AuthenticatedConfiguracaoWhatsappRoute:
+    AuthenticatedConfiguracaoWhatsappRoute,
   AuthenticatedIntegracaoBempRoute: AuthenticatedIntegracaoBempRoute,
   AuthenticatedOperadoresRoute: AuthenticatedOperadoresRoute,
   AuthenticatedPainelRoute: AuthenticatedPainelRoute,
