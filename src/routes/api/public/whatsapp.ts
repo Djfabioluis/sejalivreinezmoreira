@@ -47,7 +47,7 @@ async function sendWhatsAppText(to: string, body: string) {
   try {
     cfg = await getWhatsAppConfig();
   } catch {
-    console.error("[whatsapp] WHATSAPP_ACCESS_TOKEN/WHATSAPP_PHONE_NUMBER_ID ausentes");
+    console.error("[whatsapp] credenciais do WhatsApp não configuradas");
     return;
   }
   const res = await fetch(`https://graph.facebook.com/v20.0/${cfg.phoneNumberId}/messages`, {
