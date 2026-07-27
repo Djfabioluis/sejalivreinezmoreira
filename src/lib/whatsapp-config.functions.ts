@@ -1,4 +1,4 @@
-import { hasAnyAdmin } from "@/lib/roles.server";
+import { hasAnyAdmin } from "@/lib/roles";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
