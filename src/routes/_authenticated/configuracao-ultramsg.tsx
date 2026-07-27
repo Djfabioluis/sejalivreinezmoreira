@@ -25,6 +25,8 @@ import {
   testUltraMsgConnection,
 } from "@/lib/ultramsg-config.functions";
 
+const PUBLIC_WEBHOOK_ORIGIN = "https://sejalivreinezmoreira.lovable.app";
+
 export const Route = createFileRoute("/_authenticated/configuracao-ultramsg")({
   head: () => ({
     meta: [
@@ -74,7 +76,7 @@ function ConfiguracaoUltraMsgPage() {
 
   const [origin, setOrigin] = useState("");
   useEffect(() => {
-    setOrigin(window.location.origin);
+    setOrigin(PUBLIC_WEBHOOK_ORIGIN || window.location.origin);
   }, []);
 
   useEffect(() => {
