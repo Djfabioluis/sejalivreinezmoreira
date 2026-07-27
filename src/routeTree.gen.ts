@@ -22,6 +22,7 @@ import { Route as AuthenticatedSugestoesRouteImport } from './routes/_authentica
 import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated/perfil'
 import { Route as AuthenticatedPainelRouteImport } from './routes/_authenticated/painel'
 import { Route as AuthenticatedOperadoresRouteImport } from './routes/_authenticated/operadores'
+import { Route as AuthenticatedIntegracaoBempRouteImport } from './routes/_authenticated/integracao-bemp'
 import { Route as AuthenticatedBoasVindasRouteImport } from './routes/_authenticated/boas-vindas'
 import { Route as AuthenticatedBaseConhecimentoRouteImport } from './routes/_authenticated/base-conhecimento'
 import { Route as AuthenticatedAuditoriaSugestoesRouteImport } from './routes/_authenticated/auditoria-sugestoes'
@@ -100,6 +101,12 @@ const AuthenticatedOperadoresRoute = AuthenticatedOperadoresRouteImport.update({
   path: '/operadores',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedIntegracaoBempRoute =
+  AuthenticatedIntegracaoBempRouteImport.update({
+    id: '/integracao-bemp',
+    path: '/integracao-bemp',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedBoasVindasRoute = AuthenticatedBoasVindasRouteImport.update({
   id: '/boas-vindas',
   path: '/boas-vindas',
@@ -184,6 +191,7 @@ export interface FileRoutesByFullPath {
   '/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
   '/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
   '/boas-vindas': typeof AuthenticatedBoasVindasRoute
+  '/integracao-bemp': typeof AuthenticatedIntegracaoBempRoute
   '/operadores': typeof AuthenticatedOperadoresRoute
   '/painel': typeof AuthenticatedPainelRoute
   '/perfil': typeof AuthenticatedPerfilRoute
@@ -211,6 +219,7 @@ export interface FileRoutesByTo {
   '/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
   '/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
   '/boas-vindas': typeof AuthenticatedBoasVindasRoute
+  '/integracao-bemp': typeof AuthenticatedIntegracaoBempRoute
   '/operadores': typeof AuthenticatedOperadoresRoute
   '/painel': typeof AuthenticatedPainelRoute
   '/perfil': typeof AuthenticatedPerfilRoute
@@ -240,6 +249,7 @@ export interface FileRoutesById {
   '/_authenticated/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
   '/_authenticated/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
   '/_authenticated/boas-vindas': typeof AuthenticatedBoasVindasRoute
+  '/_authenticated/integracao-bemp': typeof AuthenticatedIntegracaoBempRoute
   '/_authenticated/operadores': typeof AuthenticatedOperadoresRoute
   '/_authenticated/painel': typeof AuthenticatedPainelRoute
   '/_authenticated/perfil': typeof AuthenticatedPerfilRoute
@@ -269,6 +279,7 @@ export interface FileRouteTypes {
     | '/auditoria-sugestoes'
     | '/base-conhecimento'
     | '/boas-vindas'
+    | '/integracao-bemp'
     | '/operadores'
     | '/painel'
     | '/perfil'
@@ -296,6 +307,7 @@ export interface FileRouteTypes {
     | '/auditoria-sugestoes'
     | '/base-conhecimento'
     | '/boas-vindas'
+    | '/integracao-bemp'
     | '/operadores'
     | '/painel'
     | '/perfil'
@@ -324,6 +336,7 @@ export interface FileRouteTypes {
     | '/_authenticated/auditoria-sugestoes'
     | '/_authenticated/base-conhecimento'
     | '/_authenticated/boas-vindas'
+    | '/_authenticated/integracao-bemp'
     | '/_authenticated/operadores'
     | '/_authenticated/painel'
     | '/_authenticated/perfil'
@@ -451,6 +464,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOperadoresRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/integracao-bemp': {
+      id: '/_authenticated/integracao-bemp'
+      path: '/integracao-bemp'
+      fullPath: '/integracao-bemp'
+      preLoaderRoute: typeof AuthenticatedIntegracaoBempRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/boas-vindas': {
       id: '/_authenticated/boas-vindas'
       path: '/boas-vindas'
@@ -552,6 +572,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAuditoriaSugestoesRoute: typeof AuthenticatedAuditoriaSugestoesRoute
   AuthenticatedBaseConhecimentoRoute: typeof AuthenticatedBaseConhecimentoRoute
   AuthenticatedBoasVindasRoute: typeof AuthenticatedBoasVindasRoute
+  AuthenticatedIntegracaoBempRoute: typeof AuthenticatedIntegracaoBempRoute
   AuthenticatedOperadoresRoute: typeof AuthenticatedOperadoresRoute
   AuthenticatedPainelRoute: typeof AuthenticatedPainelRoute
   AuthenticatedPerfilRoute: typeof AuthenticatedPerfilRoute
@@ -566,6 +587,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAuditoriaSugestoesRoute: AuthenticatedAuditoriaSugestoesRoute,
   AuthenticatedBaseConhecimentoRoute: AuthenticatedBaseConhecimentoRoute,
   AuthenticatedBoasVindasRoute: AuthenticatedBoasVindasRoute,
+  AuthenticatedIntegracaoBempRoute: AuthenticatedIntegracaoBempRoute,
   AuthenticatedOperadoresRoute: AuthenticatedOperadoresRoute,
   AuthenticatedPainelRoute: AuthenticatedPainelRoute,
   AuthenticatedPerfilRoute: AuthenticatedPerfilRoute,
