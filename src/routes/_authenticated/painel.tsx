@@ -104,7 +104,7 @@ function Dashboard() {
               Secretária Virtual — Bemp
             </h1>
             <p className="text-xs sm:text-sm text-muted-foreground">
-              Dashboard integrado à sua conta Bemp.
+              Painel integrado à sua conta Bemp.
             </p>
           </div>
           <div className="col-span-2 flex flex-wrap items-center gap-2 sm:col-auto">
