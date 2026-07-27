@@ -1,3 +1,4 @@
+import { hasAnyAdmin } from "@/lib/roles";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
@@ -14,7 +15,7 @@ export type AccessUser = {
 };
 
 async function assertAdminOrBootstrap(ctx: { supabase: any; userId: string }) {
-  const { data: anyAdmin, error: adminErr } = await ctx.supabase.rpc("has_any_admin");
+  const anyAdmin = await hasAnyAdmin(); const adminErr = null as any;
   if (adminErr) throw new Error(adminErr.message);
   if (!anyAdmin) return; // bootstrap: nenhum admin ainda -> permitir
   const { data: isAdmin, error } = await ctx.supabase.rpc("has_role", {
@@ -28,7 +29,7 @@ async function assertAdminOrBootstrap(ctx: { supabase: any; userId: string }) {
 export const listAccessUsers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<{ users: AccessUser[]; needsBootstrap: boolean; me: string }> => {
-    const { data: anyAdmin } = await context.supabase.rpc("has_any_admin");
+    const anyAdmin = await hasAnyAdmin();
     const needsBootstrap = !anyAdmin;
 
     if (!needsBootstrap) {

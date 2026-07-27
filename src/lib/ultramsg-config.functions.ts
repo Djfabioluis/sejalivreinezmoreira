@@ -1,3 +1,4 @@
+import { hasAnyAdmin } from "@/lib/roles";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -9,7 +10,7 @@ import {
 } from "@/lib/ultramsg.server";
 
 async function assertAdmin(ctx: { supabase: any; userId: string }) {
-  const { data: anyAdmin } = await ctx.supabase.rpc("has_any_admin");
+  const anyAdmin = await hasAnyAdmin();
   if (!anyAdmin) return;
   const { data: isAdmin, error } = await ctx.supabase.rpc("has_role", {
     _user_id: ctx.userId,

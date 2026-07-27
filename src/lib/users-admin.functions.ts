@@ -1,9 +1,10 @@
+import { hasAnyAdmin } from "@/lib/roles";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 
 async function assertAdminOrBootstrap(ctx: { supabase: any; userId: string }) {
-  const { data: anyAdmin, error: adminErr } = await ctx.supabase.rpc("has_any_admin");
+  const anyAdmin = await hasAnyAdmin(); const adminErr = null as any;
   if (adminErr) throw new Error(adminErr.message);
   if (!anyAdmin) return;
   const { data: isAdmin, error } = await ctx.supabase.rpc("has_role", {
