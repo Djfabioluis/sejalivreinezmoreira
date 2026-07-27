@@ -51,6 +51,8 @@ function ConfiguracaoWhatsAppPage() {
   const fetchSettings = useServerFn(getWhatsAppSettings);
   const saveSettings = useServerFn(saveWhatsAppSettings);
   const testConn = useServerFn(testWhatsAppConnection);
+  const fetchHealth = useServerFn(getWhatsAppHealth);
+  const runHealth = useServerFn(refreshWhatsAppHealth);
 
   const [accessToken, setAccessToken] = useState("");
   const [phoneNumberId, setPhoneNumberId] = useState("");
@@ -71,6 +73,9 @@ function ConfiguracaoWhatsAppPage() {
     | { ok: false; error: string }
     | null
   >(null);
+
+  const [health, setHealth] = useState<Health | null>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
 
   const [webhookUrl, setWebhookUrl] = useState("");
 
