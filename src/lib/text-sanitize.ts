@@ -16,3 +16,21 @@ export function stripMarkdown(input: string): string {
   out = out.replace(/^\s{0,3}#{1,6}\s+/gm, "");
   return out;
 }
+
+/**
+ * Remove informações de duração que não devem aparecer para o cliente
+ * nas listas/confirmações de serviços, mantendo horários de agenda intactos.
+ */
+export function stripServiceDuration(input: string): string {
+  if (!input) return input;
+  let out = input;
+  out = out.replace(/\s*[([]\s*(?:dura[cç][aã]o|tempo)\s*(?:aprox\.?|aproximad[ao])?[^)\]]*\d+\s*(?:min(?:utos?)?|h|hora?s?)\s*[)\]]/gi, "");
+  out = out.replace(/\s*(?:[-–—,;:]\s*)?(?:dura[cç][aã]o|tempo)\s*(?:aprox\.?|aproximad[ao])?\s*(?:de\s*)?\d+\s*(?:min(?:utos?)?|h|hora?s?)\b/gi, "");
+  out = out.replace(/\s{2,}/g, " ");
+  out = out.replace(/[ \t]+\n/g, "\n");
+  return out.trim();
+}
+
+export function sanitizeCustomerText(input: string): string {
+  return stripServiceDuration(stripMarkdown(input));
+}

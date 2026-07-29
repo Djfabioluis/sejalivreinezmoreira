@@ -5,6 +5,7 @@ import { type UIMessage } from "ai";
 import { runAgent } from "@/lib/chat.server";
 import { transcribeAudio, synthesizeSpeechMp3 } from "@/lib/ai-audio.server";
 import { getWhatsAppConfig } from "@/lib/whatsapp-config.server";
+import { sanitizeCustomerText } from "@/lib/text-sanitize";
 
 type WaMediaRef = { id: string; mime_type?: string };
 type WaMessage = {
@@ -60,7 +61,7 @@ async function sendWhatsAppText(to: string, body: string) {
       messaging_product: "whatsapp",
       to,
       type: "text",
-      text: { body: body.slice(0, 3500) },
+        text: { body: sanitizeCustomerText(body).slice(0, 3500) },
     }),
   });
   if (!res.ok) {

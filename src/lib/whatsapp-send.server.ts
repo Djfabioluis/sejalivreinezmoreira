@@ -1,6 +1,6 @@
 // Server-only helper para enviar mensagens WhatsApp via Meta Cloud API.
 import { getWhatsAppConfig } from "@/lib/whatsapp-config.server";
-import { stripMarkdown } from "@/lib/text-sanitize";
+import { sanitizeCustomerText } from "@/lib/text-sanitize";
 
 
 
@@ -24,7 +24,7 @@ export async function sendWhatsAppText(to: string, body: string): Promise<boolea
         messaging_product: "whatsapp",
         to: digits,
         type: "text",
-        text: { body: stripMarkdown(body).slice(0, 3500) },
+        text: { body: sanitizeCustomerText(body).slice(0, 3500) },
       }),
 
     });

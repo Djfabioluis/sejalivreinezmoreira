@@ -1,6 +1,6 @@
 // Server-only helpers para integração WhatsApp via UltraMsg (QR Code / WhatsApp Web).
 // Nunca importar de componentes/loaders públicos.
-import { stripMarkdown } from "@/lib/text-sanitize";
+import { sanitizeCustomerText } from "@/lib/text-sanitize";
 
 
 export type UltraMsgSettings = {
@@ -108,7 +108,7 @@ export async function sendUltraMsgText(to: string, body: string): Promise<boolea
   const form = new URLSearchParams();
   form.set("token", cfg.token);
   form.set("to", normalizeTo(to));
-  form.set("body", stripMarkdown(body).slice(0, 3500));
+  form.set("body", sanitizeCustomerText(body).slice(0, 3500));
 
   try {
     const res = await fetch(`${UM_BASE}/${cfg.instanceId}/messages/chat`, {
