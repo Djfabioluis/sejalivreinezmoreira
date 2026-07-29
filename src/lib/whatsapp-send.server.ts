@@ -1,5 +1,8 @@
 // Server-only helper para enviar mensagens WhatsApp via Meta Cloud API.
 import { getWhatsAppConfig } from "@/lib/whatsapp-config.server";
+import { stripMarkdown } from "@/lib/text-sanitize";
+
+
 
 export async function sendWhatsAppText(to: string, body: string): Promise<boolean> {
   let cfg;
