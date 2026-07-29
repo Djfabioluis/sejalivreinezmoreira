@@ -81,7 +81,10 @@ export async function transcribeAudio(
 }
 
 /** Gera MP3 (Buffer) com voz feminina calma pt-BR. */
-export async function synthesizeSpeechMp3(text: string): Promise<Buffer> {
+export async function synthesizeSpeechMp3(
+  text: string,
+  opts: { voice?: string; instructions?: string } = {},
+): Promise<Buffer> {
   const key = requireKey();
   const clean = text.trim();
   if (!clean) throw new Error("Texto vazio para TTS.");
@@ -95,8 +98,8 @@ export async function synthesizeSpeechMp3(text: string): Promise<Buffer> {
     body: JSON.stringify({
       model: TTS_MODEL,
       input: clean.slice(0, 4000),
-      voice: TTS_VOICE,
-      instructions: TTS_INSTRUCTIONS,
+      voice: opts.voice ?? TTS_VOICE,
+      instructions: opts.instructions ?? TTS_INSTRUCTIONS,
       response_format: "mp3",
     }),
   });
