@@ -160,6 +160,9 @@ function Dashboard() {
               <TabsTrigger value="handoff">
                 <LifeBuoy className="h-4 w-4 mr-1" /> Aguardando humano
               </TabsTrigger>
+              <TabsTrigger value="reagendamentos">
+                <CalendarClock className="h-4 w-4 mr-1" /> Reagendamentos
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -183,6 +186,9 @@ function Dashboard() {
           </TabsContent>
           <TabsContent value="handoff">
             <AtendimentoHumanoPanel />
+          </TabsContent>
+          <TabsContent value="reagendamentos">
+            <ReagendamentosPanel />
           </TabsContent>
         </Tabs>
 
