@@ -302,6 +302,10 @@ function buildTools(sandbox: boolean) {
         salon_id: z.number(),
         service_id: z.number(),
         professional_id: z.number().optional(),
+        old_start: z
+          .string()
+          .optional()
+          .describe("ISO 8601 do horário ANTIGO (o que está sendo trocado), quando conhecido."),
         new_start: z.string().describe("ISO 8601 do novo início, ex.: 2025-09-12T13:30:00.000-03:00"),
         new_end: z.string().describe("ISO 8601 do novo término (start + duração)"),
         name: z.string(),
