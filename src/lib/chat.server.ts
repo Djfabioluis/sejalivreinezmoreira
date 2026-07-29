@@ -316,12 +316,37 @@ function buildTools(sandbox: boolean) {
       execute: async (input) =>
         safeTool("reschedule_appointment", async () => {
           if (sandbox) {
+            const simId = `SIM-${Date.now()}`;
+            try {
+              const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+              const phone = `${input.phone_country_code}${input.phone_area_code}${input.phone_number}`;
+              await supabaseAdmin.from("reagendamentos_hist" as never).insert({
+                old_appointment_id: String(input.old_appointment_id),
+                new_appointment_id: simId,
+                salon_id: String(input.salon_id),
+                service_id: String(input.service_id),
+                professional_id:
+                  input.professional_id != null ? String(input.professional_id) : null,
+                old_start: input.old_start ?? null,
+                new_start: input.new_start,
+                phone,
+                name: input.name,
+                status: "simulated_rescheduled",
+                warning: null,
+                message_text: null,
+                message_sent: false,
+                message_sent_at: null,
+                sandbox: true,
+              } as never);
+            } catch (err) {
+              console.error("[reschedule_appointment] falha ao logar histórico (sandbox):", err);
+            }
             return {
               sandbox: true,
               simulated: true,
               old_appointment_id: String(input.old_appointment_id),
               new_appointment: {
-                id: `SIM-${Date.now()}`,
+                id: simId,
                 start: input.new_start,
                 end: input.new_end,
                 service_id: input.service_id,
