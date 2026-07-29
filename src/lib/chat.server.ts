@@ -55,11 +55,23 @@ FLUXO DE AGENDAMENTO:
 10. Chame create_appointment para o(s) serviço(s) confirmado(s).
 11. Ao final, confirme o(s) agendamento(s) e ofereça mais ajuda.
 
-CANCELAMENTO E REMARCAÇÃO:
-- Quando o cliente pedir para cancelar, peça o telefone (país/DDD/número) se ainda não souber e use list_customer_appointments para localizar os agendamentos.
+REAGENDAMENTO (prioridade quando o cliente quer MUDAR de dia/horário):
+- Gatilhos: "remarcar", "reagendar", "mudar horário", "mudar de dia", "adiar", "antecipar", "trocar dia", "empurrar", "passar para outro dia", "posso ir em outro horário?". Nesses casos, o objetivo é REAGENDAR, não cancelar.
+- Peça o telefone (país/DDD/número) se ainda não souber e use list_customer_appointments para achar o(s) agendamento(s).
+- Mostre os agendamentos futuros encontrados (serviço, profissional, data/hora) e pergunte qual deles quer mudar.
+- Confirme se quer manter o mesmo serviço/unidade (padrão: sim). Só troque de serviço/unidade se o cliente pedir.
+- Pergunte a nova data preferida (YYYY-MM-DD) e use list_slots para oferecer horários da nova data (com o mesmo salon_id e service_id, salvo se o cliente pediu para trocar).
+- Calcule o novo "end" somando a duração do serviço ao novo "start" (uso interno; não fale a duração ao cliente).
+- Faça um resumo curto: "de {data/hora antigo} para {data/hora novo}, mesmo serviço, confirma?" e peça confirmação explícita.
+- Só depois da confirmação, chame reschedule_appointment com o old_appointment_id do agendamento antigo, o novo start/end, o service_id (mesmo ou novo), salon_id, e professional_id (se o cliente escolheu — nesse caso o sistema já registra "com preferência" automaticamente).
+- Se reschedule_appointment retornar erro ao criar o novo, avise que o horário antigo continua valendo e ofereça outro horário. Nunca cancele antes de ter o novo agendamento confirmado.
+- Se der certo, confirme o novo horário e coloque-se à disposição. Não ofereça cross-sell de novo.
+
+CANCELAMENTO (só quando o cliente REALMENTE quer desistir, sem remarcar):
+- Quando o cliente pedir para cancelar sem intenção de remarcar, peça o telefone (país/DDD/número) se ainda não souber e use list_customer_appointments para localizar os agendamentos.
 - Mostre os agendamentos encontrados (serviço, profissional, data/hora) e pergunte qual deles deseja cancelar.
 - Antes de chamar cancel_appointment, confirme explicitamente ("Confirma o cancelamento de X no dia Y às Z?").
-- Após cancelar com sucesso, pergunte se o cliente gostaria de remarcar para outro dia ou horário. Se sim, siga o fluxo normal de agendamento (list_services/list_slots/create_appointment) reaproveitando os dados que já tem.
+- Após cancelar com sucesso, pergunte se o cliente gostaria de remarcar para outro dia ou horário. Se sim, siga o fluxo de REAGENDAMENTO ou de agendamento normal.
 - Se o cliente não quiser remarcar, agradeça e se coloque à disposição.
 
 PLANOS DE ASSINATURA (vendas):
@@ -280,6 +292,148 @@ function buildTools(sandbox: boolean) {
           return await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule?${qs.toString()}`, {
             method: "DELETE",
           });
+        }),
+    }),
+    reschedule_appointment: tool({
+      description:
+        "Reagenda um agendamento existente na Bemp para uma nova data/hora, opcionalmente trocando serviço/unidade/profissional. Cria PRIMEIRO o novo agendamento e só depois cancela o antigo — assim o cliente nunca fica sem horário. Só chame após confirmação explícita do cliente.",
+      inputSchema: z.object({
+        old_appointment_id: z.union([z.string(), z.number()]),
+        salon_id: z.number(),
+        service_id: z.number(),
+        professional_id: z.number().optional(),
+        new_start: z.string().describe("ISO 8601 do novo início, ex.: 2025-09-12T13:30:00.000-03:00"),
+        new_end: z.string().describe("ISO 8601 do novo término (start + duração)"),
+        name: z.string(),
+        phone_country_code: z.string(),
+        phone_area_code: z.string(),
+        phone_number: z.string(),
+      }),
+      execute: async (input) =>
+        safeTool("reschedule_appointment", async () => {
+          if (sandbox) {
+            return {
+              sandbox: true,
+              simulated: true,
+              old_appointment_id: String(input.old_appointment_id),
+              new_appointment: {
+                id: `SIM-${Date.now()}`,
+                start: input.new_start,
+                end: input.new_end,
+                service_id: input.service_id,
+                salon_id: input.salon_id,
+              },
+              status: "simulated_rescheduled",
+              message:
+                "Reagendamento SIMULADO (modo sandbox). Nada foi alterado na Bemp. (Confirmação por WhatsApp não é enviada em sandbox.)",
+              rescheduled_at: new Date().toISOString(),
+            };
+          }
+
+          // 1) Cria o NOVO agendamento primeiro. Se falhar, mantém o antigo.
+          const createPayload = withProfessionalPreferenceNote({
+            salon_id: input.salon_id,
+            service_id: input.service_id,
+            professional_id: input.professional_id,
+            start: input.new_start,
+            end: input.new_end,
+            name: input.name,
+            phone_country_code: input.phone_country_code,
+            phone_area_code: input.phone_area_code,
+            phone_number: input.phone_number,
+          });
+          const created = await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule`, {
+            method: "POST",
+            body: JSON.stringify(createPayload),
+          });
+          if (input.professional_id != null) {
+            await tryUpdateBempScheduleNote(created, PROFESSIONAL_PREFERENCE_NOTE);
+          }
+          const newBempId = extractBempAppointmentId(created);
+
+          // 2) Cancela o antigo. Se falhar, mantém o novo e sinaliza pendência.
+          let oldCancelled = true;
+          let oldCancelError: string | null = null;
+          try {
+            const qs = new URLSearchParams({
+              phone_country_code: input.phone_country_code,
+              phone_area_code: input.phone_area_code,
+              phone_number: input.phone_number,
+              id: String(input.old_appointment_id),
+            });
+            await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule?${qs.toString()}`, {
+              method: "DELETE",
+            });
+          } catch (err) {
+            oldCancelled = false;
+            oldCancelError = err instanceof Error ? err.message : String(err);
+            console.error(
+              "[reschedule_appointment] novo criado mas cancelamento do antigo falhou:",
+              oldCancelError,
+            );
+          }
+
+          // 3) Notifica cliente + atualiza agendamentos_notif (best-effort).
+          try {
+            const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+            const { sendWhatsAppText, formatBrDateTime } = await import(
+              "@/lib/whatsapp-send.server"
+            );
+            const phone = `${input.phone_country_code}${input.phone_area_code}${input.phone_number}`;
+            let serviceName: string | null = null;
+            try {
+              const cfg = await getBempConfig();
+              const services = (await bempFetch(
+                `${cfg.apiBase}/salons/${input.salon_id}/services`,
+              )) as Array<Record<string, unknown>> | null;
+              if (Array.isArray(services)) {
+                const found = services.find((s) => Number(s.id) === input.service_id);
+                if (found && typeof found.name === "string") serviceName = found.name;
+              }
+            } catch {
+              // segue sem nome do serviço
+            }
+            const when = formatBrDateTime(input.new_start);
+            const msg = serviceName
+              ? `Oi ${input.name}! 💜 Seu *${serviceName}* foi reagendado para ${when}. Tá tudo certinho por aqui.\n\nSe precisar mudar de novo, é só me chamar. Até lá! ✨\n— Julia, Salão Seja Livre`
+              : `Oi ${input.name}! 💜 Seu atendimento foi reagendado para ${when}. Tá tudo certinho por aqui.\n\nSe precisar mudar de novo, é só me chamar. Até lá! ✨\n— Julia, Salão Seja Livre`;
+            const sent = await sendWhatsAppText(phone, msg);
+
+            // Insere linha nova para o cron de lembretes rodar sobre a nova data.
+            await supabaseAdmin.from("agendamentos_notif" as never).insert({
+              bemp_appointment_id: newBempId,
+              salon_id: String(input.salon_id),
+              service_id: String(input.service_id),
+              service_name: serviceName,
+              start_at: input.new_start,
+              phone,
+              name: input.name,
+              sandbox: false,
+              confirmation_sent_at: sent ? new Date().toISOString() : null,
+            } as never);
+
+            // Remove a linha antiga para não disparar lembrete de horário obsoleto.
+            if (oldCancelled) {
+              await supabaseAdmin
+                .from("agendamentos_notif" as never)
+                .delete()
+                .eq("bemp_appointment_id", String(input.old_appointment_id));
+            }
+          } catch (err) {
+            console.error("[reschedule_appointment] falha ao registrar/notificar:", err);
+          }
+
+          return {
+            status: oldCancelled ? "rescheduled" : "rescheduled_with_warning",
+            new_appointment: created,
+            new_appointment_id: newBempId,
+            old_appointment_id: String(input.old_appointment_id),
+            old_cancelled: oldCancelled,
+            warning: oldCancelled
+              ? null
+              : `O novo horário foi criado com sucesso, mas o cancelamento do antigo (${input.old_appointment_id}) falhou: ${oldCancelError}. Avise o cliente que a equipe vai remover o horário antigo manualmente.`,
+            rescheduled_at: new Date().toISOString(),
+          };
         }),
     }),
     list_subscription_plans: tool({
