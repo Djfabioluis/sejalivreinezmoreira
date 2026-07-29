@@ -382,7 +382,9 @@ function LandingPage() {
             <h2 className="mb-6 font-display text-2xl">Finalizar assinatura</h2>
             <Card>
               <CardContent className="p-4 sm:p-6">
-                <StripeEmbeddedCheckout priceId={selectedPrice} />
+                <Suspense fallback={<div className="py-10 text-center text-sm text-muted-foreground">Carregando checkout…</div>}>
+                  <StripeEmbeddedCheckout priceId={selectedPrice} />
+                </Suspense>
               </CardContent>
             </Card>
             <p className="mt-4 text-center text-xs text-muted-foreground">
