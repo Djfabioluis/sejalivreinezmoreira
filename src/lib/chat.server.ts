@@ -63,7 +63,7 @@ REAGENDAMENTO (prioridade quando o cliente quer MUDAR de dia/horário):
 - Pergunte a nova data preferida (YYYY-MM-DD) e use list_slots para oferecer horários da nova data (com o mesmo salon_id e service_id, salvo se o cliente pediu para trocar).
 - Calcule o novo "end" somando a duração do serviço ao novo "start" (uso interno; não fale a duração ao cliente).
 - Faça um resumo curto: "de {data/hora antigo} para {data/hora novo}, mesmo serviço, confirma?" e peça confirmação explícita.
-- Só depois da confirmação, chame reschedule_appointment com o old_appointment_id do agendamento antigo, o novo start/end, o service_id (mesmo ou novo), salon_id, e professional_id (se o cliente escolheu — nesse caso o sistema já registra "com preferência" automaticamente).
+- Só depois da confirmação, chame reschedule_appointment com o old_appointment_id do agendamento antigo, o old_start (ISO do horário antigo, obtido do list_customer_appointments), o novo start/end, o service_id (mesmo ou novo), salon_id, e professional_id (se o cliente escolheu — nesse caso o sistema já registra "com preferência" automaticamente).
 - Se reschedule_appointment retornar erro ao criar o novo, avise que o horário antigo continua valendo e ofereça outro horário. Nunca cancele antes de ter o novo agendamento confirmado.
 - Se der certo, confirme o novo horário e coloque-se à disposição. Não ofereça cross-sell de novo.
 
@@ -302,6 +302,10 @@ function buildTools(sandbox: boolean) {
         salon_id: z.number(),
         service_id: z.number(),
         professional_id: z.number().optional(),
+        old_start: z
+          .string()
+          .optional()
+          .describe("ISO 8601 do horário ANTIGO (o que está sendo trocado), quando conhecido."),
         new_start: z.string().describe("ISO 8601 do novo início, ex.: 2025-09-12T13:30:00.000-03:00"),
         new_end: z.string().describe("ISO 8601 do novo término (start + duração)"),
         name: z.string(),
@@ -312,12 +316,37 @@ function buildTools(sandbox: boolean) {
       execute: async (input) =>
         safeTool("reschedule_appointment", async () => {
           if (sandbox) {
+            const simId = `SIM-${Date.now()}`;
+            try {
+              const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+              const phone = `${input.phone_country_code}${input.phone_area_code}${input.phone_number}`;
+              await supabaseAdmin.from("reagendamentos_hist" as never).insert({
+                old_appointment_id: String(input.old_appointment_id),
+                new_appointment_id: simId,
+                salon_id: String(input.salon_id),
+                service_id: String(input.service_id),
+                professional_id:
+                  input.professional_id != null ? String(input.professional_id) : null,
+                old_start: input.old_start ?? null,
+                new_start: input.new_start,
+                phone,
+                name: input.name,
+                status: "simulated_rescheduled",
+                warning: null,
+                message_text: null,
+                message_sent: false,
+                message_sent_at: null,
+                sandbox: true,
+              } as never);
+            } catch (err) {
+              console.error("[reschedule_appointment] falha ao logar histórico (sandbox):", err);
+            }
             return {
               sandbox: true,
               simulated: true,
               old_appointment_id: String(input.old_appointment_id),
               new_appointment: {
-                id: `SIM-${Date.now()}`,
+                id: simId,
                 start: input.new_start,
                 end: input.new_end,
                 service_id: input.service_id,
@@ -419,6 +448,31 @@ function buildTools(sandbox: boolean) {
                 .delete()
                 .eq("bemp_appointment_id", String(input.old_appointment_id));
             }
+
+            // Grava o histórico de reagendamento para o painel.
+            const finalStatus = oldCancelled ? "rescheduled" : "rescheduled_with_warning";
+            const finalWarning = oldCancelled
+              ? null
+              : `Cancelamento do antigo (${input.old_appointment_id}) falhou: ${oldCancelError}`;
+            await supabaseAdmin.from("reagendamentos_hist" as never).insert({
+              old_appointment_id: String(input.old_appointment_id),
+              new_appointment_id: newBempId,
+              salon_id: String(input.salon_id),
+              service_id: String(input.service_id),
+              service_name: serviceName,
+              professional_id:
+                input.professional_id != null ? String(input.professional_id) : null,
+              old_start: input.old_start ?? null,
+              new_start: input.new_start,
+              phone,
+              name: input.name,
+              status: finalStatus,
+              warning: finalWarning,
+              message_text: msg,
+              message_sent: sent,
+              message_sent_at: sent ? new Date().toISOString() : null,
+              sandbox: false,
+            } as never);
           } catch (err) {
             console.error("[reschedule_appointment] falha ao registrar/notificar:", err);
           }
