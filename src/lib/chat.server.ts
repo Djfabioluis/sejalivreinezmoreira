@@ -448,6 +448,31 @@ function buildTools(sandbox: boolean) {
                 .delete()
                 .eq("bemp_appointment_id", String(input.old_appointment_id));
             }
+
+            // Grava o histórico de reagendamento para o painel.
+            const finalStatus = oldCancelled ? "rescheduled" : "rescheduled_with_warning";
+            const finalWarning = oldCancelled
+              ? null
+              : `Cancelamento do antigo (${input.old_appointment_id}) falhou: ${oldCancelError}`;
+            await supabaseAdmin.from("reagendamentos_hist" as never).insert({
+              old_appointment_id: String(input.old_appointment_id),
+              new_appointment_id: newBempId,
+              salon_id: String(input.salon_id),
+              service_id: String(input.service_id),
+              service_name: serviceName,
+              professional_id:
+                input.professional_id != null ? String(input.professional_id) : null,
+              old_start: input.old_start ?? null,
+              new_start: input.new_start,
+              phone,
+              name: input.name,
+              status: finalStatus,
+              warning: finalWarning,
+              message_text: msg,
+              message_sent: sent,
+              message_sent_at: sent ? new Date().toISOString() : null,
+              sandbox: false,
+            } as never);
           } catch (err) {
             console.error("[reschedule_appointment] falha ao registrar/notificar:", err);
           }
