@@ -158,7 +158,7 @@ function AgendarPage() {
     }
     const text = last.parts
       .filter((p) => p.type === "text")
-      .map((p) => (p as { text: string }).text)
+      .map((p) => sanitizeCustomerText((p as { text: string }).text))
       .join(" ")
       .trim();
     if (text) {

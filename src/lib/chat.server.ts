@@ -875,6 +875,15 @@ export async function loadSystemPrompt(): Promise<string> {
 
 export type AgentOptions = { sandbox?: boolean };
 
+function sanitizeMessagesForModel(messages: UIMessage[]): UIMessage[] {
+  return messages.map((message) => ({
+    ...message,
+    parts: message.parts.map((part) =>
+      part.type === "text" ? { ...part, text: sanitizeCustomerText(part.text) } : part,
+    ),
+  }));
+}
+
 function envSandbox(): boolean {
   return process.env.SANDBOX_MODE === "1" || process.env.SANDBOX_MODE === "true";
 }
@@ -913,7 +922,7 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
   return streamText({
     model: getModel(),
     system,
-    messages: await convertToModelMessages(uiMessages),
+    messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
     tools: buildTools(sandbox),
     stopWhen: stepCountIs(50),
   });
@@ -926,7 +935,7 @@ export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {})
   const result = await generateText({
     model: getModel(),
     system,
-    messages: await convertToModelMessages(uiMessages),
+    messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
     tools: buildTools(sandbox),
     stopWhen: stepCountIs(50),
   });
