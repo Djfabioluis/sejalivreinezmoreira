@@ -1082,7 +1082,7 @@ export async function loadSystemPrompt(): Promise<string> {
   }
 }
 
-export type AgentOptions = { sandbox?: boolean };
+export type AgentOptions = { sandbox?: boolean; persona?: string };
 
 function sanitizeMessagesForModel(messages: UIMessage[]): UIMessage[] {
   return messages.map((message) => ({
