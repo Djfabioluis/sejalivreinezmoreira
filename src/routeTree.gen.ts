@@ -30,6 +30,7 @@ import { Route as AuthenticatedBaseConhecimentoRouteImport } from './routes/_aut
 import { Route as AuthenticatedAuditoriaSugestoesRouteImport } from './routes/_authenticated/auditoria-sugestoes'
 import { Route as AuthenticatedAssinaturaRouteImport } from './routes/_authenticated/assinatura'
 import { Route as AuthenticatedAssinantesRouteImport } from './routes/_authenticated/assinantes'
+import { Route as AuthenticatedAgentesWhatsappRouteImport } from './routes/_authenticated/agentes-whatsapp'
 import { Route as AuthenticatedAgendarRouteImport } from './routes/_authenticated/agendar'
 import { Route as AuthenticatedAcessosRouteImport } from './routes/_authenticated/acessos'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
@@ -150,6 +151,12 @@ const AuthenticatedAssinantesRoute = AuthenticatedAssinantesRouteImport.update({
   path: '/assinantes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAgentesWhatsappRoute =
+  AuthenticatedAgentesWhatsappRouteImport.update({
+    id: '/agentes-whatsapp',
+    path: '/agentes-whatsapp',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAgendarRoute = AuthenticatedAgendarRouteImport.update({
   id: '/agendar',
   path: '/agendar',
@@ -220,6 +227,7 @@ export interface FileRoutesByFullPath {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/acessos': typeof AuthenticatedAcessosRoute
   '/agendar': typeof AuthenticatedAgendarRoute
+  '/agentes-whatsapp': typeof AuthenticatedAgentesWhatsappRoute
   '/assinantes': typeof AuthenticatedAssinantesRoute
   '/assinatura': typeof AuthenticatedAssinaturaRoute
   '/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
@@ -253,6 +261,7 @@ export interface FileRoutesByTo {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/acessos': typeof AuthenticatedAcessosRoute
   '/agendar': typeof AuthenticatedAgendarRoute
+  '/agentes-whatsapp': typeof AuthenticatedAgentesWhatsappRoute
   '/assinantes': typeof AuthenticatedAssinantesRoute
   '/assinatura': typeof AuthenticatedAssinaturaRoute
   '/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
@@ -288,6 +297,7 @@ export interface FileRoutesById {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/acessos': typeof AuthenticatedAcessosRoute
   '/_authenticated/agendar': typeof AuthenticatedAgendarRoute
+  '/_authenticated/agentes-whatsapp': typeof AuthenticatedAgentesWhatsappRoute
   '/_authenticated/assinantes': typeof AuthenticatedAssinantesRoute
   '/_authenticated/assinatura': typeof AuthenticatedAssinaturaRoute
   '/_authenticated/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
@@ -323,6 +333,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/acessos'
     | '/agendar'
+    | '/agentes-whatsapp'
     | '/assinantes'
     | '/assinatura'
     | '/auditoria-sugestoes'
@@ -356,6 +367,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/acessos'
     | '/agendar'
+    | '/agentes-whatsapp'
     | '/assinantes'
     | '/assinatura'
     | '/auditoria-sugestoes'
@@ -390,6 +402,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/_authenticated/acessos'
     | '/_authenticated/agendar'
+    | '/_authenticated/agentes-whatsapp'
     | '/_authenticated/assinantes'
     | '/_authenticated/assinatura'
     | '/_authenticated/auditoria-sugestoes'
@@ -585,6 +598,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAssinantesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/agentes-whatsapp': {
+      id: '/_authenticated/agentes-whatsapp'
+      path: '/agentes-whatsapp'
+      fullPath: '/agentes-whatsapp'
+      preLoaderRoute: typeof AuthenticatedAgentesWhatsappRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/agendar': {
       id: '/_authenticated/agendar'
       path: '/agendar'
@@ -668,6 +688,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAcessosRoute: typeof AuthenticatedAcessosRoute
   AuthenticatedAgendarRoute: typeof AuthenticatedAgendarRoute
+  AuthenticatedAgentesWhatsappRoute: typeof AuthenticatedAgentesWhatsappRoute
   AuthenticatedAssinantesRoute: typeof AuthenticatedAssinantesRoute
   AuthenticatedAssinaturaRoute: typeof AuthenticatedAssinaturaRoute
   AuthenticatedAuditoriaSugestoesRoute: typeof AuthenticatedAuditoriaSugestoesRoute
@@ -686,6 +707,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAcessosRoute: AuthenticatedAcessosRoute,
   AuthenticatedAgendarRoute: AuthenticatedAgendarRoute,
+  AuthenticatedAgentesWhatsappRoute: AuthenticatedAgentesWhatsappRoute,
   AuthenticatedAssinantesRoute: AuthenticatedAssinantesRoute,
   AuthenticatedAssinaturaRoute: AuthenticatedAssinaturaRoute,
   AuthenticatedAuditoriaSugestoesRoute: AuthenticatedAuditoriaSugestoesRoute,
