@@ -9,15 +9,19 @@ const ENTITLEMENT_EXEMPT = new Set<string>(["/assinatura"]);
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
-  beforeLoad: async ({ location }) => {
+  beforeLoad: async ({ location, context }) => {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) {
       throw redirect({ to: "/auth", search: { next: location.href } });
     }
     if (!ENTITLEMENT_EXEMPT.has(location.pathname)) {
       try {
-        const ent = await getMyEntitlement({
-          data: { environment: getStripeEnvironment() },
+        const env = getStripeEnvironment();
+        const ent = await context.queryClient.ensureQueryData({
+          queryKey: ["entitlement", env, data.user.id],
+          queryFn: () => getMyEntitlement({ data: { environment: env } }),
+          staleTime: 5 * 60_000,
+          gcTime: 10 * 60_000,
         });
         if (!ent.active) throw redirect({ to: "/assinatura" });
       } catch (e) {
