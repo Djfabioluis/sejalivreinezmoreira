@@ -18,13 +18,13 @@ import { sanitizeCustomerText } from "@/lib/text-sanitize";
 export const Route = createFileRoute("/_authenticated/agendar")({
   head: () => ({
     meta: [
-      { title: "Agendar consulta — Secretária virtual" },
+      { title: "Agendar atendimento — Secretária virtual" },
       {
         name: "description",
         content:
-          "Converse com a secretária virtual para agendar sua consulta em segundos.",
+          "Converse com a secretária virtual para agendar seu atendimento em segundos.",
       },
-      { property: "og:title", content: "Agendar consulta — Secretária virtual" },
+      { property: "og:title", content: "Agendar atendimento — Secretária virtual" },
       {
         property: "og:description",
         content: "Fluxo conversacional que cria seu agendamento direto na Bemp.",

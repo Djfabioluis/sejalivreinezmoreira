@@ -14,7 +14,7 @@ export const Route = createFileRoute("/_authenticated/base-conhecimento")({
       { title: "Base de conhecimento — Secretária virtual" },
       {
         name: "description",
-        content: "Edite as instruções que a secretária virtual usa para agendar consultas.",
+        content: "Edite as instruções que a secretária virtual usa para agendar atendimentos.",
       },
       { property: "og:title", content: "Base de conhecimento — Secretária virtual" },
       {
