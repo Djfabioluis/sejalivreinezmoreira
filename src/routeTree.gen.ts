@@ -25,7 +25,6 @@ import { Route as AuthenticatedPainelRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedOperadoresRouteImport } from './routes/_authenticated/operadores'
 import { Route as AuthenticatedIntegracaoBempRouteImport } from './routes/_authenticated/integracao-bemp'
 import { Route as AuthenticatedConfiguracaoWhatsappRouteImport } from './routes/_authenticated/configuracao-whatsapp'
-import { Route as AuthenticatedConfiguracaoUltramsgRouteImport } from './routes/_authenticated/configuracao-ultramsg'
 import { Route as AuthenticatedBoasVindasRouteImport } from './routes/_authenticated/boas-vindas'
 import { Route as AuthenticatedBaseConhecimentoRouteImport } from './routes/_authenticated/base-conhecimento'
 import { Route as AuthenticatedAuditoriaSugestoesRouteImport } from './routes/_authenticated/auditoria-sugestoes'
@@ -36,7 +35,6 @@ import { Route as AuthenticatedAcessosRouteImport } from './routes/_authenticate
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as ApiPublicWhatsappRouteImport } from './routes/api/public/whatsapp'
-import { Route as ApiPublicUltramsgRouteImport } from './routes/api/public/ultramsg'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
@@ -124,12 +122,6 @@ const AuthenticatedConfiguracaoWhatsappRoute =
     path: '/configuracao-whatsapp',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedConfiguracaoUltramsgRoute =
-  AuthenticatedConfiguracaoUltramsgRouteImport.update({
-    id: '/configuracao-ultramsg',
-    path: '/configuracao-ultramsg',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedBoasVindasRoute = AuthenticatedBoasVindasRouteImport.update({
   id: '/boas-vindas',
   path: '/boas-vindas',
@@ -184,11 +176,6 @@ const ApiPublicWhatsappRoute = ApiPublicWhatsappRouteImport.update({
   path: '/api/public/whatsapp',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicUltramsgRoute = ApiPublicUltramsgRouteImport.update({
-  id: '/api/public/ultramsg',
-  path: '/api/public/ultramsg',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const Char91DotmcpChar93InvokeToolToolRoute =
   Char91DotmcpChar93InvokeToolToolRouteImport.update({
     id: '/.mcp/invoke-tool/$tool',
@@ -231,7 +218,6 @@ export interface FileRoutesByFullPath {
   '/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
   '/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
   '/boas-vindas': typeof AuthenticatedBoasVindasRoute
-  '/configuracao-ultramsg': typeof AuthenticatedConfiguracaoUltramsgRoute
   '/configuracao-whatsapp': typeof AuthenticatedConfiguracaoWhatsappRoute
   '/integracao-bemp': typeof AuthenticatedIntegracaoBempRoute
   '/operadores': typeof AuthenticatedOperadoresRoute
@@ -246,7 +232,6 @@ export interface FileRoutesByFullPath {
   '/checkout/return': typeof CheckoutReturnRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
-  '/api/public/ultramsg': typeof ApiPublicUltramsgRoute
   '/api/public/whatsapp': typeof ApiPublicWhatsappRoute
   '/api/public/hooks/lembretes': typeof ApiPublicHooksLembretesRoute
   '/api/public/hooks/whatsapp-health': typeof ApiPublicHooksWhatsappHealthRoute
@@ -265,7 +250,6 @@ export interface FileRoutesByTo {
   '/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
   '/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
   '/boas-vindas': typeof AuthenticatedBoasVindasRoute
-  '/configuracao-ultramsg': typeof AuthenticatedConfiguracaoUltramsgRoute
   '/configuracao-whatsapp': typeof AuthenticatedConfiguracaoWhatsappRoute
   '/integracao-bemp': typeof AuthenticatedIntegracaoBempRoute
   '/operadores': typeof AuthenticatedOperadoresRoute
@@ -280,7 +264,6 @@ export interface FileRoutesByTo {
   '/checkout/return': typeof CheckoutReturnRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
-  '/api/public/ultramsg': typeof ApiPublicUltramsgRoute
   '/api/public/whatsapp': typeof ApiPublicWhatsappRoute
   '/api/public/hooks/lembretes': typeof ApiPublicHooksLembretesRoute
   '/api/public/hooks/whatsapp-health': typeof ApiPublicHooksWhatsappHealthRoute
@@ -301,7 +284,6 @@ export interface FileRoutesById {
   '/_authenticated/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
   '/_authenticated/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
   '/_authenticated/boas-vindas': typeof AuthenticatedBoasVindasRoute
-  '/_authenticated/configuracao-ultramsg': typeof AuthenticatedConfiguracaoUltramsgRoute
   '/_authenticated/configuracao-whatsapp': typeof AuthenticatedConfiguracaoWhatsappRoute
   '/_authenticated/integracao-bemp': typeof AuthenticatedIntegracaoBempRoute
   '/_authenticated/operadores': typeof AuthenticatedOperadoresRoute
@@ -316,7 +298,6 @@ export interface FileRoutesById {
   '/checkout/return': typeof CheckoutReturnRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
-  '/api/public/ultramsg': typeof ApiPublicUltramsgRoute
   '/api/public/whatsapp': typeof ApiPublicWhatsappRoute
   '/api/public/hooks/lembretes': typeof ApiPublicHooksLembretesRoute
   '/api/public/hooks/whatsapp-health': typeof ApiPublicHooksWhatsappHealthRoute
@@ -337,7 +318,6 @@ export interface FileRouteTypes {
     | '/auditoria-sugestoes'
     | '/base-conhecimento'
     | '/boas-vindas'
-    | '/configuracao-ultramsg'
     | '/configuracao-whatsapp'
     | '/integracao-bemp'
     | '/operadores'
@@ -352,7 +332,6 @@ export interface FileRouteTypes {
     | '/checkout/return'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
-    | '/api/public/ultramsg'
     | '/api/public/whatsapp'
     | '/api/public/hooks/lembretes'
     | '/api/public/hooks/whatsapp-health'
@@ -371,7 +350,6 @@ export interface FileRouteTypes {
     | '/auditoria-sugestoes'
     | '/base-conhecimento'
     | '/boas-vindas'
-    | '/configuracao-ultramsg'
     | '/configuracao-whatsapp'
     | '/integracao-bemp'
     | '/operadores'
@@ -386,7 +364,6 @@ export interface FileRouteTypes {
     | '/checkout/return'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
-    | '/api/public/ultramsg'
     | '/api/public/whatsapp'
     | '/api/public/hooks/lembretes'
     | '/api/public/hooks/whatsapp-health'
@@ -406,7 +383,6 @@ export interface FileRouteTypes {
     | '/_authenticated/auditoria-sugestoes'
     | '/_authenticated/base-conhecimento'
     | '/_authenticated/boas-vindas'
-    | '/_authenticated/configuracao-ultramsg'
     | '/_authenticated/configuracao-whatsapp'
     | '/_authenticated/integracao-bemp'
     | '/_authenticated/operadores'
@@ -421,7 +397,6 @@ export interface FileRouteTypes {
     | '/checkout/return'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
-    | '/api/public/ultramsg'
     | '/api/public/whatsapp'
     | '/api/public/hooks/lembretes'
     | '/api/public/hooks/whatsapp-health'
@@ -441,7 +416,6 @@ export interface RootRouteChildren {
   CheckoutReturnRoute: typeof CheckoutReturnRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
-  ApiPublicUltramsgRoute: typeof ApiPublicUltramsgRoute
   ApiPublicWhatsappRoute: typeof ApiPublicWhatsappRoute
   ApiPublicHooksLembretesRoute: typeof ApiPublicHooksLembretesRoute
   ApiPublicHooksWhatsappHealthRoute: typeof ApiPublicHooksWhatsappHealthRoute
@@ -562,13 +536,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedConfiguracaoWhatsappRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/configuracao-ultramsg': {
-      id: '/_authenticated/configuracao-ultramsg'
-      path: '/configuracao-ultramsg'
-      fullPath: '/configuracao-ultramsg'
-      preLoaderRoute: typeof AuthenticatedConfiguracaoUltramsgRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/boas-vindas': {
       id: '/_authenticated/boas-vindas'
       path: '/boas-vindas'
@@ -639,13 +606,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWhatsappRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/ultramsg': {
-      id: '/api/public/ultramsg'
-      path: '/api/public/ultramsg'
-      fullPath: '/api/public/ultramsg'
-      preLoaderRoute: typeof ApiPublicUltramsgRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/.mcp/invoke-tool/$tool': {
       id: '/.mcp/invoke-tool/$tool'
       path: '/.mcp/invoke-tool/$tool'
@@ -692,7 +652,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAuditoriaSugestoesRoute: typeof AuthenticatedAuditoriaSugestoesRoute
   AuthenticatedBaseConhecimentoRoute: typeof AuthenticatedBaseConhecimentoRoute
   AuthenticatedBoasVindasRoute: typeof AuthenticatedBoasVindasRoute
-  AuthenticatedConfiguracaoUltramsgRoute: typeof AuthenticatedConfiguracaoUltramsgRoute
   AuthenticatedConfiguracaoWhatsappRoute: typeof AuthenticatedConfiguracaoWhatsappRoute
   AuthenticatedIntegracaoBempRoute: typeof AuthenticatedIntegracaoBempRoute
   AuthenticatedOperadoresRoute: typeof AuthenticatedOperadoresRoute
@@ -711,8 +670,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAuditoriaSugestoesRoute: AuthenticatedAuditoriaSugestoesRoute,
   AuthenticatedBaseConhecimentoRoute: AuthenticatedBaseConhecimentoRoute,
   AuthenticatedBoasVindasRoute: AuthenticatedBoasVindasRoute,
-  AuthenticatedConfiguracaoUltramsgRoute:
-    AuthenticatedConfiguracaoUltramsgRoute,
   AuthenticatedConfiguracaoWhatsappRoute:
     AuthenticatedConfiguracaoWhatsappRoute,
   AuthenticatedIntegracaoBempRoute: AuthenticatedIntegracaoBempRoute,
@@ -741,7 +698,6 @@ const rootRouteChildren: RootRouteChildren = {
   CheckoutReturnRoute: CheckoutReturnRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
-  ApiPublicUltramsgRoute: ApiPublicUltramsgRoute,
   ApiPublicWhatsappRoute: ApiPublicWhatsappRoute,
   ApiPublicHooksLembretesRoute: ApiPublicHooksLembretesRoute,
   ApiPublicHooksWhatsappHealthRoute: ApiPublicHooksWhatsappHealthRoute,
