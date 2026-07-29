@@ -290,6 +290,69 @@ export type Database = {
         }
         Relationships: []
       }
+      reagendamentos_hist: {
+        Row: {
+          created_at: string
+          id: string
+          message_sent: boolean
+          message_sent_at: string | null
+          message_text: string | null
+          name: string | null
+          new_appointment_id: string | null
+          new_start: string
+          old_appointment_id: string | null
+          old_start: string | null
+          phone: string
+          professional_id: string | null
+          salon_id: string | null
+          sandbox: boolean
+          service_id: string | null
+          service_name: string | null
+          status: string
+          warning: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message_sent?: boolean
+          message_sent_at?: string | null
+          message_text?: string | null
+          name?: string | null
+          new_appointment_id?: string | null
+          new_start: string
+          old_appointment_id?: string | null
+          old_start?: string | null
+          phone: string
+          professional_id?: string | null
+          salon_id?: string | null
+          sandbox?: boolean
+          service_id?: string | null
+          service_name?: string | null
+          status: string
+          warning?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message_sent?: boolean
+          message_sent_at?: string | null
+          message_text?: string | null
+          name?: string | null
+          new_appointment_id?: string | null
+          new_start?: string
+          old_appointment_id?: string | null
+          old_start?: string | null
+          phone?: string
+          professional_id?: string | null
+          salon_id?: string | null
+          sandbox?: boolean
+          service_id?: string | null
+          service_name?: string | null
+          status?: string
+          warning?: string | null
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           cancel_at_period_end: boolean | null
