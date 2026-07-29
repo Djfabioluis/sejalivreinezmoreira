@@ -20,6 +20,7 @@ import {
   type ClienteAtendido,
   type AtendimentoHumano,
 } from "@/lib/atendimentos.functions";
+import { listReagendamentos, type ReagendamentoHist } from "@/lib/reagendamentos.functions";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { WhatsAppQr } from "@/components/whatsapp-qr";
