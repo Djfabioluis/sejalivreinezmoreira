@@ -106,7 +106,8 @@ export async function sendUltraMsgText(to: string, body: string): Promise<boolea
   const form = new URLSearchParams();
   form.set("token", cfg.token);
   form.set("to", normalizeTo(to));
-  form.set("body", body.slice(0, 3500));
+  form.set("body", stripMarkdown(body).slice(0, 3500));
+
   try {
     const res = await fetch(`${UM_BASE}/${cfg.instanceId}/messages/chat`, {
       method: "POST",
