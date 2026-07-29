@@ -1,5 +1,7 @@
 // Server-only helpers para integração WhatsApp via UltraMsg (QR Code / WhatsApp Web).
 // Nunca importar de componentes/loaders públicos.
+import { stripMarkdown } from "@/lib/text-sanitize";
+
 
 export type UltraMsgSettings = {
   instanceId: string;     // ex.: "instance12345"
