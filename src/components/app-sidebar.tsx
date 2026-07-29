@@ -15,7 +15,7 @@ import {
   CreditCard,
   KeyRound,
   Lock,
-  QrCode,
+  
 
 
 
