@@ -50,9 +50,9 @@ async function processReminders() {
 }
 
 function checkCronSecret(request: Request): Response | null {
-  const expected = process.env.CRON_SECRET;
+  const expected = process.env.LEMBRETES_CRON_TOKEN ?? process.env.CRON_SECRET;
   if (!expected) {
-    console.error("[lembretes] CRON_SECRET não configurado");
+    console.error("[lembretes] LEMBRETES_CRON_TOKEN/CRON_SECRET não configurado");
     return new Response("Server misconfigured", { status: 500 });
   }
   const url = new URL(request.url);
