@@ -30,10 +30,12 @@ import { Route as AuthenticatedBaseConhecimentoRouteImport } from './routes/_aut
 import { Route as AuthenticatedAuditoriaSugestoesRouteImport } from './routes/_authenticated/auditoria-sugestoes'
 import { Route as AuthenticatedAssinaturaRouteImport } from './routes/_authenticated/assinatura'
 import { Route as AuthenticatedAssinantesRouteImport } from './routes/_authenticated/assinantes'
+import { Route as AuthenticatedAgentesWhatsappRouteImport } from './routes/_authenticated/agentes-whatsapp'
 import { Route as AuthenticatedAgendarRouteImport } from './routes/_authenticated/agendar'
 import { Route as AuthenticatedAcessosRouteImport } from './routes/_authenticated/acessos'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
+import { Route as ApiPublicWhatsappEvolutionRouteImport } from './routes/api/public/whatsapp-evolution'
 import { Route as ApiPublicWhatsappRouteImport } from './routes/api/public/whatsapp'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
@@ -149,6 +151,12 @@ const AuthenticatedAssinantesRoute = AuthenticatedAssinantesRouteImport.update({
   path: '/assinantes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAgentesWhatsappRoute =
+  AuthenticatedAgentesWhatsappRouteImport.update({
+    id: '/agentes-whatsapp',
+    path: '/agentes-whatsapp',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAgendarRoute = AuthenticatedAgendarRouteImport.update({
   id: '/agendar',
   path: '/agendar',
@@ -169,6 +177,12 @@ const Char91DotmcpChar93ListToolsRoute =
   Char91DotmcpChar93ListToolsRouteImport.update({
     id: '/.mcp/list-tools',
     path: '/.mcp/list-tools',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiPublicWhatsappEvolutionRoute =
+  ApiPublicWhatsappEvolutionRouteImport.update({
+    id: '/api/public/whatsapp-evolution',
+    path: '/api/public/whatsapp-evolution',
     getParentRoute: () => rootRouteImport,
   } as any)
 const ApiPublicWhatsappRoute = ApiPublicWhatsappRouteImport.update({
@@ -213,6 +227,7 @@ export interface FileRoutesByFullPath {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/acessos': typeof AuthenticatedAcessosRoute
   '/agendar': typeof AuthenticatedAgendarRoute
+  '/agentes-whatsapp': typeof AuthenticatedAgentesWhatsappRoute
   '/assinantes': typeof AuthenticatedAssinantesRoute
   '/assinatura': typeof AuthenticatedAssinaturaRoute
   '/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
@@ -233,6 +248,7 @@ export interface FileRoutesByFullPath {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/public/whatsapp': typeof ApiPublicWhatsappRoute
+  '/api/public/whatsapp-evolution': typeof ApiPublicWhatsappEvolutionRoute
   '/api/public/hooks/lembretes': typeof ApiPublicHooksLembretesRoute
   '/api/public/hooks/whatsapp-health': typeof ApiPublicHooksWhatsappHealthRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -245,6 +261,7 @@ export interface FileRoutesByTo {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/acessos': typeof AuthenticatedAcessosRoute
   '/agendar': typeof AuthenticatedAgendarRoute
+  '/agentes-whatsapp': typeof AuthenticatedAgentesWhatsappRoute
   '/assinantes': typeof AuthenticatedAssinantesRoute
   '/assinatura': typeof AuthenticatedAssinaturaRoute
   '/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
@@ -265,6 +282,7 @@ export interface FileRoutesByTo {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/public/whatsapp': typeof ApiPublicWhatsappRoute
+  '/api/public/whatsapp-evolution': typeof ApiPublicWhatsappEvolutionRoute
   '/api/public/hooks/lembretes': typeof ApiPublicHooksLembretesRoute
   '/api/public/hooks/whatsapp-health': typeof ApiPublicHooksWhatsappHealthRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -279,6 +297,7 @@ export interface FileRoutesById {
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/acessos': typeof AuthenticatedAcessosRoute
   '/_authenticated/agendar': typeof AuthenticatedAgendarRoute
+  '/_authenticated/agentes-whatsapp': typeof AuthenticatedAgentesWhatsappRoute
   '/_authenticated/assinantes': typeof AuthenticatedAssinantesRoute
   '/_authenticated/assinatura': typeof AuthenticatedAssinaturaRoute
   '/_authenticated/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
@@ -299,6 +318,7 @@ export interface FileRoutesById {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/public/whatsapp': typeof ApiPublicWhatsappRoute
+  '/api/public/whatsapp-evolution': typeof ApiPublicWhatsappEvolutionRoute
   '/api/public/hooks/lembretes': typeof ApiPublicHooksLembretesRoute
   '/api/public/hooks/whatsapp-health': typeof ApiPublicHooksWhatsappHealthRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -313,6 +333,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/acessos'
     | '/agendar'
+    | '/agentes-whatsapp'
     | '/assinantes'
     | '/assinatura'
     | '/auditoria-sugestoes'
@@ -333,6 +354,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/api/public/whatsapp'
+    | '/api/public/whatsapp-evolution'
     | '/api/public/hooks/lembretes'
     | '/api/public/hooks/whatsapp-health'
     | '/api/public/payments/webhook'
@@ -345,6 +367,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/acessos'
     | '/agendar'
+    | '/agentes-whatsapp'
     | '/assinantes'
     | '/assinatura'
     | '/auditoria-sugestoes'
@@ -365,6 +388,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/api/public/whatsapp'
+    | '/api/public/whatsapp-evolution'
     | '/api/public/hooks/lembretes'
     | '/api/public/hooks/whatsapp-health'
     | '/api/public/payments/webhook'
@@ -378,6 +402,7 @@ export interface FileRouteTypes {
     | '/.well-known/oauth-protected-resource'
     | '/_authenticated/acessos'
     | '/_authenticated/agendar'
+    | '/_authenticated/agentes-whatsapp'
     | '/_authenticated/assinantes'
     | '/_authenticated/assinatura'
     | '/_authenticated/auditoria-sugestoes'
@@ -398,6 +423,7 @@ export interface FileRouteTypes {
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/api/public/whatsapp'
+    | '/api/public/whatsapp-evolution'
     | '/api/public/hooks/lembretes'
     | '/api/public/hooks/whatsapp-health'
     | '/api/public/payments/webhook'
@@ -417,6 +443,7 @@ export interface RootRouteChildren {
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicWhatsappRoute: typeof ApiPublicWhatsappRoute
+  ApiPublicWhatsappEvolutionRoute: typeof ApiPublicWhatsappEvolutionRoute
   ApiPublicHooksLembretesRoute: typeof ApiPublicHooksLembretesRoute
   ApiPublicHooksWhatsappHealthRoute: typeof ApiPublicHooksWhatsappHealthRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
@@ -571,6 +598,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAssinantesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/agentes-whatsapp': {
+      id: '/_authenticated/agentes-whatsapp'
+      path: '/agentes-whatsapp'
+      fullPath: '/agentes-whatsapp'
+      preLoaderRoute: typeof AuthenticatedAgentesWhatsappRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/agendar': {
       id: '/_authenticated/agendar'
       path: '/agendar'
@@ -597,6 +631,13 @@ declare module '@tanstack/react-router' {
       path: '/.mcp/list-tools'
       fullPath: '/.mcp/list-tools'
       preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/whatsapp-evolution': {
+      id: '/api/public/whatsapp-evolution'
+      path: '/api/public/whatsapp-evolution'
+      fullPath: '/api/public/whatsapp-evolution'
+      preLoaderRoute: typeof ApiPublicWhatsappEvolutionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/whatsapp': {
@@ -647,6 +688,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAcessosRoute: typeof AuthenticatedAcessosRoute
   AuthenticatedAgendarRoute: typeof AuthenticatedAgendarRoute
+  AuthenticatedAgentesWhatsappRoute: typeof AuthenticatedAgentesWhatsappRoute
   AuthenticatedAssinantesRoute: typeof AuthenticatedAssinantesRoute
   AuthenticatedAssinaturaRoute: typeof AuthenticatedAssinaturaRoute
   AuthenticatedAuditoriaSugestoesRoute: typeof AuthenticatedAuditoriaSugestoesRoute
@@ -665,6 +707,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAcessosRoute: AuthenticatedAcessosRoute,
   AuthenticatedAgendarRoute: AuthenticatedAgendarRoute,
+  AuthenticatedAgentesWhatsappRoute: AuthenticatedAgentesWhatsappRoute,
   AuthenticatedAssinantesRoute: AuthenticatedAssinantesRoute,
   AuthenticatedAssinaturaRoute: AuthenticatedAssinaturaRoute,
   AuthenticatedAuditoriaSugestoesRoute: AuthenticatedAuditoriaSugestoesRoute,
@@ -699,6 +742,7 @@ const rootRouteChildren: RootRouteChildren = {
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicWhatsappRoute: ApiPublicWhatsappRoute,
+  ApiPublicWhatsappEvolutionRoute: ApiPublicWhatsappEvolutionRoute,
   ApiPublicHooksLembretesRoute: ApiPublicHooksLembretesRoute,
   ApiPublicHooksWhatsappHealthRoute: ApiPublicHooksWhatsappHealthRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,

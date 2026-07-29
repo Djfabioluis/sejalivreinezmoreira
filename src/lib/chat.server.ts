@@ -1082,7 +1082,7 @@ export async function loadSystemPrompt(): Promise<string> {
   }
 }
 
-export type AgentOptions = { sandbox?: boolean };
+export type AgentOptions = { sandbox?: boolean; persona?: string };
 
 function sanitizeMessagesForModel(messages: UIMessage[]): UIMessage[] {
   return messages.map((message) => ({
@@ -1140,7 +1140,7 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
 // Non-streaming run used by the WhatsApp webhook (needs the final text).
 export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {}): Promise<string> {
   const sandbox = opts.sandbox === true || envSandbox();
-  const system = (await loadSystemPrompt()) + currentDateNote() + LANGUAGE_GUARD + NO_DURATION_GUARD + (sandbox ? SANDBOX_NOTE : "");
+  const system = (await loadSystemPrompt()) + currentDateNote() + LANGUAGE_GUARD + NO_DURATION_GUARD + (sandbox ? SANDBOX_NOTE : "") + (opts.persona ? `\n\n${opts.persona}` : "");
   const result = await generateText({
     model: getModel(),
     system,

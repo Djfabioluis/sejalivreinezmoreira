@@ -15,6 +15,7 @@ import {
   CreditCard,
   KeyRound,
   Lock,
+  QrCode,
   
 
 
@@ -47,6 +48,7 @@ const items = [
   { title: "Auditoria de sugestões", url: "/auditoria-sugestoes", icon: ClipboardList, group: "Configuração", key: "auditoria-sugestoes" },
   { title: "Integração Bemp", url: "/integracao-bemp", icon: KeyRound, group: "Configuração", key: "integracao-bemp" },
   { title: "Configuração do WhatsApp", url: "/configuracao-whatsapp", icon: MessageCircle, group: "Configuração", key: "config-whatsapp" },
+  { title: "WhatsApp — Agentes", url: "/agentes-whatsapp", icon: QrCode, group: "Configuração", key: "config-whatsapp" },
   { title: "Níveis de acesso", url: "/acessos", icon: ShieldCheck, group: "Configuração", key: "acessos" },
   { title: "Usuários", url: "/usuarios", icon: Users, group: "Configuração", key: "usuarios" },
   { title: "Permissões", url: "/permissoes", icon: Lock, group: "Configuração", key: "permissoes" },

@@ -526,6 +526,42 @@ export type Database = {
         }
         Relationships: []
       }
+      wa_agentes: {
+        Row: {
+          atualizado_em: string
+          criado_em: string
+          criado_por: string | null
+          id: string
+          instancia: string
+          nome: string
+          status: string
+          telefone: string
+          tipo: string
+        }
+        Insert: {
+          atualizado_em?: string
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+          instancia: string
+          nome: string
+          status?: string
+          telefone: string
+          tipo: string
+        }
+        Update: {
+          atualizado_em?: string
+          criado_em?: string
+          criado_por?: string | null
+          id?: string
+          instancia?: string
+          nome?: string
+          status?: string
+          telefone?: string
+          tipo?: string
+        }
+        Relationships: []
+      }
       wa_conversas: {
         Row: {
           messages: Json
