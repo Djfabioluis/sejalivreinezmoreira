@@ -13,6 +13,7 @@ import { MicRecorder } from "@/components/mic-recorder";
 import { useServerFn } from "@tanstack/react-start";
 import { getWelcomeMessage, DEFAULT_WELCOME } from "@/lib/welcome.functions";
 import { supabase } from "@/integrations/supabase/client";
+import { sanitizeCustomerText } from "@/lib/text-sanitize";
 
 export const Route = createFileRoute("/_authenticated/agendar")({
   head: () => ({
@@ -157,7 +158,7 @@ function AgendarPage() {
     }
     const text = last.parts
       .filter((p) => p.type === "text")
-      .map((p) => (p as { text: string }).text)
+      .map((p) => sanitizeCustomerText((p as { text: string }).text))
       .join(" ")
       .trim();
     if (text) {
@@ -294,7 +295,7 @@ function MessageBubble({ message }: { message: UIMessage }) {
       )}
       <div className={`max-w-[80%] space-y-2 ${isUser ? "items-end" : "items-start"} flex flex-col`}>
         {textParts.map((p, i) => {
-          const text = (p as { text: string }).text;
+          const text = sanitizeCustomerText((p as { text: string }).text);
           if (!text) return null;
           return isUser ? (
             <div

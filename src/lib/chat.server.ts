@@ -2,6 +2,7 @@
 import { convertToModelMessages, streamText, generateText, stepCountIs, tool, type UIMessage } from "ai";
 import { z } from "zod";
 import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
+import { sanitizeCustomerText } from "@/lib/text-sanitize";
 import {
   bempFetch,
   getBempConfig,
@@ -874,6 +875,15 @@ export async function loadSystemPrompt(): Promise<string> {
 
 export type AgentOptions = { sandbox?: boolean };
 
+function sanitizeMessagesForModel(messages: UIMessage[]): UIMessage[] {
+  return messages.map((message) => ({
+    ...message,
+    parts: message.parts.map((part) =>
+      part.type === "text" ? { ...part, text: sanitizeCustomerText(part.text) } : part,
+    ),
+  }));
+}
+
 function envSandbox(): boolean {
   return process.env.SANDBOX_MODE === "1" || process.env.SANDBOX_MODE === "true";
 }
@@ -904,13 +914,15 @@ function currentDateNote(): string {
 
 const LANGUAGE_GUARD = `\n\nREFORÇO DE ESCRITA (obrigatório):\n- Escreva em português brasileiro correto, sem engolir letras nem trocar verbos parecidos.\n- Ao pedir o nome do cliente, use exatamente a frase "como posso te chamar?". Nunca escreva "te ligar", "te chegar", "te chamo" ou variações estranhas.\n- Nunca troque "chamar" por "ligar", "ajudar" por "ajeitar", "marcar" por "mandar", "confirmar" por "conformar" — releia mentalmente cada frase antes de enviar.\n- Se perceber uma palavra estranha ou incompleta, reescreva a frase inteira antes de responder.`;
 
+const NO_DURATION_GUARD = `\n\nREGRA FINAL DE SAÍDA AO CLIENTE (obrigatória):\n- Antes de responder, remova qualquer trecho como "duração aprox. 60 min", "duração 1h", "tempo 40 minutos" ou qualquer duração entre parênteses ao lado de serviço/preço.\n- Nunca escreva "(duração aprox. ...)" em nenhuma resposta ao cliente.`;
+
 export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = {}) {
   const sandbox = opts.sandbox === true || envSandbox();
-  const system = (await loadSystemPrompt()) + currentDateNote() + LANGUAGE_GUARD + (sandbox ? SANDBOX_NOTE : "");
+  const system = (await loadSystemPrompt()) + currentDateNote() + LANGUAGE_GUARD + NO_DURATION_GUARD + (sandbox ? SANDBOX_NOTE : "");
   return streamText({
     model: getModel(),
     system,
-    messages: await convertToModelMessages(uiMessages),
+    messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
     tools: buildTools(sandbox),
     stopWhen: stepCountIs(50),
   });
@@ -919,14 +931,14 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
 // Non-streaming run used by the WhatsApp webhook (needs the final text).
 export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {}): Promise<string> {
   const sandbox = opts.sandbox === true || envSandbox();
-  const system = (await loadSystemPrompt()) + currentDateNote() + LANGUAGE_GUARD + (sandbox ? SANDBOX_NOTE : "");
+  const system = (await loadSystemPrompt()) + currentDateNote() + LANGUAGE_GUARD + NO_DURATION_GUARD + (sandbox ? SANDBOX_NOTE : "");
   const result = await generateText({
     model: getModel(),
     system,
-    messages: await convertToModelMessages(uiMessages),
+    messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
     tools: buildTools(sandbox),
     stopWhen: stepCountIs(50),
   });
-  return result.text?.trim() || "Desculpe, tive um probleminha aqui. Pode repetir?";
+  return sanitizeCustomerText(result.text?.trim() || "Desculpe, tive um probleminha aqui. Pode repetir?");
 }
 
