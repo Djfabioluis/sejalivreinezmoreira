@@ -1,11 +1,15 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
-import { StripeEmbeddedCheckout } from "@/components/StripeEmbeddedCheckout";
+const StripeEmbeddedCheckout = lazy(() =>
+  import("@/components/StripeEmbeddedCheckout").then((m) => ({
+    default: m.StripeEmbeddedCheckout,
+  })),
+);
 import {
   Flower2,
   MessageCircle,
