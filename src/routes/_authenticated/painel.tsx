@@ -1116,4 +1116,231 @@ function HandoffList({
   );
 }
 
+function fmtDateTime(v: string | null | undefined): string {
+  if (!v) return "—";
+  const d = new Date(v);
+  if (Number.isNaN(d.getTime())) return v;
+  return d.toLocaleString("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function ReagendamentosPanel() {
+  const [page, setPage] = useState(1);
+  const [q, setQ] = useState("");
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  const { data, isLoading, refetch, isFetching } = useQuery({
+    queryKey: ["reagendamentos-hist"],
+    queryFn: () => listReagendamentos(),
+  });
+
+  const filtered = useMemo(() => {
+    const rows = (data ?? []) as ReagendamentoHist[];
+    const term = q.trim().toLowerCase();
+    if (!term) return rows;
+    return rows.filter(
+      (r) =>
+        (r.phone ?? "").toLowerCase().includes(term) ||
+        (r.name ?? "").toLowerCase().includes(term) ||
+        (r.service_name ?? "").toLowerCase().includes(term),
+    );
+  }, [data, q]);
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, ReagendamentoHist[]>();
+    for (const r of filtered) {
+      const key = r.phone;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(r);
+    }
+    return Array.from(map.entries()).map(([phone, items]) => ({
+      phone,
+      name: items.find((i) => i.name)?.name ?? null,
+      last: items[0]?.created_at ?? null,
+      items,
+    }));
+  }, [filtered]);
+
+  const total = grouped.length;
+  const start = (page - 1) * PAGE_SIZE;
+  const pageItems = grouped.slice(start, start + PAGE_SIZE);
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between gap-2">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <CalendarClock className="h-5 w-5" /> Histórico de reagendamentos
+            </CardTitle>
+            <CardDescription>
+              Reagendamentos feitos pela Julia, agrupados por cliente. Mostra horário antigo, novo,
+              status e a mensagem enviada por WhatsApp.
+            </CardDescription>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            disabled={isFetching}
+          >
+            <RefreshCw className={`h-4 w-4 mr-1 ${isFetching ? "animate-spin" : ""}`} />
+            Atualizar
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              className="pl-9"
+              placeholder="Buscar por telefone, nome ou serviço"
+              value={q}
+              onChange={(e) => {
+                setQ(e.target.value);
+                setPage(1);
+              }}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {isLoading ? (
+        <Skeleton className="h-32 w-full" />
+      ) : total === 0 ? (
+        <Card>
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            Nenhum reagendamento registrado ainda.
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <div className="space-y-3">
+            {pageItems.map((g) => {
+              const isOpen = expanded[g.phone] ?? false;
+              return (
+                <Card key={g.phone}>
+                  <CardHeader
+                    className="cursor-pointer"
+                    onClick={() =>
+                      setExpanded((prev) => ({ ...prev, [g.phone]: !isOpen }))
+                    }
+                  >
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <div className="min-w-0">
+                        <CardTitle className="text-base flex items-center gap-2">
+                          <Phone className="h-4 w-4" />
+                          {g.name ?? "Sem nome"}{" "}
+                          <span className="text-xs text-muted-foreground font-normal">
+                            · {g.phone}
+                          </span>
+                        </CardTitle>
+                        <CardDescription>
+                          {g.items.length} reagendamento{g.items.length > 1 ? "s" : ""} · último em{" "}
+                          {fmtDateTime(g.last)}
+                        </CardDescription>
+                      </div>
+                      <Badge variant="secondary">{isOpen ? "Ocultar" : "Ver detalhes"}</Badge>
+                    </div>
+                  </CardHeader>
+                  {isOpen && (
+                    <CardContent className="space-y-3">
+                      {g.items.map((r) => (
+                        <div
+                          key={r.id}
+                          className="border rounded-md p-3 space-y-2 bg-muted/30"
+                        >
+                          <div className="flex flex-wrap items-center gap-2 text-sm">
+                            <Badge
+                              variant={
+                                r.status === "rescheduled"
+                                  ? "default"
+                                  : r.status === "simulated_rescheduled"
+                                    ? "secondary"
+                                    : "destructive"
+                              }
+                            >
+                              {r.status === "rescheduled"
+                                ? "Reagendado"
+                                : r.status === "simulated_rescheduled"
+                                  ? "Simulado"
+                                  : "Com aviso"}
+                            </Badge>
+                            {r.sandbox && <Badge variant="outline">Sandbox</Badge>}
+                            {r.service_name && (
+                              <span className="text-muted-foreground">{r.service_name}</span>
+                            )}
+                            <span className="ml-auto text-xs text-muted-foreground">
+                              {fmtDateTime(r.created_at)}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                            <div>
+                              <div className="text-xs uppercase text-muted-foreground">
+                                Horário antigo
+                              </div>
+                              <div className="font-medium line-through decoration-muted-foreground/50">
+                                {fmtDateTime(r.old_start)}
+                              </div>
+                              {r.old_appointment_id && (
+                                <div className="text-xs text-muted-foreground">
+                                  ID: {r.old_appointment_id}
+                                </div>
+                              )}
+                            </div>
+                            <div>
+                              <div className="text-xs uppercase text-muted-foreground">
+                                Novo horário
+                              </div>
+                              <div className="font-medium">{fmtDateTime(r.new_start)}</div>
+                              {r.new_appointment_id && (
+                                <div className="text-xs text-muted-foreground">
+                                  ID: {r.new_appointment_id}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          {r.warning && (
+                            <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded p-2">
+                              ⚠ {r.warning}
+                            </div>
+                          )}
+                          <div>
+                            <div className="text-xs uppercase text-muted-foreground flex items-center gap-2">
+                              <MessageSquare className="h-3 w-3" />
+                              Mensagem enviada por WhatsApp{" "}
+                              {r.message_sent ? (
+                                <Badge variant="outline" className="ml-1">
+                                  Enviada · {fmtDateTime(r.message_sent_at)}
+                                </Badge>
+                              ) : (
+                                <Badge variant="destructive" className="ml-1">
+                                  Não enviada
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="text-sm bg-background border rounded p-2 mt-1 whitespace-pre-wrap">
+                              {r.message_text ?? "—"}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </CardContent>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+          <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={setPage} />
+        </>
+      )}
+    </div>
+  );
+}
+
+
 
