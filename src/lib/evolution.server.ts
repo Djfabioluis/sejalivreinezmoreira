@@ -25,7 +25,9 @@ export async function getEvolutionApiKey(): Promise<string> {
   if (!key) throw new Error("EVOLUTION_API_KEY não configurada.");
   return key;
 }
-
+export function evolutionApiKey(): never {
+  throw new Error("Use await getEvolutionApiKey() em vez de evolutionApiKey().");
+}
 
 export type EvolutionState = "aguardando_qr" | "conectado" | "desconectado";
 
