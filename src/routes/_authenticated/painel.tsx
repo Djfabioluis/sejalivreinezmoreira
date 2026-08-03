@@ -41,6 +41,10 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CalendarClock, Building2, Scissors, Bot, Clock, DollarSign, Phone, RefreshCw, Search, BookOpen, QrCode, Users, Filter, Sparkles, ClipboardList, UserCheck, LifeBuoy, MessageSquare, CheckCircle2 } from "lucide-react";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
+import { checkEvolutionConfig } from "@/lib/evolution-check.functions";
+
 export const Route = createFileRoute("/_authenticated/painel")({
   head: () => ({
     meta: [
@@ -96,6 +100,17 @@ const dur = (v: unknown) => {
 
 // ---------- root ----------
 function Dashboard() {
+  const evolutionCheckQ = useQuery({
+    queryKey: ["evolution-check"],
+    queryFn: () => checkEvolutionCheck(),
+  });
+
+  async function checkEvolutionCheck() {
+    return await checkEvolutionConfig();
+  }
+
+  const evoError = evolutionCheckQ.data?.isValid === false ? evolutionCheckQ.data.error : null;
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
@@ -143,6 +158,16 @@ function Dashboard() {
 
 
       <main className="mx-auto max-w-6xl px-3 sm:px-4 py-6 sm:py-8">
+        {evoError && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Erro de Configuração — Evolution API</AlertTitle>
+            <AlertDescription>
+              {evoError} Verifique as variáveis de ambiente do servidor.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <Tabs defaultValue="catalogo" className="space-y-6">
           <div className="-mx-3 sm:mx-0 overflow-x-auto pb-1">
             <TabsList className="w-max min-w-full">
