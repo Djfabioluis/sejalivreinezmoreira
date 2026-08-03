@@ -90,6 +90,98 @@ function EvolutionConfigPanel() {
 }
 
 import { createFileRoute, Link } from "@tanstack/react-router";
+
+function EvolutionConfigPanel() {
+  const getSettings = useServerFn(getEvolutionSettings);
+  const saveSettings = useServerFn(saveEvolutionSettings);
+  const queryClient = useQueryClient();
+
+  const [url, setUrl] = useState("");
+  const [apiKey, setApiKey] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const q = useQuery({
+    queryKey: ["evolution-settings"],
+    queryFn: () => getSettings(),
+  });
+
+  useEffect(() => {
+    if (q.data) {
+      setUrl(q.data.url);
+      setApiKey(q.data.apiKey);
+    }
+  }, [q.data]);
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await saveSettings({ data: { url, apiKey } });
+      toast.success("Configurações da Evolution API salvas!");
+      queryClient.invalidateQueries({ queryKey: ["evolution-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["evolution-check"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao salvar");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (q.isLoading) return <div className="p-8 text-center"><Loader2 className="animate-spin h-6 w-6 mx-auto" /></div>;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <PlugZap className="h-5 w-5 text-primary" /> Configuração da Evolution API
+        </CardTitle>
+        <CardDescription>
+          Gerencie a URL e a API Key do seu servidor Evolution. Estas configurações sobrescrevem as variáveis de ambiente.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSave} className="space-y-4 max-w-2xl">
+          <div className="space-y-2">
+            <Label htmlFor="evo_url">URL da API (HTTPS)</Label>
+            <Input
+              id="evo_url"
+              placeholder="https://sua-instancia.com"
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              required
+            />
+            <p className="text-[10px] text-muted-foreground">Ex: https://api.evolution.seudominio.com</p>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="evo_key">Global API Key</Label>
+            <Input
+              id="evo_key"
+              type="password"
+              placeholder="Sua Global API Key"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              required
+            />
+          </div>
+          <Button type="submit" disabled={saving}>
+            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+            Salvar Configurações
+          </Button>
+          {q.data?.source === "env" && (
+            <Alert className="mt-4 bg-muted/50">
+              <Info className="h-4 w-4" />
+              <AlertTitle>Usando Variáveis de Ambiente</AlertTitle>
+              <AlertDescription>
+                Atualmente o sistema está usando as credenciais configuradas no servidor (ENV). Ao salvar aqui, elas serão ignoradas em favor dos novos dados.
+              </AlertDescription>
+            </Alert>
+          )}
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useServerFn } from "@tanstack/react-start";
