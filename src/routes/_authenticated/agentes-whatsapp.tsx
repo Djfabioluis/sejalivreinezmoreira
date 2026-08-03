@@ -100,6 +100,7 @@ function AgentesWhatsAppPage() {
   const [items, setItems] = useState<AgenteWa[]>([]);
   const [configured, setConfigured] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
 
   const [addOpen, setAddOpen] = useState(false);
   const [tipo, setTipo] = useState<"feminino" | "masculino">("feminino");
@@ -157,6 +158,11 @@ function AgentesWhatsAppPage() {
       const res = await create({
         data: { tipo, telefone: digits, origin: window.location.origin },
       });
+      if (res.error || !res.agente) {
+        setConnectionError(res.error ?? "Não foi possível criar o agente.");
+        return;
+      }
+      setConnectionError(null);
       setAddOpen(false);
       setTelefone("");
       setQrAgente(res.agente);
@@ -229,6 +235,15 @@ function AgentesWhatsAppPage() {
             <CardDescription>
               Cadastre a URL e a chave da Evolution API para conectar números por QR Code.
             </CardDescription>
+          </CardHeader>
+        </Card>
+      )}
+
+      {connectionError && (
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base text-destructive">Evolution API indisponível</CardTitle>
+            <CardDescription className="text-foreground">{connectionError}</CardDescription>
           </CardHeader>
         </Card>
       )}

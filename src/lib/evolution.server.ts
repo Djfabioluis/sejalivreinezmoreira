@@ -7,7 +7,17 @@ export type EvolutionState = "aguardando_qr" | "conectado" | "desconectado";
 function baseUrl(): string {
   const raw = process.env.EVOLUTION_API_URL;
   if (!raw) throw new Error("EVOLUTION_API_URL não configurada no servidor.");
-  return raw.replace(/\/+$/, "");
+  const value = raw.trim().replace(/\/+$/, "");
+  let parsed: URL;
+  try {
+    parsed = new URL(value);
+  } catch {
+    throw new Error("EVOLUTION_API_URL inválida. Informe uma URL HTTPS completa.");
+  }
+  if (parsed.protocol !== "https:") {
+    throw new Error("EVOLUTION_API_URL deve usar HTTPS.");
+  }
+  return value;
 }
 
 export function evolutionApiKey(): string {
@@ -24,11 +34,8 @@ async function evoFetch(
   path: string,
   init: { method?: string; body?: unknown } = {},
 ): Promise<{ ok: boolean; status: number; data: any; text: string }> {
-  // Se a URL base já termina com /api/v1 ou /api/v2, não adicionamos prefixo automático.
-  // Caso contrário, adicionamos /v2 para garantir compatibilidade com a versão mais recente.
   const base = baseUrl();
-  const fullPath = base.includes("/api/v") ? path : `/v2${path}`;
-  const url = `${base}${fullPath}`;
+  const url = `${base}${path}`;
   
   let res: Response;
   try {
@@ -43,8 +50,13 @@ async function evoFetch(
     });
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
+    const hostname = new URL(base).hostname;
+    const isIpAddress = /^(?:\d{1,3}\.){3}\d{1,3}$/.test(hostname);
+    const tlsHint = isIpAddress
+      ? "A URL usa um endereço IP, mas o certificado HTTPS do servidor não é válido para esse IP. Configure um domínio com certificado SSL válido no proxy da Evolution e use esse domínio em EVOLUTION_API_URL."
+      : "Confirme se o domínio possui certificado HTTPS público e válido.";
     throw new Error(
-      `Não consegui conectar ao servidor Evolution em ${baseUrl()}. Verifique se a URL está correta, acessível pela internet e com HTTPS válido. (${detail})`,
+      `Não foi possível conectar à Evolution API. ${tlsHint} Detalhe técnico: ${detail}`,
     );
   }
   const text = await res.text().catch(() => "");
