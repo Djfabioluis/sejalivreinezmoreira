@@ -1,12 +1,8 @@
-import { hasAnyAdmin } from "@/lib/roles";
+import { hasAnyAdmin, hasRole } from "@/lib/roles";
 
 export async function assertAdminAccess(ctx: { supabase: any; userId: string }) {
   const anyAdmin = await hasAnyAdmin();
   if (!anyAdmin) return;
-  const { data: isAdmin, error } = await ctx.supabase.rpc("has_role", {
-    _user_id: ctx.userId,
-    _role: "admin",
-  });
-  if (error) throw new Error(error.message);
+  const isAdmin = await hasRole(ctx.userId, "admin");
   if (!isAdmin) throw new Error("Acesso restrito a administradores.");
 }

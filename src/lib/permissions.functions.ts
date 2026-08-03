@@ -1,3 +1,4 @@
+import { hasRole } from "@/lib/roles";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
@@ -34,21 +35,14 @@ export async function assertPermission(
 }
 
 async function assertAdmin(ctx: { supabase: any; userId: string }) {
-  const { data: isAdmin, error } = await ctx.supabase.rpc("has_role", {
-    _user_id: ctx.userId,
-    _role: "admin",
-  });
-  if (error) throw new Error(error.message);
+  const isAdmin = await hasRole(ctx.userId, "admin");
   if (!isAdmin) throw new Error("Acesso restrito a administradores.");
 }
 
 export const getMyPermissions = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data: isAdmin } = await context.supabase.rpc("has_role", {
-      _user_id: context.userId,
-      _role: "admin",
-    });
+    const isAdmin = await hasRole(context.userId, "admin");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     // Emulate get_my_permissoes() using admin client, scoped to the caller.
     if (isAdmin) {

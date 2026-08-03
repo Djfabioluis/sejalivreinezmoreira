@@ -1,4 +1,4 @@
-import { hasAnyAdmin } from "@/lib/roles";
+import { hasAnyAdmin, hasRole } from "@/lib/roles";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
@@ -7,11 +7,7 @@ async function assertAdminOrBootstrap(ctx: { supabase: any; userId: string }) {
   const anyAdmin = await hasAnyAdmin(); const adminErr = null as any;
   if (adminErr) throw new Error(adminErr.message);
   if (!anyAdmin) return;
-  const { data: isAdmin, error } = await ctx.supabase.rpc("has_role", {
-    _user_id: ctx.userId,
-    _role: "admin",
-  });
-  if (error) throw new Error(error.message);
+  const isAdmin = await hasRole(ctx.userId, "admin");
   if (!isAdmin) throw new Error("Acesso restrito a administradores.");
 }
 

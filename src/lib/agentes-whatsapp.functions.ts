@@ -1,13 +1,10 @@
+import { hasRole } from "@/lib/roles";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 async function assertAdmin(ctx: { supabase: any; userId: string }) {
-  const { data: isAdmin, error } = await ctx.supabase.rpc("has_role", {
-    _user_id: ctx.userId,
-    _role: "admin",
-  });
-  if (error) throw new Error(error.message);
+  const isAdmin = await hasRole(ctx.userId, "admin");
   if (!isAdmin) throw new Error("Acesso restrito a administradores.");
 }
 
