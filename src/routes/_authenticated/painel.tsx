@@ -89,7 +89,6 @@ function EvolutionConfigPanel() {
   );
 }
 
-import { createFileRoute, Link } from "@tanstack/react-router";
 
 function EvolutionConfigPanel() {
   const getSettings = useServerFn(getEvolutionSettings);
