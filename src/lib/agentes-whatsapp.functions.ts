@@ -37,7 +37,7 @@ export const listAgentes = createServerFn({ method: "GET" })
       .order("criado_em", { ascending: false });
     if (error) throw new Error(error.message);
     return {
-      configured: isEvolutionConfigured(),
+      configured: await isEvolutionConfigured(),
       items: (data ?? []) as unknown as AgenteWa[],
     };
   });
