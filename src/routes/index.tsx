@@ -191,7 +191,7 @@ function LandingPage() {
             ) : (
               <>
                 <Button asChild variant="ghost" size="sm">
-                  <Link to="/auth">Entrar</Link>
+                  <Link to="/auth" search={{ next: "/painel" }}>Entrar</Link>
                 </Button>
                 <Button asChild size="sm">
                   <a href="#planos">Assinar</a>
