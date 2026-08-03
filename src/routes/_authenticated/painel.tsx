@@ -41,6 +41,10 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CalendarClock, Building2, Scissors, Bot, Clock, DollarSign, Phone, RefreshCw, Search, BookOpen, QrCode, Users, Filter, Sparkles, ClipboardList, UserCheck, LifeBuoy, MessageSquare, CheckCircle2 } from "lucide-react";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle } from "lucide-react";
+import { checkEvolutionConfig } from "@/lib/evolution-check.functions";
+
 export const Route = createFileRoute("/_authenticated/painel")({
   head: () => ({
     meta: [
