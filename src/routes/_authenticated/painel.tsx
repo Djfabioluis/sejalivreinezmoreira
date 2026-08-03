@@ -158,6 +158,16 @@ function Dashboard() {
 
 
       <main className="mx-auto max-w-6xl px-3 sm:px-4 py-6 sm:py-8">
+        {evoError && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Erro de Configuração — Evolution API</AlertTitle>
+            <AlertDescription>
+              {evoError} Verifique as variáveis de ambiente do servidor.
+            </AlertDescription>
+          </Alert>
+        )}
+
         <Tabs defaultValue="catalogo" className="space-y-6">
           <div className="-mx-3 sm:mx-0 overflow-x-auto pb-1">
             <TabsList className="w-max min-w-full">
