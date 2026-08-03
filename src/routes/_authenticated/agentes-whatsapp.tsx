@@ -116,7 +116,7 @@ function AgentesWhatsAppPage() {
     try {
       const data = await fetchList();
       setItems(data.items);
-      setConfigured(data.configured);
+      setConfigured(Boolean(data.configured));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Erro ao carregar agentes");
     } finally {

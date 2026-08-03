@@ -2,39 +2,52 @@
 // Nunca importar em código de browser.
 import { sanitizeCustomerText } from "@/lib/text-sanitize";
 
-export type EvolutionState = "aguardando_qr" | "conectado" | "desconectado";
-
-function baseUrl(): string {
-  const raw = process.env.EVOLUTION_API_URL;
-  if (!raw) throw new Error("EVOLUTION_API_URL não configurada no servidor.");
-  const value = raw.trim().replace(/\/+$/, "");
-  let parsed: URL;
+async function getDbConfig(): Promise<{ url: string; apiKey: string } | null> {
   try {
-    parsed = new URL(value);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await supabaseAdmin
+      .from("base_conhecimento" as never)
+      .select("conteudo")
+      .eq("id", 5)
+      .maybeSingle();
+    if (!data) return null;
+    const parsed = JSON.parse((data as any).conteudo);
+    if (parsed.url && parsed.apiKey) return parsed;
+    return null;
   } catch {
-    throw new Error("EVOLUTION_API_URL inválida. Informe uma URL HTTPS completa.");
+    return null;
   }
-  if (parsed.protocol !== "https:") {
-    throw new Error("EVOLUTION_API_URL deve usar HTTPS.");
-  }
-  return value;
 }
 
-export function evolutionApiKey(): string {
-  const key = process.env.EVOLUTION_API_KEY;
-  if (!key) throw new Error("EVOLUTION_API_KEY não configurada no servidor.");
+export async function getEvolutionApiKey(): Promise<string> {
+  const db = await getDbConfig();
+  const key = db?.apiKey || process.env.EVOLUTION_API_KEY;
+  if (!key) throw new Error("EVOLUTION_API_KEY não configurada.");
   return key;
 }
+export function evolutionApiKey(): never {
+  throw new Error("Use await getEvolutionApiKey() em vez de evolutionApiKey().");
+}
 
-export function isEvolutionConfigured(): boolean {
-  return Boolean(process.env.EVOLUTION_API_URL && process.env.EVOLUTION_API_KEY);
+export type EvolutionState = "aguardando_qr" | "conectado" | "desconectado";
+
+async function getBaseUrl(): Promise<string> {
+  const db = await getDbConfig();
+  const raw = db?.url || process.env.EVOLUTION_API_URL;
+  if (!raw) throw new Error("EVOLUTION_API_URL não configurada.");
+  return raw.trim().replace(/\/+$/, "");
+}
+
+export async function isEvolutionConfigured(): Promise<boolean> {
+  const db = await getDbConfig();
+  return Boolean(db || (process.env.EVOLUTION_API_URL && process.env.EVOLUTION_API_KEY));
 }
 
 async function evoFetch(
   path: string,
   init: { method?: string; body?: unknown } = {},
 ): Promise<{ ok: boolean; status: number; data: any; text: string }> {
-  const base = baseUrl();
+  const base = await getBaseUrl();
   const url = `${base}${path}`;
   
   let res: Response;
@@ -42,7 +55,7 @@ async function evoFetch(
     res = await fetch(url, {
       method: init.method ?? "GET",
       headers: {
-        apikey: evolutionApiKey(),
+        apikey: await getEvolutionApiKey(),
         "Content-Type": "application/json",
       },
       body: init.body === undefined ? undefined : JSON.stringify(init.body),

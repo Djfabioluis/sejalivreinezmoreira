@@ -6,7 +6,7 @@ import { type UIMessage } from "ai";
 import { runAgent } from "@/lib/chat.server";
 import { transcribeAudio, synthesizeSpeechMp3 } from "@/lib/ai-audio.server";
 import {
-  evolutionApiKey,
+  getEvolutionApiKey,
   fetchEvolutionMediaBase64,
   sendEvolutionAudio,
   sendEvolutionText,
@@ -103,7 +103,7 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
       POST: async ({ request }) => {
         let expected: string;
         try {
-          expected = evolutionApiKey();
+          expected = await getEvolutionApiKey();
         } catch {
           return new Response("Evolution não configurada", { status: 503 });
         }

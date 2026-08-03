@@ -4,29 +4,14 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 export const checkEvolutionConfig = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async () => {
-    const url = process.env.EVOLUTION_API_URL || "";
-    const key = process.env.EVOLUTION_API_KEY || "";
+    // Importamos os helpers dinamicamente para evitar problemas de bundle se necessário
+    const { isEvolutionConfigured } = await import("./evolution.server");
+    const isConfigured = await isEvolutionConfigured();
 
-    if (!url || !key) {
+    if (!isConfigured) {
       return {
         isValid: false,
-        error: "EVOLUTION_API_URL ou EVOLUTION_API_KEY não configuradas.",
-      };
-    }
-
-    if (!url.startsWith("https://")) {
-      return {
-        isValid: false,
-        error: "A URL da Evolution API deve obrigatoriamente usar HTTPS para segurança.",
-      };
-    }
-
-    try {
-      new URL(url);
-    } catch {
-      return {
-        isValid: false,
-        error: "A URL da Evolution API é inválida.",
+        error: "Evolution API não configurada. Vá em 'Config Evolution' no painel.",
       };
     }
 
