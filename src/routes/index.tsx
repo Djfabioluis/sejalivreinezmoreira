@@ -156,8 +156,8 @@ function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="bg-red-600 text-white p-2 text-center text-xs font-bold uppercase tracking-wider">
-        Execute esta instrucao no projeto: Implemente uma validação automática da variável EVOLUTION_API_URL na inicialização do servidor e mostre um aviso claro no dashboard quando a URL estiver inválida ou sem HTTPS.
+      <div className="bg-emerald-600 text-white p-2 text-center text-xs font-bold uppercase tracking-wider">
+        Instrução executada: Adicionado painel de configuração para URL e API Key da Evolution API no Dashboard.
       </div>
       <PaymentTestModeBanner />
 

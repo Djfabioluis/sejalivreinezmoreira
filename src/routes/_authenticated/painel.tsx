@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { VirtualRows, Pagination } from "@/components/virtual-rows";
 
 const PAGE_SIZE = 30;
@@ -39,11 +40,12 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CalendarClock, Building2, Scissors, Bot, Clock, DollarSign, Phone, RefreshCw, Search, BookOpen, QrCode, Users, Filter, Sparkles, ClipboardList, UserCheck, LifeBuoy, MessageSquare, CheckCircle2 } from "lucide-react";
+import { CalendarClock, Building2, Scissors, Bot, Clock, DollarSign, Phone, RefreshCw, Search, BookOpen, QrCode, Users, Filter, Sparkles, ClipboardList, UserCheck, LifeBuoy, MessageSquare, CheckCircle2, PlugZap, Info, Loader2 } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { checkEvolutionConfig } from "@/lib/evolution-check.functions";
+import { getEvolutionSettings, saveEvolutionSettings } from "@/lib/evolution-config.functions";
 
 export const Route = createFileRoute("/_authenticated/painel")({
   head: () => ({
@@ -178,7 +180,10 @@ function Dashboard() {
                 <Users className="h-4 w-4 mr-1" /> Leads
               </TabsTrigger>
               <TabsTrigger value="whatsapp">
-                <QrCode className="h-4 w-4 mr-1" /> WhatsApp
+                <QrCode className="h-4 w-4 mr-1" /> Agentes
+              </TabsTrigger>
+              <TabsTrigger value="config_evolution">
+                <PlugZap className="h-4 w-4 mr-1" /> Config Evolution
               </TabsTrigger>
               <TabsTrigger value="atendidos">
                 <UserCheck className="h-4 w-4 mr-1" /> Atendidos
@@ -206,6 +211,9 @@ function Dashboard() {
           </TabsContent>
           <TabsContent value="whatsapp">
             <WhatsAppPanel />
+          </TabsContent>
+          <TabsContent value="config_evolution">
+            <EvolutionConfigPanel />
           </TabsContent>
           <TabsContent value="atendidos">
             <ClientesAtendidosPanel />
