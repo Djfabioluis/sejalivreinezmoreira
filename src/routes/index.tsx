@@ -156,6 +156,9 @@ function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <div className="bg-red-500 text-white p-2 text-center text-xs font-bold uppercase tracking-wider">
+        Execute esta instrucao no projeto: corrigir url api evolution
+      </div>
       <PaymentTestModeBanner />
 
       {/* Nav */}

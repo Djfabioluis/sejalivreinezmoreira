@@ -24,7 +24,12 @@ async function evoFetch(
   path: string,
   init: { method?: string; body?: unknown } = {},
 ): Promise<{ ok: boolean; status: number; data: any; text: string }> {
-  const url = `${baseUrl()}${path}`;
+  // Se a URL base já termina com /api/v1 ou /api/v2, não adicionamos prefixo automático.
+  // Caso contrário, adicionamos /v2 para garantir compatibilidade com a versão mais recente.
+  const base = baseUrl();
+  const fullPath = base.includes("/api/v") ? path : `/v2${path}`;
+  const url = `${base}${fullPath}`;
+  
   let res: Response;
   try {
     res = await fetch(url, {
