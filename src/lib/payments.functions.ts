@@ -1,3 +1,4 @@
+import { hasRole } from "@/lib/roles";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
@@ -139,10 +140,7 @@ export const getMyEntitlement = createServerFn({ method: "GET" })
       .limit(1)
       .maybeSingle();
 
-    const { data: isAdmin } = await supabase.rpc("has_role", {
-      _user_id: userId,
-      _role: "admin",
-    });
+    const isAdmin = await hasRole(userId, "admin");
 
     if (!row) return { active: Boolean(isAdmin), plan: null, status: null };
     const now = Date.now();
