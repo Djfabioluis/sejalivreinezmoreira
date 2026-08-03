@@ -100,6 +100,17 @@ const dur = (v: unknown) => {
 
 // ---------- root ----------
 function Dashboard() {
+  const evolutionCheckQ = useQuery({
+    queryKey: ["evolution-check"],
+    queryFn: () => checkEvolutionCheck(),
+  });
+
+  async function checkEvolutionCheck() {
+    return await checkEvolutionConfig();
+  }
+
+  const evoError = evolutionCheckQ.data?.isValid === false ? evolutionCheckQ.data.error : null;
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b bg-card">
