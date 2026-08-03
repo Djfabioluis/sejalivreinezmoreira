@@ -54,14 +54,20 @@ export const getEvolutionSettings = createServerFn({ method: "GET" })
 
 export const saveEvolutionSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
-    z
+  .inputValidator((input: unknown) => {
+    const raw = input as { url?: unknown; apiKey?: unknown };
+    // Aceita "meu-servidor.com" ou "http://..." e normaliza para https://
+    let url = typeof raw?.url === "string" ? raw.url.trim().replace(/\/+$/, "") : "";
+    if (url && !/^https?:\/\//i.test(url)) url = `https://${url}`;
+    url = url.replace(/^http:\/\//i, "https://");
+    return z
       .object({
-        url: z.string().trim().url("URL inválida").startsWith("https://", "A URL deve usar HTTPS"),
+        url: z.string().url("URL inválida").startsWith("https://", "A URL deve usar HTTPS"),
         apiKey: z.string().trim().min(5, "API Key obrigatória"),
       })
-      .parse(input),
-  )
+      .parse({ ...raw, url });
+  })
+
   .handler(async ({ data, context }) => {
     const isAdmin = await hasRole(context.userId, "admin");
     if (!isAdmin) throw new Error("Acesso restrito a administradores.");
