@@ -24,14 +24,24 @@ async function evoFetch(
   path: string,
   init: { method?: string; body?: unknown } = {},
 ): Promise<{ ok: boolean; status: number; data: any; text: string }> {
-  const res = await fetch(`${baseUrl()}${path}`, {
-    method: init.method ?? "GET",
-    headers: {
-      apikey: evolutionApiKey(),
-      "Content-Type": "application/json",
-    },
-    body: init.body === undefined ? undefined : JSON.stringify(init.body),
-  });
+  const url = `${baseUrl()}${path}`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: init.method ?? "GET",
+      headers: {
+        apikey: evolutionApiKey(),
+        "Content-Type": "application/json",
+      },
+      body: init.body === undefined ? undefined : JSON.stringify(init.body),
+      signal: AbortSignal.timeout(20000),
+    });
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      `Não consegui conectar ao servidor Evolution em ${baseUrl()}. Verifique se a URL está correta, acessível pela internet e com HTTPS válido. (${detail})`,
+    );
+  }
   const text = await res.text().catch(() => "");
   let data: any = null;
   try {
