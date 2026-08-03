@@ -156,8 +156,8 @@ function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="bg-emerald-600 text-white p-2 text-center text-xs font-bold uppercase tracking-wider">
-        Instrução executada: Adicionado painel de configuração para URL e API Key da Evolution API no Dashboard.
+      <div className="bg-red-500 text-white p-2 text-center text-sm">
+        Execute esta instrucao no projeto: Não foi possível conectar à Evolution API. Confirme se o domínio possui certificado HTTPS público e válido. Detalhe técnico: fetch failed
       </div>
       <PaymentTestModeBanner />
 
