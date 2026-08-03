@@ -64,7 +64,12 @@ export const criarAgente = createServerFn({ method: "POST" })
 
     const instancia = instanceNameFor(full);
     const webhookUrl = `${data.origin.replace(/\/+$/, "")}/api/public/whatsapp-evolution`;
-    await createInstance(instancia, webhookUrl);
+    try {
+      await createInstance(instancia, webhookUrl);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Falha ao conectar à Evolution API.";
+      return { agente: null, qr: null, error: message };
+    }
 
     const nome = data.tipo === "feminino" ? "Julia" : "Bruno";
     const { data: row, error } = await supabaseAdmin
@@ -86,7 +91,7 @@ export const criarAgente = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
 
     const qr = await getQrCode(instancia);
-    return { agente: row as unknown as AgenteWa, qr };
+    return { agente: row as unknown as AgenteWa, qr, error: null };
   });
 
 export const gerarQrAgente = createServerFn({ method: "POST" })
