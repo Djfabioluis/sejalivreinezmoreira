@@ -15,26 +15,5 @@ export const checkEvolutionConfig = createServerFn({ method: "GET" })
       };
     }
 
-    // Como getBaseUrl e getApiKey são privados/internos no evolution.server, 
-    // confiamos no check da conexão ou fazemos uma leitura direta aqui se necessário.
-    // Mas para o check de UI, isEvolutionConfigured já resolve o aviso.
-    return { isValid: true };
-
-    if (!url.startsWith("https://")) {
-      return {
-        isValid: false,
-        error: "A URL da Evolution API deve obrigatoriamente usar HTTPS para segurança.",
-      };
-    }
-
-    try {
-      new URL(url);
-    } catch {
-      return {
-        isValid: false,
-        error: "A URL da Evolution API é inválida.",
-      };
-    }
-
     return { isValid: true };
   });
