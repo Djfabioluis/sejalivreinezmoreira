@@ -122,6 +122,9 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           return new Response("Bad JSON", { status: 400 });
         }
 
+        console.log(`[evolution] webhook recebido: instancia=${payload.instance} event=${payload.event} data_is_array=${Array.isArray(payload.data)}`);
+
+
         const instancia = payload.instance ?? "";
         const event = (payload.event ?? "").toLowerCase().replace(/_/g, ".");
 
