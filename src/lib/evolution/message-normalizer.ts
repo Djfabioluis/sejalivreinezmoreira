@@ -4,8 +4,19 @@ export function normalizeEvolutionMessages(payload: any, requestUrl: string): No
   const url = new URL(requestUrl);
   const queryInstance = url.searchParams.get("instance");
   
+  // Support payload.data.messages, payload.data.message, payload.messages, payload.message
   const data = payload.data || payload;
-  const msgArray = Array.isArray(data) ? data : (data.messages || [data]);
+  let msgArray: any[] = [];
+  if (Array.isArray(data)) {
+    msgArray = data;
+  } else if (data.messages && Array.isArray(data.messages)) {
+    msgArray = data.messages;
+  } else if (data.message) {
+    msgArray = [data.message];
+  } else {
+    // If it's a single message object directly in data
+    msgArray = [data];
+  }
   
   const results: NormalizedEvolutionMessage[] = [];
 
