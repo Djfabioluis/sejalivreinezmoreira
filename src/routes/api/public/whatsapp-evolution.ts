@@ -192,7 +192,7 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           const messageId = key.id || "";
           const fromMe = key.fromMe === true;
 
-          if (debug) console.log("[evolution] message_key_extracted", { messageId, remoteJid: remoteJid.replace(/\d+(?=@)/, (m) => m.slice(0, 4) + "****"), fromMe });
+          if (debug) console.log("[evolution] message_key_extracted", { messageId, remoteJid: remoteJid.replace(/\d+(?=@)/, (m: string) => m.slice(0, 4) + "****"), fromMe });
 
           if (fromMe) continue;
 
