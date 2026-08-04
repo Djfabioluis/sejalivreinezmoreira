@@ -1,6 +1,9 @@
 import { sendEvolutionText } from "@/lib/evolution.server";
 import { logEvent } from "./logger.server";
 
+const TYPING_INDICATOR = "✍️ Digitando…";
+const TYPING_DELAY_MS = 1500;
+
 export async function replyToUser(params: {
   instance: string;
   phone: string;
@@ -14,6 +17,18 @@ export async function replyToUser(params: {
     event: "evolution_send_started", 
     status: "started" 
   });
+
+  // Simula digitação humanizada antes da resposta real.
+  const typingSent = await sendEvolutionText(params.instance, params.phone, TYPING_INDICATOR);
+  await logEvent({
+    instance: params.instance,
+    messageId: params.messageId,
+    event: "evolution_typing_indicator",
+    status: typingSent ? "success" : "failed",
+  });
+
+  // Pequena pausa para parecer natural.
+  await new Promise((resolve) => setTimeout(resolve, TYPING_DELAY_MS));
 
   // 9. ENVIO PELA EVOLUTION
   const sent = await sendEvolutionText(params.instance, params.phone, params.text);
