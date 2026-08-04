@@ -128,6 +128,9 @@ function RootComponent() {
     (window as unknown as { __queryClient?: unknown }).__queryClient = queryClient;
   }, [queryClient]);
 
+  useEffect(() => installChunkReloadHandler(), []);
+
+
   useEffect(() => {
     let mounted = true;
     let unsub: (() => void) | null = null;
