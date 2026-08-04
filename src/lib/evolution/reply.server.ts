@@ -28,7 +28,7 @@ export async function replyToUser(params: {
 
     // 10. PERSISTÊNCIA DA RESPOSTA
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.rpc("append_wa_message", {
+    const { error } = await supabaseAdmin.rpc("append_wa_message" as any, {
       p_phone: params.conversationKey,
       p_message: { 
         id: `ai-${Date.now()}`, 
@@ -37,7 +37,9 @@ export async function replyToUser(params: {
       },
       p_instance: params.instance,
       p_phone_number: params.phone,
-      p_increment_unread: false
+      p_increment_unread: false,
+      p_new_status: "aberta",
+      p_customer_context: null
     });
 
     if (error) {
