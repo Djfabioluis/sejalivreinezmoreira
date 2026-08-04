@@ -39,7 +39,7 @@ describe("prompt com unidade fixa", () => {
     expect(full.indexOf("REGRAS OPERACIONAIS OBRIGATÓRIAS")).toBeGreaterThan(
       full.indexOf("FLUXO IDEAL"),
     );
-    expect(full).toContain("PROIBIDO perguntar, sugerir ou listar unidades");
+    expect(full).toContain("PROIBIDO perguntar ou sugerir a troca de unidade");
     expect(full).toContain("PROIBIDO pedir telefone");
     expect(full).toContain("PROIBIDO perguntar o nome");
     expect(full).toContain("Centro Cívico");

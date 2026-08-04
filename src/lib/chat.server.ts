@@ -60,6 +60,39 @@ function safeTool<T>(label: string, fn: () => Promise<T>) {
 
 function buildTools(sandbox: boolean, forcedUnitId?: string | null) {
   const base: Record<string, any> = {
+    // Sempre disponível (mesmo com unidade fixa): usada apenas para INFORMAR
+    // quantas/quais unidades ativas existem, com endereço.
+    list_units_info: tool({
+      description:
+        "Use quando o cliente perguntar quantas unidades existem, quais são as unidades/lojas/endereços. Retorna as unidades ativas na Bemp com endereço. NÃO use para trocar a unidade do agendamento.",
+      inputSchema: z.object({}),
+      execute: async () =>
+        safeTool("list_units_info", async () => {
+          const cfg = await getBempConfig();
+          const raw: any = await bempFetch(`${cfg.apiBase}/salons`);
+          const arr: any[] = Array.isArray(raw) ? raw : (raw?.data ?? raw?.salons ?? []);
+          const active = arr.filter((s) => {
+            const flag = s?.active ?? s?.ativo ?? s?.is_active ?? s?.status;
+            if (flag === undefined || flag === null) return true;
+            if (typeof flag === "string") return !/inativ|disabled|false|0/i.test(flag);
+            return Boolean(flag);
+          });
+          const units = active.map((s) => {
+            const addr =
+              s?.address ??
+              s?.endereco ??
+              [s?.street ?? s?.logradouro, s?.number ?? s?.numero, s?.neighborhood ?? s?.bairro, s?.city ?? s?.cidade, s?.state ?? s?.uf]
+                .filter(Boolean)
+                .join(", ");
+            return {
+              id: s?.id,
+              nome: s?.name ?? s?.nome ?? s?.title,
+              endereco: typeof addr === "string" ? addr : JSON.stringify(addr),
+            };
+          });
+          return { total: units.length, unidades: units };
+        }),
+    }),
     ...(forcedUnitId
       ? {}
       : {
@@ -73,6 +106,7 @@ function buildTools(sandbox: boolean, forcedUnitId?: string | null) {
               }),
           }),
         }),
+
     list_services: tool({
       description: "Lista serviços de uma unidade, com preço e duração.",
       inputSchema: z.object({ salon_id: z.number().optional() }),
@@ -1075,6 +1109,8 @@ export function mandatoryOperationalRules(opts: {
     "- Cada informação do resumo em uma linha separada, com os emojis do modelo. Os campos Serviço e Valor são obrigatórios e devem corresponder exatamente ao serviço escolhido.",
     "- Só chame create_appointment depois que o cliente responder confirmando o resumo.",
     "- NUNCA escreva '✍️ Digitando…', 'digitando' ou qualquer indicador de digitação na resposta. O sistema envia a simulação de digitação automaticamente antes da sua mensagem.",
+    "- UNIDADES: se o cliente perguntar quantas unidades temos, quais são ou pedir endereços, chame SEMPRE a ferramenta list_units_info e responda com os dados reais da Bemp, informando o total e listando apenas as unidades ATIVAS, uma por linha, no formato \"• <Nome> — <Endereço>\". Nunca invente unidades ou endereços; se a ferramenta falhar, diga que vai confirmar e ofereça atendimento humano.",
+
 
 
   ];
@@ -1082,7 +1118,9 @@ export function mandatoryOperationalRules(opts: {
   if (opts.unidadeId) {
     lines.push(
       `- A unidade de atendimento é FIXA: ${opts.unitName || `Unidade vinculada ID ${opts.unidadeId}`} (ID ${opts.unidadeId}).`,
-      "- É PROIBIDO perguntar, sugerir ou listar unidades. Não chame list_salons (ela não está disponível).",
+      "- É PROIBIDO perguntar ou sugerir a troca de unidade para o agendamento. Não chame list_salons (ela não está disponível).",
+      "- EXCEÇÃO INFORMATIVA: se o cliente perguntar quantas unidades existem, quais são as unidades/lojas ou pedir endereços, chame list_units_info e informe as unidades ATIVAS com o endereço de cada uma, uma por linha no formato \"• <Nome> — <Endereço>\". Em seguida lembre que o atendimento por este WhatsApp é feito na unidade <NOME DA UNIDADE FIXA> e siga o agendamento nela.",
+
     );
   }
   if (opts.contactPhone) lines.push("- É PROIBIDO pedir telefone, DDD ou código de país: já são conhecidos.");
