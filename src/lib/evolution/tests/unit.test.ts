@@ -39,6 +39,100 @@ describe("Evolution Library Unit Tests", () => {
       const result = normalizeEvolutionMessages(payload, "http://localhost/api/webhook?instance=inst-query");
       expect(result[0].instance).toBe("inst-query");
     });
+
+    it("should preserve key when payload.data contains key and message", () => {
+      const payload = {
+        event: "messages.upsert",
+        instance: "agente-5541998803684",
+        data: {
+          key: {
+            remoteJid: "5541999999999@s.whatsapp.net",
+            fromMe: false,
+            id: "REAL-PAYLOAD-001"
+          },
+          pushName: "Fábio Luís",
+          message: {
+            conversation: "Olá"
+          },
+          messageTimestamp: 1785850000
+        }
+      };
+
+      const result = normalizeEvolutionMessages(
+        payload,
+        "https://example.com/api/public/whatsapp-evolution"
+      );
+
+      expect(result).toHaveLength(1);
+      expect(result[0].instance).toBe("agente-5541998803684");
+      expect(result[0].remoteJid).toBe("5541999999999@s.whatsapp.net");
+      expect(result[0].messageId).toBe("REAL-PAYLOAD-001");
+      expect(result[0].pushName).toBe("Fábio Luís");
+      expect(result[0].message).toEqual({
+        conversation: "Olá"
+      });
+    });
+
+    it("should handle payload.data as array of messages", () => {
+      const payload = {
+        instance: "inst1",
+        data: [
+          { key: { remoteJid: "1@s.net", id: "m1" }, message: { conversation: "a" } },
+          { key: { remoteJid: "2@s.net", id: "m2" }, message: { conversation: "b" } }
+        ]
+      };
+      const result = normalizeEvolutionMessages(payload, "http://loc/api");
+      expect(result).toHaveLength(2);
+      expect(result[0].messageId).toBe("m1");
+      expect(result[1].messageId).toBe("m2");
+    });
+
+    it("should handle payload.data.messages array", () => {
+      const payload = {
+        instance: "inst1",
+        data: {
+          messages: [
+            { key: { remoteJid: "1@s.net", id: "m1" }, message: { conversation: "a" } }
+          ]
+        }
+      };
+      const result = normalizeEvolutionMessages(payload, "http://loc/api");
+      expect(result).toHaveLength(1);
+      expect(result[0].messageId).toBe("m1");
+    });
+
+    it("should handle payload.messages array", () => {
+      const payload = {
+        instance: "inst1",
+        messages: [
+          { key: { remoteJid: "1@s.net", id: "m1" }, message: { conversation: "a" } }
+        ]
+      };
+      const result = normalizeEvolutionMessages(payload, "http://loc/api");
+      expect(result).toHaveLength(1);
+      expect(result[0].messageId).toBe("m1");
+    });
+
+    it("should handle full payload containing key and message", () => {
+      const payload = {
+        instance: "inst1",
+        key: { remoteJid: "1@s.net", id: "m1" },
+        message: { conversation: "a" }
+      };
+      const result = normalizeEvolutionMessages(payload, "http://loc/api");
+      expect(result).toHaveLength(1);
+      expect(result[0].messageId).toBe("m1");
+    });
+
+    it("should handle fromMe as string 'true'", () => {
+      const payload = {
+        instance: "inst1",
+        key: { remoteJid: "1@s.net", id: "m1", fromMe: "true" },
+        message: { conversation: "a" }
+      };
+      const result = normalizeEvolutionMessages(payload, "http://loc/api");
+      expect(result[0].fromMe).toBe(true);
+    });
   });
 
   describe("message-text", () => {
