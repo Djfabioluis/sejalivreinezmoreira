@@ -31,6 +31,24 @@ function safeNext(next: string): string {
 
 const NEXT_KEY = "auth:next";
 
+function storeNext(target: string) {
+  try {
+    localStorage.setItem(NEXT_KEY, safeNext(target));
+  } catch {
+    /* armazenamento indisponível */
+  }
+}
+
+function consumeNext(fallback: string): string {
+  try {
+    const stored = localStorage.getItem(NEXT_KEY);
+    localStorage.removeItem(NEXT_KEY);
+    return stored ? safeNext(stored) : safeNext(fallback);
+  } catch {
+    return safeNext(fallback);
+  }
+}
+
 function AuthPage() {
   const { next } = useSearch({ from: "/auth" });
   
@@ -46,21 +64,11 @@ function AuthPage() {
     const go = () => {
       if (done) return;
       done = true;
-      let dest = target;
-      try {
-        const stored = sessionStorage.getItem(NEXT_KEY);
-        if (stored) {
-          dest = safeNext(stored);
-          sessionStorage.removeItem(NEXT_KEY);
-        }
-      } catch {
-        /* sessionStorage indisponível */
-      }
-      window.location.replace(dest);
+      window.location.replace(consumeNext(target));
     };
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) go();
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) go();
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
       if (session) go();
@@ -77,10 +85,11 @@ function AuthPage() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       } else {
+        storeNext(target);
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: `${window.location.origin}${target}` },
+          options: { emailRedirectTo: `${window.location.origin}/auth` },
         });
         if (error) throw error;
         toast.success("Conta criada! Verifique seu email se solicitado.");
@@ -96,18 +105,17 @@ function AuthPage() {
   async function signInGoogle() {
     setBusy(true);
     try {
-      try {
-        sessionStorage.setItem(NEXT_KEY, target);
-      } catch {
-        /* sessionStorage indisponível */
-      }
+      storeNext(target);
       // redirect_uri deve ser uma URL pública same-origin (nunca rota protegida).
       const result = await lovable.auth.signInWithOAuth("google", {
         redirect_uri: window.location.origin,
       });
       if (result.error) throw result.error;
       if (result.redirected) return;
-      // Sessão definida: o listener onAuthStateChange faz a navegação.
+      // Não depender somente do evento: confirme o usuário após o helper salvar a sessão.
+      const { data, error } = await supabase.auth.getUser();
+      if (error || !data.user) throw error ?? new Error("Não foi possível confirmar seu acesso.");
+      window.location.replace(consumeNext(target));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Falha no Google");
       setBusy(false);
