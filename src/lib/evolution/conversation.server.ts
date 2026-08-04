@@ -12,7 +12,7 @@ export async function appendIncomingMessage(params: {
 }) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   
-  const { data, error } = await supabaseAdmin.rpc("append_wa_message", {
+  const { data, error } = await supabaseAdmin.rpc("append_wa_message" as any, {
     p_phone: params.conversationKey,
     p_message: { id: params.messageId, role: "user", parts: [{ type: "text", text: params.text }] },
     p_instance: params.instance,
