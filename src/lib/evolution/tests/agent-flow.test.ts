@@ -64,7 +64,7 @@ describe("agent.server.ts - runAgentFlow", () => {
 
   it("não deve chamar a IA se o agente estiver inativo", async () => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    (supabaseAdmin.maybeSingle as any).mockResolvedValue({
+    ((supabaseAdmin as any).maybeSingle as any).mockResolvedValue({
       data: { id: "agent-2", status: "inativo", unidade_id: "unit-2" },
       error: null
     });
