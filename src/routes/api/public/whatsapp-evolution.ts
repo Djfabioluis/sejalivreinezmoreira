@@ -46,11 +46,15 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
         const payload = await request.json().catch(() => null);
         if (!payload) return new Response("Bad Request", { status: 400 });
 
-        const event = payload.event || "unknown";
+        const event = (payload.event || "unknown").toLowerCase().replace(/_/g, ".");
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-        // 3. DETECTAR A CONEXÃO DO WHATSAPP (Item 3)
-        if (event === "connection.update" || event === "CONNECTION_UPDATE") {
+        // Normalização do evento
+        let normalizedEvent = event;
+        if (event.includes("messages.upsert") || event.includes("messages_upsert")) normalizedEvent = "messages.upsert";
+
+        // 3. DETECTAR A CONEXÃO DO WHATSAPP
+        if (normalizedEvent === "connection.update") {
           const state = payload.data?.state || payload.state;
           if (state === "open" || state === "connected") {
             const { data: agente } = await supabaseAdmin
@@ -74,18 +78,20 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           return new Response("OK");
         }
 
-        if (event !== "messages.upsert" && event !== "MESSAGES_UPSERT") {
+        if (normalizedEvent !== "messages.upsert") {
           return new Response("OK");
         }
 
         const messages = Array.isArray(payload.data) ? payload.data : [payload.data].filter(Boolean);
         if (messages.length === 0) return new Response("OK");
 
+        await logEvent({ instance: instancia, event: "webhook_received", status: "processing" });
+
         for (const msg of messages) {
           const remoteJid = msg.key?.remoteJid;
           const messageId = msg.key?.id;
           if (!remoteJid || !messageId) continue;
-          if (msg.key.fromMe || remoteJid.includes("@g.us")) continue;
+          if (msg.key.fromMe || remoteJid.includes("@g.us") || remoteJid.includes("broadcast")) continue;
 
           const phone = remoteJid.split("@")[0].replace(/\D/g, "");
           const conversationId = `${instancia}:${phone}`;
@@ -97,7 +103,9 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text || "";
           if (!text) continue;
 
-          // Buscar agente e unidade (Item 6 & 10)
+          await logEvent({ instance: instancia, messageId, event: "incoming_message_extracted", status: "success" });
+
+          // Buscar agente e unidade
           const { data: agenteRow } = await supabaseAdmin
             .from("wa_agentes" as never)
             .select("id, status, unidade_id")
@@ -105,25 +113,28 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
             .maybeSingle();
           
           const agente = agenteRow as any;
-          const canProcessIA = agente && agente.status === "ativo" && agente.unidade_id;
-
-          const msgObj = { id: messageId, role: "user", parts: [{ type: "text", text }] };
+          
+          // GRAVAR IMEDIATAMENTE a mensagem em wa_conversas (Item 5)
+          await logEvent({ instance: instancia, messageId, event: "conversation_save_started", status: "pending" });
+          
           const { error: rpcErr } = await supabaseAdmin.rpc("append_wa_message", {
             p_phone: conversationId,
-            p_message: msgObj,
+            p_message: { id: messageId, role: "user", parts: [{ type: "text", text }] },
             p_instance: instancia,
             p_phone_number: phone,
             p_contact_name: contactName,
             p_increment_unread: true,
-            p_new_status: canProcessIA ? "aberta" : "waiting_for_unit_selection"
+            p_new_status: (agente && agente.unidade_id && agente.status === "ativo") ? "aberta" : "waiting_for_unit_selection"
           });
 
           if (rpcErr) {
-            await logEvent({ instance: instancia, messageId, event: "save_db", status: "error", errorDetail: rpcErr.message });
+            await logEvent({ instance: instancia, messageId, event: "conversation_save_failed", status: "error", errorDetail: rpcErr.message });
             continue;
           }
 
-          // Vincular unidade_id e agent_id na wa_conversas (Item 10)
+          await logEvent({ instance: instancia, messageId, event: "message_saved", status: "success" });
+
+          // Tentar vincular agente/unidade se existirem
           if (agente) {
              await supabaseAdmin
                .from("wa_conversas" as never)
@@ -135,30 +146,39 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           }
 
           await supabaseAdmin.from("evo_events" as never).insert({ message_id: messageId, instance: instancia } as never);
-          await logEvent({ instance: instancia, messageId, event: "message_processed", status: "success" });
 
-          // 6. IMPEDIR A IA DE OPERAR SEM UNIDADE
-          if (!canProcessIA) {
-            if (agente && !agente.unidade_id) {
-              await logEvent({ instance: instancia, messageId, event: "agent_without_unit", status: "skipped_ia" });
-            }
+          // Validações para IA movidas para DEPOIS de salvar
+          if (!agente) {
+            await logEvent({ instance: instancia, messageId, event: "agent_not_found", status: "skipped_ia" });
             continue;
           }
 
+          if (!agente.unidade_id) {
+            await logEvent({ instance: instancia, messageId, event: "agent_without_unit", status: "skipped_ia" });
+            continue;
+          }
+
+          if (agente.status !== "ativo") {
+            await logEvent({ instance: instancia, messageId, event: "agent_inactive", status: "skipped_ia" });
+            continue;
+          }
+
+          // Chamar a IA (Item 11)
           try {
-            const aiResponse = await runAgent([msgObj as any], { 
+            await logEvent({ instance: instancia, messageId, event: "ai_started", status: "pending" });
+            
+            const aiResponse = await runAgent([{ id: messageId, role: "user", parts: [{ type: "text", text }] } as any], { 
               sandbox: false,
               persona: contactName ? `O nome do cliente é ${contactName}.` : undefined,
-              unidadeId: agente.unidade_id // Passando unidadeId (Item 7)
+              unidadeId: agente.unidade_id
             });
             
             if (aiResponse) {
               const sent = await sendEvolutionText(instancia, phone, aiResponse);
-              const aiMsg = { id: `ai-${Date.now()}`, role: "assistant", parts: [{ type: "text", text: aiResponse }] };
               
               await supabaseAdmin.rpc("append_wa_message", {
                 p_phone: conversationId,
-                p_message: aiMsg,
+                p_message: { id: `ai-${Date.now()}`, role: "assistant", parts: [{ type: "text", text: aiResponse }] },
                 p_instance: instancia,
                 p_phone_number: phone,
                 p_increment_unread: false
@@ -167,10 +187,14 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
               await logEvent({ 
                 instance: instancia, 
                 messageId, 
-                event: "ai_response", 
-                status: sent ? "success" : "error",
+                event: "ai_completed", 
+                status: sent ? "success" : "evolution_send_failed",
                 durationMs: Date.now() - start 
               });
+              
+              if (sent) {
+                await logEvent({ instance: instancia, messageId, event: "evolution_send_completed", status: "success" });
+              }
             }
           } catch (aiErr: any) {
             await logEvent({ instance: instancia, messageId, event: "ai_processing", status: "error", errorDetail: aiErr.message });
