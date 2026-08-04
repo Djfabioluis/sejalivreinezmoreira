@@ -195,6 +195,7 @@ function AgendarPage() {
                   <SelectContent>
                     <SelectItem value="todos">Todos</SelectItem>
                     <SelectItem value="aberta">Abertas</SelectItem>
+                    <SelectItem value="waiting_for_unit_selection">Aguardando Unidade</SelectItem>
                     <SelectItem value="aguardando_humano">Triagem</SelectItem>
                     <SelectItem value="resolvida">Resolvidas</SelectItem>
                   </SelectContent>
@@ -250,6 +251,7 @@ function AgendarPage() {
                     <SelectTrigger className="h-8 text-xs w-[130px]"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="aberta">Aberta</SelectItem>
+                      <SelectItem value="waiting_for_unit_selection">Aguardando Unidade</SelectItem>
                       <SelectItem value="aguardando_cliente">Aguardando Cliente</SelectItem>
                       <SelectItem value="aguardando_humano">Triagem</SelectItem>
                       <SelectItem value="resolvida">Resolvida</SelectItem>
@@ -288,8 +290,12 @@ function AgendarPage() {
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
     aberta: "bg-blue-100 text-blue-700",
+    waiting_for_unit_selection: "bg-purple-100 text-purple-700",
     aguardando_humano: "bg-orange-100 text-orange-700",
     resolvida: "bg-green-100 text-green-700"
   };
-  return <Badge variant="secondary" className={`text-[8px] py-0 h-3 ${styles[status] || ""}`}>{status}</Badge>;
+  const labels: Record<string, string> = {
+    waiting_for_unit_selection: "Aguardando Unidade"
+  };
+  return <Badge variant="secondary" className={`text-[8px] py-0 h-3 ${styles[status] || ""}`}>{labels[status] || status}</Badge>;
 }
