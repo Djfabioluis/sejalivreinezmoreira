@@ -37,6 +37,7 @@ import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } fr
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
 import { Route as ApiPublicWhatsappEvolutionRouteImport } from './routes/api/public/whatsapp-evolution'
 import { Route as ApiPublicWhatsappRouteImport } from './routes/api/public/whatsapp'
+import { Route as ApiPublicTestIaRouteImport } from './routes/api/public/test-ia'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as ApiPublicWhatsappEvolutionTestRouteImport } from './routes/api/public/whatsapp-evolution/test'
@@ -192,6 +193,11 @@ const ApiPublicWhatsappRoute = ApiPublicWhatsappRouteImport.update({
   path: '/api/public/whatsapp',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicTestIaRoute = ApiPublicTestIaRouteImport.update({
+  id: '/api/public/test-ia',
+  path: '/api/public/test-ia',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const Char91DotmcpChar93InvokeToolToolRoute =
   Char91DotmcpChar93InvokeToolToolRouteImport.update({
     id: '/.mcp/invoke-tool/$tool',
@@ -261,6 +267,7 @@ export interface FileRoutesByFullPath {
   '/checkout/return': typeof CheckoutReturnRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/api/public/test-ia': typeof ApiPublicTestIaRoute
   '/api/public/whatsapp': typeof ApiPublicWhatsappRoute
   '/api/public/whatsapp-evolution': typeof ApiPublicWhatsappEvolutionRouteWithChildren
   '/api/public/hooks/lembretes': typeof ApiPublicHooksLembretesRoute
@@ -297,6 +304,7 @@ export interface FileRoutesByTo {
   '/checkout/return': typeof CheckoutReturnRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/api/public/test-ia': typeof ApiPublicTestIaRoute
   '/api/public/whatsapp': typeof ApiPublicWhatsappRoute
   '/api/public/whatsapp-evolution': typeof ApiPublicWhatsappEvolutionRouteWithChildren
   '/api/public/hooks/lembretes': typeof ApiPublicHooksLembretesRoute
@@ -335,6 +343,7 @@ export interface FileRoutesById {
   '/checkout/return': typeof CheckoutReturnRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/api/public/test-ia': typeof ApiPublicTestIaRoute
   '/api/public/whatsapp': typeof ApiPublicWhatsappRoute
   '/api/public/whatsapp-evolution': typeof ApiPublicWhatsappEvolutionRouteWithChildren
   '/api/public/hooks/lembretes': typeof ApiPublicHooksLembretesRoute
@@ -373,6 +382,7 @@ export interface FileRouteTypes {
     | '/checkout/return'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/api/public/test-ia'
     | '/api/public/whatsapp'
     | '/api/public/whatsapp-evolution'
     | '/api/public/hooks/lembretes'
@@ -409,6 +419,7 @@ export interface FileRouteTypes {
     | '/checkout/return'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/api/public/test-ia'
     | '/api/public/whatsapp'
     | '/api/public/whatsapp-evolution'
     | '/api/public/hooks/lembretes'
@@ -446,6 +457,7 @@ export interface FileRouteTypes {
     | '/checkout/return'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/api/public/test-ia'
     | '/api/public/whatsapp'
     | '/api/public/whatsapp-evolution'
     | '/api/public/hooks/lembretes'
@@ -468,6 +480,7 @@ export interface RootRouteChildren {
   CheckoutReturnRoute: typeof CheckoutReturnRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  ApiPublicTestIaRoute: typeof ApiPublicTestIaRoute
   ApiPublicWhatsappRoute: typeof ApiPublicWhatsappRoute
   ApiPublicWhatsappEvolutionRoute: typeof ApiPublicWhatsappEvolutionRouteWithChildren
   ApiPublicHooksLembretesRoute: typeof ApiPublicHooksLembretesRoute
@@ -673,6 +686,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWhatsappRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/test-ia': {
+      id: '/api/public/test-ia'
+      path: '/api/public/test-ia'
+      fullPath: '/api/public/test-ia'
+      preLoaderRoute: typeof ApiPublicTestIaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/.mcp/invoke-tool/$tool': {
       id: '/.mcp/invoke-tool/$tool'
       path: '/.mcp/invoke-tool/$tool'
@@ -798,6 +818,7 @@ const rootRouteChildren: RootRouteChildren = {
   CheckoutReturnRoute: CheckoutReturnRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  ApiPublicTestIaRoute: ApiPublicTestIaRoute,
   ApiPublicWhatsappRoute: ApiPublicWhatsappRoute,
   ApiPublicWhatsappEvolutionRoute: ApiPublicWhatsappEvolutionRouteWithChildren,
   ApiPublicHooksLembretesRoute: ApiPublicHooksLembretesRoute,
