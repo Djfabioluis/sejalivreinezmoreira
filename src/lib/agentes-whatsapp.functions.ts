@@ -179,7 +179,7 @@ export const statusAgente = createServerFn({ method: "POST" })
     const ag = row as any;
     const state = await getConnectionState(ag.instancia);
     
-    let newStatus = state;
+    let newStatus: AgenteWa["status"] = state as AgenteWa["status"];
     if (state === "conectado") {
       newStatus = ag.unidade_id ? "ativo" : "conectado_sem_unidade";
     } else if (state === "desconectado") {
