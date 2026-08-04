@@ -1539,3 +1539,73 @@ function ReagendamentosPanel() {
 
 
 
+
+// ---------- Stripe Health ----------
+function StripeHealthPanel() {
+  const env = getStripeEnvironment();
+  const verify = useServerFn(verifyStripeSetup);
+  
+  const q = useQuery({
+    queryKey: ["stripe-health", env],
+    queryFn: () => verify({ data: { environment: env } }),
+    staleTime: 5 * 60_000,
+  });
+
+  if (q.isLoading) return <div className="p-8 text-center"><Loader2 className="animate-spin h-6 w-6 mx-auto" /></div>;
+
+  const results = q.data && 'results' in q.data ? q.data.results : [];
+  const error = q.data && 'error' in q.data ? q.data.error : null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Activity className="h-5 w-5 text-primary" /> Saúde da Integração Stripe
+        </CardTitle>
+        <CardDescription>
+          Verifica se os planos configurados no sistema existem no seu Stripe (Lookup Keys).
+          Ambiente atual: <Badge variant="outline">{env}</Badge>
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {error ? (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Erro na verificação</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {results.map((r: any) => (
+              <Card key={r.planId} className="bg-muted/30">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs font-medium">{r.planId}</span>
+                    {r.found ? (
+                      <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200">
+                        <CheckCircle2 className="h-3 w-3 mr-1" /> OK
+                      </Badge>
+                    ) : (
+                      <Badge variant="destructive">
+                        <XCircle className="h-3 w-3 mr-1" /> Não encontrado
+                      </Badge>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-sm text-muted-foreground">
+                    {r.found ? (
+                      r.active ? "Preço ativo no Stripe." : "Preço encontrado mas está inativo."
+                    ) : (
+                      "Crie um produto/preço no Stripe com Lookup Key exatamente igual ao ID acima."
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
