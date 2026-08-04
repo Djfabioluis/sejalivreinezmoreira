@@ -9,10 +9,7 @@ vi.mock("@/integrations/supabase/client.server", () => ({
     from: vi.fn().mockReturnThis(),
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
-    maybeSingle: vi.fn().mockResolvedValue({
-      data: { id: "agent-1", status: "ativo", unidade_id: "unit-1" },
-      error: null
-    })
+    maybeSingle: vi.fn()
   }
 }));
 
@@ -20,7 +17,7 @@ vi.mock("../logger.server", () => ({
   logEvent: vi.fn().mockResolvedValue(undefined)
 }));
 
-// Mock do chat.server mas permitindo spy no runAgentWithLogging
+// Mock do chat.server
 vi.mock("@/lib/chat.server", () => ({
   runAgentWithLogging: vi.fn().mockResolvedValue(undefined),
   runAgent: vi.fn().mockResolvedValue(undefined)
@@ -29,22 +26,20 @@ vi.mock("@/lib/chat.server", () => ({
 describe("agent.server.ts - runAgentFlow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Forçamos o mock de supabaseAdmin.maybeSingle para retornar um agente válido
-    import("@/integrations/supabase/client.server").then(({ supabaseAdmin }) => {
-      (supabaseAdmin.maybeSingle as any).mockResolvedValue({
-        data: { id: "agent-1", status: "ativo", unidade_id: "unit-1" },
-        error: null
-      });
-    });
   });
 
   it("deve chamar runAgentWithLogging quando o agente é encontrado e ativo", async () => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    (supabaseAdmin.maybeSingle as any).mockResolvedValue({
+      data: { id: "agent-1", status: "ativo", unidade_id: "unit-1" },
+      error: null
+    });
+
     const mockMsg = {
       instance: "test-instance",
       messageId: "msg-1",
       message: { 
-        key: { remoteJid: "5511999999999@s.whatsapp.net", id: "msg-1" },
-        message: { conversation: "Olá" } 
+        conversation: "Olá Julia"
       },
       remoteJid: "5511999999999@s.whatsapp.net",
       pushName: "Test User",
@@ -54,8 +49,13 @@ describe("agent.server.ts - runAgentFlow", () => {
 
     await runAgentFlow(mockMsg);
 
+    // Verifica se logEvent foi chamado indicando sucesso
+    expect(loggerServer.logEvent).toHaveBeenCalledWith(expect.objectContaining({
+      event: "agent_unit_resolved",
+      status: "success"
+    }));
+
     // Verifica se runAgentWithLogging foi chamado corretamente
-    // Nota: Como usamos import() dinâmico no código, o vitest mock precisa ser resiliente
     expect(chatServer.runAgentWithLogging).toHaveBeenCalled();
     
     // CRITICAL: runAgent (versão antiga/incorreta) NÃO deve ser chamado
@@ -63,9 +63,8 @@ describe("agent.server.ts - runAgentFlow", () => {
   });
 
   it("não deve chamar a IA se o agente estiver inativo", async () => {
-    // Re-mock local para este teste
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    (supabaseAdmin.maybeSingle as any).mockResolvedValueOnce({
+    (supabaseAdmin.maybeSingle as any).mockResolvedValue({
       data: { id: "agent-2", status: "inativo", unidade_id: "unit-2" },
       error: null
     });
@@ -73,7 +72,7 @@ describe("agent.server.ts - runAgentFlow", () => {
     const mockMsg = {
       instance: "test-instance",
       messageId: "msg-2",
-      message: { message: { conversation: "Olá" } },
+      message: { conversation: "Olá" },
       remoteJid: "5511999999999@s.whatsapp.net",
       fromMe: false
     } as any;
