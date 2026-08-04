@@ -4,17 +4,22 @@ export function normalizeEvolutionMessages(payload: any, requestUrl: string): No
   const url = new URL(requestUrl);
   const queryInstance = url.searchParams.get("instance");
   
-  // Support payload.data.messages, payload.data.message, payload.messages, payload.message
-  const data = payload.data || payload;
+  const data = payload.data ?? payload;
   let msgArray: any[] = [];
+
+  // Implementação da prioridade de payloads conforme solicitado
   if (Array.isArray(data)) {
     msgArray = data;
-  } else if (data.messages && Array.isArray(data.messages)) {
+  } else if (data?.key && data?.message) {
+    msgArray = [data];
+  } else if (Array.isArray(data?.messages)) {
     msgArray = data.messages;
-  } else if (data.message) {
-    msgArray = [data.message];
-  } else {
-    // If it's a single message object directly in data
+  } else if (Array.isArray(payload?.messages)) {
+    msgArray = payload.messages;
+  } else if (payload?.key && payload?.message) {
+    msgArray = [payload];
+  } else if (data) {
+    // Caso genérico, mas mantendo o objeto original se possível
     msgArray = [data];
   }
   
@@ -31,28 +36,27 @@ export function normalizeEvolutionMessages(payload: any, requestUrl: string): No
                      data.instance || 
                      data.instanceName;
 
-    if (!instance) continue;
-
-    const key = msg.key || {};
-    const remoteJid = key.remoteJid;
-    const messageId = key.id;
-    const pushName = msg.pushName || data.pushName || payload.pushName;
-    const messageContent = msg.message || msg;
-    const timestamp = msg.messageTimestamp || data.messageTimestamp || Math.floor(Date.now() / 1000);
-    const fromMe = !!key.fromMe;
-
     if (!instance) {
-      console.warn("Evolution: Missing instance in payload", msg);
+      console.warn("Evolution: Missing instance in payload", { payload_keys: Object.keys(payload), data_keys: data ? Object.keys(data) : null });
       continue;
     }
 
+    // EXTRAÇÃO NORMALIZADA conforme especificação
+    const key = msg.key ?? {};
+    const remoteJid = key.remoteJid ?? msg.remoteJid ?? null;
+    const messageId = key.id ?? msg.messageId ?? null;
+    const pushName = msg.pushName ?? payload.pushName ?? null;
+    const messageContent = msg.message ?? msg;
+    const timestamp = Number(msg.messageTimestamp ?? payload.messageTimestamp ?? Date.now() / 1000);
+    const fromMe = key.fromMe === true || key.fromMe === "true" || key.fromMe === 1;
+
     if (!remoteJid) {
-      console.warn("Evolution: Missing remoteJid in payload", msg);
+      console.warn("Evolution: Missing remoteJid in normalized extraction", { msg_keys: Object.keys(msg), key_keys: Object.keys(key) });
       continue;
     }
 
     if (!messageId) {
-      console.warn("Evolution: Missing messageId in payload", msg);
+      console.warn("Evolution: Missing messageId in normalized extraction", { msg_keys: Object.keys(msg), key_keys: Object.keys(key) });
       continue;
     }
 
