@@ -30,12 +30,19 @@ export function extractConversationMessageText(message: any): string {
 
 export const listWAConversations = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { instance?: string; status?: string; unreadOnly?: boolean; search?: string } | undefined) => input ?? {})
+  .inputValidator(z.object({ 
+    instance: z.string().optional(), 
+    status: z.string().optional(), 
+    unreadOnly: z.boolean().optional(), 
+    search: z.string().optional(),
+    page: z.number().default(0),
+    pageSize: z.number().default(20)
+  }))
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let query = supabaseAdmin
       .from("wa_conversas" as never)
-      .select("*")
+      .select("phone, instance, phone_number, contact_name, unread_count, status, updated_at", { count: "exact" })
       .order("updated_at", { ascending: false });
 
     if (data.instance) query = query.eq("instance", data.instance);
@@ -45,9 +52,30 @@ export const listWAConversations = createServerFn({ method: "GET" })
       query = query.or(`phone_number.ilike.%${data.search}%,contact_name.ilike.%${data.search}%`);
     }
 
-    const { data: rows, error } = await query.limit(100);
+    const from = data.page * data.pageSize;
+    const to = from + data.pageSize - 1;
+    
+    const { data: rows, error, count } = await query.range(from, to);
     if (error) throw new Error(error.message);
-    return (rows ?? []) as unknown as WAConversation[];
+    return {
+      conversations: (rows ?? []) as any[],
+      total: count ?? 0
+    };
+  });
+
+export const getWAConversation = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ phone: z.string() }))
+  .handler(async ({ data }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row, error } = await supabaseAdmin
+      .from("wa_conversas" as never)
+      .select("*")
+      .eq("phone", data.phone)
+      .maybeSingle();
+    
+    if (error) throw new Error(error.message);
+    return row as WAConversation | null;
   });
 
 export const markAsRead = createServerFn({ method: "POST" })
