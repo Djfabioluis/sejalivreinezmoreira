@@ -206,7 +206,7 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
             p_message: { id: messageId, role: "user", parts: [{ type: "text", text }] },
             p_instance: instancia,
             p_phone_number: phone,
-            p_contact_name: contactName,
+            p_contact_name: contactName ?? undefined,
             p_increment_unread: true,
             p_new_status: (agente?.unidade_id && agente?.status === "ativo") ? "aberta" : "waiting_for_unit_selection"
           });
