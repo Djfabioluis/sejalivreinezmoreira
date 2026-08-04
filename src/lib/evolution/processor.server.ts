@@ -11,13 +11,14 @@ import { normalizePhone, buildConversationKey } from "./contact";
  */
 export async function processMessagesUpsert(payload: any, requestUrl: string) {
   const startTime = Date.now();
+  const instance = payload.instance || payload.instanceName || "unknown";
   
   // 1. Normalização
   const messages = normalizeEvolutionMessages(payload, requestUrl);
   
   if (messages.length === 0) {
     await logEvent({
-      instance: payload.instance || payload.instanceName || "unknown",
+      instance,
       event: "payload_shape_detected",
       status: "no_messages_found",
       payload: { 
@@ -41,7 +42,7 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
       const text = extractMessageText(msg.message);
       const phone = normalizePhone(msg.remoteJid);
       
-      // 2. Idempotência (Assinatura: instance, messageId, phone, timestamp, text)
+      // 2. Idempotência
       const { isDuplicate, finalMessageId } = await checkIdempotency(
         msg.instance, 
         msg.messageId,
@@ -60,12 +61,25 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
         continue;
       }
 
-      // 3. Preparação de metadados
+      // 3. Agente e Unidade
+      await logEvent({ instance: msg.instance, messageId: finalMessageId, event: "agent_lookup_started" });
       const agent = await findAgentByInstance(msg.instance);
+      
+      if (!agent) {
+        await logEvent({ instance: msg.instance, messageId: finalMessageId, event: "agent_not_found", status: "skipped" });
+      } else {
+        await logEvent({ 
+          instance: msg.instance, 
+          messageId: finalMessageId, 
+          event: "agent_found",
+          payload: { agentId: agent.id, agentStatus: agent.status, unitIdAvailable: !!agent.unidade_id }
+        });
+      }
+
       const isIAActive = isIAEnabled(agent);
       const conversationKey = buildConversationKey(msg.instance, msg.remoteJid);
 
-      // 4. Persistência
+      // 4. Persistência da Mensagem do Usuário
       const saved = await appendIncomingMessage({
         conversationKey,
         messageId: finalMessageId,
@@ -90,9 +104,16 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
       if (!msg.fromMe) {
         await runAgentFlow({
           ...msg,
-          messageId: finalMessageId // Usar o ID final (tratado para ausência de ID)
+          messageId: finalMessageId
         });
       }
+      
+      await logEvent({
+        instance: msg.instance,
+        messageId: finalMessageId,
+        event: "message_processing_completed",
+        status: "success"
+      });
     } catch (error) {
       console.error("[evolution] Error processing message", msg.messageId, error);
       await logEvent({
