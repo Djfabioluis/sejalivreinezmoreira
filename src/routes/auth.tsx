@@ -1,5 +1,5 @@
 import { createFileRoute, useSearch } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
 import { Button } from "@/components/ui/button";
@@ -58,11 +58,12 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const oauthInFlight = useRef(false);
 
   useEffect(() => {
     let done = false;
     const go = () => {
-      if (done) return;
+      if (done || oauthInFlight.current) return;
       done = true;
       window.location.replace(consumeNext(target));
     };
@@ -104,6 +105,7 @@ function AuthPage() {
 
   async function signInGoogle() {
     setBusy(true);
+    oauthInFlight.current = true;
     try {
       storeNext(target);
       // redirect_uri deve ser uma URL pública same-origin (nunca rota protegida).
@@ -115,8 +117,10 @@ function AuthPage() {
       // Não depender somente do evento: confirme o usuário após o helper salvar a sessão.
       const { data, error } = await supabase.auth.getUser();
       if (error || !data.user) throw error ?? new Error("Não foi possível confirmar seu acesso.");
+      oauthInFlight.current = false;
       window.location.replace(consumeNext(target));
     } catch (err) {
+      oauthInFlight.current = false;
       toast.error(err instanceof Error ? err.message : "Falha no Google");
       setBusy(false);
     }
