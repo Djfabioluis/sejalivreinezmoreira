@@ -5,8 +5,16 @@ import { assertPermission } from "@/lib/permissions.functions";
 
 const WELCOME_ID = 2;
 
-export const DEFAULT_WELCOME =
-  "Oi! 👋 Sou a Julia, recepcionista do Salão Seja Livre. Estou aqui para te ajudar. Para começar, como posso te chamar?";
+export const DEFAULT_WELCOME = `Olá! ✨ Seja muito bem-vindo(a) ao Salão Seja Livre.
+
+É um prazer ter você por aqui! 💜
+
+Como posso ajudar hoje?
+
+📌 Gostaria de agendar algum serviço?
+💇‍♀️ Cabelo | 💅 Unhas | 👁️ Cílios | 🎨 Sobrancelhas | 💄 Maquiagem | ✨ Outros
+
+Se preferir, também posso informar valores, horários disponíveis e esclarecer qualquer dúvida. Estou à disposição! 😊`;
 
 export const getWelcomeMessage = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
