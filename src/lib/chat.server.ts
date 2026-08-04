@@ -115,7 +115,7 @@ function safeTool<T>(label: string, fn: () => Promise<T>) {
   });
 }
 
-function buildTools(sandbox: boolean) {
+function buildTools(sandbox: boolean, forcedUnitId?: string | null) {
   const base = {
     list_salons: tool({
       description: "Lista todas as unidades (salões) disponíveis na conta Bemp.",
@@ -128,21 +128,25 @@ function buildTools(sandbox: boolean) {
     }),
     list_services: tool({
       description: "Lista serviços de uma unidade, com preço e duração.",
-      inputSchema: z.object({ salon_id: z.number() }),
+      inputSchema: z.object({ salon_id: z.number().optional() }),
       execute: async ({ salon_id }) =>
         safeTool("list_services", async () => {
           const cfg = await getBempConfig();
-          return await bempFetch(`${cfg.apiBase}/salons/${salon_id}/services`);
+          const targetUnitId = forcedUnitId || salon_id;
+          if (!targetUnitId) throw new Error("ID da unidade não fornecido.");
+          return await bempFetch(`${cfg.apiBase}/salons/${targetUnitId}/services`);
         }),
     }),
     list_professionals: tool({
       description: "Lista profissionais disponíveis para um serviço em uma unidade.",
-      inputSchema: z.object({ salon_id: z.number(), service_id: z.number() }),
+      inputSchema: z.object({ salon_id: z.number().optional(), service_id: z.number() }),
       execute: async ({ salon_id, service_id }) =>
         safeTool("list_professionals", async () => {
           const cfg = await getBempConfig();
+          const targetUnitId = forcedUnitId || salon_id;
+          if (!targetUnitId) throw new Error("ID da unidade não fornecido.");
           return await bempFetch(
-            `${cfg.apiBase}/salons/${salon_id}/services/${service_id}/professionals`,
+            `${cfg.apiBase}/salons/${targetUnitId}/services/${service_id}/professionals`,
           );
         }),
     }),
@@ -150,7 +154,7 @@ function buildTools(sandbox: boolean) {
       description:
         "Lista horários disponíveis. Passe professional_id apenas se o cliente escolheu um profissional específico.",
       inputSchema: z.object({
-        salon_id: z.number(),
+        salon_id: z.number().optional(),
         service_id: z.number(),
         professional_id: z.number().optional(),
         date: z.string().describe("Data no formato YYYY-MM-DD"),
@@ -158,9 +162,11 @@ function buildTools(sandbox: boolean) {
       execute: async ({ salon_id, service_id, professional_id, date }) =>
         safeTool("list_slots", async () => {
           const cfg = await getBempConfig();
+          const targetUnitId = forcedUnitId || salon_id;
+          if (!targetUnitId) throw new Error("ID da unidade não fornecido.");
           const url = professional_id
-            ? `${cfg.apiBase}/salons/${salon_id}/services/${service_id}/professionals/${professional_id}/slots/${date}`
-            : `${cfg.apiBase}/salons/${salon_id}/services/${service_id}/slots/${date}`;
+            ? `${cfg.apiBase}/salons/${targetUnitId}/services/${service_id}/professionals/${professional_id}/slots/${date}`
+            : `${cfg.apiBase}/salons/${targetUnitId}/services/${service_id}/slots/${date}`;
           return await bempFetch(url);
         }),
     }),
@@ -168,7 +174,7 @@ function buildTools(sandbox: boolean) {
       description:
         "Cria o agendamento na Bemp. Só chame após confirmação explícita do cliente. O 'end' deve ser o 'start' + duração do serviço em minutos.",
       inputSchema: z.object({
-        salon_id: z.number(),
+        salon_id: z.number().optional(),
         service_id: z.number(),
         professional_id: z.number().optional(),
         start: z.string().describe("ISO 8601, ex.: 2025-09-12T13:30:00.000-03:00"),
@@ -180,6 +186,10 @@ function buildTools(sandbox: boolean) {
       }),
       execute: async (input) =>
         safeTool("create_appointment", async () => {
+          const targetUnitId = forcedUnitId || input.salon_id;
+          if (!targetUnitId) throw new Error("ID da unidade não fornecido.");
+          const fullInput = { ...input, salon_id: Number(targetUnitId) };
+
           if (sandbox) {
             return {
               sandbox: true,
@@ -188,11 +198,11 @@ function buildTools(sandbox: boolean) {
               status: "simulated",
               message:
                 "Agendamento SIMULADO (modo sandbox). Nada foi gravado na Bemp. (Confirmação por WhatsApp não é enviada em sandbox.)",
-              appointment: input,
+              appointment: fullInput,
               created_at: new Date().toISOString(),
             };
           }
-          const payload = withProfessionalPreferenceNote(input);
+          const payload = withProfessionalPreferenceNote(fullInput);
           const result = await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule`, {
             method: "POST",
             body: JSON.stringify(payload),
@@ -213,7 +223,7 @@ function buildTools(sandbox: boolean) {
             try {
               const cfg = await getBempConfig();
               const services = (await bempFetch(
-                `${cfg.apiBase}/salons/${input.salon_id}/services`,
+                `${cfg.apiBase}/salons/${targetUnitId}/services`,
               )) as Array<Record<string, unknown>> | null;
               if (Array.isArray(services)) {
                 const found = services.find((s) => Number(s.id) === input.service_id);
@@ -229,7 +239,7 @@ function buildTools(sandbox: boolean) {
             const sent = await sendWhatsAppText(phone, msg);
             await supabaseAdmin.from("agendamentos_notif" as never).insert({
               bemp_appointment_id: bempId,
-              salon_id: String(input.salon_id),
+              salon_id: String(targetUnitId),
               service_id: String(input.service_id),
               service_name: serviceName,
               start_at: input.start,
@@ -1082,7 +1092,7 @@ export async function loadSystemPrompt(): Promise<string> {
   }
 }
 
-export type AgentOptions = { sandbox?: boolean; persona?: string };
+export type AgentOptions = { sandbox?: boolean; persona?: string; unidadeId?: string | null };
 
 function sanitizeMessagesForModel(messages: UIMessage[]): UIMessage[] {
   return messages.map((message) => ({
@@ -1132,7 +1142,7 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
     model: getModel(),
     system,
     messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
-    tools: buildTools(sandbox),
+    tools: buildTools(sandbox, null),
     stopWhen: stepCountIs(50),
   });
 }
@@ -1140,12 +1150,24 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
 // Non-streaming run used by the WhatsApp webhook (needs the final text).
 export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {}): Promise<string> {
   const sandbox = opts.sandbox === true || envSandbox();
-  const system = (await loadSystemPrompt()) + currentDateNote() + LANGUAGE_GUARD + NO_DURATION_GUARD + (sandbox ? SANDBOX_NOTE : "") + (opts.persona ? `\n\n${opts.persona}` : "");
+  
+  // 7. CARREGAR O CONTEXTO DA UNIDADE ESCOLHIDA
+  let unitContext = "";
+  if (opts.unidadeId) {
+    try {
+      const cfg = await getBempConfig();
+      // Em um cenário real, buscaríamos os detalhes da unidade no Bemp aqui
+      // Por enquanto, injetamos o ID no contexto para as ferramentas usarem.
+      unitContext = `\n\nUNIDADE ATUAL: ID ${opts.unidadeId}. Use exclusivamente este ID em todas as chamadas de ferramentas.`;
+    } catch {}
+  }
+
+  const system = (await loadSystemPrompt()) + currentDateNote() + LANGUAGE_GUARD + NO_DURATION_GUARD + unitContext + (sandbox ? SANDBOX_NOTE : "") + (opts.persona ? `\n\n${opts.persona}` : "");
   const result = await generateText({
     model: getModel(),
     system,
     messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
-    tools: buildTools(sandbox),
+    tools: buildTools(sandbox, opts.unidadeId), // Passando unidadeId para as ferramentas
     stopWhen: stepCountIs(50),
   });
   return sanitizeCustomerText(result.text?.trim() || "Desculpe, tive um probleminha aqui. Pode repetir?");

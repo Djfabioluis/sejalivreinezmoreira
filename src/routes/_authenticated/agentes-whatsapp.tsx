@@ -36,6 +36,7 @@ import {
   PlugZap,
   RefreshCw,
   MessageCircle,
+  Building2,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -45,26 +46,14 @@ import {
   statusAgente,
   desconectarAgente,
   removerAgente,
+  selecionarUnidadeAgente,
   type AgenteWa,
 } from "@/lib/agentes-whatsapp.functions";
+import { listSalons } from "@/lib/bemp.functions";
 
 export const Route = createFileRoute("/_authenticated/agentes-whatsapp")({
   head: () => ({
-    meta: [
-      { title: "Agentes de WhatsApp — Salão Seja Livre" },
-      {
-        name: "description",
-        content:
-          "Adicione agentes de WhatsApp, conecte o número por QR Code e deixe a IA atender automaticamente.",
-      },
-      { property: "og:title", content: "Agentes de WhatsApp — Salão Seja Livre" },
-      {
-        property: "og:description",
-        content: "Conecte números de WhatsApp por QR Code e gerencie os agentes de atendimento.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-    ],
+    meta: [{ title: "Agentes de WhatsApp — Salão Seja Livre" }],
   }),
   component: AgentesWhatsAppPage,
 });
@@ -83,10 +72,18 @@ function formatSaved(digits: string) {
 }
 
 function StatusBadge({ status }: { status: AgenteWa["status"] }) {
-  if (status === "conectado")
-    return <Badge className="bg-emerald-600 text-white hover:bg-emerald-600">Conectado</Badge>;
-  if (status === "aguardando_qr") return <Badge variant="secondary">Aguardando QR</Badge>;
-  return <Badge variant="outline">Desconectado</Badge>;
+  const config: Record<string, { label: string; className: string }> = {
+    ativo: { label: "Ativo", className: "bg-emerald-600 text-white" },
+    conectado_sem_unidade: { label: "Conectado - Sem Unidade", className: "bg-amber-500 text-white" },
+    aguardando_conexao: { label: "Aguardando Conexão", className: "bg-blue-500 text-white" },
+    aguardando_qr: { label: "Aguardando QR", className: "bg-blue-400 text-white" },
+    inativo: { label: "Inativo", className: "bg-slate-400 text-white" },
+    erro_conexao: { label: "Erro de Conexão", className: "bg-red-500 text-white" },
+    conectado: { label: "Conectado", className: "bg-emerald-600 text-white" },
+    desconectado: { label: "Desconectado", className: "bg-slate-400 text-white" },
+  };
+  const c = config[status] || config.inativo;
+  return <Badge className={c.className}>{c.label}</Badge>;
 }
 
 function AgentesWhatsAppPage() {
@@ -96,6 +93,7 @@ function AgentesWhatsAppPage() {
   const checkStatus = useServerFn(statusAgente);
   const disconnect = useServerFn(desconectarAgente);
   const remove = useServerFn(removerAgente);
+  const selectUnit = useServerFn(selecionarUnidadeAgente);
 
   const [items, setItems] = useState<AgenteWa[]>([]);
   const [configured, setConfigured] = useState(true);
@@ -112,65 +110,95 @@ function AgentesWhatsAppPage() {
   const [qrAgente, setQrAgente] = useState<AgenteWa | null>(null);
   const [qrLoading, setQrLoading] = useState(false);
 
+  const [unitOpen, setUnitOpen] = useState(false);
+  const [selectedAgente, setSelectedAgente] = useState<AgenteWa | null>(null);
+  const [unitId, setUnitId] = useState("");
+  const [salons, setSalons] = useState<any[]>([]);
+  const [loadingSalons, setLoadingSalons] = useState(false);
+
   const reload = useCallback(async () => {
     try {
       const data = await fetchList();
       setItems(data.items);
       setConfigured(Boolean(data.configured));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao carregar agentes");
+      toast.error("Erro ao carregar agentes");
     } finally {
       setLoading(false);
     }
   }, [fetchList]);
 
-  useEffect(() => {
-    void reload();
-  }, [reload]);
+  useEffect(() => { void reload(); }, [reload]);
 
-  // Enquanto o QR estiver aberto, confere a conexão a cada 5s.
   useEffect(() => {
     if (!qrOpen || !qrAgente) return;
     const id = setInterval(async () => {
       try {
         const r = await checkStatus({ data: { id: qrAgente.id } });
-        if (r.status === "conectado") {
+        if (r.status === "conectado_sem_unidade" || r.status === "ativo") {
           clearInterval(id);
           setQrOpen(false);
-          toast.success("Agente conectado com sucesso!");
-          void reload();
+          if (r.status === "conectado_sem_unidade") {
+            toast.success("Conectado! Agora selecione a unidade.");
+            handleOpenUnit(qrAgente);
+          } else {
+            toast.success("Agente conectado e ativo!");
+            void reload();
+          }
         }
-      } catch {
-        /* silencia enquanto aguarda */
-      }
+      } catch {}
     }, 5000);
     return () => clearInterval(id);
   }, [qrOpen, qrAgente, checkStatus, reload]);
 
-  async function handleCreate() {
-    const digits = telefone.replace(/\D/g, "");
-    if (digits.length < 10) {
-      toast.error("Informe o número com DDD.");
-      return;
+  const handleOpenUnit = async (agente: AgenteWa) => {
+    setSelectedAgente(agente);
+    setUnitId(agente.unidade_id || "");
+    setUnitOpen(true);
+    setLoadingSalons(true);
+    try {
+      const res = await listSalons();
+      setSalons(Array.isArray(res) ? res : []);
+    } catch {
+      setSalons([]);
+    } finally {
+      setLoadingSalons(false);
     }
+  };
+
+  async function handleConfirmUnit() {
+    if (!selectedAgente || !unitId) return;
     setSaving(true);
     try {
-      const res = await create({
-        data: { tipo, telefone: digits, origin: window.location.origin },
-      });
+      await selectUnit({ data: { agenteId: selectedAgente.id, unidadeId: unitId } });
+      toast.success("Unidade vinculada com sucesso!");
+      setUnitOpen(false);
+      void reload();
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao vincular unidade");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleCreate() {
+    const digits = telefone.replace(/\D/g, "");
+    if (digits.length < 10) return toast.error("Informe o número com DDD.");
+    setSaving(true);
+    try {
+      const res = await create({ data: { tipo, telefone: digits, origin: window.location.origin } });
       if (res.error || !res.agente) {
         setConnectionError(res.error ?? "Não foi possível criar o agente.");
         return;
       }
-      setConnectionError(null);
       setAddOpen(false);
       setTelefone("");
-      setQrAgente(res.agente);
+      setQrAgente(res.agente as any);
       setQrData(res.qr);
       setQrOpen(true);
       await reload();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao criar agente");
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao criar agente");
     } finally {
       setSaving(false);
     }
@@ -183,228 +211,113 @@ function AgentesWhatsAppPage() {
     setQrLoading(true);
     try {
       const r = await genQr({ data: { id: agente.id, origin: window.location.origin } });
-      if (r.status === "conectado") {
+      if (r.status === "conectado" || r.status === "ativo" || r.status === "conectado_sem_unidade") {
         setQrOpen(false);
         toast.success("Este agente já está conectado.");
+        if (r.status === "conectado_sem_unidade") handleOpenUnit(agente);
         void reload();
         return;
       }
       setQrData(r.qr);
-      if (!r.qr) toast.error("Não recebi o QR Code do servidor Evolution.");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao gerar QR Code");
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao gerar QR Code");
     } finally {
       setQrLoading(false);
-    }
-  }
-
-  async function handleDisconnect(agente: AgenteWa) {
-    try {
-      await disconnect({ data: { id: agente.id } });
-      toast.success("Sessão desconectada.");
-      void reload();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao desconectar");
-    }
-  }
-
-  async function handleRemove(agente: AgenteWa) {
-    if (!window.confirm(`Remover o agente ${agente.nome} (${formatSaved(agente.telefone)})?`)) return;
-    try {
-      await remove({ data: { id: agente.id } });
-      toast.success("Agente removido.");
-      void reload();
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Erro ao remover");
     }
   }
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6 p-4 sm:p-6">
       <header className="space-y-1">
-        <h1 className="font-display text-2xl tracking-tight">WhatsApp</h1>
-        <p className="text-sm text-muted-foreground">
-          Agentes e envio de mensagens automáticas
-        </p>
+        <h1 className="font-display text-2xl tracking-tight">Agentes WhatsApp</h1>
+        <p className="text-sm text-muted-foreground">Escolha a unidade após conectar o número</p>
       </header>
 
-      {!configured && (
-        <Card className="border-destructive/40">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Servidor Evolution não configurado</CardTitle>
-            <CardDescription>
-              Cadastre a URL e a chave da Evolution API para conectar números por QR Code.
-            </CardDescription>
-          </CardHeader>
-        </Card>
-      )}
-
-      {connectionError && (
-        <Card className="border-destructive/40 bg-destructive/5">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base text-destructive">Evolution API indisponível</CardTitle>
-            <CardDescription className="text-foreground">{connectionError}</CardDescription>
-          </CardHeader>
-        </Card>
-      )}
-
       <Button className="w-full" size="lg" onClick={() => setAddOpen(true)}>
-        <Plus className="mr-2 h-4 w-4" />
-        Adicionar agente
+        <Plus className="mr-2 h-4 w-4" /> Adicionar agente
       </Button>
 
-      {loading ? (
-        <div className="flex items-center justify-center py-16 text-muted-foreground">
-          <Loader2 className="h-5 w-5 animate-spin" />
-        </div>
-      ) : items.length === 0 ? (
-        <div className="rounded-2xl border border-dashed p-8 text-center">
-          <p className="mx-auto max-w-sm text-sm text-muted-foreground">
-            Nenhum agente WhatsApp conectado. Adicione seu primeiro agente para enviar mensagens
-            pelo WhatsApp.
-          </p>
-          <Button className="mt-6" onClick={() => setAddOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Adicionar agente WhatsApp
-          </Button>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {items.map((a) => (
-            <Card key={a.id}>
-              <CardContent className="flex flex-wrap items-center gap-3 p-4">
-                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
-                  <MessageCircle className="h-5 w-5" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">
-                    {a.nome}{" "}
-                    <span className="text-xs font-normal text-muted-foreground">
-                      · agente {a.tipo}
-                    </span>
-                  </p>
-                  <p className="truncate text-sm text-muted-foreground">
-                    {formatSaved(a.telefone)}
-                  </p>
-                </div>
+      <div className="space-y-3">
+        {loading ? <Loader2 className="mx-auto h-8 w-8 animate-spin opacity-20" /> : items.map((a) => (
+          <Card key={a.id}>
+            <CardContent className="flex flex-wrap items-center gap-3 p-4">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-primary/10 text-primary">
+                <MessageCircle className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="font-medium">{a.nome} <span className="text-xs font-normal text-muted-foreground">· {a.tipo}</span></p>
+                <p className="text-sm text-muted-foreground">{formatSaved(a.telefone)}</p>
+                {a.unidade_id && <p className="text-[10px] text-primary flex items-center mt-1"><Building2 className="h-3 w-3 mr-1" /> Unidade: {a.unidade_id}</p>}
+              </div>
+              <div className="flex flex-col items-end gap-2">
                 <StatusBadge status={a.status} />
-                <div className="flex w-full flex-wrap gap-2 sm:w-auto">
-                  <Button size="sm" variant="outline" onClick={() => void openQr(a)}>
-                    <QrCode className="mr-1.5 h-3.5 w-3.5" />
-                    {a.status === "conectado" ? "Reconectar" : "Ver QR"}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => void handleDisconnect(a)}
-                    disabled={a.status !== "conectado"}
-                  >
-                    <PlugZap className="mr-1.5 h-3.5 w-3.5" />
-                    Desconectar
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => void handleRemove(a)}>
-                    <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-                    Remover
-                  </Button>
+                <div className="flex gap-2">
+                  {a.status === "conectado_sem_unidade" && (
+                    <Button size="sm" variant="default" className="h-7 text-[10px]" onClick={() => handleOpenUnit(a)}>Escolher Unidade</Button>
+                  )}
+                  {a.status === "ativo" && (
+                    <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => handleOpenUnit(a)}>Alterar Unidade</Button>
+                  )}
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => openQr(a)}><QrCode className="h-3.5 w-3.5" /></Button>
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => void removerAgente({data:{id:a.id}}).then(()=>reload())}><Trash2 className="h-3.5 w-3.5" /></Button>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
-      {/* Modal: adicionar agente */}
-      <Dialog open={addOpen} onOpenChange={setAddOpen}>
-        <DialogContent className="sm:max-w-md">
+      {/* Modal Unidade */}
+      <Dialog open={unitOpen} onOpenChange={setUnitOpen}>
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Adicionar agente WhatsApp</DialogTitle>
-            <DialogDescription>
-              Escolha a voz do agente e informe o número que vai atender.
-            </DialogDescription>
+            <DialogTitle>Em qual unidade este WhatsApp irá operar?</DialogTitle>
+            <DialogDescription>A IA utilizará a agenda, os profissionais e serviços da unidade selecionada.</DialogDescription>
           </DialogHeader>
-
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Tipo do agente</Label>
-              <Select value={tipo} onValueChange={(v) => setTipo(v as "feminino" | "masculino")}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="feminino">Agente feminino (Julia)</SelectItem>
-                  <SelectItem value="masculino">Agente masculino (Bruno)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex gap-3 rounded-xl border p-3 text-sm text-muted-foreground">
-              <Info className="mt-0.5 h-4 w-4 shrink-0" />
-              <p>
-                Este agente envia apenas mensagens relacionadas a atendimentos para os clientes.
-                Por isso, é importante que seja um número já conhecido pelo cliente.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="telefone">Número do WhatsApp</Label>
-              <Input
-                id="telefone"
-                inputMode="numeric"
-                placeholder="(00) 00000-0000"
-                value={telefone}
-                onChange={(e) => setTelefone(maskPhone(e.target.value))}
-              />
-            </div>
+          <div className="py-4 space-y-4">
+             <div className="space-y-2">
+               <Label>Unidade Ativa</Label>
+               <Select value={unitId} onValueChange={setUnitId}>
+                 <SelectTrigger><SelectValue placeholder="Selecione uma unidade..." /></SelectTrigger>
+                 <SelectContent>
+                   {salons.map((s: any) => (
+                     <SelectItem key={s.id} value={String(s.id)}>
+                       {s.name} {s.address && ` - ${s.address}`}
+                     </SelectItem>
+                   ))}
+                 </SelectContent>
+               </Select>
+             </div>
           </div>
-
-          <DialogFooter className="gap-2 sm:gap-2">
-            <Button variant="outline" onClick={() => setAddOpen(false)} disabled={saving}>
-              Cancelar
-            </Button>
-            <Button onClick={() => void handleCreate()} disabled={saving || telefone.length < 14}>
-              {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <QrCode className="mr-2 h-4 w-4" />}
-              Adicionar e gerar QR Code
-            </Button>
+          <DialogFooter>
+             <Button variant="outline" onClick={() => setUnitOpen(false)}>Cancelar</Button>
+             <Button onClick={handleConfirmUnit} disabled={!unitId || saving}>Confirmar Unidade</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Modal: QR Code */}
-      <Dialog open={qrOpen} onOpenChange={setQrOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Conectar {qrAgente?.nome ?? "agente"}</DialogTitle>
-            <DialogDescription>
-              No celular, abra o WhatsApp → Aparelhos conectados → Conectar um aparelho e escaneie
-              o código abaixo.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="grid place-items-center py-2">
-            {qrLoading || (!qrData && qrOpen) ? (
-              <div className="flex h-56 w-56 items-center justify-center rounded-xl border border-dashed text-muted-foreground">
-                {qrLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : "QR indisponível"}
-              </div>
-            ) : (
-              <img
-                src={qrData ?? ""}
-                alt={`QR Code para conectar o agente ${qrAgente?.nome ?? ""} ao WhatsApp`}
-                className="h-56 w-56 rounded-xl border bg-white p-2"
-              />
-            )}
+      {/* Reutilizando modais de QR e Add simplificados */}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Novo Agente</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <Input placeholder="Número com DDD" value={telefone} onChange={e => setTelefone(maskPhone(e.target.value))} />
+            <Select value={tipo} onValueChange={v => setTipo(v as any)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="feminino">Julia (Feminino)</SelectItem><SelectItem value="masculino">Bruno (Masculino)</SelectItem></SelectContent>
+            </Select>
           </div>
+          <DialogFooter><Button onClick={handleCreate} disabled={saving}>Gerar QR Code</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-          <DialogFooter className="gap-2 sm:gap-2">
-            <Button
-              variant="outline"
-              onClick={() => qrAgente && void openQr(qrAgente)}
-              disabled={qrLoading || !qrAgente}
-            >
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Atualizar QR
-            </Button>
-            <Button onClick={() => setQrOpen(false)}>Fechar</Button>
-          </DialogFooter>
+      <Dialog open={qrOpen} onOpenChange={setQrOpen}>
+        <DialogContent className="sm:max-w-md text-center">
+          <DialogHeader><DialogTitle>Conectar WhatsApp</DialogTitle></DialogHeader>
+          <div className="py-4 flex justify-center">
+            {qrLoading ? <Loader2 className="h-12 w-12 animate-spin" /> : qrData ? <img src={qrData} className="w-64 h-64 border p-2 bg-white" /> : "Erro ao carregar QR"}
+          </div>
+          <p className="text-xs text-muted-foreground">Escaneie o QR Code no seu celular.</p>
         </DialogContent>
       </Dialog>
     </div>

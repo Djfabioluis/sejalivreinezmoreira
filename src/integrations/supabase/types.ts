@@ -600,9 +600,12 @@ export type Database = {
           id: string
           instancia: string
           nome: string
+          selected_unit_at: string | null
+          selected_unit_by: string | null
           status: string
           telefone: string
           tipo: string
+          unidade_id: string | null
         }
         Insert: {
           atualizado_em?: string
@@ -611,9 +614,12 @@ export type Database = {
           id?: string
           instancia: string
           nome: string
+          selected_unit_at?: string | null
+          selected_unit_by?: string | null
           status?: string
           telefone: string
           tipo: string
+          unidade_id?: string | null
         }
         Update: {
           atualizado_em?: string
@@ -622,14 +628,18 @@ export type Database = {
           id?: string
           instancia?: string
           nome?: string
+          selected_unit_at?: string | null
+          selected_unit_by?: string | null
           status?: string
           telefone?: string
           tipo?: string
+          unidade_id?: string | null
         }
         Relationships: []
       }
       wa_conversas: {
         Row: {
+          agent_id: string | null
           contact_name: string | null
           instance: string | null
           last_read_at: string | null
@@ -637,10 +647,12 @@ export type Database = {
           phone: string
           phone_number: string | null
           status: string
+          unidade_id: string | null
           unread_count: number
           updated_at: string
         }
         Insert: {
+          agent_id?: string | null
           contact_name?: string | null
           instance?: string | null
           last_read_at?: string | null
@@ -648,10 +660,12 @@ export type Database = {
           phone: string
           phone_number?: string | null
           status?: string
+          unidade_id?: string | null
           unread_count?: number
           updated_at?: string
         }
         Update: {
+          agent_id?: string | null
           contact_name?: string | null
           instance?: string | null
           last_read_at?: string | null
@@ -659,10 +673,19 @@ export type Database = {
           phone?: string
           phone_number?: string | null
           status?: string
+          unidade_id?: string | null
           unread_count?: number
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "wa_conversas_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "wa_agentes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

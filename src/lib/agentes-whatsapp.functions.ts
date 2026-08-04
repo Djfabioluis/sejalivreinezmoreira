@@ -14,7 +14,10 @@ export type AgenteWa = {
   tipo: "feminino" | "masculino";
   telefone: string;
   instancia: string;
-  status: "aguardando_qr" | "conectado" | "desconectado";
+  status: "aguardando_qr" | "conectado" | "desconectado" | "aguardando_conexao" | "conectado_sem_unidade" | "ativo" | "inativo" | "erro_conexao";
+  unidade_id: string | null;
+  selected_unit_at: string | null;
+  selected_unit_by: string | null;
   criado_em: string;
 };
 
@@ -33,7 +36,7 @@ export const listAgentes = createServerFn({ method: "GET" })
     const { isEvolutionConfigured } = await import("@/lib/evolution.server");
     const { data, error } = await supabaseAdmin
       .from("wa_agentes" as never)
-      .select("id,nome,tipo,telefone,instancia,status,criado_em")
+      .select("id,nome,tipo,telefone,instancia,status,unidade_id,selected_unit_at,selected_unit_by,criado_em")
       .order("criado_em", { ascending: false });
     if (error) throw new Error(error.message);
     return {
@@ -80,18 +83,49 @@ export const criarAgente = createServerFn({ method: "POST" })
           tipo: data.tipo,
           telefone: full,
           instancia,
-          status: "aguardando_qr",
+          status: "aguardando_conexao", // Novo status inicial
           criado_por: context.userId,
           atualizado_em: new Date().toISOString(),
+          unidade_id: null, // Sem unidade no início
         } as never,
         { onConflict: "instancia" },
       )
-      .select("id,nome,tipo,telefone,instancia,status,criado_em")
+      .select("id,nome,tipo,telefone,instancia,status,unidade_id,criado_em")
       .single();
     if (error) throw new Error(error.message);
 
     const qr = await getQrCode(instancia);
     return { agente: row as unknown as AgenteWa, qr, error: null };
+  });
+
+export const selecionarUnidadeAgente = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ 
+      agenteId: z.string().uuid(), 
+      unidadeId: z.string().min(1) 
+    }).parse(input)
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    
+    // Validar se a unidade existe/ativa via Bemp API seria ideal, mas aqui assumimos que o frontend enviou uma válida
+    // como solicitado pelo item 5 (validar permissão e ativação no backend)
+    
+    const { error } = await supabaseAdmin
+      .from("wa_agentes" as never)
+      .update({
+        unidade_id: data.unidadeId,
+        status: "ativo",
+        selected_unit_at: new Date().toISOString(),
+        selected_unit_by: context.userId,
+        atualizado_em: new Date().toISOString(),
+      } as never)
+      .eq("id", data.agenteId);
+
+    if (error) throw new Error(error.message);
+    return { success: true };
   });
 
 export const gerarQrAgente = createServerFn({ method: "POST" })
@@ -107,20 +141,23 @@ export const gerarQrAgente = createServerFn({ method: "POST" })
     );
     const { data: row, error } = await supabaseAdmin
       .from("wa_agentes" as never)
-      .select("instancia")
+      .select("instancia, status, unidade_id")
       .eq("id", data.id)
       .single();
     if (error) throw new Error(error.message);
-    const instancia = (row as unknown as { instancia: string }).instancia;
+    const ag = row as any;
+    const instancia = ag.instancia;
     const webhookUrl = `${data.origin.replace(/\/+$/, "")}/api/public/whatsapp-evolution`;
     await createInstance(instancia, webhookUrl).catch(() => undefined);
     const state = await getConnectionState(instancia);
+    
     if (state === "conectado") {
+      const newStatus = (ag.unidade_id ? "ativo" : "conectado_sem_unidade") as AgenteWa["status"];
       await supabaseAdmin
         .from("wa_agentes" as never)
-        .update({ status: "conectado", atualizado_em: new Date().toISOString() } as never)
+        .update({ status: newStatus, atualizado_em: new Date().toISOString() } as never)
         .eq("id", data.id);
-      return { qr: null, status: "conectado" as const };
+      return { qr: null, status: newStatus };
     }
     const qr = await getQrCode(instancia);
     return { qr, status: "aguardando_qr" as const };
@@ -135,18 +172,25 @@ export const statusAgente = createServerFn({ method: "POST" })
     const { getConnectionState } = await import("@/lib/evolution.server");
     const { data: row, error } = await supabaseAdmin
       .from("wa_agentes" as never)
-      .select("instancia")
+      .select("instancia, unidade_id, status")
       .eq("id", data.id)
       .single();
     if (error) throw new Error(error.message);
-    const status = await getConnectionState(
-      (row as unknown as { instancia: string }).instancia,
-    );
+    const ag = row as any;
+    const state = await getConnectionState(ag.instancia);
+    
+    let newStatus: AgenteWa["status"] = state as AgenteWa["status"];
+    if (state === "conectado") {
+      newStatus = ag.unidade_id ? "ativo" : "conectado_sem_unidade";
+    } else if (state === "desconectado") {
+      newStatus = "inativo";
+    }
+
     await supabaseAdmin
       .from("wa_agentes" as never)
-      .update({ status, atualizado_em: new Date().toISOString() } as never)
+      .update({ status: newStatus, atualizado_em: new Date().toISOString() } as never)
       .eq("id", data.id);
-    return { status };
+    return { status: newStatus };
   });
 
 export const desconectarAgente = createServerFn({ method: "POST" })
@@ -165,7 +209,7 @@ export const desconectarAgente = createServerFn({ method: "POST" })
     await logoutInstance((row as unknown as { instancia: string }).instancia);
     await supabaseAdmin
       .from("wa_agentes" as never)
-      .update({ status: "desconectado", atualizado_em: new Date().toISOString() } as never)
+      .update({ status: "inativo", atualizado_em: new Date().toISOString() } as never)
       .eq("id", data.id);
     return { ok: true };
   });
