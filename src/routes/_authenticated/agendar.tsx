@@ -58,6 +58,11 @@ function AgendarPage() {
   const [agentes, setAgentes] = useState<any[]>([]);
   const [page, setPage] = useState(0);
   const [total, setTotal] = useState(0);
+  const [realtimeStatus, setRealtimeStatus] = useState<string>("connecting");
+
+  const selectedPhoneRef = useRef<string | null>(null);
+  const conversationsRef = useRef<WAConversation[]>([]);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
   const fetchConversations = useServerFn(listWAConversations);
   const fetchOneConversation = useServerFn(getWAConversation);
@@ -66,7 +71,9 @@ function AgendarPage() {
   const fnUpdateStatus = useServerFn(updateConversationStatus);
   const fnSendMessage = useServerFn(sendManualWAMessage);
 
-  const bottomRef = useRef<HTMLDivElement>(null);
+  // Sync refs to avoid closure staleness in realtime callbacks
+  useEffect(() => { selectedPhoneRef.current = selectedPhone; }, [selectedPhone]);
+  useEffect(() => { conversationsRef.current = conversations; }, [conversations]);
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedSearch(search), 400);
@@ -99,9 +106,6 @@ function AgendarPage() {
 
       if (agsResultSettle.status === "fulfilled") {
         setAgentes(agsResultSettle.value.items);
-      } else {
-        console.error("Erro ao carregar agentes:", agsResultSettle.reason);
-        // Não mostrar toast se falhar apenas agentes, para não impedir a Caixa de Entrada (Item 7)
       }
     } catch (err) {
       console.error(err);
@@ -115,39 +119,94 @@ function AgendarPage() {
     if (!silent) setLoadingConv(true);
     try {
       const conv = await fetchOneConversation({ data: { phone } });
+      if (!conv) return;
+
       setSelectedConversation(conv);
-      if (conv && conv.unread_count > 0) {
-        fnMarkAsRead({ data: { phone } }).catch(console.error);
+      
+      if (conv.unread_count > 0) {
+        // Mark as read immediately in UI
         setConversations(prev => prev.map(c => c.phone === phone ? { ...c, unread_count: 0 } : c));
+        // Then in backend
+        fnMarkAsRead({ data: { phone } }).catch(console.error);
       }
     } catch (err) {
-      console.error(err);
+      console.error("Erro ao carregar conversa:", err);
     } finally {
       if (!silent) setLoadingConv(false);
     }
   };
 
   useEffect(() => { loadList(); }, [debouncedSearch, statusFilter, instanceFilter, page]);
+  
   useEffect(() => {
     if (selectedPhone) loadConversation(selectedPhone);
     else setSelectedConversation(null);
   }, [selectedPhone]);
 
+  // Realtime subscription
   useEffect(() => {
     const channel = supabase
-      .channel("wa_changes")
-      .on("postgres_changes", { event: "*", schema: "public", table: "wa_conversas" }, (payload) => {
-        const updated = payload.new as any;
-        if (selectedPhone && selectedPhone === updated.phone) loadConversation(selectedPhone, true);
-        loadList(true);
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [selectedPhone]);
+      .channel("wa-conversas-inbox")
+      .on(
+        "postgres_changes", 
+        { event: "*", schema: "public", table: "wa_conversas" }, 
+        (payload) => {
+          const updated = (payload.new || payload.old) as any;
+          console.log("Realtime event received:", payload.eventType, updated?.phone);
+          if (!updated || !updated.phone) return;
 
+          // 1. Update the conversation list
+          setConversations(prev => {
+            const exists = prev.find(c => c.phone === updated.phone);
+            let newList = [...prev];
+            
+            if (exists) {
+              newList = prev.map(c => c.phone === updated.phone ? { ...c, ...updated } : c);
+            } else {
+              // Only add if it matches current filters (simplified: always add if on page 0)
+              if (page === 0) {
+                newList = [updated as WAConversation, ...prev];
+              }
+            }
+            
+            // Re-sort by updated_at
+            return newList.sort((a, b) => 
+              new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+            );
+          });
+
+          // 2. Update the open conversation if it matches
+          if (selectedPhoneRef.current === updated.phone) {
+            // We need the full history, so we fetch it
+            fetchOneConversation({ data: { phone: updated.phone } })
+              .then(fullConv => {
+                if (fullConv && selectedPhoneRef.current === updated.phone) {
+                  setSelectedConversation(fullConv);
+                  // Auto mark as read if it's the open conversation and has unread
+                  if (fullConv.unread_count > 0) {
+                    fnMarkAsRead({ data: { phone: updated.phone } }).catch(() => {});
+                    setConversations(p => p.map(c => c.phone === updated.phone ? { ...c, unread_count: 0 } : c));
+                  }
+                }
+              })
+              .catch(err => console.error("Error refreshing open conversation:", err));
+          }
+        }
+      )
+      .subscribe((status) => {
+        setRealtimeStatus(status);
+        console.log("Realtime channel status:", status);
+      });
+
+    return () => { supabase.removeChannel(channel); };
+  }, [page]); // Re-subscribe only on page change if needed, otherwise stable
+
+  // Auto-scroll on new messages
   useEffect(() => {
-    if (bottomRef.current) bottomRef.current.scrollIntoView({ behavior: "smooth" });
-  }, [selectedConversation?.messages.length]);
+    if (bottomRef.current) {
+      bottomRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
+  }, [selectedConversation?.messages?.length]);
 
   const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -186,7 +245,12 @@ function AgendarPage() {
   return (
     <div className="container mx-auto p-4 max-w-7xl h-[calc(100vh-100px)] flex flex-col gap-4">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold tracking-tight">Secretária Virtual</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold tracking-tight">Secretária Virtual</h1>
+          <Badge variant="outline" className={`text-[10px] ${realtimeStatus === 'SUBSCRIBED' ? 'text-green-600 border-green-200 bg-green-50' : 'text-amber-600 border-amber-200 bg-amber-50'}`}>
+            {realtimeStatus === 'SUBSCRIBED' ? '● Tempo Real Ativo' : '○ Conectando...'}
+          </Badge>
+        </div>
         <Button variant="outline" size="sm" onClick={() => loadList()}><RefreshCcw className="h-4 w-4 mr-2" /> Atualizar</Button>
       </div>
       <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
