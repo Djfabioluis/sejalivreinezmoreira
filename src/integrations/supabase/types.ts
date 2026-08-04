@@ -641,6 +641,7 @@ export type Database = {
         Row: {
           agent_id: string | null
           contact_name: string | null
+          customer_context: Json | null
           instance: string | null
           last_read_at: string | null
           messages: Json
@@ -654,6 +655,7 @@ export type Database = {
         Insert: {
           agent_id?: string | null
           contact_name?: string | null
+          customer_context?: Json | null
           instance?: string | null
           last_read_at?: string | null
           messages?: Json
@@ -667,6 +669,7 @@ export type Database = {
         Update: {
           agent_id?: string | null
           contact_name?: string | null
+          customer_context?: Json | null
           instance?: string | null
           last_read_at?: string | null
           messages?: Json
