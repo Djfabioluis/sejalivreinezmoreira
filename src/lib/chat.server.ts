@@ -1071,7 +1071,7 @@ function currentDateNote(): string {
     hour: "2-digit",
     minute: "2-digit",
   }).format(now);
-  return `\n\nCONTEXTO TEMPORAL (fuso America/Sao_Paulo):\n- Hoje é ${humano} (${iso}), ${hora}.\n- SEMPRE use o ano ${iso.slice(0, 4)} ao montar datas para list_slots e create_appointment.\n- Quando o cliente disser "amanhã", "sexta", "próxima semana" etc., calcule a partir de ${iso}.\n- Nunca use datas de anos anteriores; se o ano não for informado, assuma o ano corrente e, se a data já passou, use o próximo ano.`;
+  return `\n\nCONTEXTO TEMPORAL (fuso America/Sao_Paulo):\n- Hoje é ${humano} (${iso}), ${hora}.\n- SEMPRE use o ano ${iso.slice(0, 4)} ao montar datas para list_slots e create_appointment.\n- Quando o cliente disser "amanhã", "sexta", "próxima semana" etc., calcule a partir de ${iso}.\n- Nunca use datas de anos anteriores; se o ano não for informado, assuma o ano corrente e, se a data já passou, use o próximo ano.\n- NÃO pergunte o telefone, ele já é conhecido.`;
 }
 
 const LANGUAGE_GUARD = `\n\nREFORÇO DE ESCRITA (obrigatório):\n- Escreva em português brasileiro correto, sem engolir letras nem trocar verbos parecidos.\n- Ao pedir o nome do cliente, use exatamente a frase "como posso te chamar?". Nunca escreva "te ligar", "te chegar", "te chamo" ou variações estranhas.\n- Nunca troque "chamar" por "ligar", "ajudar" por "ajeitar", "marcar" por "mandar", "confirmar" por "conformar" — releia mentalmente cada frase antes de enviar.\n- Se perceber uma palavra estranha ou incompleta, reescreva a frase inteira antes de responder.`;
@@ -1080,12 +1080,36 @@ const NO_DURATION_GUARD = `\n\nREGRA FINAL DE SAÍDA AO CLIENTE (obrigatória):\
 
 export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = {}) {
   const sandbox = opts.sandbox === true || envSandbox();
-  const system = (await loadSystemPrompt()) + currentDateNote() + LANGUAGE_GUARD + NO_DURATION_GUARD + (sandbox ? SANDBOX_NOTE : "");
+  
+  const contactInfo = `\n\nDADOS DO CONTATO:\n- Nome conhecido: ${opts.contactName || "não identificado"}\n- Telefone: ${opts.contactPhone || "não identificado"}`;
+  
+  let contextSummary = "Nenhum dado registrado ainda.";
+  if (opts.customerContext && Object.keys(opts.customerContext).length > 0) {
+    const ctx = opts.customerContext;
+    contextSummary = `
+- Serviço: ${ctx.requestedService || "não informado"}
+- Profissional: ${ctx.preferredProfessional || "não informado"}
+- Data: ${ctx.preferredDate || "não informada"}
+- Horário: ${ctx.preferredTime || "não informado"}
+- Nome Confirmado: ${ctx.name || "não informado"}
+- Etapa: ${ctx.currentStep || "início"}
+`.trim();
+  }
+
+  const basePrompt = await loadSystemPrompt();
+  const system = basePrompt.replace("{{customer_context_summary}}", contextSummary) + 
+                 currentDateNote() + 
+                 LANGUAGE_GUARD + 
+                 NO_DURATION_GUARD + 
+                 contactInfo +
+                 (sandbox ? SANDBOX_NOTE : "") +
+                 (opts.persona ? `\n\n${opts.persona}` : "");
+
   return streamText({
     model: getModel(),
     system,
     messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
-    tools: buildTools(sandbox, null),
+    tools: buildTools(sandbox, opts.unidadeId),
     stopWhen: stepCountIs(50),
   });
 }
