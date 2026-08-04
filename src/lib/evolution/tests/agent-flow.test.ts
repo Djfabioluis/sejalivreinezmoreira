@@ -30,7 +30,7 @@ describe("agent.server.ts - runAgentFlow", () => {
 
   it("deve chamar runAgentWithLogging quando o agente é encontrado e ativo", async () => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    (supabaseAdmin.maybeSingle as any).mockResolvedValue({
+    ((supabaseAdmin as any).maybeSingle as any).mockResolvedValue({
       data: { id: "agent-1", status: "ativo", unidade_id: "unit-1" },
       error: null
     });
