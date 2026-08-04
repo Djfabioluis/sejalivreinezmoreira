@@ -52,15 +52,32 @@ function LandingPage() {
   const [selectedPrice, setSelectedPrice] = useState<string | null>(null);
 
   useEffect(() => {
+    // Retoma o destino pretendido salvo antes do login social (redirect_uri é a origem pública).
+    const resumeNext = () => {
+      try {
+        const stored = sessionStorage.getItem("auth:next");
+        if (!stored) return false;
+        sessionStorage.removeItem("auth:next");
+        if (!stored.startsWith("/") || stored.startsWith("//") || stored === "/") return false;
+        window.location.replace(stored);
+        return true;
+      } catch {
+        return false;
+      }
+    };
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session)
+      if (data.session) {
+        if (resumeNext()) return;
         setSession({ email: data.session.user.email ?? undefined });
+      }
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      if (s && resumeNext()) return;
       setSession(s ? { email: s.user.email ?? undefined } : null);
     });
     return () => sub.subscription.unsubscribe();
   }, []);
+
 
   function handleSubscribe(priceId: string) {
     if (!session) {
