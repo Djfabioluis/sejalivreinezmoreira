@@ -3,7 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const EVOLUTION_SETTINGS_ID = 5; // ID na tabela base_conhecimento
+const EVOLUTION_SETTINGS_ID = 20; // ID na tabela base_conhecimento (movido do 5 para evitar conflito com health check)
 
 export type EvolutionConfig = {
   url: string;
