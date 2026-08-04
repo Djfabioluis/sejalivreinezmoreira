@@ -60,6 +60,39 @@ function safeTool<T>(label: string, fn: () => Promise<T>) {
 
 function buildTools(sandbox: boolean, forcedUnitId?: string | null) {
   const base: Record<string, any> = {
+    // Sempre disponível (mesmo com unidade fixa): usada apenas para INFORMAR
+    // quantas/quais unidades ativas existem, com endereço.
+    list_units_info: tool({
+      description:
+        "Use quando o cliente perguntar quantas unidades existem, quais são as unidades/lojas/endereços. Retorna as unidades ativas na Bemp com endereço. NÃO use para trocar a unidade do agendamento.",
+      inputSchema: z.object({}),
+      execute: async () =>
+        safeTool("list_units_info", async () => {
+          const cfg = await getBempConfig();
+          const raw: any = await bempFetch(`${cfg.apiBase}/salons`);
+          const arr: any[] = Array.isArray(raw) ? raw : (raw?.data ?? raw?.salons ?? []);
+          const active = arr.filter((s) => {
+            const flag = s?.active ?? s?.ativo ?? s?.is_active ?? s?.status;
+            if (flag === undefined || flag === null) return true;
+            if (typeof flag === "string") return !/inativ|disabled|false|0/i.test(flag);
+            return Boolean(flag);
+          });
+          const units = active.map((s) => {
+            const addr =
+              s?.address ??
+              s?.endereco ??
+              [s?.street ?? s?.logradouro, s?.number ?? s?.numero, s?.neighborhood ?? s?.bairro, s?.city ?? s?.cidade, s?.state ?? s?.uf]
+                .filter(Boolean)
+                .join(", ");
+            return {
+              id: s?.id,
+              nome: s?.name ?? s?.nome ?? s?.title,
+              endereco: typeof addr === "string" ? addr : JSON.stringify(addr),
+            };
+          });
+          return { total: units.length, unidades: units };
+        }),
+    }),
     ...(forcedUnitId
       ? {}
       : {
@@ -73,6 +106,7 @@ function buildTools(sandbox: boolean, forcedUnitId?: string | null) {
               }),
           }),
         }),
+
     list_services: tool({
       description: "Lista serviços de uma unidade, com preço e duração.",
       inputSchema: z.object({ salon_id: z.number().optional() }),
