@@ -1038,6 +1038,7 @@ export type AgentOptions = {
   sandbox?: boolean; 
   persona?: string; 
   unidadeId?: string | null;
+  unitName?: string | null;
   contactName?: string | null;
   contactPhone?: string | null;
   customerContext?: any;
@@ -1087,8 +1088,16 @@ const NO_DURATION_GUARD = `\n\nREGRA FINAL DE SAÍDA AO CLIENTE (obrigatória):\
 export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = {}) {
   const sandbox = opts.sandbox === true || envSandbox();
   
+  // 1. Contexto de Unidade
+  let unitContext = "";
+  if (opts.unidadeId) {
+    unitContext = `\n\nUNIDADE: ID ${opts.unidadeId}${opts.unitName ? ` (${opts.unitName})` : ""}.`;
+  }
+
+  // 2. Dados Confiáveis do Contato
   const contactInfo = `\n\nDADOS DO CONTATO:\n- Nome conhecido: ${opts.contactName || "não identificado"}\n- Telefone: ${opts.contactPhone || "não identificado"}`;
   
+  // 3. Resumo do Contexto Estruturado (customer_context)
   let contextSummary = "Nenhum dado registrado ainda.";
   if (opts.customerContext && Object.keys(opts.customerContext).length > 0) {
     const ctx = opts.customerContext;
@@ -1103,13 +1112,21 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
   }
 
   const basePrompt = await loadSystemPrompt();
-  const system = basePrompt.replace("{{customer_context_summary}}", contextSummary) + 
-                 currentDateNote() + 
-                 LANGUAGE_GUARD + 
-                 NO_DURATION_GUARD + 
-                 contactInfo +
-                 (sandbox ? SANDBOX_NOTE : "") +
-                 (opts.persona ? `\n\n${opts.persona}` : "");
+  
+  // Injetar dados conhecidos no prompt base se as chaves existirem
+  let system = basePrompt.replace("{{contactName}}", opts.contactName || "não identificado")
+    .replace("{{contactPhone}}", opts.contactPhone || "não identificado")
+    .replace("{{unitName}}", opts.unitName || "não vinculada")
+    .replace("{{customer_context_summary}}", contextSummary);
+
+  system = system + 
+           currentDateNote() + 
+           LANGUAGE_GUARD + 
+           NO_DURATION_GUARD + 
+           unitContext +
+           contactInfo +
+           (sandbox ? SANDBOX_NOTE : "") +
+           (opts.persona ? `\n\n${opts.persona}` : "");
 
   return streamText({
     model: getModel(),
@@ -1127,7 +1144,7 @@ export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {})
   // 1. Contexto de Unidade
   let unitContext = "";
   if (opts.unidadeId) {
-    unitContext = `\n\nUNIDADE: ID ${opts.unidadeId}.`;
+    unitContext = `\n\nUNIDADE: ID ${opts.unidadeId}${opts.unitName ? ` (${opts.unitName})` : ""}.`;
   }
 
   // 2. Dados Confiáveis do Contato
@@ -1148,21 +1165,28 @@ export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {})
   }
 
   const basePrompt = await loadSystemPrompt();
-  const fullSystem = basePrompt.replace("{{customer_context_summary}}", contextSummary) + 
-                     currentDateNote() + 
-                     LANGUAGE_GUARD + 
-                     NO_DURATION_GUARD + 
-                     unitContext + 
-                     contactInfo + 
-                     (sandbox ? SANDBOX_NOTE : "") + 
-                     (opts.persona ? `\n\n${opts.persona}` : "");
+  
+  // Injetar dados conhecidos no prompt base se as chaves existirem
+  let fullSystem = basePrompt.replace("{{contactName}}", opts.contactName || "não identificado")
+    .replace("{{contactPhone}}", opts.contactPhone || "não identificado")
+    .replace("{{unitName}}", opts.unitName || "não vinculada")
+    .replace("{{customer_context_summary}}", contextSummary);
+
+  fullSystem = fullSystem + 
+               currentDateNote() + 
+               LANGUAGE_GUARD + 
+               NO_DURATION_GUARD + 
+               unitContext + 
+               contactInfo + 
+               (sandbox ? SANDBOX_NOTE : "") + 
+               (opts.persona ? `\n\n${opts.persona}` : "");
 
   const result = await generateText({
     model: getModel(),
     system: fullSystem,
     messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
     tools: buildTools(sandbox, opts.unidadeId),
-    stopWhen: stepCountIs(50),
+    maxSteps: 5,
   });
 
   return sanitizeCustomerText(result.text?.trim() || "Desculpe, tive um probleminha aqui. Pode repetir?");
