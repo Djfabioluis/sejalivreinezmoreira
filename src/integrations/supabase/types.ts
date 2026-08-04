@@ -164,6 +164,42 @@ export type Database = {
         }
         Relationships: []
       }
+      evo_webhook_logs: {
+        Row: {
+          created_at: string | null
+          duration_ms: number | null
+          error_detail: string | null
+          event: string
+          id: string
+          instance: string
+          message_id: string | null
+          payload: Json | null
+          status: string
+        }
+        Insert: {
+          created_at?: string | null
+          duration_ms?: number | null
+          error_detail?: string | null
+          event: string
+          id?: string
+          instance: string
+          message_id?: string | null
+          payload?: Json | null
+          status: string
+        }
+        Update: {
+          created_at?: string | null
+          duration_ms?: number | null
+          error_detail?: string | null
+          event?: string
+          id?: string
+          instance?: string
+          message_id?: string | null
+          payload?: Json | null
+          status?: string
+        }
+        Relationships: []
+      }
       leads_assinatura: {
         Row: {
           cpf: string | null
