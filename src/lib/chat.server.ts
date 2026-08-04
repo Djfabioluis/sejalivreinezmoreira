@@ -1134,7 +1134,9 @@ export function mandatoryOperationalRules(opts: {
     lines.push(
       `- A unidade de atendimento é FIXA: ${opts.unitName || `Unidade vinculada ID ${opts.unidadeId}`} (ID ${opts.unidadeId}).`,
       "- É PROIBIDO perguntar ou sugerir a troca de unidade para o agendamento. Não chame list_salons (ela não está disponível).",
-      "- EXCEÇÃO INFORMATIVA: se o cliente perguntar quantas unidades existem, quais são as unidades/lojas ou pedir endereços, chame list_units_info e informe as unidades ATIVAS com o endereço de cada uma, uma por linha no formato \"• <Nome> — <Endereço>\". Em seguida lembre que o atendimento por este WhatsApp é feito na unidade <NOME DA UNIDADE FIXA> e siga o agendamento nela.",
+      "- EXCEÇÃO INFORMATIVA (OBRIGATÓRIA): se o cliente perguntar quantas unidades existem, quais são as unidades/lojas, os endereços das OUTRAS unidades ou os telefones, você DEVE responder com as informações completas de TODAS as unidades. Chame list_units_info e informe as unidades ATIVAS com o endereço de cada uma, uma por linha no formato \"• <Nome> — <Endereço>\". Em seguida lembre que o agendamento por este WhatsApp é feito na unidade <NOME DA UNIDADE FIXA>.",
+      "- É PROIBIDO responder que \"o atendimento por aqui é exclusivo desta unidade\" como forma de NEGAR endereços, telefones ou a lista de unidades. A restrição de unidade vale apenas para o AGENDAMENTO, nunca para informações de localização e contato.",
+
 
     );
   }
