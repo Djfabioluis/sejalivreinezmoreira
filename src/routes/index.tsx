@@ -55,9 +55,9 @@ function LandingPage() {
     // Retoma o destino pretendido salvo antes do login social (redirect_uri é a origem pública).
     const resumeNext = () => {
       try {
-        const stored = sessionStorage.getItem("auth:next");
+        const stored = localStorage.getItem("auth:next");
         if (!stored) return false;
-        sessionStorage.removeItem("auth:next");
+        localStorage.removeItem("auth:next");
         if (!stored.startsWith("/") || stored.startsWith("//") || stored === "/") return false;
         window.location.replace(stored);
         return true;
@@ -65,10 +65,10 @@ function LandingPage() {
         return false;
       }
     };
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) {
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) {
         if (resumeNext()) return;
-        setSession({ email: data.session.user.email ?? undefined });
+        setSession({ email: data.user.email ?? undefined });
       }
     });
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
