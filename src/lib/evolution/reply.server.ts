@@ -39,15 +39,10 @@ export async function replyToUser(params: {
     status: typingSent ? "success" : "failed",
   });
 
-  // Pequena pausa para parecer natural.
-  await new Promise((resolve) => setTimeout(resolve, typingMs));
+  // 9. ENVIO PELA EVOLUTION — o próprio sendText mantém "digitando…" durante `typingMs`
+  // (fallback caso o endpoint de presença não esteja disponível na instância).
+  const sent = await sendEvolutionText(params.instance, params.phone, params.text, typingMs);
 
-  // Encerra a presença de digitação antes de enviar a mensagem.
-  await sendEvolutionPresence(params.instance, params.phone, "paused", 0).catch(() => false);
-
-
-  // 9. ENVIO PELA EVOLUTION
-  const sent = await sendEvolutionText(params.instance, params.phone, params.text);
 
   if (sent) {
     await logEvent({ 
