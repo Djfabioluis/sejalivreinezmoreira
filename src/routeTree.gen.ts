@@ -39,6 +39,7 @@ import { Route as ApiPublicWhatsappEvolutionRouteImport } from './routes/api/pub
 import { Route as ApiPublicWhatsappRouteImport } from './routes/api/public/whatsapp'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
+import { Route as ApiPublicWhatsappEvolutionHealthRouteImport } from './routes/api/public/whatsapp-evolution/health'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicHooksWhatsappHealthRouteImport } from './routes/api/public/hooks/whatsapp-health'
 import { Route as ApiPublicHooksLembretesRouteImport } from './routes/api/public/hooks/lembretes'
@@ -201,6 +202,12 @@ const DotlovableOauthConsentRoute = DotlovableOauthConsentRouteImport.update({
   path: '/.lovable/oauth/consent',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicWhatsappEvolutionHealthRoute =
+  ApiPublicWhatsappEvolutionHealthRouteImport.update({
+    id: '/health',
+    path: '/health',
+    getParentRoute: () => ApiPublicWhatsappEvolutionRoute,
+  } as any)
 const ApiPublicPaymentsWebhookRoute =
   ApiPublicPaymentsWebhookRouteImport.update({
     id: '/api/public/payments/webhook',
@@ -248,10 +255,11 @@ export interface FileRoutesByFullPath {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/public/whatsapp': typeof ApiPublicWhatsappRoute
-  '/api/public/whatsapp-evolution': typeof ApiPublicWhatsappEvolutionRoute
+  '/api/public/whatsapp-evolution': typeof ApiPublicWhatsappEvolutionRouteWithChildren
   '/api/public/hooks/lembretes': typeof ApiPublicHooksLembretesRoute
   '/api/public/hooks/whatsapp-health': typeof ApiPublicHooksWhatsappHealthRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/api/public/whatsapp-evolution/health': typeof ApiPublicWhatsappEvolutionHealthRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -282,10 +290,11 @@ export interface FileRoutesByTo {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/public/whatsapp': typeof ApiPublicWhatsappRoute
-  '/api/public/whatsapp-evolution': typeof ApiPublicWhatsappEvolutionRoute
+  '/api/public/whatsapp-evolution': typeof ApiPublicWhatsappEvolutionRouteWithChildren
   '/api/public/hooks/lembretes': typeof ApiPublicHooksLembretesRoute
   '/api/public/hooks/whatsapp-health': typeof ApiPublicHooksWhatsappHealthRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/api/public/whatsapp-evolution/health': typeof ApiPublicWhatsappEvolutionHealthRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -318,10 +327,11 @@ export interface FileRoutesById {
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/public/whatsapp': typeof ApiPublicWhatsappRoute
-  '/api/public/whatsapp-evolution': typeof ApiPublicWhatsappEvolutionRoute
+  '/api/public/whatsapp-evolution': typeof ApiPublicWhatsappEvolutionRouteWithChildren
   '/api/public/hooks/lembretes': typeof ApiPublicHooksLembretesRoute
   '/api/public/hooks/whatsapp-health': typeof ApiPublicHooksWhatsappHealthRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
+  '/api/public/whatsapp-evolution/health': typeof ApiPublicWhatsappEvolutionHealthRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -358,6 +368,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/lembretes'
     | '/api/public/hooks/whatsapp-health'
     | '/api/public/payments/webhook'
+    | '/api/public/whatsapp-evolution/health'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -392,6 +403,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/lembretes'
     | '/api/public/hooks/whatsapp-health'
     | '/api/public/payments/webhook'
+    | '/api/public/whatsapp-evolution/health'
   id:
     | '__root__'
     | '/'
@@ -427,6 +439,7 @@ export interface FileRouteTypes {
     | '/api/public/hooks/lembretes'
     | '/api/public/hooks/whatsapp-health'
     | '/api/public/payments/webhook'
+    | '/api/public/whatsapp-evolution/health'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -443,7 +456,7 @@ export interface RootRouteChildren {
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicWhatsappRoute: typeof ApiPublicWhatsappRoute
-  ApiPublicWhatsappEvolutionRoute: typeof ApiPublicWhatsappEvolutionRoute
+  ApiPublicWhatsappEvolutionRoute: typeof ApiPublicWhatsappEvolutionRouteWithChildren
   ApiPublicHooksLembretesRoute: typeof ApiPublicHooksLembretesRoute
   ApiPublicHooksWhatsappHealthRoute: typeof ApiPublicHooksWhatsappHealthRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
@@ -661,6 +674,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DotlovableOauthConsentRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/whatsapp-evolution/health': {
+      id: '/api/public/whatsapp-evolution/health'
+      path: '/health'
+      fullPath: '/api/public/whatsapp-evolution/health'
+      preLoaderRoute: typeof ApiPublicWhatsappEvolutionHealthRouteImport
+      parentRoute: typeof ApiPublicWhatsappEvolutionRoute
+    }
     '/api/public/payments/webhook': {
       id: '/api/public/payments/webhook'
       path: '/api/public/payments/webhook'
@@ -727,6 +747,21 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface ApiPublicWhatsappEvolutionRouteChildren {
+  ApiPublicWhatsappEvolutionHealthRoute: typeof ApiPublicWhatsappEvolutionHealthRoute
+}
+
+const ApiPublicWhatsappEvolutionRouteChildren: ApiPublicWhatsappEvolutionRouteChildren =
+  {
+    ApiPublicWhatsappEvolutionHealthRoute:
+      ApiPublicWhatsappEvolutionHealthRoute,
+  }
+
+const ApiPublicWhatsappEvolutionRouteWithChildren =
+  ApiPublicWhatsappEvolutionRoute._addFileChildren(
+    ApiPublicWhatsappEvolutionRouteChildren,
+  )
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
@@ -742,7 +777,7 @@ const rootRouteChildren: RootRouteChildren = {
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicWhatsappRoute: ApiPublicWhatsappRoute,
-  ApiPublicWhatsappEvolutionRoute: ApiPublicWhatsappEvolutionRoute,
+  ApiPublicWhatsappEvolutionRoute: ApiPublicWhatsappEvolutionRouteWithChildren,
   ApiPublicHooksLembretesRoute: ApiPublicHooksLembretesRoute,
   ApiPublicHooksWhatsappHealthRoute: ApiPublicHooksWhatsappHealthRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,

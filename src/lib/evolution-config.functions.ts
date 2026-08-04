@@ -8,6 +8,7 @@ const EVOLUTION_SETTINGS_ID = 20; // ID na tabela base_conhecimento (movido do 5
 export type EvolutionConfig = {
   url: string;
   apiKey: string;
+  webhookSecret?: string;
 };
 
 async function readEvolutionConfigFromDb(): Promise<EvolutionConfig | null> {
@@ -28,6 +29,7 @@ async function readEvolutionConfigFromDb(): Promise<EvolutionConfig | null> {
       return {
         url: parsed.url,
         apiKey: parsed.apiKey,
+        webhookSecret: parsed.webhookSecret,
       };
     }
     return null;
@@ -48,6 +50,7 @@ export const getEvolutionSettings = createServerFn({ method: "GET" })
     return {
       url: process.env.EVOLUTION_API_URL || "",
       apiKey: process.env.EVOLUTION_API_KEY ? "••••••••" : "",
+      webhookSecret: process.env.EVOLUTION_WEBHOOK_SECRET ? "••••••••" : "",
       source: "env",
     };
   });
@@ -55,15 +58,15 @@ export const getEvolutionSettings = createServerFn({ method: "GET" })
 export const saveEvolutionSettings = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => {
-    const raw = input as { url?: unknown; apiKey?: unknown };
+    const raw = input as { url?: unknown; apiKey?: unknown; webhookSecret?: unknown };
     // Aceita "meu-servidor.com" ou "http://..." e normaliza para https://
     let url = typeof raw?.url === "string" ? raw.url.trim().replace(/\/+$/, "") : "";
     if (url && !/^https?:\/\//i.test(url)) url = `https://${url}`;
     return z
       .object({
         url: z.string().url("URL inválida"),
-
         apiKey: z.string().trim().min(5, "API Key obrigatória"),
+        webhookSecret: z.string().trim().optional(),
       })
       .parse({ ...raw, url });
   })
@@ -80,6 +83,7 @@ export const saveEvolutionSettings = createServerFn({ method: "POST" })
         conteudo: JSON.stringify({
           url: data.url.replace(/\/+$/, ""),
           apiKey: data.apiKey,
+          webhookSecret: data.webhookSecret,
         }),
         updated_at: new Date().toISOString(),
       } as never);
