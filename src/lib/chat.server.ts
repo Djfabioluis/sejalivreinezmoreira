@@ -1177,6 +1177,17 @@ export async function runAgentWithLogging(params: {
 
     const unitName = (unit as any)?.nome || "Unidade não identificada";
 
+    const historyMessages: UIMessage[] = (historyData?.messages || [])
+      .filter((m: any) => {
+        const text = Array.isArray(m.parts) ? m.parts.map((p: any) => p.text).join(" ").trim() : String(m.parts || "").trim();
+        return text.length > 0;
+      })
+      .map((m: any) => ({
+        id: m.id,
+        role: m.role,
+        parts: Array.isArray(m.parts) ? m.parts : [{ type: "text", text: String(m.parts || "") }],
+      } as any));
+
     await logEvent({
       instance,
       messageId,
@@ -1186,29 +1197,20 @@ export async function runAgentWithLogging(params: {
         contactNameAvailable: !!pushName || !!historyData?.contact_name,
         contactPhoneAvailable: !!phone,
         unitAvailable: !!unidadeId,
-        historyCount: (historyData?.messages as any[])?.length || 0,
+        historyCount: historyMessages.length,
         currentMessageAvailable: !!params.text
       }
     });
 
     await logEvent({ instance, messageId, event: "ai_request_started", status: "started" });
 
-    // Preparar mensagens para a IA
-    const historyMessages: UIMessage[] = (historyData?.messages || []).map((m: any) => ({
-      id: m.id,
-      role: m.role,
-      parts: Array.isArray(m.parts) ? m.parts : [{ type: "text", text: String(m.parts || "") }],
-      content: Array.isArray(m.parts) ? m.parts.map((p: any) => p.text).join(" ") : String(m.parts || ""),
-    } as UIMessage));
-
     // Injetar mensagem atual se não estiver no histórico
     if (!historyMessages.find(m => m.id === messageId)) {
       historyMessages.push({ 
         id: messageId, 
         role: "user", 
-        content: params.text,
         parts: [{ type: "text", text: params.text }]
-      } as UIMessage);
+      } as any);
     }
 
     const reply = await runAgent(historyMessages, {
