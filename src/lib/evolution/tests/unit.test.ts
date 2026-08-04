@@ -78,6 +78,7 @@ describe("Evolution Library Unit Tests", () => {
       ];
       const result = normalizeConversationHistory(raw, "hi");
       expect(result).toHaveLength(1);
+      expect(result[0].parts[0].text).toBe("hi");
     });
   });
 });
