@@ -126,7 +126,7 @@ function AgendarPage() {
       .channel("wa_changes")
       .on("postgres_changes", { event: "*", schema: "public", table: "wa_conversas" }, (payload) => {
         const updated = payload.new as any;
-        if (selectedPhone === updated.phone) loadConversation(selectedPhone, true);
+        if (selectedPhone && selectedPhone === updated.phone) loadConversation(selectedPhone, true);
         loadList(true);
       })
       .subscribe();
