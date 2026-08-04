@@ -96,17 +96,24 @@ function AuthPage() {
   async function signInGoogle() {
     setBusy(true);
     try {
+      try {
+        sessionStorage.setItem(NEXT_KEY, target);
+      } catch {
+        /* sessionStorage indisponível */
+      }
+      // redirect_uri deve ser uma URL pública same-origin (nunca rota protegida).
       const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: `${window.location.origin}${target}`,
+        redirect_uri: window.location.origin,
       });
       if (result.error) throw result.error;
       if (result.redirected) return;
-      window.location.replace(target);
+      // Sessão definida: o listener onAuthStateChange faz a navegação.
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Falha no Google");
       setBusy(false);
     }
   }
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
