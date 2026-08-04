@@ -187,6 +187,26 @@ export async function sendEvolutionText(
   return res.ok;
 }
 
+/**
+ * Ativa o indicador nativo "digitando…" do WhatsApp (presença composing/paused).
+ * Não envia mensagem visível: o cliente vê "digitando..." no topo da conversa.
+ */
+export async function sendEvolutionPresence(
+  instance: string,
+  to: string,
+  presence: "composing" | "paused" | "recording" = "composing",
+  delayMs = 3000,
+): Promise<boolean> {
+  const number = to.replace(/\D/g, "");
+  const res = await evoFetch(`/chat/sendPresence/${encodeURIComponent(instance)}`, {
+    method: "POST",
+    body: { number, delay: delayMs, presence },
+  });
+  if (!res.ok)
+    console.error("[evolution] presença falhou:", res.status, res.text.slice(0, 200));
+  return res.ok;
+}
+
 export async function sendEvolutionAudio(
   instance: string,
   to: string,
