@@ -29,7 +29,9 @@ export function normalizeContactName(pushName: string | null | undefined): strin
  * Constrói a chave única da conversa: instancia:telefone
  */
 export function buildConversationKey(instance: string, normalizedPhone: string): string {
-  return `${instance.trim()}:${normalizedPhone.trim()}`;
+  const cleanInstance = (instance || "unknown").trim();
+  const cleanPhone = (normalizedPhone || "unknown").trim();
+  return `${cleanInstance}:${cleanPhone}`;
 }
 
 /**
