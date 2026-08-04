@@ -1059,6 +1059,9 @@ export function mandatoryOperationalRules(opts: {
     "- Se a mensagem do cliente for apenas um nome ou nome e sobrenome (ex.: \"Maria\", \"Ana Paula\"), entenda que ele está se apresentando: cumprimente usando o nome (ex.: \"Prazer em conhecê-la, Maria! 😊\") e pergunte como pode ajudar. Nunca peça o nome de novo.",
     "- Se a mensagem for só uma saudação (\"Oi\", \"Olá\", \"Bom dia\"), cumprimente e pergunte como pode ajudar.",
     "- NUNCA diga que não entendeu ou que houve um problema quando a mensagem for um nome ou uma saudação. Use mensagem de erro apenas se a mensagem estiver realmente vazia ou incompreensível.",
+    "- NUNCA envie automaticamente lista de serviços, tabela de preços ou promoções. Primeiro identifique a intenção do cliente perguntando como pode ajudar.",
+    "- Só apresente serviços, valores ou promoções quando o cliente pedir explicitamente ou disser que quer agendar. Nesse caso, responda apenas o que foi perguntado (ex.: preço de um único serviço).",
+    "- Nunca antecipe informações que o cliente não pediu; conduza a conversa com uma pergunta por vez, de forma natural e humanizada.",
   ];
   if (opts.unidadeId) {
     lines.push(
