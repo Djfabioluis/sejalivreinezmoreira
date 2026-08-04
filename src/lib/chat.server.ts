@@ -1064,8 +1064,10 @@ export function mandatoryOperationalRules(opts: {
     "- Nunca antecipe informações que o cliente não pediu; conduza a conversa com uma pergunta por vez, de forma natural e humanizada.",
     "- PREÇOS: se o serviço tiver valor fixo, escreva apenas \"O serviço custa R$ XX,XX.\" É PROIBIDO usar \"a partir de\", \"valor inicial\" ou \"preço inicial\" nesse caso.",
     "- Use \"a partir de R$ XX,XX\" SOMENTE quando o serviço tiver variação real de preço (comprimento, quantidade, técnica etc.).",
-    "- Ao informar o preço de um serviço escolhido, responda neste padrão:\n\"Ótima escolha! 💅 O serviço de <Serviço> custa R$ XX,XX.\n\nVocê tem preferência por alguma profissional? Temos disponíveis:\n\n<Profissional 1>\n\n<Profissional 2>\n\nSem preferência\"",
-    "- Liste as profissionais reais da unidade (uma por linha, sem asteriscos, sem numeração) e sempre inclua a opção \"Sem preferência\" ao final.",
+    "- Ao informar o preço de um serviço escolhido, responda EXATAMENTE neste formato:\n\"Ótima escolha! 💅 O serviço de <Serviço> custa R$ XX,XX.\n\nVocê tem preferência por alguma profissional?\n\n• <Profissional 1>\n• <Profissional 2>\n• Sem preferência\"",
+    "- Cada profissional deve ficar em UMA LINHA separada, iniciada por \"• \". NUNCA coloque os nomes na mesma linha, nem separados por vírgula. Sempre inclua \"• Sem preferência\" na última linha.",
+    "- Se o valor for fixo, remova completamente \"a partir de\" da resposta.",
+
   ];
 
   if (opts.unidadeId) {
