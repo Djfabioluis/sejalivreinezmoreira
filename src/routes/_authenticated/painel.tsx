@@ -9,8 +9,8 @@ import {
   listProfessionals,
   listSlots,
   listCustomerAppointments,
+  cancelAppointment,
 } from "@/lib/bemp.functions";
-import { cancelAppointment } from "@/lib/bemp-appointments.functions";
 import {
   listLeadsAssinatura,
   updateLeadStatus,
@@ -21,11 +21,12 @@ import {
   createAgente,
   deleteAgente,
   getQrCode,
-} from "@/lib/evolution.functions";
+} from "@/lib/agentes-whatsapp.functions";
 import {
   getEvolutionSettings,
   saveEvolutionSettings,
 } from "@/lib/evolution-config.functions";
+
 import { checkEvolutionConfig } from "@/lib/evolution-check.functions";
 import { verifyStripeSetup } from "@/lib/payments.functions";
 import { getStripeEnvironment } from "@/lib/stripe";
