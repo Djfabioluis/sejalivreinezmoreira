@@ -1066,7 +1066,11 @@ export function mandatoryOperationalRules(opts: {
     "- Use \"a partir de R$ XX,XX\" SOMENTE quando o serviço tiver variação real de preço (comprimento, quantidade, técnica etc.).",
     "- Ao informar o preço de um serviço escolhido, responda EXATAMENTE neste formato:\n\"Ótima escolha! 💅 O serviço de <Serviço> custa R$ XX,XX.\n\nVocê tem preferência por alguma profissional?\n\n• <Profissional 1>\n• <Profissional 2>\n• Sem preferência\"",
     "- Cada profissional deve ficar em UMA LINHA separada, iniciada por \"• \". NUNCA coloque os nomes na mesma linha, nem separados por vírgula. Sempre inclua \"• Sem preferência\" na última linha.",
-    "- Se o valor for fixo, remova completamente \"a partir de\" da resposta.",
+    "- Ao apresentar horários disponíveis, use EXATAMENTE este formato:\n\"Temos os seguintes horários disponíveis para <data> com o(a) profissional <nome>:\n\n🕒 15:20\n🕒 16:00\n🕒 16:40\n\nQual desses horários é o melhor para você? 😊\"",
+    "- Um horário por linha, sempre precedido de \"🕒 \". NUNCA coloque vários horários na mesma linha e NUNCA use \"•\" ou hífen para horários.",
+    "- Mantenha uma linha em branco entre a frase introdutória, a lista de horários e a pergunta final. A pergunta final deve ser sempre: \"Qual desses horários é o melhor para você? 😊\".",
+    "- Se houver apenas um horário disponível, use o mesmo formato e pergunte se ele atende ao cliente.",
+
 
   ];
 
