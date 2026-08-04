@@ -1264,14 +1264,20 @@ export async function runAgentWithLogging(params: {
       });
     }
 
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: unit } = await supabaseAdmin
-      .from("unidades" as never)
-      .select("nome")
-      .eq("id", unidadeId)
-      .maybeSingle();
+    // unidade_id é o ID da unidade (salon) na Bemp — resolvemos o nome pela API.
+    let unitName = `Unidade vinculada ID ${unidadeId}`;
+    try {
+      const cfg = await getBempConfig();
+      const salons = (await bempFetch(`${cfg.apiBase}/salons`)) as any;
+      const list = Array.isArray(salons) ? salons : (salons?.data ?? salons?.salons ?? []);
+      const found = Array.isArray(list)
+        ? list.find((s: any) => String(s?.id) === String(unidadeId))
+        : null;
+      if (found?.name || found?.nome) unitName = String(found.name || found.nome);
+    } catch {
+      // nome indisponível: mantemos o rótulo por ID (unidade continua fixa)
+    }
 
-    const unitName = (unit as any)?.nome || "Unidade não identificada";
 
     const messagesArray = Array.isArray(historyData?.messages) ? historyData.messages : [];
     const historyMessages: UIMessage[] = messagesArray
