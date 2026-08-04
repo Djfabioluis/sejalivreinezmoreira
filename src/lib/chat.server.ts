@@ -1023,6 +1023,51 @@ function getModel() {
   return gateway("google/gemini-3.6-flash");
 }
 
+const CONFLICT_PATTERNS: Array<{ flag: string; re: RegExp }> = [
+  { flag: "list_salons", re: /list_salons/i },
+  { flag: "listar_unidades", re: /list[ae]\s+(as\s+)?unidades/i },
+  { flag: "escolher_unidade", re: /(qual\s+unidade|escolh[ae]\s+(uma\s+)?unidade)/i },
+  { flag: "pedir_telefone", re: /(pe[çc]a\s+telefone|pergunte\s+o?\s*telefone|ddd)/i },
+  { flag: "pedir_nome", re: /pergunte\s+o\s+nome/i },
+];
+
+function detectPromptConflicts(prompt: string): string[] {
+  return CONFLICT_PATTERNS.filter((p) => p.re.test(prompt)).map((p) => p.flag);
+}
+
+export function replacePromptVariables(prompt: string, values: Record<string, string>): string {
+  let out = prompt;
+  for (const [key, value] of Object.entries(values)) {
+    out = out.replace(new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, "g"), value);
+  }
+  return out;
+}
+
+/** Regras inegociáveis: aplicadas SEMPRE depois do prompt do banco (têm prioridade). */
+export function mandatoryOperationalRules(opts: {
+  unidadeId?: string | null;
+  unitName?: string | null;
+  contactName?: string | null;
+  contactPhone?: string | null;
+  hasHistory?: boolean;
+}): string {
+  const lines: string[] = [
+    "\n\nREGRAS OPERACIONAIS OBRIGATÓRIAS (prioridade máxima — sobrepõem qualquer instrução conflitante da base de conhecimento):",
+    "- As informações fornecidas pelo backend têm prioridade sobre qualquer instrução da base de conhecimento.",
+    "- Nunca reinicie o atendimento quando já existir histórico de conversa.",
+    "- Faça apenas uma pergunta por mensagem e pergunte somente o próximo dado ausente.",
+  ];
+  if (opts.unidadeId) {
+    lines.push(
+      `- A unidade de atendimento é FIXA: ${opts.unitName || `Unidade vinculada ID ${opts.unidadeId}`} (ID ${opts.unidadeId}).`,
+      "- É PROIBIDO perguntar, sugerir ou listar unidades. Não chame list_salons (ela não está disponível).",
+    );
+  }
+  if (opts.contactPhone) lines.push("- É PROIBIDO pedir telefone, DDD ou código de país: já são conhecidos.");
+  if (opts.contactName) lines.push("- É PROIBIDO perguntar o nome do cliente: já é conhecido.");
+  return lines.join("\n");
+}
+
 export async function loadSystemPrompt(): Promise<string> {
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -1032,12 +1077,50 @@ export async function loadSystemPrompt(): Promise<string> {
       .eq("id", 1)
       .maybeSingle();
     const conteudo = (data as { conteudo?: string } | null)?.conteudo?.trim();
-    return conteudo && conteudo.length > 0 ? conteudo : DEFAULT_SYSTEM_PROMPT;
+    if (conteudo && conteudo.length > 0) {
+      const flags = detectPromptConflicts(conteudo);
+      if (flags.length > 0) {
+        await logEvent({
+          instance: "system",
+          event: "knowledge_prompt_conflict_detected",
+          status: "warning",
+          payload: { flags },
+        }).catch(() => {});
+      }
+      return conteudo;
+    }
+    return DEFAULT_SYSTEM_PROMPT;
   } catch (err) {
     console.error("[chat] falha ao carregar base de conhecimento:", err);
     return DEFAULT_SYSTEM_PROMPT;
   }
 }
+
+/** Monta o system prompt completo com variáveis substituídas e regras obrigatórias no final. */
+export function assembleSystemPrompt(
+  basePrompt: string,
+  opts: {
+    contactName?: string | null;
+    contactPhone?: string | null;
+    unitName?: string | null;
+    unidadeId?: string | null;
+    contextSummary: string;
+  },
+): string {
+  const unitLabel = opts.unitName || (opts.unidadeId ? `Unidade vinculada ID ${opts.unidadeId}` : "não vinculada");
+  const values = {
+    contactName: opts.contactName || "não identificado",
+    contactPhone: opts.contactPhone || "não identificado",
+    unitName: unitLabel,
+    customer_context_summary: opts.contextSummary,
+  };
+  let out = replacePromptVariables(basePrompt, values);
+  if (!/\{\{|DADOS CONFIÁVEIS DO ATENDIMENTO/.test(basePrompt)) {
+    out += `\n\nDADOS CONFIÁVEIS DO ATENDIMENTO:\nNome do cliente: ${values.contactName}\nTelefone do WhatsApp: ${values.contactPhone}\nUnidade operacional: ${values.unitName}\n\nESTADO ATUAL:\n${values.customer_context_summary}`;
+  }
+  return out;
+}
+
 
 export type AgentOptions = { 
   sandbox?: boolean; 
