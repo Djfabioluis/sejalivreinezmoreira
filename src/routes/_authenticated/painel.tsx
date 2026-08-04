@@ -111,6 +111,7 @@ function EvolutionConfigPanel() {
 
   const [url, setUrl] = useState("");
   const [apiKey, setApiKey] = useState("");
+  const [webhookSecret, setWebhookSecret] = useState("");
   const [saving, setSaving] = useState(false);
 
   const q = useQuery({
@@ -122,6 +123,7 @@ function EvolutionConfigPanel() {
     if (q.data) {
       setUrl(q.data.url);
       setApiKey(q.data.apiKey);
+      setWebhookSecret(q.data.webhookSecret || "");
     }
   }, [q.data]);
 
@@ -129,7 +131,7 @@ function EvolutionConfigPanel() {
     e.preventDefault();
     setSaving(true);
     try {
-      await saveSettings({ data: { url, apiKey } });
+      await saveSettings({ data: { url, apiKey, webhookSecret } });
       toast.success("Configurações da Evolution API salvas!");
       queryClient.invalidateQueries({ queryKey: ["evolution-settings"] });
       queryClient.invalidateQueries({ queryKey: ["evolution-check"] });
@@ -183,6 +185,19 @@ function EvolutionConfigPanel() {
               onChange={(e) => setApiKey(e.target.value)}
               required
             />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="evo_webhook_secret">Webhook Secret (Opcional)</Label>
+            <Input
+              id="evo_webhook_secret"
+              type="password"
+              placeholder="Segredo para validar o webhook"
+              value={webhookSecret}
+              onChange={(e) => setWebhookSecret(e.target.value)}
+            />
+            <p className="text-[10px] text-muted-foreground">
+              Se configurado, o webhook exigirá este segredo no header x-webhook-secret.
+            </p>
           </div>
           <Button type="submit" disabled={saving}>
             {saving ? (
