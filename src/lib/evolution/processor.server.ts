@@ -1,150 +1,86 @@
-import { NormalizedEvolutionEvent } from "./types";
-import { logEvent } from "./logger.server";
 import { normalizeEvolutionMessages } from "./message-normalizer";
-import { extractMessageText } from "./message-text";
-import { normalizePhone, buildConversationKey, normalizeContactName } from "./contact";
 import { checkIdempotency } from "./idempotency.server";
-import { findAgentByInstance, isIAEnabled } from "./agent.server";
-import { appendIncomingMessage, updateConversationMetadata, getConversationHistory } from "./conversation.server";
-import { normalizeConversationHistory } from "./history";
-import { executeAI } from "./ai-context.server";
-import { replyToUser } from "./reply.server";
+import { appendIncomingMessage } from "./conversation.server";
+import { runAgentFlow } from "./agent.server";
+import { logEvent } from "./logger.server";
+import { NormalizedEvolutionMessage } from "./types";
 
-export async function processConnectionUpdate(event: NormalizedEvolutionEvent) {
-  const instance = event.instance;
-  const state = event.data?.state || event.payload.state;
-
-  if (state === "open" || state === "connected") {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: agente } = await supabaseAdmin
-      .from("wa_agentes" as never)
-      .select("id, unidade_id")
-      .eq("instancia", instance)
-      .maybeSingle();
-
-    if (agente) {
-      const ag = agente as any;
-      const newStatus = ag.unidade_id ? "ativo" : "conectado_sem_unidade";
-      await supabaseAdmin
-        .from("wa_agentes" as never)
-        .update({ 
-          status: newStatus, 
-          atualizado_em: new Date().toISOString() 
-        } as never)
-        .eq("id", ag.id);
-    }
+export async function processEvolutionWebhook(payload: any, requestUrl: string) {
+  const startTime = Date.now();
+  
+  // 1. Normalização
+  const messages = normalizeEvolutionMessages(payload, requestUrl);
+  
+  if (messages.length === 0) {
+    // Log detalhado de falha na normalização ou ausência de mensagens
+    await logEvent({
+      instance: payload.instance || payload.instanceName || "unknown",
+      event: "payload_shape_detected",
+      status: "no_messages_found",
+      payload: { 
+        event: payload.event,
+        data_keys: payload.data ? Object.keys(payload.data) : null,
+        payload_keys: Object.keys(payload)
+      }
+    });
+    return;
   }
-}
 
-export async function processMessagesUpsert(event: NormalizedEvolutionEvent, requestUrl: string) {
-  const messages = normalizeEvolutionMessages(event.payload, requestUrl);
+  // Log de mensagens normalizadas
+  await logEvent({
+    instance: messages[0].instance,
+    event: "message_normalized",
+    status: "success",
+    payload: { count: messages.length, first_id: messages[0].messageId }
+  });
 
   for (const msg of messages) {
     try {
-      // Filtros básicos
-      if (msg.fromMe) {
-        await logEvent({ instance: msg.instance, messageId: msg.messageId, event: "filter", status: "ignored_from_me" });
-        continue;
-      }
-      if (msg.remoteJid.includes("@g.us")) {
-        await logEvent({ instance: msg.instance, messageId: msg.messageId, event: "filter", status: "ignored_group" });
-        continue;
-      }
-      if (msg.remoteJid.includes("broadcast")) {
-        await logEvent({ instance: msg.instance, messageId: msg.messageId, event: "filter", status: "ignored_broadcast" });
-        continue;
-      }
-
-      const text = extractMessageText(msg.message);
-      if (!text) {
-        await logEvent({ instance: msg.instance, messageId: msg.messageId, event: "extraction", status: "empty_text" });
-        continue;
-      }
-
-      const phone = normalizePhone(msg.remoteJid);
-      
-      // Idempotência
-      const { isDuplicate, finalMessageId } = await checkIdempotency(
-        msg.instance, 
-        msg.messageId, 
-        phone, 
-        msg.timestamp, 
-        text
-      );
-      if (isDuplicate) continue;
-
-      const conversationKey = buildConversationKey(msg.instance, phone);
-      const contactName = normalizeContactName(msg.pushName);
-
-      // Agente e Unidade
-      const agent = await findAgentByInstance(msg.instance);
-      const isIAActive = isIAEnabled(agent);
-
-      // Persistência imediata
-      await appendIncomingMessage({
-        conversationKey,
-        messageId: finalMessageId,
-        text,
-        instance: msg.instance,
-        phone,
-        contactName,
-        isIAActive
-      });
-
-      // Metadados e Contexto
-      if (agent) {
-        await updateConversationMetadata(conversationKey, {
-          agent_id: agent.id,
-          unidade_id: agent.unidade_id,
-          contact_name: contactName || msg.pushName
-        });
-      }
-
-      // IA
-      if (isIAActive) {
-        const historyData = await getConversationHistory(conversationKey);
-        
-        // Obter dados da unidade vinculada ao agente
-        let unitData = null;
-        if (agent?.unidade_id) {
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          const { data: unit } = await supabaseAdmin
-            .from("unidades" as never)
-            .select("id, nome, endereco")
-            .eq("id", agent.unidade_id)
-            .maybeSingle();
-          unitData = unit;
-        }
-
-        const history = normalizeConversationHistory(historyData?.messages || [], text, finalMessageId);
-        
-        const aiResponse = await executeAI({
-          contactName: contactName || historyData?.contact_name || msg.pushName,
-          contactPhone: phone,
+      // 2. Idempotência
+      const isDuplicate = await checkIdempotency(msg.instance, msg.messageId);
+      if (isDuplicate) {
+        await logEvent({
           instance: msg.instance,
-          agentId: agent?.id,
-          unidadeId: agent?.unidade_id,
-          unitName: (unitData as any)?.nome,
-          customerContext: historyData?.customer_context,
-          history
+          messageId: msg.messageId,
+          event: "duplicate_message",
+          status: "skipped"
         });
-
-        if (aiResponse) {
-          await replyToUser({
-            instance: msg.instance,
-            phone,
-            text: aiResponse,
-            conversationKey
-          });
-        }
+        continue;
       }
-    } catch (error: any) {
+
+      // 3. Persistência
+      const saved = await appendIncomingMessage(msg);
+      
+      if (saved) {
+        await logEvent({
+          instance: msg.instance,
+          messageId: msg.messageId,
+          event: "message_saved",
+          status: "success",
+          durationMs: Date.now() - startTime
+        });
+      } else {
+        await logEvent({
+          instance: msg.instance,
+          messageId: msg.messageId,
+          event: "message_save_failed",
+          status: "error",
+          errorDetail: "RPC append_wa_message returned false"
+        });
+      }
+
+      // 4. Fluxo da IA (se não for do próprio bot)
+      if (!msg.fromMe) {
+        await runAgentFlow(msg);
+      }
+    } catch (error) {
+      console.error("[evolution] Error processing message", msg.messageId, error);
       await logEvent({
         instance: msg.instance,
         messageId: msg.messageId,
-        event: "message_processing",
+        event: "process_error",
         status: "error",
-        errorDetail: error.message
+        errorDetail: error instanceof Error ? error.message : String(error)
       });
     }
   }
