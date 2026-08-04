@@ -56,10 +56,20 @@ export const listClientesAtendidos = createServerFn({ method: "GET" })
     return rows.map((r) => {
       const msgs = Array.isArray(r.messages) ? (r.messages as Array<Record<string, unknown>>) : [];
       const last = msgs[msgs.length - 1];
-      const lastText =
-        last && typeof last === "object" && "content" in last
-          ? String((last as { content: unknown }).content ?? "").slice(0, 160)
-          : null;
+      
+      let lastText = null;
+      if (last && typeof last === "object") {
+        if ("content" in last) {
+          lastText = String((last as { content: unknown }).content ?? "").slice(0, 160);
+        } else if ("parts" in last && Array.isArray((last as any).parts)) {
+          lastText = (last as any).parts
+            .filter((p: any) => p.type === "text")
+            .map((p: any) => p.text)
+            .join(" ")
+            .slice(0, 160);
+        }
+      }
+
       return {
         phone: r.phone,
         total_mensagens: msgs.length,

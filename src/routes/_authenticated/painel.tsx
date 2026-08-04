@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -510,7 +510,7 @@ function Dashboard() {
               to="/agendar"
               className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
-              <Bot className="h-4 w-4" /> <span className="hidden sm:inline">Agendar com IA</span><span className="sm:hidden">Agendar</span>
+              <MessageSquare className="h-4 w-4" /> <span className="hidden sm:inline">Central WhatsApp</span><span className="sm:hidden">Inbox</span>
             </Link>
           </div>
         </div>
@@ -543,11 +543,11 @@ function Dashboard() {
               <TabsTrigger value="config_evolution">
                 <PlugZap className="h-4 w-4 mr-1" /> Config Evolution
               </TabsTrigger>
-              <TabsTrigger value="atendidos">
+              <TabsTrigger value="atendidos" className="hidden sm:flex">
                 <UserCheck className="h-4 w-4 mr-1" /> Atendidos
               </TabsTrigger>
-              <TabsTrigger value="handoff">
-                <LifeBuoy className="h-4 w-4 mr-1" /> Aguardando humano
+              <TabsTrigger value="handoff" className="hidden sm:flex">
+                <LifeBuoy className="h-4 w-4 mr-1" /> Triagem Humana
               </TabsTrigger>
               <TabsTrigger value="reagendamentos">
                 <CalendarClock className="h-4 w-4 mr-1" /> Reagendamentos

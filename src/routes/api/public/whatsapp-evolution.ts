@@ -385,31 +385,18 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
             if (debug) console.log("[evolution] ai_started", { phone: maskedPhone });
             const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-            // 1) histórico da chave composta; 2) fallback legado (telefone puro)
-            const { data: scopedHistory } = await supabaseAdmin
+            // 1) Pegar histórico para a IA
+            const { data: convData } = await supabaseAdmin
               .from("wa_conversas" as never)
               .select("messages")
               .eq("phone", conversationId)
               .maybeSingle();
+            
+            const history = Array.isArray((convData as any)?.messages) ? (convData as any).messages : [];
+            const userMessage = { id: `u-${Date.now()}`, role: "user", parts: [{ type: "text", text: userText }] };
+            const nextIn = [...history, userMessage];
 
-            let historyData: any = scopedHistory;
-            if (!historyData) {
-              const { data: legacyHistory } = await supabaseAdmin
-                .from("wa_conversas" as never)
-                .select("messages")
-                .eq("phone", phone)
-                .maybeSingle();
-              historyData = legacyHistory;
-            }
-
-            const history = Array.isArray((historyData as any)?.messages)
-              ? (historyData as any).messages
-              : [];
-            const nextIn = [
-              ...history,
-              { id: `u-${Date.now()}`, role: "user", parts: [{ type: "text", text: userText }] },
-            ];
-
+            // 2) Chamar IA
             let reply: string;
             try {
               reply = await runAgent(nextIn, { persona: personaNote(agente) });
@@ -426,18 +413,31 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
             }
             if (debug) console.log("[evolution] ai_completed", { duration: Date.now() - start });
 
-            await supabaseAdmin.from("wa_conversas" as never).upsert({
-              phone: conversationId, // Sempre o identificador composto
-              messages: [
-                ...nextIn,
-                {
-                  id: `a-${Date.now()}`,
-                  role: "assistant",
-                  parts: [{ type: "text", text: reply }],
-                },
-              ].slice(-40),
-              updated_at: new Date().toISOString(),
-            } as never);
+            // 3) Anexar ambas mensagens (cliente + IA) via RPC (atômico)
+            const aiMessage = {
+              id: `a-${Date.now()}`,
+              role: "assistant",
+              parts: [{ type: "text", text: reply }],
+            };
+
+            // Anexar mensagem do usuário (incrementando unread)
+            await supabaseAdmin.rpc("append_wa_message", {
+              p_phone: conversationId,
+              p_message: userMessage,
+              p_instance: instancia,
+              p_phone_number: phone,
+              p_contact_name: payload.data?.pushName || payload.pushName || null,
+              p_increment_unread: true
+            });
+
+            // Anexar resposta da IA (sem incrementar unread)
+            await supabaseAdmin.rpc("append_wa_message", {
+              p_phone: conversationId,
+              p_message: aiMessage,
+              p_instance: instancia,
+              p_phone_number: phone,
+              p_increment_unread: false
+            });
 
             if (debug) console.log("[evolution] evolution_send_started", { phone: maskedPhone });
             const sent = await sendEvolutionText(instancia, phone, reply);
