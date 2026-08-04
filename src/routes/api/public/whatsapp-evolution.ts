@@ -15,17 +15,9 @@ import {
 type EvoPayload = {
   event?: string;
   instance?: string;
-  data?: {
-    key?: { remoteJid?: string; fromMe?: boolean; id?: string };
-    message?: {
-      conversation?: string;
-      extendedTextMessage?: { text?: string };
-      audioMessage?: { mimetype?: string };
-    };
-    messageType?: string;
-    base64?: string;
-  };
+  data?: any; // Pode ser objeto (v1) ou ter .messages[] (v2)
 };
+
 
 type Agente = {
   id: string;
