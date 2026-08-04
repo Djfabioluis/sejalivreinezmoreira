@@ -1133,7 +1133,7 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
     system,
     messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
     tools: buildTools(sandbox, opts.unidadeId),
-    maxSteps: 5,
+    stopWhen: stepCountIs(5),
   });
 }
 
@@ -1186,7 +1186,7 @@ export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {})
     system: fullSystem,
     messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
     tools: buildTools(sandbox, opts.unidadeId),
-    maxSteps: 5,
+    stopWhen: stepCountIs(5),
   });
 
   return sanitizeCustomerText(result.text?.trim() || "Desculpe, tive um probleminha aqui. Pode repetir?");
