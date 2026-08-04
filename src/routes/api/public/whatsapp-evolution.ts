@@ -1,6 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { runAgent } from "@/lib/chat.server";
 import { getEvolutionConfig, sendEvolutionText } from "@/lib/evolution.server";
+import { normalizeContactName, buildConversationKey, normalizeWhatsAppPhone } from "@/lib/whatsapp-utils";
+import { extractConversationMessageText } from "@/lib/whatsapp-inbox.functions";
 
 function extractMessageText(message: any): string {
   if (!message) return "";
@@ -141,38 +143,53 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
         if (messages.length === 0) return new Response("OK");
 
         for (const msg of messages) {
-          const remoteJid = msg.key?.remoteJid;
-          const messageId = msg.key?.id;
-          if (!remoteJid || !messageId) continue;
-          if (msg.key.fromMe || remoteJid.includes("@g.us") || remoteJid.includes("broadcast")) continue;
+          const msgData = msg.message || msg;
+          const pushNameRaw = msg.pushName || payload.pushName || payload.data?.pushName;
+          const remoteJid = msg.key?.remoteJid || payload.data?.key?.remoteJid;
+          const messageId = msg.key?.id || payload.data?.key?.id;
 
-          // 7. IDEMPOTÊNCIA ATÔMICA
+          if (!remoteJid || !messageId) continue;
+          if (msg.key?.fromMe || remoteJid.includes("@g.us") || remoteJid.includes("broadcast")) {
+            await logEvent({ instance: instancia, messageId, event: "message_ignored_from_me", status: "success" });
+            continue;
+          }
+
+          // IDEMPOTÊNCIA ATÔMICA (Instância + MessageId)
           const { error: eventErr } = await supabaseAdmin.from("evo_events" as never).insert({ 
             message_id: messageId, 
             instance: instancia 
           } as never);
 
           if (eventErr) {
-            if (eventErr.code === "23505") { // Duplicidade
+            if (eventErr.code === "23505") {
               await logEvent({ instance: instancia, messageId, event: "duplicate_message", status: "ignored" });
               continue;
             }
             await logEvent({ instance: instancia, messageId, event: "event_save_failed", status: "error", errorDetail: eventErr.message });
-            continue; // Fail-closed
+            continue;
           }
 
-          const phone = remoteJid.split("@")[0].replace(/\D/g, "");
-          const conversationId = `${instancia}:${phone}`;
-          const contactName = msg.pushName || null;
+          const phone = normalizeWhatsAppPhone(remoteJid);
+          const conversationId = buildConversationKey(instancia, phone);
+          const contactName = normalizeContactName(pushNameRaw);
 
-          // 8. EXTRAÇÃO DE TEXTO
-          const text = extractMessageText(msg.message);
+          const text = extractMessageText(msgData);
           if (!text) {
             await logEvent({ instance: instancia, messageId, event: "incoming_message_extracted", status: "empty_text" });
             continue;
           }
 
-          await logEvent({ instance: instancia, messageId, event: "incoming_message_extracted", status: "success" });
+          await logEvent({ instance: instancia, messageId, event: "contact_identified", status: "success" });
+
+          // Buscar conversa existente para pegar o histórico e contexto
+          const { data: existingConv } = await supabaseAdmin
+            .from("wa_conversas" as never)
+            .select("messages, customer_context, contact_name")
+            .eq("phone", conversationId)
+            .maybeSingle();
+          
+          const history = (existingConv as any)?.messages || [];
+          const customerContext = (existingConv as any)?.customer_context || {};
 
           // Buscar agente
           const { data: agenteRow } = await supabaseAdmin
@@ -182,11 +199,8 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
             .maybeSingle();
           
           const agente = agenteRow as any;
-          if (!agente) {
-             await logEvent({ instance: instancia, messageId, event: "agent_not_found", status: "warning" });
-          }
 
-          // 4. SALVAR MENSAGEM ANTES DE BLOQUEAR IA
+          // Salvar mensagem do usuário
           const { error: rpcErr } = await supabaseAdmin.rpc("append_wa_message", {
             p_phone: conversationId,
             p_message: { id: messageId, role: "user", parts: [{ type: "text", text }] },
@@ -197,60 +211,61 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
             p_new_status: (agente?.unidade_id && agente?.status === "ativo") ? "aberta" : "waiting_for_unit_selection"
           });
 
-          // 5. VALIDAR TODAS AS RPCS
           if (rpcErr) {
             await logEvent({ instance: instancia, messageId, event: "conversation_save_failed", status: "error", errorDetail: rpcErr.message });
             continue;
           }
 
-          await logEvent({ instance: instancia, messageId, event: "message_saved", status: "success" });
-
           if (agente) {
-             await supabaseAdmin
-               .from("wa_conversas" as never)
-               .update({ agent_id: agente.id, unidade_id: agente.unidade_id } as never)
-               .eq("phone", conversationId);
+            await supabaseAdmin
+              .from("wa_conversas" as never)
+              .update({ agent_id: agente.id, unidade_id: agente.unidade_id } as never)
+              .eq("phone", conversationId);
           }
 
-          // Avaliar se IA pode operar
+          // Bloqueio se não houver unidade
           if (!agente || !agente.unidade_id || agente.status !== "ativo") {
-            const reason = !agente ? "agent_not_found" : (!agente.unidade_id ? "agent_without_unit" : "agent_inactive");
-            await logEvent({ instance: instancia, messageId, event: reason, status: "skipped_ia" });
             continue;
           }
 
-          // 6. ENVIO DA RESPOSTA
+          // Executar IA com histórico e contexto
           try {
             await logEvent({ instance: instancia, messageId, event: "ai_started", status: "pending" });
             
-            const aiResponse = await runAgent([{ id: messageId, role: "user", parts: [{ type: "text", text }] } as any], { 
+            // Preparar mensagens para a IA (Histórico + Mensagem Atual)
+            // Limitamos a 10 últimas mensagens para contexto
+            const modelMessages = history.slice(-10).map((m: any) => ({
+              role: m.role === "operator" ? "assistant" : m.role,
+              parts: [{ type: "text", text: extractConversationMessageText(m) }]
+            }));
+            
+            // Adicionar a mensagem atual se não estiver no histórico
+            if (!modelMessages.some((m: any) => m.parts[0].text === text)) {
+              modelMessages.push({ role: "user", parts: [{ type: "text", text }] });
+            }
+
+            const aiResponse = await runAgent(modelMessages, { 
               sandbox: false,
-              persona: contactName ? `O nome do cliente é ${contactName}.` : undefined,
-              unidadeId: agente.unidade_id
+              unidadeId: agente.unidade_id,
+              contactName: contactName || (existingConv as any)?.contact_name,
+              contactPhone: phone,
+              customerContext: customerContext
             });
             
             if (aiResponse) {
-              await logEvent({ instance: instancia, messageId, event: "ai_completed", status: "success" });
-              await logEvent({ instance: instancia, messageId, event: "evolution_send_started", status: "pending" });
-              
               const sent = await sendEvolutionText(instancia, phone, aiResponse);
-              
               if (sent) {
-                const { error: aiSaveErr } = await supabaseAdmin.rpc("append_wa_message", {
+                // Tenta extrair dados estruturados da resposta da IA ou do texto (simplificado)
+                // Em um cenário real, poderíamos usar tool calling outputs para atualizar o contexto
+                
+                await supabaseAdmin.rpc("append_wa_message", {
                   p_phone: conversationId,
                   p_message: { id: `ai-${Date.now()}`, role: "assistant", parts: [{ type: "text", text: aiResponse }] },
                   p_instance: instancia,
                   p_phone_number: phone,
                   p_increment_unread: false
                 });
-
-                if (aiSaveErr) {
-                  await logEvent({ instance: instancia, messageId, event: "assistant_message_save_failed", status: "error", errorDetail: aiSaveErr.message });
-                } else {
-                  await logEvent({ instance: instancia, messageId, event: "evolution_send_completed", status: "success", durationMs: Date.now() - start });
-                }
-              } else {
-                await logEvent({ instance: instancia, messageId, event: "evolution_send_failed", status: "error" });
+                await logEvent({ instance: instancia, messageId, event: "ai_completed", status: "success" });
               }
             }
           } catch (aiErr: any) {
