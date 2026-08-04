@@ -89,9 +89,14 @@ export function AiSimulator() {
     spokenRef.current.add(id);
     try {
       setSpeakingId(id);
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token;
       const res = await fetch("/api/tts", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ text }),
       });
       if (!res.ok) throw new Error(`TTS ${res.status}`);

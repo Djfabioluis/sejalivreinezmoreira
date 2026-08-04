@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Mic, Square, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 type Props = {
   disabled?: boolean;
@@ -71,7 +72,13 @@ export function MicRecorder({ disabled, onTranscript }: Props) {
             type.includes("wav") ? "wav" : "webm";
           const form = new FormData();
           form.append("audio", blob, `mic.${ext}`);
-          const res = await fetch("/api/transcribe", { method: "POST", body: form });
+          const { data: sess } = await supabase.auth.getSession();
+          const token = sess.session?.access_token;
+          const res = await fetch("/api/transcribe", {
+            method: "POST",
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+            body: form,
+          });
           if (!res.ok) {
             const err = await res.json().catch(() => ({}));
             throw new Error(err?.error ?? `HTTP ${res.status}`);
