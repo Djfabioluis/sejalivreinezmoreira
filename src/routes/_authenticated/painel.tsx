@@ -40,6 +40,7 @@ import {
   type AtendimentoHumano,
 } from "@/lib/atendimentos.functions";
 import { listReagendamentos, type ReagendamentoHist } from "@/lib/reagendamentos.functions";
+import { listEvolutionLogs } from "@/lib/evolution-logs.functions";
 import { checkIsAdmin } from "@/lib/access.functions";
 
 import { getWhatsAppPhoneNumber } from "@/lib/whatsapp.functions";
