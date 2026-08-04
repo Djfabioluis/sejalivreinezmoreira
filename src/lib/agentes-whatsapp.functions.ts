@@ -109,10 +109,24 @@ export const selecionarUnidadeAgente = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { listSalons } = await import("@/lib/bemp.functions");
     
-    // Validar se a unidade existe/ativa via Bemp API seria ideal, mas aqui assumimos que o frontend enviou uma válida
-    // como solicitado pelo item 5 (validar permissão e ativação no backend)
-    
+    // Validar unidade (Item 11)
+    const salons = await listSalons();
+    const unitExists = (salons as any[]).find((s: any) => String(s.id) === data.unidadeId);
+    if (!unitExists) {
+      throw new Error("Unidade inválida ou não encontrada.");
+    }
+
+    const { data: currentAgent } = await supabaseAdmin
+      .from("wa_agentes" as never)
+      .select("status, unidade_id")
+      .eq("id", data.agenteId)
+      .maybeSingle();
+
+    const oldUnit = (currentAgent as any)?.unidade_id;
+    const isNewSelection = !oldUnit;
+
     const { error } = await supabaseAdmin
       .from("wa_agentes" as never)
       .update({
@@ -125,6 +139,27 @@ export const selecionarUnidadeAgente = createServerFn({ method: "POST" })
       .eq("id", data.agenteId);
 
     if (error) throw new Error(error.message);
+
+    // Logging (Item 12)
+    try {
+      const { supabaseAdmin: sb } = await import("@/integrations/supabase/client.server");
+      const { data: agentData } = await sb
+        .from("wa_agentes" as never)
+        .select("instancia")
+        .eq("id", data.agenteId)
+        .single();
+      
+      if (agentData) {
+        await sb.from("evo_webhook_logs" as never).insert({
+          instance: (agentData as any).instancia,
+          event: isNewSelection ? "unit_selected" : "unit_changed",
+          status: "agent_activated"
+        } as never);
+      }
+    } catch (logErr) {
+      console.error("Erro ao registrar log de unidade:", logErr);
+    }
+
     return { success: true };
   });
 

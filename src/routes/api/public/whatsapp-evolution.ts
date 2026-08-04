@@ -72,7 +72,7 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
                 .eq("id", ag.id);
               
               const logEv = ag.unidade_id ? "agent_reactivated" : "unit_selection_required";
-              await logEvent({ instance: instancia, event: "whatsapp_connected", status: logEv });
+              await logEvent({ instance: instancia, event: ag.unidade_id ? "agent_connected" : "unit_selection_required", status: logEv }); // Item 12
             }
           }
           return new Response("OK");
@@ -154,7 +154,7 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           }
 
           if (!agente.unidade_id) {
-            await logEvent({ instance: instancia, messageId, event: "agent_without_unit", status: "skipped_ia" });
+            await logEvent({ instance: instancia, messageId, event: "agent_without_unit", status: "skipped_ia" }); // Item 12
             continue;
           }
 

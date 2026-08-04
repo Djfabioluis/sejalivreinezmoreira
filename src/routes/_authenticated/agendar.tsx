@@ -76,7 +76,7 @@ function AgendarPage() {
   const loadList = async (silent = false) => {
     if (!silent) setLoading(true);
     try {
-      const [result, agsResult] = await Promise.all([
+      const [resultSettle, agsResultSettle] = await Promise.allSettled([
         fetchConversations({ 
           data: {
             search: debouncedSearch, 
@@ -88,12 +88,24 @@ function AgendarPage() {
         }),
         fetchAgentes()
       ]);
-      setConversations(result.conversations);
-      setTotal(result.total);
-      setAgentes(agsResult.items);
+
+      if (resultSettle.status === "fulfilled") {
+        setConversations(resultSettle.value.conversations);
+        setTotal(resultSettle.value.total);
+      } else {
+        console.error("Erro ao carregar conversas:", resultSettle.reason);
+        toast.error("Erro ao carregar conversas");
+      }
+
+      if (agsResultSettle.status === "fulfilled") {
+        setAgentes(agsResultSettle.value.items);
+      } else {
+        console.error("Erro ao carregar agentes:", agsResultSettle.reason);
+        // Não mostrar toast se falhar apenas agentes, para não impedir a Caixa de Entrada (Item 7)
+      }
     } catch (err) {
       console.error(err);
-      toast.error("Erro ao carregar lista");
+      toast.error("Erro inesperado ao carregar lista");
     } finally {
       if (!silent) setLoading(false);
     }
@@ -196,6 +208,8 @@ function AgendarPage() {
                     <SelectItem value="todos">Todos</SelectItem>
                     <SelectItem value="aberta">Abertas</SelectItem>
                     <SelectItem value="waiting_for_unit_selection">Aguardando Unidade</SelectItem>
+                    <SelectItem value="aguardando_unidade">Escolha a unidade</SelectItem>
+                    <SelectItem value="conectado_sem_unidade">Conectado sem unidade</SelectItem>
                     <SelectItem value="aguardando_humano">Triagem</SelectItem>
                     <SelectItem value="resolvida">Resolvidas</SelectItem>
                   </SelectContent>
@@ -252,12 +266,26 @@ function AgendarPage() {
                     <SelectContent>
                       <SelectItem value="aberta">Aberta</SelectItem>
                       <SelectItem value="waiting_for_unit_selection">Aguardando Unidade</SelectItem>
+                      <SelectItem value="aguardando_unidade">Escolha a unidade</SelectItem>
                       <SelectItem value="aguardando_cliente">Aguardando Cliente</SelectItem>
                       <SelectItem value="aguardando_humano">Triagem</SelectItem>
                       <SelectItem value="resolvida">Resolvida</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
+                {selectedConversation?.status === "waiting_for_unit_selection" && (
+                  <div className="bg-amber-50 border-b border-amber-200 p-2 flex items-center justify-between px-4">
+                    <span className="text-xs text-amber-800 font-medium">Aguardando escolha da unidade</span>
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="h-7 text-[10px] border-amber-300 hover:bg-amber-100"
+                      onClick={() => window.location.href = "/agentes-whatsapp"}
+                    >
+                      Escolher Unidade
+                    </Button>
+                  </div>
+                )}
                 <ScrollArea className="flex-1 p-4 bg-muted/5">
                   <div className="space-y-4">
                     {loadingConv && <div className="flex justify-center p-4"><RefreshCcw className="h-6 w-6 animate-spin opacity-20" /></div>}
