@@ -1070,7 +1070,7 @@ export function mandatoryOperationalRules(opts: {
     "- Um horário por linha, sempre precedido de \"🕒 \". NUNCA coloque vários horários na mesma linha e NUNCA use \"•\" ou hífen para horários.",
     "- Mantenha uma linha em branco entre a frase introdutória, a lista de horários e a pergunta final. A pergunta final deve ser sempre: \"Qual desses horários é o melhor para você? 😊\".",
     "- Se houver apenas um horário disponível, use o mesmo formato e pergunte se ele atende ao cliente.",
-
+    "- Se o valor do serviço for fixo, remova completamente \"a partir de\" da resposta.",
 
   ];
 
