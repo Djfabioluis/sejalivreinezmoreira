@@ -28,7 +28,6 @@ import { Route as AuthenticatedConfiguracaoWhatsappRouteImport } from './routes/
 import { Route as AuthenticatedBoasVindasRouteImport } from './routes/_authenticated/boas-vindas'
 import { Route as AuthenticatedBaseConhecimentoRouteImport } from './routes/_authenticated/base-conhecimento'
 import { Route as AuthenticatedAuditoriaSugestoesRouteImport } from './routes/_authenticated/auditoria-sugestoes'
-import { Route as AuthenticatedAssinaturaRouteImport } from './routes/_authenticated/assinatura'
 import { Route as AuthenticatedAssinantesRouteImport } from './routes/_authenticated/assinantes'
 import { Route as AuthenticatedAgentesWhatsappRouteImport } from './routes/_authenticated/agentes-whatsapp'
 import { Route as AuthenticatedAgendarRouteImport } from './routes/_authenticated/agendar'
@@ -141,11 +140,6 @@ const AuthenticatedAuditoriaSugestoesRoute =
     path: '/auditoria-sugestoes',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedAssinaturaRoute = AuthenticatedAssinaturaRouteImport.update({
-  id: '/assinatura',
-  path: '/assinatura',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
 const AuthenticatedAssinantesRoute = AuthenticatedAssinantesRouteImport.update({
   id: '/assinantes',
   path: '/assinantes',
@@ -229,7 +223,6 @@ export interface FileRoutesByFullPath {
   '/agendar': typeof AuthenticatedAgendarRoute
   '/agentes-whatsapp': typeof AuthenticatedAgentesWhatsappRoute
   '/assinantes': typeof AuthenticatedAssinantesRoute
-  '/assinatura': typeof AuthenticatedAssinaturaRoute
   '/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
   '/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
   '/boas-vindas': typeof AuthenticatedBoasVindasRoute
@@ -263,7 +256,6 @@ export interface FileRoutesByTo {
   '/agendar': typeof AuthenticatedAgendarRoute
   '/agentes-whatsapp': typeof AuthenticatedAgentesWhatsappRoute
   '/assinantes': typeof AuthenticatedAssinantesRoute
-  '/assinatura': typeof AuthenticatedAssinaturaRoute
   '/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
   '/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
   '/boas-vindas': typeof AuthenticatedBoasVindasRoute
@@ -299,7 +291,6 @@ export interface FileRoutesById {
   '/_authenticated/agendar': typeof AuthenticatedAgendarRoute
   '/_authenticated/agentes-whatsapp': typeof AuthenticatedAgentesWhatsappRoute
   '/_authenticated/assinantes': typeof AuthenticatedAssinantesRoute
-  '/_authenticated/assinatura': typeof AuthenticatedAssinaturaRoute
   '/_authenticated/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
   '/_authenticated/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
   '/_authenticated/boas-vindas': typeof AuthenticatedBoasVindasRoute
@@ -335,7 +326,6 @@ export interface FileRouteTypes {
     | '/agendar'
     | '/agentes-whatsapp'
     | '/assinantes'
-    | '/assinatura'
     | '/auditoria-sugestoes'
     | '/base-conhecimento'
     | '/boas-vindas'
@@ -369,7 +359,6 @@ export interface FileRouteTypes {
     | '/agendar'
     | '/agentes-whatsapp'
     | '/assinantes'
-    | '/assinatura'
     | '/auditoria-sugestoes'
     | '/base-conhecimento'
     | '/boas-vindas'
@@ -404,7 +393,6 @@ export interface FileRouteTypes {
     | '/_authenticated/agendar'
     | '/_authenticated/agentes-whatsapp'
     | '/_authenticated/assinantes'
-    | '/_authenticated/assinatura'
     | '/_authenticated/auditoria-sugestoes'
     | '/_authenticated/base-conhecimento'
     | '/_authenticated/boas-vindas'
@@ -584,13 +572,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAuditoriaSugestoesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/assinatura': {
-      id: '/_authenticated/assinatura'
-      path: '/assinatura'
-      fullPath: '/assinatura'
-      preLoaderRoute: typeof AuthenticatedAssinaturaRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/assinantes': {
       id: '/_authenticated/assinantes'
       path: '/assinantes'
@@ -690,7 +671,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAgendarRoute: typeof AuthenticatedAgendarRoute
   AuthenticatedAgentesWhatsappRoute: typeof AuthenticatedAgentesWhatsappRoute
   AuthenticatedAssinantesRoute: typeof AuthenticatedAssinantesRoute
-  AuthenticatedAssinaturaRoute: typeof AuthenticatedAssinaturaRoute
   AuthenticatedAuditoriaSugestoesRoute: typeof AuthenticatedAuditoriaSugestoesRoute
   AuthenticatedBaseConhecimentoRoute: typeof AuthenticatedBaseConhecimentoRoute
   AuthenticatedBoasVindasRoute: typeof AuthenticatedBoasVindasRoute
@@ -709,7 +689,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAgendarRoute: AuthenticatedAgendarRoute,
   AuthenticatedAgentesWhatsappRoute: AuthenticatedAgentesWhatsappRoute,
   AuthenticatedAssinantesRoute: AuthenticatedAssinantesRoute,
-  AuthenticatedAssinaturaRoute: AuthenticatedAssinaturaRoute,
   AuthenticatedAuditoriaSugestoesRoute: AuthenticatedAuditoriaSugestoesRoute,
   AuthenticatedBaseConhecimentoRoute: AuthenticatedBaseConhecimentoRoute,
   AuthenticatedBoasVindasRoute: AuthenticatedBoasVindasRoute,
