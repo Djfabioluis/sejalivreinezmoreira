@@ -17,9 +17,10 @@ export async function appendIncomingMessage(params: {
     p_message: { id: params.messageId, role: "user", parts: [{ type: "text", text: params.text }] },
     p_instance: params.instance,
     p_phone_number: params.phone,
-    p_contact_name: params.contactName ?? undefined,
+    p_contact_name: params.contactName ?? null,
     p_increment_unread: true,
-    p_new_status: params.isIAActive ? "aberta" : "waiting_for_unit_selection"
+    p_new_status: params.isIAActive ? "aberta" : "waiting_for_unit_selection",
+    p_customer_context: null
   });
 
   if (error) {

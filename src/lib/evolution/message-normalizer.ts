@@ -30,7 +30,20 @@ export function normalizeEvolutionMessages(payload: any, requestUrl: string): No
     const timestamp = msg.messageTimestamp || data.messageTimestamp || Math.floor(Date.now() / 1000);
     const fromMe = !!key.fromMe;
 
-    if (!remoteJid) continue;
+    if (!instance) {
+      console.warn("Evolution: Missing instance in payload", msg);
+      continue;
+    }
+
+    if (!remoteJid) {
+      console.warn("Evolution: Missing remoteJid in payload", msg);
+      continue;
+    }
+
+    if (!messageId) {
+      console.warn("Evolution: Missing messageId in payload", msg);
+      continue;
+    }
 
     results.push({
       instance,
