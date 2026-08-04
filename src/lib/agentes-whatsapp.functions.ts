@@ -109,15 +109,14 @@ export const selecionarUnidadeAgente = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { listSalons } = await import("@/lib/bemp.server");
+    const { listSalons } = await import("@/lib/bemp.functions");
     
     // Validar unidade (Item 11)
     const salons = await listSalons();
-    const unitExists = salons.find((s: any) => String(s.id) === data.unidadeId);
+    const unitExists = (salons as any[]).find((s: any) => String(s.id) === data.unidadeId);
     if (!unitExists) {
       throw new Error("Unidade inválida ou não encontrada.");
     }
-    // Aqui também poderíamos validar se a unidade está ativa/excluída se a BEMP API retornar esses campos
 
     const { data: currentAgent } = await supabaseAdmin
       .from("wa_agentes" as never)
@@ -137,7 +136,7 @@ export const selecionarUnidadeAgente = createServerFn({ method: "POST" })
         selected_unit_by: context.userId,
         atualizado_em: new Date().toISOString(),
       } as never)
-      .eq("id", data.id); // Ops, aqui deveria ser agenteId. Corrigindo na substituição.
+      .eq("id", data.agenteId);
 
     if (error) throw new Error(error.message);
 
