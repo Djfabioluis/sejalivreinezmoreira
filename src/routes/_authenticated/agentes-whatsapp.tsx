@@ -128,7 +128,36 @@ function AgentesWhatsAppPage() {
     }
   }, [fetchList]);
 
-  useEffect(() => { void reload(); }, [reload]);
+  useEffect(() => {
+    void reload();
+  }, [reload]);
+
+  // Realtime updates for agent status (Item 9)
+  useEffect(() => {
+    const channel = supabase
+      .channel("wa_agentes_status_changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "wa_agentes",
+          filter: "status=eq.conectado_sem_unidade",
+        },
+        (payload) => {
+          const updatedAgent = payload.new as AgenteWa;
+          // Abre modal de unidade se o agente foi recém-conectado e não tem unidade (Item 1)
+          if (updatedAgent.status === "conectado_sem_unidade" && !updatedAgent.unidade_id) {
+            handleOpenUnit(updatedAgent, "auto");
+          }
+        },
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
 
   useEffect(() => {
     if (!qrOpen || !qrAgente) return;
@@ -140,27 +169,32 @@ function AgentesWhatsAppPage() {
           setQrOpen(false);
           if (r.status === "conectado_sem_unidade") {
             toast.success("Conectado! Agora selecione a unidade.");
-            handleOpenUnit(qrAgente);
+            handleOpenUnit(qrAgente, "auto");
           } else {
             toast.success("Agente conectado e ativo!");
             void reload();
           }
         }
-      } catch {}
+      } catch (err) {
+        console.error("Erro ao verificar status do QR:", err);
+      }
     }, 5000);
     return () => clearInterval(id);
   }, [qrOpen, qrAgente, checkStatus, reload]);
 
-  const handleOpenUnit = async (agente: AgenteWa) => {
+  const handleOpenUnit = async (agente: AgenteWa, trigger: "manual" | "auto") => {
     setSelectedAgente(agente);
     setUnitId(agente.unidade_id || "");
-    setUnitOpen(true);
+    setUnitOpen(true); // Always open the dialog (Item 1)
     setLoadingSalons(true);
     try {
       const res = await listSalons();
+      // Filtrar unidades ativas, não excluídas e permitidas para o usuário (Item 2) - BEMP API já deveria fazer isso
       setSalons(Array.isArray(res) ? res : []);
-    } catch {
+    } catch (err) {
+      console.error("Erro ao carregar unidades:", err);
       setSalons([]);
+      toast.error("Erro ao carregar unidades. Tente novamente.");
     } finally {
       setLoadingSalons(false);
     }
