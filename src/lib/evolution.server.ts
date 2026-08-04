@@ -48,7 +48,9 @@ async function getBaseUrl(): Promise<string> {
 
 export async function isEvolutionConfigured(): Promise<boolean> {
   const db = await getDbConfig();
-  return Boolean(db || (process.env.EVOLUTION_API_URL && process.env.EVOLUTION_API_KEY));
+  if (db?.url && db?.apiKey) return true;
+  const envUrl = process.env.EVOLUTION_API_URL || process.env.EVOLUTION_BASE_URL;
+  return Boolean(envUrl && process.env.EVOLUTION_API_KEY);
 }
 
 async function evoFetch(

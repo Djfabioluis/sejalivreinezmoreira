@@ -7,17 +7,33 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution/health")({
       GET: async () => {
         const config = await getEvolutionConfig();
         const evolutionReady = await isEvolutionConfigured();
-        const aiConfigured = !!process.env.GEMINI_API_KEY || !!process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+        // O runtime da IA (src/lib/chat.server.ts) usa o AI Gateway da Lovable.
+        const aiConfigured = !!process.env.LOVABLE_API_KEY;
 
-        const ok = evolutionReady && aiConfigured;
+        let databaseConfigured = false;
+        let databaseReachable = false;
+        try {
+          databaseConfigured = !!process.env.SUPABASE_URL && !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          const { error } = await supabaseAdmin
+            .from("wa_agentes" as never)
+            .select("id")
+            .limit(1);
+          databaseReachable = !error;
+        } catch {
+          databaseReachable = false;
+        }
+
+        const ok = evolutionReady && aiConfigured && databaseReachable;
 
         return Response.json({
           ok,
           evolutionConfigured: evolutionReady,
-          aiConfigured: aiConfigured,
+          aiConfigured,
           instance: config.url ? "Configurada" : "Pendente",
-          database: "Conectado",
-          timestamp: new Date().toISOString()
+          databaseConfigured,
+          databaseReachable,
+          timestamp: new Date().toISOString(),
         });
       },
     },
