@@ -11,7 +11,7 @@ type Agente = {
   nome: string;
   tipo: "feminino" | "masculino";
   instancia: string;
-  status?: string;
+  status?: string | boolean | null;
 };
 
 function personaNote(a: Agente): string {
@@ -33,6 +33,42 @@ function safeEqual(a: string, b: string): boolean {
   }
 }
 
+/** Log persistente e sem conteúdo sensível em evo_webhook_logs. */
+async function logEvent(entry: {
+  instance: string;
+  messageId?: string | null;
+  event: string;
+  status: string;
+  durationMs?: number | null;
+  errorDetail?: string | null;
+}) {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await supabaseAdmin.from("evo_webhook_logs" as never).insert({
+      instance: entry.instance,
+      message_id: entry.messageId ?? null,
+      event: entry.event,
+      status: entry.status,
+      duration_ms: entry.durationMs ?? null,
+      error_detail: entry.errorDetail ? String(entry.errorDetail).slice(0, 500) : null,
+      payload: null,
+    } as never);
+  } catch (err) {
+    console.error("[evolution] log_persist_failed:", err);
+  }
+}
+
+function isAgenteAtivo(a: Agente): boolean {
+  const status = a.status;
+  if (status === false) return false;
+  if (status === true || status === null || status === undefined) return true;
+  const s = String(status).trim().toLowerCase();
+  if (["inativo", "inativa", "desativado", "desativada", "disabled", "inactive", "false", "0", "bloqueado", "suspenso"].includes(s)) {
+    return false;
+  }
+  return true;
+}
+
 async function loadAgente(instancia: string): Promise<Agente | null> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const normalized = instancia.trim();
@@ -47,7 +83,7 @@ async function loadAgente(instancia: string): Promise<Agente | null> {
 /**
  * Registra a tentativa de processamento de uma mensagem de forma atômica para idempotência.
  */
-async function registerProcessed(instance: string, messageId: string, remoteJid?: string): Promise<{ success: boolean; isDuplicate: boolean }> {
+async function registerProcessed(instance: string, messageId: string, remoteJid?: string): Promise<{ success: boolean; isDuplicate: boolean; error?: string }> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   try {
     const { error } = await supabaseAdmin.from("evo_events" as never).insert({
@@ -62,13 +98,13 @@ async function registerProcessed(instance: string, messageId: string, remoteJid?
       if (error.code === "23505") { // Unique violation
         return { success: false, isDuplicate: true };
       }
-      console.error("[evolution] idempotency_error:", error);
-      return { success: false, isDuplicate: false };
+      console.error("[evolution] idempotency_error:", error.message);
+      return { success: false, isDuplicate: false, error: error.message };
     }
     return { success: true, isDuplicate: false };
   } catch (err) {
     console.error("[evolution] idempotency_exception:", err);
-    return { success: false, isDuplicate: false };
+    return { success: false, isDuplicate: false, error: err instanceof Error ? err.message : String(err) };
   }
 }
 
@@ -139,6 +175,10 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
             return new Response("Unauthorized", { status: 401 });
           }
           if (debug) console.log("[evolution] webhook_authenticated");
+        } else {
+          console.warn(
+            "[evolution] webhook_secret_missing: o webhook está aceitando chamadas sem autenticação. Configure o segredo do webhook no painel (Config Evolution).",
+          );
         }
 
         let payload: any;
@@ -172,17 +212,21 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           return Response.json({ ok: true, ignored: true, reason: "unsupported_event", event: rawEvent });
         }
 
-        // Normalização de mensagens
+        // Normalização de mensagens (2.3.7 e variantes)
         let messagesArr: any[] = [];
-        if (payload.data?.key && payload.data?.message) {
-          messagesArr = [payload.data]; // Caso payload.data seja a própria mensagem (2.3.7 flat)
+        if (Array.isArray(payload.data)) {
+          messagesArr = payload.data;
+        } else if (payload.data?.key && payload.data?.message) {
+          messagesArr = [payload.data]; // formato flat 2.3.7
         } else if (Array.isArray(payload.data?.messages)) {
           messagesArr = payload.data.messages;
         } else if (Array.isArray(payload.messages)) {
           messagesArr = payload.messages;
-        } else if (payload.data && !Array.isArray(payload.data)) {
+        } else if (payload.data) {
           messagesArr = [payload.data];
         }
+
+        let hadInfraFailure = false;
 
         for (const msgData of messagesArr) {
           if (!msgData) continue;
@@ -216,21 +260,48 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
             continue;
           }
 
-          // Idempotência
-          const { success: registered, isDuplicate } = await registerProcessed(instancia, messageId, remoteJid);
+          await logEvent({ instance: instancia, messageId, event, status: "received" });
+
+          // Idempotência fail-closed
+          const { success: registered, isDuplicate, error: idemError } = await registerProcessed(instancia, messageId, remoteJid);
           if (isDuplicate) {
             console.warn("[evolution] duplicate_message", { messageId, instancia });
+            await logEvent({ instance: instancia, messageId, event, status: "duplicate", durationMs: Date.now() - start });
             continue;
           }
           if (!registered) {
-            // Se falhou por erro de banco mas não duplicidade, tentamos prosseguir mas logamos
-            if (debug) console.warn("[evolution] register_failed_continuing", { messageId });
+            hadInfraFailure = true;
+            console.error("[evolution] idempotency_unavailable_skipping", { messageId, instancia });
+            await logEvent({
+              instance: instancia,
+              messageId,
+              event,
+              status: "error",
+              durationMs: Date.now() - start,
+              errorDetail: `idempotency_unavailable: ${idemError ?? "unknown"}`,
+            });
+            continue;
           }
 
           if (debug) console.log("[evolution] agent_lookup_started", { instancia });
           const agente = await loadAgente(instancia);
           if (!agente) {
             console.warn("[evolution] agent_not_found", { instancia });
+            await logEvent({ instance: instancia, messageId, event, status: "agent_not_found", durationMs: Date.now() - start });
+            await markCompleted(instancia, messageId, "error");
+            continue;
+          }
+
+          if (!isAgenteAtivo(agente)) {
+            console.warn("[evolution] agent_inactive", { instancia, status: String(agente.status) });
+            await logEvent({
+              instance: instancia,
+              messageId,
+              event,
+              status: "agent_inactive",
+              durationMs: Date.now() - start,
+              errorDetail: `status=${String(agente.status)}`,
+            });
             await markCompleted(instancia, messageId, "error");
             continue;
           }
@@ -242,24 +313,45 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           try {
             if (debug) console.log("[evolution] ai_started", { phone: maskedPhone });
             const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-            
-            // Busca histórico usando a nova chave composta se possível, ou phone para compatibilidade
-            const { data: historyData } = await supabaseAdmin
+
+            // 1) histórico da chave composta; 2) fallback legado (telefone puro)
+            const { data: scopedHistory } = await supabaseAdmin
               .from("wa_conversas" as never)
               .select("messages")
-              .or(`phone.eq.${phone},phone.eq.${conversationId}`)
-              .order("updated_at", { ascending: false })
-              .limit(1)
+              .eq("phone", conversationId)
               .maybeSingle();
+
+            let historyData: any = scopedHistory;
+            if (!historyData) {
+              const { data: legacyHistory } = await supabaseAdmin
+                .from("wa_conversas" as never)
+                .select("messages")
+                .eq("phone", phone)
+                .maybeSingle();
+              historyData = legacyHistory;
+            }
 
             const history = Array.isArray((historyData as any)?.messages) ? (historyData as any).messages : [];
             const nextIn = [...history, { id: `u-${Date.now()}`, role: "user", parts: [{ type: "text", text: userText }] }];
-            
-            const reply = await runAgent(nextIn, { persona: personaNote(agente) });
+
+            let reply: string;
+            try {
+              reply = await runAgent(nextIn, { persona: personaNote(agente) });
+            } catch (aiErr: any) {
+              await logEvent({
+                instance: instancia,
+                messageId,
+                event,
+                status: "ai_error",
+                durationMs: Date.now() - start,
+                errorDetail: String(aiErr?.message ?? aiErr),
+              });
+              throw aiErr;
+            }
             if (debug) console.log("[evolution] ai_completed", { duration: Date.now() - start });
 
             await supabaseAdmin.from("wa_conversas" as never).upsert({ 
-              phone: conversationId, // Usamos o ID composto para salvar
+              phone: conversationId, // Sempre o identificador composto
               messages: [...nextIn, { id: `a-${Date.now()}`, role: "assistant", parts: [{ type: "text", text: reply }] }].slice(-40),
               updated_at: new Date().toISOString() 
             } as never);
@@ -267,13 +359,37 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
             if (debug) console.log("[evolution] evolution_send_started", { phone: maskedPhone });
             const sent = await sendEvolutionText(instancia, phone, reply);
             if (debug) console.log("[evolution] evolution_send_completed", { sent });
-            
+
+            await logEvent({
+              instance: instancia,
+              messageId,
+              event,
+              status: sent ? "success" : "evolution_send_error",
+              durationMs: Date.now() - start,
+              errorDetail: sent ? null : "falha ao enviar mensagem pela Evolution API",
+            });
+
             await markCompleted(instancia, messageId, sent ? "completed" : "error");
 
           } catch (err: any) {
             console.error("[evolution] process_failed:", err);
+            await logEvent({
+              instance: instancia,
+              messageId,
+              event,
+              status: "error",
+              durationMs: Date.now() - start,
+              errorDetail: String(err?.message ?? err),
+            });
             await markCompleted(instancia, messageId, "error");
           }
+        }
+
+        if (hadInfraFailure) {
+          return new Response(
+            JSON.stringify({ ok: false, error: "idempotency_unavailable", duration_ms: Date.now() - start }),
+            { status: 503, headers: { "Content-Type": "application/json" } },
+          );
         }
 
         return Response.json({ ok: true, duration_ms: Date.now() - start });
