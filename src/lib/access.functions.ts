@@ -151,3 +151,9 @@ export const listAccessAuditLog = createServerFn({ method: "GET" })
     return (data ?? []) as AuditEntry[];
   });
 
+
+export const checkIsAdmin = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    return { isAdmin: await hasRole(context.userId, "admin") };
+  });

@@ -7,6 +7,7 @@ import {
   changePlan,
 } from "@/lib/payments.functions";
 import { getStripeEnvironment } from "@/lib/stripe";
+import { getPlanLabel, PLANS } from "@/lib/plans";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -21,15 +22,6 @@ export const Route = createFileRoute("/_authenticated/assinatura")({
   component: AssinaturaPage,
 });
 
-const PLAN_LABEL: Record<string, string> = {
-  starter_monthly: "Starter · Mensal",
-  starter_yearly: "Starter · Anual",
-  pro_monthly: "Pro · Mensal",
-  pro_yearly: "Pro · Anual",
-  business_monthly: "Business · Mensal",
-  business_yearly: "Business · Anual",
-};
-
 const STATUS_LABEL: Record<string, string> = {
   active: "Ativa",
   trialing: "Em teste",
@@ -40,14 +32,6 @@ const STATUS_LABEL: Record<string, string> = {
   paused: "Pausada",
 };
 
-const PLANS = [
-  { id: "starter_monthly", name: "Starter", cycle: "Mensal", price: "R$ 297/mês", tier: 1 },
-  { id: "starter_yearly", name: "Starter", cycle: "Anual", price: "R$ 2.970/ano", tier: 1 },
-  { id: "pro_monthly", name: "Pro", cycle: "Mensal", price: "R$ 597/mês", tier: 2 },
-  { id: "pro_yearly", name: "Pro", cycle: "Anual", price: "R$ 5.970/ano", tier: 2 },
-  { id: "business_monthly", name: "Business", cycle: "Mensal", price: "R$ 1.297/mês", tier: 3 },
-  { id: "business_yearly", name: "Business", cycle: "Anual", price: "R$ 12.970/ano", tier: 3 },
-] as const;
 
 function AssinaturaPage() {
   const qc = useQueryClient();
@@ -168,7 +152,7 @@ function AssinaturaPage() {
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <CardTitle>
-                    {PLAN_LABEL[(sub.price_id as string) ?? ""] ?? (sub.price_id as string)}
+                    {getPlanLabel((sub.price_id as string) ?? "")}
                   </CardTitle>
                   <CardDescription className="mt-1">
                     Ambiente: {(sub.environment as string) === "sandbox" ? "teste" : "produção"}
@@ -243,7 +227,7 @@ function AssinaturaPage() {
                         <p className="font-medium">
                           {p.name} · {p.cycle}
                         </p>
-                        <p className="text-sm text-muted-foreground">{p.price}</p>
+                        <p className="text-sm text-muted-foreground">{p.priceLabel}</p>
                       </div>
                       {isCurrent ? (
                         <Badge variant="secondary">

@@ -20,8 +20,9 @@ export const Route = createFileRoute("/_authenticated")({
         const ent = await context.queryClient.ensureQueryData({
           queryKey: ["entitlement", env, data.user.id],
           queryFn: () => getMyEntitlement({ data: { environment: env } }),
-          staleTime: 5 * 60_000,
-          gcTime: 10 * 60_000,
+          staleTime: 30_000,
+          gcTime: 60_000,
+
         });
         if (!ent.active) throw redirect({ to: "/assinatura" });
       } catch (e) {

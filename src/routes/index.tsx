@@ -43,66 +43,7 @@ export const Route = createFileRoute("/")({
   component: LandingPage,
 });
 
-type PlanKey = "starter" | "pro" | "business";
-type Cycle = "monthly" | "yearly";
-
-const PLANS: Record<
-  PlanKey,
-  {
-    name: string;
-    tagline: string;
-    monthly: { priceId: string; label: string };
-    yearly: { priceId: string; label: string; hint: string };
-    features: string[];
-    highlight?: boolean;
-  }
-> = {
-  starter: {
-    name: "Starter",
-    tagline: "Para começar",
-    monthly: { priceId: "starter_monthly", label: "R$ 297" },
-    yearly: { priceId: "starter_yearly", label: "R$ 2.970", hint: "≈ R$ 247/mês" },
-    features: [
-      "1 número de WhatsApp",
-      "Até 500 conversas/mês",
-      "Agenda automática (Bemp)",
-      "Base de conhecimento personalizável",
-      "Confirmações e lembretes",
-    ],
-  },
-  pro: {
-    name: "Pro",
-    tagline: "Mais escolhido",
-    monthly: { priceId: "pro_monthly", label: "R$ 597" },
-    yearly: { priceId: "pro_yearly", label: "R$ 5.970", hint: "≈ R$ 497/mês" },
-    features: [
-      "Até 3 números de WhatsApp",
-      "Até 2.000 conversas/mês",
-      "Sugestões de cross-sell configuráveis",
-      "Auditoria de sugestões",
-      "Handoff humano com operadores",
-      "Áudio bidirecional",
-    ],
-    highlight: true,
-  },
-  business: {
-    name: "Business",
-    tagline: "Para redes",
-    monthly: { priceId: "business_monthly", label: "R$ 1.297" },
-    yearly: {
-      priceId: "business_yearly",
-      label: "R$ 12.970",
-      hint: "≈ R$ 1.080/mês",
-    },
-    features: [
-      "Números e conversas ilimitados",
-      "Multi-unidade",
-      "Integrações avançadas",
-      "Prioridade no suporte",
-      "SLA dedicado",
-    ],
-  },
-};
+import { PLAN_METADATA, PLANS as CENTRAL_PLANS, type PlanKey, type Cycle } from "@/lib/plans";
 
 function LandingPage() {
   const navigate = useNavigate();
@@ -157,7 +98,7 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="bg-red-500 text-white p-2 text-center text-sm">
-        Execute esta instrucao no projeto: Não foi possível conectar à Evolution API. Confirme se o domínio possui certificado HTTPS público e válido. Detalhe técnico: fetch failed
+        Execute esta instrucao no projeto: Não recebi o QR Code do servidor Evolution.
       </div>
       <PaymentTestModeBanner />
 
@@ -324,12 +265,10 @@ function LandingPage() {
           </div>
 
           <div className="grid gap-6 lg:grid-cols-3">
-            {(Object.keys(PLANS) as PlanKey[]).map((key) => {
-              const plan = PLANS[key];
-              const price = plan[cycle];
+            {CENTRAL_PLANS.filter((p) => p.cycle === cycle).map((plan) => {
               return (
                 <Card
-                  key={key}
+                  key={plan.id}
                   className={`flex flex-col ${
                     plan.highlight
                       ? "border-primary shadow-lg ring-2 ring-primary/40"
@@ -344,19 +283,19 @@ function LandingPage() {
                     <p className="text-sm text-muted-foreground">{plan.tagline}</p>
                     <div className="mt-4">
                       <div className="flex items-baseline gap-1">
-                        <span className="font-display text-4xl">{price.label}</span>
+                        <span className="font-display text-4xl">{plan.priceLabel}</span>
                         <span className="text-sm text-muted-foreground">
                           /{cycle === "monthly" ? "mês" : "ano"}
                         </span>
                       </div>
-                      {"hint" in price && price.hint && (
-                        <p className="text-xs text-muted-foreground">{price.hint}</p>
+                      {plan.cycle === "yearly" && (
+                         <p className="text-xs text-muted-foreground">≈ R$ {Math.round(parseInt(plan.priceLabel.replace(/\D/g, '')) / 12)}/mês</p>
                       )}
                     </div>
                   </CardHeader>
                   <CardContent className="flex flex-1 flex-col justify-between gap-6">
                     <ul className="space-y-2 text-sm">
-                      {plan.features.map((f) => (
+                      {plan.features.map((f: string) => (
                         <li key={f} className="flex items-start gap-2">
                           <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                           <span>{f}</span>
@@ -366,7 +305,7 @@ function LandingPage() {
                     <Button
                       className="w-full"
                       variant={plan.highlight ? "default" : "outline"}
-                      onClick={() => handleSubscribe(price.priceId)}
+                      onClick={() => handleSubscribe(plan.id)}
                     >
                       Assinar {plan.name}
                     </Button>

@@ -1,8 +1,108 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { VirtualRows, Pagination } from "@/components/virtual-rows";
+import {
+  listSalons,
+  listServices,
+  listProfessionals,
+  listSlots,
+  listCustomerAppointments,
+  cancelAppointment,
+} from "@/lib/bemp.functions";
+import {
+  listLeadsAssinatura,
+  updateLeadStatus,
+  type LeadAssinatura,
+} from "@/lib/leads.functions";
+import {
+  listAgentes,
+  criarAgente,
+  removerAgente,
+  gerarQrAgente,
+  statusAgente,
+  desconectarAgente,
+} from "@/lib/agentes-whatsapp.functions";
+import {
+  getEvolutionSettings,
+  saveEvolutionSettings,
+} from "@/lib/evolution-config.functions";
+
+import { checkEvolutionConfig } from "@/lib/evolution-check.functions";
+import { verifyStripeSetup } from "@/lib/payments.functions";
+import { getStripeEnvironment } from "@/lib/stripe";
+import {
+  listClientesAtendidos,
+  listAtendimentosHumanos,
+  updateAtendimentoStatus,
+  type ClienteAtendido,
+  type AtendimentoHumano,
+} from "@/lib/atendimentos.functions";
+import { listReagendamentos, type ReagendamentoHist } from "@/lib/reagendamentos.functions";
+import { checkIsAdmin } from "@/lib/access.functions";
+
+import { getWhatsAppPhoneNumber } from "@/lib/whatsapp.functions";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import {
+  Calendar,
+  Clock,
+  User,
+  Search,
+  CheckCircle2,
+  XCircle,
+  Building2,
+  Phone,
+  MessageSquare,
+  Users,
+  QrCode,
+  RefreshCw,
+  Plus,
+  Trash2,
+  ExternalLink,
+  ShieldCheck,
+  ShieldAlert,
+  PlugZap,
+  Loader2,
+  Info,
+  AlertTriangle,
+  UserCheck,
+  LifeBuoy,
+  CalendarClock,
+  Activity,
+  Scissors,
+  Bot,
+  DollarSign,
+  BookOpen,
+  Filter,
+  Sparkles,
+  ClipboardList,
+  AlertCircle,
+} from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
+import { WhatsAppQr } from "@/components/whatsapp-qr";
+import { SandboxToggle } from "@/components/sandbox-toggle";
 
 function EvolutionConfigPanel() {
   const getSettings = useServerFn(getEvolutionSettings);
@@ -40,7 +140,12 @@ function EvolutionConfigPanel() {
     }
   };
 
-  if (q.isLoading) return <div className="p-8 text-center"><Loader2 className="animate-spin h-6 w-6 mx-auto" /></div>;
+  if (q.isLoading)
+    return (
+      <div className="p-8 text-center">
+        <Loader2 className="animate-spin h-6 w-6 mx-auto" />
+      </div>
+    );
 
   return (
     <Card>
@@ -49,7 +154,8 @@ function EvolutionConfigPanel() {
           <PlugZap className="h-5 w-5 text-primary" /> Configuração da Evolution API
         </CardTitle>
         <CardDescription>
-          Gerencie a URL e a API Key do seu servidor Evolution. Estas configurações sobrescrevem as variáveis de ambiente.
+          Gerencie a URL e a API Key do seu servidor Evolution. Estas configurações sobrescrevem
+          as variáveis de ambiente.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -63,7 +169,9 @@ function EvolutionConfigPanel() {
               onChange={(e) => setUrl(e.target.value)}
               required
             />
-            <p className="text-[10px] text-muted-foreground">Ex: https://api.evolution.seudominio.com</p>
+            <p className="text-[10px] text-muted-foreground">
+              Ex: https://api.evolution.seudominio.com
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="evo_key">Global API Key</Label>
@@ -77,7 +185,11 @@ function EvolutionConfigPanel() {
             />
           </div>
           <Button type="submit" disabled={saving}>
-            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+            {saving ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <CheckCircle2 className="mr-2 h-4 w-4" />
+            )}
             Salvar Configurações
           </Button>
           {q.data?.source === "env" && (
@@ -85,7 +197,8 @@ function EvolutionConfigPanel() {
               <Info className="h-4 w-4" />
               <AlertTitle>Usando Variáveis de Ambiente</AlertTitle>
               <AlertDescription>
-                Atualmente o sistema está usando as credenciais configuradas no servidor (ENV). Ao salvar aqui, elas serão ignoradas em favor dos novos dados.
+                Atualmente o sistema está usando as credenciais configuradas no servidor (ENV). Ao
+                salvar aqui, elas serão ignoradas em favor dos novos dados.
               </AlertDescription>
             </Alert>
           )}
@@ -95,50 +208,8 @@ function EvolutionConfigPanel() {
   );
 }
 
-
-
 const PAGE_SIZE = 30;
-import {
-  listSalons,
-  listServices,
-  listProfessionals,
-  listSlots,
-  listCustomerAppointments,
-} from "@/lib/bemp.functions";
-import { getWhatsAppPhoneNumber } from "@/lib/whatsapp.functions";
-import { listLeadsAssinatura, updateLeadStatus, type LeadAssinatura } from "@/lib/leads.functions";
-import {
-  listClientesAtendidos,
-  listAtendimentosHumanos,
-  updateAtendimentoStatus,
-  type ClienteAtendido,
-  type AtendimentoHumano,
-} from "@/lib/atendimentos.functions";
-import { listReagendamentos, type ReagendamentoHist } from "@/lib/reagendamentos.functions";
-import { useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { WhatsAppQr } from "@/components/whatsapp-qr";
-import { SandboxToggle } from "@/components/sandbox-toggle";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { CalendarClock, Building2, Scissors, Bot, Clock, DollarSign, Phone, RefreshCw, Search, BookOpen, QrCode, Users, Filter, Sparkles, ClipboardList, UserCheck, LifeBuoy, MessageSquare, CheckCircle2, PlugZap, Info, Loader2 } from "lucide-react";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
-import { checkEvolutionConfig } from "@/lib/evolution-check.functions";
-import { getEvolutionSettings, saveEvolutionSettings } from "@/lib/evolution-config.functions";
 
 export const Route = createFileRoute("/_authenticated/painel")({
   head: () => ({
@@ -195,6 +266,13 @@ const dur = (v: unknown) => {
 
 // ---------- root ----------
 function Dashboard() {
+  const isAdminQ = useQuery({
+    queryKey: ["is-admin"],
+    queryFn: () => checkIsAdmin(),
+    staleTime: 5 * 60_000,
+  });
+  const isAdmin = isAdminQ.data?.isAdmin ?? false;
+
   const evolutionCheckQ = useQuery({
     queryKey: ["evolution-check"],
     queryFn: () => checkEvolutionCheck(),
@@ -205,6 +283,7 @@ function Dashboard() {
   }
 
   const evoError = evolutionCheckQ.data?.isValid === false ? evolutionCheckQ.data.error : null;
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -287,7 +366,13 @@ function Dashboard() {
               <TabsTrigger value="reagendamentos">
                 <CalendarClock className="h-4 w-4 mr-1" /> Reagendamentos
               </TabsTrigger>
+              {isAdmin && (
+                <TabsTrigger value="stripe_health">
+                  <Activity className="h-4 w-4 mr-1" /> Saúde Stripe
+                </TabsTrigger>
+              )}
             </TabsList>
+
           </div>
 
           <TabsContent value="catalogo">
@@ -317,7 +402,13 @@ function Dashboard() {
           <TabsContent value="reagendamentos">
             <ReagendamentosPanel />
           </TabsContent>
+          {isAdmin && (
+            <TabsContent value="stripe_health">
+              <StripeHealthPanel />
+            </TabsContent>
+          )}
         </Tabs>
+
 
       </main>
     </div>
@@ -1470,3 +1561,73 @@ function ReagendamentosPanel() {
 
 
 
+
+// ---------- Stripe Health ----------
+function StripeHealthPanel() {
+  const env = getStripeEnvironment();
+  const verify = useServerFn(verifyStripeSetup);
+  
+  const q = useQuery({
+    queryKey: ["stripe-health", env],
+    queryFn: () => verify({ data: { environment: env } }),
+    staleTime: 5 * 60_000,
+  });
+
+  if (q.isLoading) return <div className="p-8 text-center"><Loader2 className="animate-spin h-6 w-6 mx-auto" /></div>;
+
+  const results = q.data && 'results' in q.data ? q.data.results : [];
+  const error = q.data && 'error' in q.data ? q.data.error : null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Activity className="h-5 w-5 text-primary" /> Saúde da Integração Stripe
+        </CardTitle>
+        <CardDescription>
+          Verifica se os planos configurados no sistema existem no seu Stripe (Lookup Keys).
+          Ambiente atual: <Badge variant="outline">{env}</Badge>
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {error ? (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Erro na verificação</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.isArray(results) && results.map((r: any) => (
+              <Card key={r.planId} className="bg-muted/30">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs font-medium">{r.planId}</span>
+                    {r.found ? (
+                      <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200">
+                        <CheckCircle2 className="h-3 w-3 mr-1" /> OK
+                      </Badge>
+                    ) : (
+                      <Badge variant="destructive">
+                        <XCircle className="h-3 w-3 mr-1" /> Não encontrado
+                      </Badge>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-sm text-muted-foreground">
+                    {r.found ? (
+                      r.active ? "Preço ativo no Stripe." : "Preço encontrado mas está inativo."
+                    ) : (
+                      "Crie um produto/preço no Stripe com Lookup Key exatamente igual ao ID acima."
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

@@ -1,6 +1,7 @@
 import { hasRole } from "@/lib/roles";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { PLANS as APP_PLANS } from "@/lib/plans";
 import {
   type StripeEnv,
   createStripeClient,
@@ -242,6 +243,31 @@ export const changePlan = createServerFn({ method: "POST" })
       });
 
       return { ok: true, newPriceId: data.newPriceId };
+    } catch (error) {
+      return { error: getStripeErrorMessage(error) };
+    }
+  });
+
+export const verifyStripeSetup = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { environment: StripeEnv }) => data)
+  .handler(async ({ data, context }) => {
+    const isAdmin = await hasRole(context.userId, "admin");
+    if (!isAdmin) throw new Error("Acesso restrito");
+
+    try {
+      const stripe = createStripeClient(data.environment);
+      const results = await Promise.all(
+        APP_PLANS.map(async (p) => {
+          const prices = await stripe.prices.list({ lookup_keys: [p.id] });
+          return {
+            planId: p.id,
+            found: prices.data.length > 0,
+            active: prices.data[0]?.active ?? false,
+          };
+        }),
+      );
+      return { results };
     } catch (error) {
       return { error: getStripeErrorMessage(error) };
     }
