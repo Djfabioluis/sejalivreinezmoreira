@@ -3,6 +3,7 @@ import { convertToModelMessages, streamText, generateText, stepCountIs, tool, ty
 import { z } from "zod";
 import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
 import { sanitizeCustomerText } from "@/lib/text-sanitize";
+import { logEvent } from "./evolution/logger.server";
 import {
   bempFetch,
   getBempConfig,
