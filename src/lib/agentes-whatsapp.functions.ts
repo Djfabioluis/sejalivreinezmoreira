@@ -141,19 +141,23 @@ export const selecionarUnidadeAgente = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
 
     // Logging (Item 12)
-    const { logEvolutionEvent } = await import("@/lib/evolution.server");
-    const { data: agentData } = await supabaseAdmin
-      .from("wa_agentes" as never)
-      .select("instancia")
-      .eq("id", data.agenteId)
-      .single();
-    
-    if (agentData) {
-      await logEvolutionEvent({
-        instance: (agentData as any).instancia,
-        event: isNewSelection ? "unit_selected" : "unit_changed",
-        status: "agent_activated"
-      });
+    try {
+      const { supabaseAdmin: sb } = await import("@/integrations/supabase/client.server");
+      const { data: agentData } = await sb
+        .from("wa_agentes" as never)
+        .select("instancia")
+        .eq("id", data.agenteId)
+        .single();
+      
+      if (agentData) {
+        await sb.from("evo_webhook_logs" as never).insert({
+          instance: (agentData as any).instancia,
+          event: isNewSelection ? "unit_selected" : "unit_changed",
+          status: "agent_activated"
+        } as never);
+      }
+    } catch (logErr) {
+      console.error("Erro ao registrar log de unidade:", logErr);
     }
 
     return { success: true };
