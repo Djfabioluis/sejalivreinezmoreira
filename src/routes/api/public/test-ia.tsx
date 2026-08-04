@@ -20,7 +20,7 @@ export const Route = createFileRoute("/api/public/test-ia")({
           const { message, contactName, contactPhone, instance, unidadeId } = params;
           try {
             const reply = await runAgent(
-              [{ id: "test-1", role: "user", content: message, parts: [{ type: "text", text: message }] }],
+              [{ id: "test-1", role: "user", parts: [{ type: "text", text: message }] } as any],
               {
                 contactName,
                 contactPhone,
