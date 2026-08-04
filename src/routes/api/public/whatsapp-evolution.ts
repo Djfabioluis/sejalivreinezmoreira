@@ -247,7 +247,7 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
             const aiResponse = await runAgent(modelMessages, { 
               sandbox: false,
               unidadeId: agente.unidade_id,
-              contactName: contactName || (existingConv as any)?.contact_name,
+              contactName: (contactName || (existingConv as any)?.contact_name) ?? undefined,
               contactPhone: phone,
               customerContext: customerContext
             });
