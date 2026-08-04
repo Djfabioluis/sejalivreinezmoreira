@@ -97,8 +97,8 @@ function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="bg-green-500 text-white p-2 text-center text-sm">
-        Execute esta instrucao no projeto: Transforme a aba “Secretária virtual” em uma central de atendimento do WhatsApp, funcionando como uma caixa de entrada real das conversas recebidas pela Evolution API.
+      <div className="bg-green-600 text-white p-2 text-center text-xs font-medium">
+        Revisão completa da Central WhatsApp e Secretária Virtual finalizada.
       </div>
       <PaymentTestModeBanner />
 

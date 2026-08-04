@@ -673,10 +673,11 @@ export type Database = {
         Args: {
           p_contact_name?: string
           p_increment_unread?: boolean
-          p_instance: string
+          p_instance?: string
           p_message: Json
+          p_new_status?: string
           p_phone: string
-          p_phone_number: string
+          p_phone_number?: string
         }
         Returns: undefined
       }
