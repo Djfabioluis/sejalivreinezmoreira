@@ -13,7 +13,8 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution/health")({
         let databaseConfigured = false;
         let databaseReachable = false;
         try {
-          databaseConfigured = !!process.env.SUPABASE_URL && !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+          databaseConfigured =
+            !!process.env.SUPABASE_URL && !!process.env.SUPABASE_SERVICE_ROLE_KEY;
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
           const { error } = await supabaseAdmin
             .from("wa_agentes" as never)

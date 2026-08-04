@@ -1,10 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { timingSafeEqual } from "crypto";
 import { runAgent } from "@/lib/chat.server";
-import {
-  getEvolutionConfig,
-  sendEvolutionText,
-} from "@/lib/evolution.server";
+import { getEvolutionConfig, sendEvolutionText } from "@/lib/evolution.server";
 
 type Agente = {
   id: string;
@@ -63,7 +60,20 @@ function isAgenteAtivo(a: Agente): boolean {
   if (status === false) return false;
   if (status === true || status === null || status === undefined) return true;
   const s = String(status).trim().toLowerCase();
-  if (["inativo", "inativa", "desativado", "desativada", "disabled", "inactive", "false", "0", "bloqueado", "suspenso"].includes(s)) {
+  if (
+    [
+      "inativo",
+      "inativa",
+      "desativado",
+      "desativada",
+      "disabled",
+      "inactive",
+      "false",
+      "0",
+      "bloqueado",
+      "suspenso",
+    ].includes(s)
+  ) {
     return false;
   }
   return true;
@@ -83,7 +93,11 @@ async function loadAgente(instancia: string): Promise<Agente | null> {
 /**
  * Registra a tentativa de processamento de uma mensagem de forma atômica para idempotência.
  */
-async function registerProcessed(instance: string, messageId: string, remoteJid?: string): Promise<{ success: boolean; isDuplicate: boolean; error?: string }> {
+async function registerProcessed(
+  instance: string,
+  messageId: string,
+  remoteJid?: string,
+): Promise<{ success: boolean; isDuplicate: boolean; error?: string }> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   try {
     const { error } = await supabaseAdmin.from("evo_events" as never).insert({
@@ -91,11 +105,12 @@ async function registerProcessed(instance: string, messageId: string, remoteJid?
       message_id: messageId,
       remote_jid: remoteJid,
       status: "processing",
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
     } as never);
 
     if (error) {
-      if (error.code === "23505") { // Unique violation
+      if (error.code === "23505") {
+        // Unique violation
         return { success: false, isDuplicate: true };
       }
       console.error("[evolution] idempotency_error:", error.message);
@@ -104,27 +119,38 @@ async function registerProcessed(instance: string, messageId: string, remoteJid?
     return { success: true, isDuplicate: false };
   } catch (err) {
     console.error("[evolution] idempotency_exception:", err);
-    return { success: false, isDuplicate: false, error: err instanceof Error ? err.message : String(err) };
+    return {
+      success: false,
+      isDuplicate: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
   }
 }
 
-async function markCompleted(instance: string, messageId: string, status: "completed" | "error" = "completed") {
+async function markCompleted(
+  instance: string,
+  messageId: string,
+  status: "completed" | "error" = "completed",
+) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  await supabaseAdmin.from("evo_events" as never).update({
-    status,
-    processed_at: new Date().toISOString()
-  } as never).match({ instance, message_id: messageId });
+  await supabaseAdmin
+    .from("evo_events" as never)
+    .update({
+      status,
+      processed_at: new Date().toISOString(),
+    } as never)
+    .match({ instance, message_id: messageId });
 }
 
 function extractMessageText(message: any): string | null {
   if (!message) return null;
 
   // Recursão para mensagens encapsuladas
-  const subMessage = 
-    message.ephemeralMessage?.message || 
-    message.viewOnceMessage?.message || 
-    message.viewOnceMessageV2?.message || 
-    message.documentWithCaptionMessage?.message || 
+  const subMessage =
+    message.ephemeralMessage?.message ||
+    message.viewOnceMessage?.message ||
+    message.viewOnceMessageV2?.message ||
+    message.documentWithCaptionMessage?.message ||
     message.editedMessage?.message ||
     message.protocolMessage?.editedMessage?.message;
 
@@ -132,21 +158,21 @@ function extractMessageText(message: any): string | null {
     return extractMessageText(subMessage);
   }
 
-  const text = 
-    message.conversation || 
-    message.extendedTextMessage?.text || 
-    message.imageMessage?.caption || 
-    message.videoMessage?.caption || 
-    message.documentMessage?.caption || 
-    message.buttonsResponseMessage?.selectedDisplayText || 
-    message.buttonsResponseMessage?.selectedButtonId || 
-    message.listResponseMessage?.title || 
-    message.listResponseMessage?.singleSelectReply?.selectedRowId || 
-    message.templateButtonReplyMessage?.selectedDisplayText || 
-    message.templateButtonReplyMessage?.selectedId || 
+  const text =
+    message.conversation ||
+    message.extendedTextMessage?.text ||
+    message.imageMessage?.caption ||
+    message.videoMessage?.caption ||
+    message.documentMessage?.caption ||
+    message.buttonsResponseMessage?.selectedDisplayText ||
+    message.buttonsResponseMessage?.selectedButtonId ||
+    message.listResponseMessage?.title ||
+    message.listResponseMessage?.singleSelectReply?.selectedRowId ||
+    message.templateButtonReplyMessage?.selectedDisplayText ||
+    message.templateButtonReplyMessage?.selectedId ||
     message.interactiveResponseMessage?.body?.text ||
     null;
-    
+
   return text?.trim() || null;
 }
 
@@ -164,7 +190,7 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
         if (debug) console.log("[evolution] webhook_received");
 
         // 1. Autenticação do Webhook
-        const provided = 
+        const provided =
           request.headers.get("x-webhook-secret") ||
           (request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "") ||
           new URL(request.url).searchParams.get("webhook_secret");
@@ -191,25 +217,42 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
 
         const rawEvent = (payload.event || "").toLowerCase().replace(/_/g, ".");
         let event = rawEvent;
-        if (event === "messages.upsert" || event === "message.upsert" || event === "messages_upsert") {
+        if (
+          event === "messages.upsert" ||
+          event === "message.upsert" ||
+          event === "messages_upsert"
+        ) {
           event = "messages.upsert";
         }
         if (debug) console.log("[evolution] payload_shape_detected", { event });
 
-        const instancia = payload.instance || payload.instanceName || payload.data?.instance || payload.data?.instanceName || "unknown";
+        const instancia =
+          payload.instance ||
+          payload.instanceName ||
+          payload.data?.instance ||
+          payload.data?.instanceName ||
+          "unknown";
         if (debug) console.log("[evolution] instance_extracted", { instancia });
 
         if (event === "connection.update") {
           const state = payload.data?.state || payload.state;
           if (state === "open") {
-             const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-             await supabaseAdmin.from("wa_agentes" as never).update({ status: "conectado", atualizado_em: new Date().toISOString() } as never).eq("instancia", instancia);
+            const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+            await supabaseAdmin
+              .from("wa_agentes" as never)
+              .update({ status: "conectado", atualizado_em: new Date().toISOString() } as never)
+              .eq("instancia", instancia);
           }
           return Response.json({ ok: true });
         }
 
         if (event !== "messages.upsert") {
-          return Response.json({ ok: true, ignored: true, reason: "unsupported_event", event: rawEvent });
+          return Response.json({
+            ok: true,
+            ignored: true,
+            reason: "unsupported_event",
+            event: rawEvent,
+          });
         }
 
         // Normalização de mensagens (2.3.7 e variantes)
@@ -230,13 +273,18 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
 
         for (const msgData of messagesArr) {
           if (!msgData) continue;
-          
+
           const key = msgData.key || {};
           const remoteJid = key.remoteJid || "";
           const messageId = key.id || "";
           const fromMe = key.fromMe === true;
 
-          if (debug) console.log("[evolution] message_key_extracted", { messageId, remoteJid: remoteJid.replace(/\d+(?=@)/, (m: string) => m.slice(0, 4) + "****"), fromMe });
+          if (debug)
+            console.log("[evolution] message_key_extracted", {
+              messageId,
+              remoteJid: remoteJid.replace(/\d+(?=@)/, (m: string) => m.slice(0, 4) + "****"),
+              fromMe,
+            });
 
           if (fromMe) continue;
 
@@ -250,7 +298,11 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
             continue;
           }
 
-          if (remoteJid.endsWith("@g.us") || remoteJid.endsWith("@broadcast") || remoteJid === "status@broadcast") {
+          if (
+            remoteJid.endsWith("@g.us") ||
+            remoteJid.endsWith("@broadcast") ||
+            remoteJid === "status@broadcast"
+          ) {
             continue;
           }
 
@@ -263,10 +315,20 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           await logEvent({ instance: instancia, messageId, event, status: "received" });
 
           // Idempotência fail-closed
-          const { success: registered, isDuplicate, error: idemError } = await registerProcessed(instancia, messageId, remoteJid);
+          const {
+            success: registered,
+            isDuplicate,
+            error: idemError,
+          } = await registerProcessed(instancia, messageId, remoteJid);
           if (isDuplicate) {
             console.warn("[evolution] duplicate_message", { messageId, instancia });
-            await logEvent({ instance: instancia, messageId, event, status: "duplicate", durationMs: Date.now() - start });
+            await logEvent({
+              instance: instancia,
+              messageId,
+              event,
+              status: "duplicate",
+              durationMs: Date.now() - start,
+            });
             continue;
           }
           if (!registered) {
@@ -287,13 +349,22 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           const agente = await loadAgente(instancia);
           if (!agente) {
             console.warn("[evolution] agent_not_found", { instancia });
-            await logEvent({ instance: instancia, messageId, event, status: "agent_not_found", durationMs: Date.now() - start });
+            await logEvent({
+              instance: instancia,
+              messageId,
+              event,
+              status: "agent_not_found",
+              durationMs: Date.now() - start,
+            });
             await markCompleted(instancia, messageId, "error");
             continue;
           }
 
           if (!isAgenteAtivo(agente)) {
-            console.warn("[evolution] agent_inactive", { instancia, status: String(agente.status) });
+            console.warn("[evolution] agent_inactive", {
+              instancia,
+              status: String(agente.status),
+            });
             await logEvent({
               instance: instancia,
               messageId,
@@ -331,8 +402,13 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
               historyData = legacyHistory;
             }
 
-            const history = Array.isArray((historyData as any)?.messages) ? (historyData as any).messages : [];
-            const nextIn = [...history, { id: `u-${Date.now()}`, role: "user", parts: [{ type: "text", text: userText }] }];
+            const history = Array.isArray((historyData as any)?.messages)
+              ? (historyData as any).messages
+              : [];
+            const nextIn = [
+              ...history,
+              { id: `u-${Date.now()}`, role: "user", parts: [{ type: "text", text: userText }] },
+            ];
 
             let reply: string;
             try {
@@ -350,10 +426,17 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
             }
             if (debug) console.log("[evolution] ai_completed", { duration: Date.now() - start });
 
-            await supabaseAdmin.from("wa_conversas" as never).upsert({ 
+            await supabaseAdmin.from("wa_conversas" as never).upsert({
               phone: conversationId, // Sempre o identificador composto
-              messages: [...nextIn, { id: `a-${Date.now()}`, role: "assistant", parts: [{ type: "text", text: reply }] }].slice(-40),
-              updated_at: new Date().toISOString() 
+              messages: [
+                ...nextIn,
+                {
+                  id: `a-${Date.now()}`,
+                  role: "assistant",
+                  parts: [{ type: "text", text: reply }],
+                },
+              ].slice(-40),
+              updated_at: new Date().toISOString(),
             } as never);
 
             if (debug) console.log("[evolution] evolution_send_started", { phone: maskedPhone });
@@ -370,7 +453,6 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
             });
 
             await markCompleted(instancia, messageId, sent ? "completed" : "error");
-
           } catch (err: any) {
             console.error("[evolution] process_failed:", err);
             await logEvent({
@@ -387,13 +469,17 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
 
         if (hadInfraFailure) {
           return new Response(
-            JSON.stringify({ ok: false, error: "idempotency_unavailable", duration_ms: Date.now() - start }),
+            JSON.stringify({
+              ok: false,
+              error: "idempotency_unavailable",
+              duration_ms: Date.now() - start,
+            }),
             { status: 503, headers: { "Content-Type": "application/json" } },
           );
         }
 
         return Response.json({ ok: true, duration_ms: Date.now() - start });
-      }
-    }
-  }
+      },
+    },
+  },
 });

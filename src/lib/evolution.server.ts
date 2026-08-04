@@ -2,7 +2,11 @@
 // Nunca importar em código de browser.
 import { sanitizeCustomerText } from "@/lib/text-sanitize";
 
-async function getDbConfig(): Promise<{ url: string; apiKey: string; webhookSecret?: string } | null> {
+async function getDbConfig(): Promise<{
+  url: string;
+  apiKey: string;
+  webhookSecret?: string;
+} | null> {
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data } = await supabaseAdmin
@@ -21,7 +25,9 @@ async function getDbConfig(): Promise<{ url: string; apiKey: string; webhookSecr
 
 export async function getEvolutionConfig() {
   const db = await getDbConfig();
-  const url = (db?.url || process.env.EVOLUTION_API_URL || process.env.EVOLUTION_BASE_URL || "").trim().replace(/\/+$/, "");
+  const url = (db?.url || process.env.EVOLUTION_API_URL || process.env.EVOLUTION_BASE_URL || "")
+    .trim()
+    .replace(/\/+$/, "");
   const apiKey = db?.apiKey || process.env.EVOLUTION_API_KEY || "";
   const webhookSecret = db?.webhookSecret || process.env.EVOLUTION_WEBHOOK_SECRET || "";
   const debug = process.env.WHATSAPP_DEBUG === "true";
@@ -59,8 +65,9 @@ async function evoFetch(
 ): Promise<{ ok: boolean; status: number; data: any; text: string }> {
   const { url: base, apiKey, debug } = await getEvolutionConfig();
   const url = `${base}${path}`;
-  
-  if (debug) console.log(`[evolution] fetch ${init.method ?? "GET"} ${url.replace(apiKey, "REDACTED")}`);
+
+  if (debug)
+    console.log(`[evolution] fetch ${init.method ?? "GET"} ${url.replace(apiKey, "REDACTED")}`);
 
   let res: Response;
   try {
@@ -175,7 +182,8 @@ export async function sendEvolutionText(
     method: "POST",
     body: { number, text: sanitizeCustomerText(body).slice(0, 3500) },
   });
-  if (!res.ok) console.error("[evolution] envio de texto falhou:", res.status, res.text.slice(0, 300));
+  if (!res.ok)
+    console.error("[evolution] envio de texto falhou:", res.status, res.text.slice(0, 300));
   return res.ok;
 }
 
@@ -189,7 +197,8 @@ export async function sendEvolutionAudio(
     method: "POST",
     body: { number, audio: mp3.toString("base64") },
   });
-  if (!res.ok) console.error("[evolution] envio de áudio falhou:", res.status, res.text.slice(0, 300));
+  if (!res.ok)
+    console.error("[evolution] envio de áudio falhou:", res.status, res.text.slice(0, 300));
   return res.ok;
 }
 
