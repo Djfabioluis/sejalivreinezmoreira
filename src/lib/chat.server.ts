@@ -174,7 +174,7 @@ function buildTools(sandbox: boolean, forcedUnitId?: string | null) {
       description:
         "Cria o agendamento na Bemp. Só chame após confirmação explícita do cliente. O 'end' deve ser o 'start' + duração do serviço em minutos.",
       inputSchema: z.object({
-        salon_id: z.number(),
+        salon_id: z.number().optional(),
         service_id: z.number(),
         professional_id: z.number().optional(),
         start: z.string().describe("ISO 8601, ex.: 2025-09-12T13:30:00.000-03:00"),
