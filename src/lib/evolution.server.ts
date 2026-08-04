@@ -2,7 +2,7 @@
 // Nunca importar em código de browser.
 import { sanitizeCustomerText } from "@/lib/text-sanitize";
 
-async function getDbConfig(): Promise<{ url: string; apiKey: string } | null> {
+async function getDbConfig(): Promise<{ url: string; apiKey: string; webhookSecret?: string } | null> {
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data } = await supabaseAdmin
@@ -19,11 +19,20 @@ async function getDbConfig(): Promise<{ url: string; apiKey: string } | null> {
   }
 }
 
-export async function getEvolutionApiKey(): Promise<string> {
+export async function getEvolutionConfig() {
   const db = await getDbConfig();
-  const key = db?.apiKey || process.env.EVOLUTION_API_KEY;
-  if (!key) throw new Error("EVOLUTION_API_KEY não configurada.");
-  return key;
+  const url = (db?.url || process.env.EVOLUTION_API_URL || "").trim().replace(/\/+$/, "");
+  const apiKey = db?.apiKey || process.env.EVOLUTION_API_KEY || "";
+  const webhookSecret = db?.webhookSecret || process.env.EVOLUTION_WEBHOOK_SECRET || "";
+  const debug = process.env.WHATSAPP_DEBUG === "true";
+
+  return { url, apiKey, webhookSecret, debug };
+}
+
+export async function getEvolutionApiKey(): Promise<string> {
+  const cfg = await getEvolutionConfig();
+  if (!cfg.apiKey) throw new Error("EVOLUTION_API_KEY não configurada.");
+  return cfg.apiKey;
 }
 export function evolutionApiKey(): never {
   throw new Error("Use await getEvolutionApiKey() em vez de evolutionApiKey().");
@@ -32,10 +41,9 @@ export function evolutionApiKey(): never {
 export type EvolutionState = "aguardando_qr" | "conectado" | "desconectado";
 
 async function getBaseUrl(): Promise<string> {
-  const db = await getDbConfig();
-  const raw = db?.url || process.env.EVOLUTION_API_URL;
-  if (!raw) throw new Error("EVOLUTION_API_URL não configurada.");
-  return raw.trim().replace(/\/+$/, "");
+  const cfg = await getEvolutionConfig();
+  if (!cfg.url) throw new Error("EVOLUTION_API_URL não configurada.");
+  return cfg.url;
 }
 
 export async function isEvolutionConfigured(): Promise<boolean> {
@@ -47,15 +55,17 @@ async function evoFetch(
   path: string,
   init: { method?: string; body?: unknown } = {},
 ): Promise<{ ok: boolean; status: number; data: any; text: string }> {
-  const base = await getBaseUrl();
+  const { url: base, apiKey, debug } = await getEvolutionConfig();
   const url = `${base}${path}`;
   
+  if (debug) console.log(`[evolution] fetch ${init.method ?? "GET"} ${url.replace(apiKey, "REDACTED")}`);
+
   let res: Response;
   try {
     res = await fetch(url, {
       method: init.method ?? "GET",
       headers: {
-        apikey: await getEvolutionApiKey(),
+        apikey: apiKey,
         "Content-Type": "application/json",
       },
       body: init.body === undefined ? undefined : JSON.stringify(init.body),
