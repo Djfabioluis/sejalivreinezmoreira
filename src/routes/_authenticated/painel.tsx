@@ -594,9 +594,14 @@ function Dashboard() {
             <ReagendamentosPanel />
           </TabsContent>
           {isAdmin && (
-            <TabsContent value="stripe_health">
-              <StripeHealthPanel />
-            </TabsContent>
+            <>
+              <TabsContent value="stripe_health">
+                <StripeHealthPanel />
+              </TabsContent>
+              <TabsContent value="evolution_logs">
+                <EvolutionLogsPanel />
+              </TabsContent>
+            </>
           )}
         </Tabs>
 
