@@ -35,7 +35,7 @@ describe("Evolution Library Unit Tests", () => {
     });
 
     it("should prioritize instance from query param", () => {
-      const payload = { instance: "inst-payload", data: { key: { remoteJid: "123@s.whatsapp.net" } } };
+      const payload = { instance: "inst-payload", data: { key: { remoteJid: "123@s.whatsapp.net", id: "msg-1" } } };
       const result = normalizeEvolutionMessages(payload, "http://localhost/api/webhook?instance=inst-query");
       expect(result[0].instance).toBe("inst-query");
     });

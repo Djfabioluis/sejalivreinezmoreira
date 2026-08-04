@@ -4,8 +4,19 @@ export function normalizeEvolutionMessages(payload: any, requestUrl: string): No
   const url = new URL(requestUrl);
   const queryInstance = url.searchParams.get("instance");
   
+  // Support payload.data.messages, payload.data.message, payload.messages, payload.message
   const data = payload.data || payload;
-  const msgArray = Array.isArray(data) ? data : (data.messages || [data]);
+  let msgArray: any[] = [];
+  if (Array.isArray(data)) {
+    msgArray = data;
+  } else if (data.messages && Array.isArray(data.messages)) {
+    msgArray = data.messages;
+  } else if (data.message) {
+    msgArray = [data.message];
+  } else {
+    // If it's a single message object directly in data
+    msgArray = [data];
+  }
   
   const results: NormalizedEvolutionMessage[] = [];
 
@@ -30,7 +41,20 @@ export function normalizeEvolutionMessages(payload: any, requestUrl: string): No
     const timestamp = msg.messageTimestamp || data.messageTimestamp || Math.floor(Date.now() / 1000);
     const fromMe = !!key.fromMe;
 
-    if (!remoteJid) continue;
+    if (!instance) {
+      console.warn("Evolution: Missing instance in payload", msg);
+      continue;
+    }
+
+    if (!remoteJid) {
+      console.warn("Evolution: Missing remoteJid in payload", msg);
+      continue;
+    }
+
+    if (!messageId) {
+      console.warn("Evolution: Missing messageId in payload", msg);
+      continue;
+    }
 
     results.push({
       instance,
