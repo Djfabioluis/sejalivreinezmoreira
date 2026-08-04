@@ -1,8 +1,10 @@
-import { sendEvolutionText } from "@/lib/evolution.server";
+import { sendEvolutionText, sendEvolutionPresence } from "@/lib/evolution.server";
 import { logEvent } from "./logger.server";
 
-const TYPING_INDICATOR = "✍️ Digitando…";
-const TYPING_DELAY_MS = 1500;
+// Duração do indicador nativo "digitando…" antes do envio da resposta.
+const TYPING_MIN_MS = 1200;
+const TYPING_MAX_MS = 3500;
+const TYPING_PER_CHAR_MS = 25;
 
 export async function replyToUser(params: {
   instance: string;
@@ -18,8 +20,18 @@ export async function replyToUser(params: {
     status: "started" 
   });
 
-  // Simula digitação humanizada antes da resposta real.
-  const typingSent = await sendEvolutionText(params.instance, params.phone, TYPING_INDICATOR);
+  // Digitação humanizada: usa a presença nativa do WhatsApp ("digitando…"),
+  // sem enviar nenhuma mensagem visível ao cliente.
+  const typingMs = Math.min(
+    TYPING_MAX_MS,
+    Math.max(TYPING_MIN_MS, params.text.length * TYPING_PER_CHAR_MS),
+  );
+  const typingSent = await sendEvolutionPresence(
+    params.instance,
+    params.phone,
+    "composing",
+    typingMs,
+  ).catch(() => false);
   await logEvent({
     instance: params.instance,
     messageId: params.messageId,
@@ -28,7 +40,11 @@ export async function replyToUser(params: {
   });
 
   // Pequena pausa para parecer natural.
-  await new Promise((resolve) => setTimeout(resolve, TYPING_DELAY_MS));
+  await new Promise((resolve) => setTimeout(resolve, typingMs));
+
+  // Encerra a presença de digitação antes de enviar a mensagem.
+  await sendEvolutionPresence(params.instance, params.phone, "paused", 0).catch(() => false);
+
 
   // 9. ENVIO PELA EVOLUTION
   const sent = await sendEvolutionText(params.instance, params.phone, params.text);
