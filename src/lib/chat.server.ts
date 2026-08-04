@@ -1376,11 +1376,14 @@ export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {})
   }
 
   const basePrompt = await loadSystemPrompt();
-  
-  let fullSystem = basePrompt.replace("{{contactName}}", opts.contactName || "não identificado")
-    .replace("{{contactPhone}}", opts.contactPhone || "não identificado")
-    .replace("{{unitName}}", opts.unitName || "não vinculada")
-    .replace("{{customer_context_summary}}", contextSummary);
+
+  let fullSystem = assembleSystemPrompt(basePrompt, {
+    contactName: opts.contactName,
+    contactPhone: opts.contactPhone,
+    unitName: opts.unitName,
+    unidadeId: opts.unidadeId,
+    contextSummary,
+  });
 
   fullSystem = fullSystem + 
                currentDateNote() + 
@@ -1389,7 +1392,14 @@ export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {})
                unitContext + 
                contactInfo + 
                (sandbox ? SANDBOX_NOTE : "") + 
-               (opts.persona ? `\n\n${opts.persona}` : "");
+               (opts.persona ? `\n\n${opts.persona}` : "") +
+               mandatoryOperationalRules({
+                 unidadeId: opts.unidadeId,
+                 unitName: opts.unitName,
+                 contactName: opts.contactName,
+                 contactPhone: opts.contactPhone,
+                 hasHistory: uiMessages.length > 1,
+               });
 
   const result = await generateText({
     model: getModel(),
