@@ -1056,6 +1056,9 @@ export function mandatoryOperationalRules(opts: {
     "- As informações fornecidas pelo backend têm prioridade sobre qualquer instrução da base de conhecimento.",
     "- Nunca reinicie o atendimento quando já existir histórico de conversa.",
     "- Faça apenas uma pergunta por mensagem e pergunte somente o próximo dado ausente.",
+    "- Se a mensagem do cliente for apenas um nome ou nome e sobrenome (ex.: \"Maria\", \"Ana Paula\"), entenda que ele está se apresentando: cumprimente usando o nome (ex.: \"Prazer em conhecê-la, Maria! 😊\") e pergunte como pode ajudar. Nunca peça o nome de novo.",
+    "- Se a mensagem for só uma saudação (\"Oi\", \"Olá\", \"Bom dia\"), cumprimente e pergunte como pode ajudar.",
+    "- NUNCA diga que não entendeu ou que houve um problema quando a mensagem for um nome ou uma saudação. Use mensagem de erro apenas se a mensagem estiver realmente vazia ou incompreensível.",
   ];
   if (opts.unidadeId) {
     lines.push(
