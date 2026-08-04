@@ -152,12 +152,12 @@ export const gerarQrAgente = createServerFn({ method: "POST" })
     const state = await getConnectionState(instancia);
     
     if (state === "conectado") {
-      const newStatus = ag.unidade_id ? "ativo" : "conectado_sem_unidade";
+      const newStatus = (ag.unidade_id ? "ativo" : "conectado_sem_unidade") as AgenteWa["status"];
       await supabaseAdmin
         .from("wa_agentes" as never)
         .update({ status: newStatus, atualizado_em: new Date().toISOString() } as never)
         .eq("id", data.id);
-      return { qr: null, status: newStatus as any };
+      return { qr: null, status: newStatus };
     }
     const qr = await getQrCode(instancia);
     return { qr, status: "aguardando_qr" as const };
