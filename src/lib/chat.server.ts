@@ -115,7 +115,7 @@ function safeTool<T>(label: string, fn: () => Promise<T>) {
   });
 }
 
-function buildTools(sandbox: boolean) {
+function buildTools(sandbox: boolean, forcedUnitId?: string | null) {
   const base = {
     list_salons: tool({
       description: "Lista todas as unidades (salões) disponíveis na conta Bemp.",
@@ -128,11 +128,13 @@ function buildTools(sandbox: boolean) {
     }),
     list_services: tool({
       description: "Lista serviços de uma unidade, com preço e duração.",
-      inputSchema: z.object({ salon_id: z.number() }),
+      inputSchema: z.object({ salon_id: z.number().optional() }),
       execute: async ({ salon_id }) =>
         safeTool("list_services", async () => {
           const cfg = await getBempConfig();
-          return await bempFetch(`${cfg.apiBase}/salons/${salon_id}/services`);
+          const targetUnitId = forcedUnitId || salon_id;
+          if (!targetUnitId) throw new Error("ID da unidade não fornecido.");
+          return await bempFetch(`${cfg.apiBase}/salons/${targetUnitId}/services`);
         }),
     }),
     list_professionals: tool({
@@ -1082,7 +1084,7 @@ export async function loadSystemPrompt(): Promise<string> {
   }
 }
 
-export type AgentOptions = { sandbox?: boolean; persona?: string };
+export type AgentOptions = { sandbox?: boolean; persona?: string; unidadeId?: string | null };
 
 function sanitizeMessagesForModel(messages: UIMessage[]): UIMessage[] {
   return messages.map((message) => ({
@@ -1132,7 +1134,7 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
     model: getModel(),
     system,
     messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
-    tools: buildTools(sandbox),
+    tools: buildTools(sandbox, null),
     stopWhen: stepCountIs(50),
   });
 }
@@ -1140,12 +1142,24 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
 // Non-streaming run used by the WhatsApp webhook (needs the final text).
 export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {}): Promise<string> {
   const sandbox = opts.sandbox === true || envSandbox();
-  const system = (await loadSystemPrompt()) + currentDateNote() + LANGUAGE_GUARD + NO_DURATION_GUARD + (sandbox ? SANDBOX_NOTE : "") + (opts.persona ? `\n\n${opts.persona}` : "");
+  
+  // 7. CARREGAR O CONTEXTO DA UNIDADE ESCOLHIDA
+  let unitContext = "";
+  if (opts.unidadeId) {
+    try {
+      const cfg = await getBempConfig();
+      // Em um cenário real, buscaríamos os detalhes da unidade no Bemp aqui
+      // Por enquanto, injetamos o ID no contexto para as ferramentas usarem.
+      unitContext = `\n\nUNIDADE ATUAL: ID ${opts.unidadeId}. Use exclusivamente este ID em todas as chamadas de ferramentas.`;
+    } catch {}
+  }
+
+  const system = (await loadSystemPrompt()) + currentDateNote() + LANGUAGE_GUARD + NO_DURATION_GUARD + unitContext + (sandbox ? SANDBOX_NOTE : "") + (opts.persona ? `\n\n${opts.persona}` : "");
   const result = await generateText({
     model: getModel(),
     system,
     messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
-    tools: buildTools(sandbox),
+    tools: buildTools(sandbox, opts.unidadeId), // Passando unidadeId para as ferramentas
     stopWhen: stepCountIs(50),
   });
   return sanitizeCustomerText(result.text?.trim() || "Desculpe, tive um probleminha aqui. Pode repetir?");
