@@ -1177,7 +1177,8 @@ export async function runAgentWithLogging(params: {
 
     const unitName = (unit as any)?.nome || "Unidade não identificada";
 
-    const historyMessages: UIMessage[] = (historyData?.messages || [])
+    const messagesArray = Array.isArray(historyData?.messages) ? historyData.messages : [];
+    const historyMessages: UIMessage[] = messagesArray
       .filter((m: any) => {
         const text = Array.isArray(m.parts) ? m.parts.map((p: any) => p.text).join(" ").trim() : String(m.parts || "").trim();
         return text.length > 0;
