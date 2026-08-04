@@ -224,6 +224,176 @@ function EvolutionConfigPanel() {
   );
 }
 
+function EvolutionLogsPanel() {
+  const getLogs = useServerFn(listEvolutionLogs);
+  const [instance, setInstance] = useState("");
+  const [messageId, setMessageId] = useState("");
+  const [status, setStatus] = useState<"all" | "success" | "error" | "received">("all");
+  const [page, setPage] = useState(0);
+
+  const { data, isLoading, isError, error, refetch } = useQuery({
+    queryKey: ["evolution-logs", instance, messageId, status, page],
+    queryFn: () => getLogs({ data: { instance, messageId, status, page } }),
+  });
+
+  const logs = data?.logs || [];
+  const total = data?.count || 0;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Activity className="h-5 w-5 text-primary" /> Logs do Webhook Evolution
+        </CardTitle>
+        <CardDescription>
+          Visualize e filtre os logs de processamento das mensagens enviadas pela Evolution API.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="space-y-2">
+            <Label>Instância</Label>
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Filtrar por instância..."
+                className="pl-9"
+                value={instance}
+                onChange={(e) => { setInstance(e.target.value); setPage(0); }}
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>ID da Mensagem</Label>
+            <div className="relative">
+              <MessageSquare className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Filtrar por messageId..."
+                className="pl-9"
+                value={messageId}
+                onChange={(e) => { setMessageId(e.target.value); setPage(0); }}
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Status</Label>
+            <Select value={status} onValueChange={(v: any) => { setStatus(v); setPage(0); }}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="success">Sucesso</SelectItem>
+                <SelectItem value="error">Erro</SelectItem>
+                <SelectItem value="received">Recebido</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-end">
+            <Button variant="outline" className="w-full" onClick={() => refetch()}>
+              <RefreshCw className="mr-2 h-4 w-4" /> Atualizar
+            </Button>
+          </div>
+        </div>
+
+        {isLoading ? (
+          <div className="py-20 text-center">
+            <Loader2 className="animate-spin h-8 w-8 mx-auto text-muted-foreground" />
+          </div>
+        ) : isError ? (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Erro</AlertTitle>
+            <AlertDescription>{(error as Error).message}</AlertDescription>
+          </Alert>
+        ) : logs.length === 0 ? (
+          <div className="py-20 text-center border rounded-lg border-dashed">
+            <p className="text-muted-foreground">Nenhum log encontrado para estes filtros.</p>
+          </div>
+        ) : (
+          <div className="border rounded-md overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 border-b">
+                <tr>
+                  <th className="px-4 py-3 text-left font-medium">Data/Hora</th>
+                  <th className="px-4 py-3 text-left font-medium">Instância</th>
+                  <th className="px-4 py-3 text-left font-medium">Evento</th>
+                  <th className="px-4 py-3 text-left font-medium">Status</th>
+                  <th className="px-4 py-3 text-left font-medium">Duração</th>
+                  <th className="px-4 py-3 text-left font-medium">Ações</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {logs.map((log) => (
+                  <tr key={log.id} className="hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {new Date(log.created_at).toLocaleString("pt-BR")}
+                    </td>
+                    <td className="px-4 py-3 font-mono text-xs">{log.instance}</td>
+                    <td className="px-4 py-3">
+                      <Badge variant="outline">{log.event}</Badge>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge 
+                        className={
+                          log.status === "success" ? "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20" : 
+                          log.status === "error" ? "bg-red-500/10 text-red-500 hover:bg-red-500/20" : 
+                          "bg-blue-500/10 text-blue-500 hover:bg-blue-500/20"
+                        }
+                      >
+                        {log.status === "success" ? "Sucesso" : log.status === "error" ? "Erro" : "Recebido"}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {log.duration_ms ? `${log.duration_ms}ms` : "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => {
+                          const win = window.open("", "_blank");
+                          if (win) {
+                            win.document.write(`
+                              <html>
+                                <head><title>Log Detail - ${log.id}</title></head>
+                                <body style="background:#0f172a; color:#f8fafc; font-family:monospace; padding:20px;">
+                                  <h2>Log Detalhado</h2>
+                                  <p><strong>ID:</strong> ${log.id}</p>
+                                  <p><strong>Status:</strong> ${log.status}</p>
+                                  <p><strong>Erro:</strong> ${log.error_detail || "Nenhum"}</p>
+                                  <hr/>
+                                  <h3>Payload:</h3>
+                                  <pre style="background:#1e293b; padding:15px; border-radius:8px; overflow:auto;">
+                                    ${JSON.stringify(log.payload, null, 2)}
+                                  </pre>
+                                </body>
+                              </html>
+                            `);
+                          }
+                        }}
+                      >
+                        <Info className="h-4 w-4" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <Pagination 
+          page={page} 
+          total={total} 
+          pageSize={50} 
+          onPageChange={setPage} 
+        />
+      </CardContent>
+    </Card>
+  );
+}
+
 const PAGE_SIZE = 30;
 
 
