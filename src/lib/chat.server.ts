@@ -1200,12 +1200,14 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
   }
 
   const basePrompt = await loadSystemPrompt();
-  
-  // Injetar dados conhecidos no prompt base se as chaves existirem
-  let system = basePrompt.replace("{{contactName}}", opts.contactName || "não identificado")
-    .replace("{{contactPhone}}", opts.contactPhone || "não identificado")
-    .replace("{{unitName}}", opts.unitName || "não vinculada")
-    .replace("{{customer_context_summary}}", contextSummary);
+
+  let system = assembleSystemPrompt(basePrompt, {
+    contactName: opts.contactName,
+    contactPhone: opts.contactPhone,
+    unitName: opts.unitName,
+    unidadeId: opts.unidadeId,
+    contextSummary,
+  });
 
   system = system + 
            currentDateNote() + 
@@ -1214,7 +1216,14 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
            unitContext +
            contactInfo +
            (sandbox ? SANDBOX_NOTE : "") +
-           (opts.persona ? `\n\n${opts.persona}` : "");
+           (opts.persona ? `\n\n${opts.persona}` : "") +
+           mandatoryOperationalRules({
+             unidadeId: opts.unidadeId,
+             unitName: opts.unitName,
+             contactName: opts.contactName,
+             contactPhone: opts.contactPhone,
+             hasHistory: uiMessages.length > 1,
+           });
 
   return streamText({
     model: getModel(),
