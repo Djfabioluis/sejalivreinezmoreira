@@ -1,10 +1,8 @@
 import { normalizeEvolutionMessages } from "./message-normalizer";
 import { checkIdempotency } from "./idempotency.server";
 import { appendIncomingMessage } from "./conversation.server";
-import { runAgentFlow } from "./agent.server";
+import { runAgentFlow, findAgentByInstance, isIAEnabled } from "./agent.server";
 import { logEvent } from "./logger.server";
-import { NormalizedEvolutionMessage } from "./types";
-import { findAgentByInstance, isIAEnabled } from "./agent.server";
 import { extractMessageText } from "./message-text";
 import { normalizePhone, buildConversationKey } from "./contact";
 
@@ -40,12 +38,22 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
 
   for (const msg of messages) {
     try {
-      // 2. Idempotência
-      const isDuplicate = await checkIdempotency(msg.instance, msg.messageId);
+      const text = extractMessageText(msg.message);
+      const phone = normalizePhone(msg.remoteJid);
+      
+      // 2. Idempotência (Assinatura: instance, messageId, phone, timestamp, text)
+      const { isDuplicate, finalMessageId } = await checkIdempotency(
+        msg.instance, 
+        msg.messageId,
+        phone,
+        msg.timestamp,
+        text || ""
+      );
+
       if (isDuplicate) {
         await logEvent({
           instance: msg.instance,
-          messageId: msg.messageId,
+          messageId: finalMessageId,
           event: "duplicate_message",
           status: "skipped"
         });
@@ -55,14 +63,12 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
       // 3. Preparação de metadados
       const agent = await findAgentByInstance(msg.instance);
       const isIAActive = isIAEnabled(agent);
-      const text = extractMessageText(msg.message);
-      const phone = normalizePhone(msg.remoteJid);
       const conversationKey = buildConversationKey(msg.instance, msg.remoteJid);
 
       // 4. Persistência
       const saved = await appendIncomingMessage({
         conversationKey,
-        messageId: msg.messageId,
+        messageId: finalMessageId,
         text: text || "[Mídia/Outro]",
         instance: msg.instance,
         phone,
@@ -73,7 +79,7 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
       if (saved) {
         await logEvent({
           instance: msg.instance,
-          messageId: msg.messageId,
+          messageId: finalMessageId,
           event: "message_saved",
           status: "success",
           durationMs: Date.now() - startTime
@@ -82,7 +88,10 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
 
       // 5. Fluxo da IA (se não for do próprio bot)
       if (!msg.fromMe) {
-        await runAgentFlow(msg);
+        await runAgentFlow({
+          ...msg,
+          messageId: finalMessageId // Usar o ID final (tratado para ausência de ID)
+        });
       }
     } catch (error) {
       console.error("[evolution] Error processing message", msg.messageId, error);
