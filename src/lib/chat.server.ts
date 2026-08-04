@@ -139,12 +139,14 @@ function buildTools(sandbox: boolean, forcedUnitId?: string | null) {
     }),
     list_professionals: tool({
       description: "Lista profissionais disponíveis para um serviço em uma unidade.",
-      inputSchema: z.object({ salon_id: z.number(), service_id: z.number() }),
+      inputSchema: z.object({ salon_id: z.number().optional(), service_id: z.number() }),
       execute: async ({ salon_id, service_id }) =>
         safeTool("list_professionals", async () => {
           const cfg = await getBempConfig();
+          const targetUnitId = forcedUnitId || salon_id;
+          if (!targetUnitId) throw new Error("ID da unidade não fornecido.");
           return await bempFetch(
-            `${cfg.apiBase}/salons/${salon_id}/services/${service_id}/professionals`,
+            `${cfg.apiBase}/salons/${targetUnitId}/services/${service_id}/professionals`,
           );
         }),
     }),
@@ -152,7 +154,7 @@ function buildTools(sandbox: boolean, forcedUnitId?: string | null) {
       description:
         "Lista horários disponíveis. Passe professional_id apenas se o cliente escolheu um profissional específico.",
       inputSchema: z.object({
-        salon_id: z.number(),
+        salon_id: z.number().optional(),
         service_id: z.number(),
         professional_id: z.number().optional(),
         date: z.string().describe("Data no formato YYYY-MM-DD"),
@@ -160,9 +162,11 @@ function buildTools(sandbox: boolean, forcedUnitId?: string | null) {
       execute: async ({ salon_id, service_id, professional_id, date }) =>
         safeTool("list_slots", async () => {
           const cfg = await getBempConfig();
+          const targetUnitId = forcedUnitId || salon_id;
+          if (!targetUnitId) throw new Error("ID da unidade não fornecido.");
           const url = professional_id
-            ? `${cfg.apiBase}/salons/${salon_id}/services/${service_id}/professionals/${professional_id}/slots/${date}`
-            : `${cfg.apiBase}/salons/${salon_id}/services/${service_id}/slots/${date}`;
+            ? `${cfg.apiBase}/salons/${targetUnitId}/services/${service_id}/professionals/${professional_id}/slots/${date}`
+            : `${cfg.apiBase}/salons/${targetUnitId}/services/${service_id}/slots/${date}`;
           return await bempFetch(url);
         }),
     }),
