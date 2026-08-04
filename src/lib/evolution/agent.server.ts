@@ -1,5 +1,5 @@
 import { NormalizedEvolutionMessage } from "./types";
-import { runAgent } from "@/lib/chat.server";
+
 import { logEvent } from "./logger.server";
 import { extractMessageText } from "./message-text";
 import { normalizePhone, buildConversationKey } from "./contact";
