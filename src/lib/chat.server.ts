@@ -1117,6 +1117,13 @@ export function mandatoryOperationalRules(opts: {
     "- Se o cliente pedir o endereço de UMA unidade específica, informe apenas o endereço dessa unidade.",
     "- Antes de consultar profissionais, serviços ou horários, garanta que a unidade de atendimento já esteja identificada.",
     "- Só peça esclarecimento quando a mensagem do cliente estiver realmente incompreensível.",
+    "- TELEFONES DAS UNIDADES (base oficial, nunca invente outros): Shopping Ventura 📞 WhatsApp (41) 99880-3684; Shopping Boulevard 📞 (41) 3073-1358; Unidade Centro 📞 WhatsApp (41) 99843-0354.",
+    "- Se o cliente pedir telefone/WhatsApp/contato SEM citar unidade, responda:\n\"Temos os seguintes contatos:\n\n📍 Shopping Ventura\n📞 (41) 99880-3684\n\n📍 Shopping Boulevard\n📞 (41) 3073-1358\n\n📍 Unidade Centro\n📞 (41) 99843-0354\"",
+    "- Se o cliente pedir o telefone de UMA unidade, responda apenas o bloco daquela unidade, no formato \"📍 <Unidade>\\n📞 WhatsApp: <telefone>\".",
+    "- Se o cliente perguntar onde fica uma unidade específica, responda apenas \"📍 <Unidade>\" seguido do endereço dessa unidade obtido em list_units_info.",
+    "- NUNCA diga que não sabe onde ficam as unidades nem que não encontrou essas informações.",
+    "- Depois de responder sobre unidades, telefones ou endereços, pergunte gentilmente se pode ajudar com um agendamento ou outra dúvida.",
+
 
 
 
