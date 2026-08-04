@@ -90,19 +90,15 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           await logEvent({ instance: instancia, messageId, event: "message_processed", status: "success" });
 
           // 4. Executar IA e responder (async para não travar o webhook)
-          // Em um sistema real, aqui você dispararia um worker ou processaria em background
-          // Para este projeto, processamos e aguardamos o envio para garantir confiabilidade
           try {
-            const aiRes = await runAgent(text, { 
-              userId: "system", 
-              conversationId, 
-              phone, 
-              userName: contactName || "Cliente" 
+            const aiResponse = await runAgent([msgObj as any], { 
+              sandbox: false,
+              persona: contactName ? `O nome do cliente é ${contactName}.` : undefined
             });
             
-            if (aiRes.response) {
-              const sent = await sendEvolutionText(instancia, phone, aiRes.response);
-              const aiMsg = { id: `ai-${Date.now()}`, role: "assistant", parts: [{ type: "text", text: aiRes.response }] };
+            if (aiResponse) {
+              const sent = await sendEvolutionText(instancia, phone, aiResponse);
+              const aiMsg = { id: `ai-${Date.now()}`, role: "assistant", parts: [{ type: "text", text: aiResponse }] };
               
               await supabaseAdmin.rpc("append_wa_message", {
                 p_phone: conversationId,
