@@ -164,6 +164,36 @@ export type Database = {
         }
         Relationships: []
       }
+      evo_events: {
+        Row: {
+          created_at: string | null
+          id: string
+          instance: string
+          message_id: string
+          processed_at: string | null
+          remote_jid: string | null
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          instance: string
+          message_id: string
+          processed_at?: string | null
+          remote_jid?: string | null
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          instance?: string
+          message_id?: string
+          processed_at?: string | null
+          remote_jid?: string | null
+          status?: string | null
+        }
+        Relationships: []
+      }
       evo_webhook_logs: {
         Row: {
           created_at: string | null
