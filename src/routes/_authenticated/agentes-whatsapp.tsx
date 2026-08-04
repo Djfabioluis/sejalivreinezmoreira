@@ -49,10 +49,11 @@ import {
   selecionarUnidadeAgente,
   type AgenteWa,
 } from "@/lib/agentes-whatsapp.functions";
+import { listSalons } from "@/lib/bemp.functions";
 
 export const Route = createFileRoute("/_authenticated/agentes-whatsapp")({
   head: () => ({
-    title: "Agentes de WhatsApp — Salão Seja Livre",
+    meta: [{ title: "Agentes de WhatsApp — Salão Seja Livre" }],
   }),
   component: AgentesWhatsAppPage,
 });
@@ -156,11 +157,7 @@ function AgentesWhatsAppPage() {
     setUnitOpen(true);
     setLoadingSalons(true);
     try {
-      // Mocking salons fetch - in real app would use a server function for Bemp salons
-      const { getBempConfig, bempFetch } = await import("@/lib/bemp.functions");
-      // This is a client-side call to a server fn wrapper if existed, 
-      // but here we'll just try to fetch via a generic endpoint or mock
-      const res = await fetch("/api/public/bemp/salons").then(r => r.json()).catch(() => []);
+      const res = await listSalons();
       setSalons(Array.isArray(res) ? res : []);
     } catch {
       setSalons([]);
@@ -283,9 +280,11 @@ function AgentesWhatsAppPage() {
                <Select value={unitId} onValueChange={setUnitId}>
                  <SelectTrigger><SelectValue placeholder="Selecione uma unidade..." /></SelectTrigger>
                  <SelectContent>
-                   <SelectItem value="1">Unidade Matriz</SelectItem>
-                   <SelectItem value="2">Unidade Batel</SelectItem>
-                   <SelectItem value="3">Unidade Mercês</SelectItem>
+                   {salons.map((s: any) => (
+                     <SelectItem key={s.id} value={String(s.id)}>
+                       {s.name} {s.address && ` - ${s.address}`}
+                     </SelectItem>
+                   ))}
                  </SelectContent>
                </Select>
              </div>
