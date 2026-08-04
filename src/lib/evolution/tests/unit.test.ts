@@ -65,7 +65,7 @@ describe("Evolution Library Unit Tests", () => {
 
   describe("history", () => {
     it("should normalize history and append current message if missing", () => {
-      const raw = [{ id: "1", role: "user", message: { conversation: "hi" } }];
+      const raw = [{ id: "1", role: "user", text: "hi" }];
       const result = normalizeConversationHistory(raw, "new message");
       expect(result).toHaveLength(2);
       expect(result[1].parts[0].text).toBe("new message");
@@ -73,13 +73,10 @@ describe("Evolution Library Unit Tests", () => {
 
     it("should deduplicate messages by ID", () => {
       const raw = [
-        { id: "1", role: "user", message: { conversation: "hi" } },
-        { id: "1", role: "user", message: { conversation: "hi" } }
+        { id: "1", role: "user", text: "hi" },
+        { id: "1", role: "user", text: "hi" }
       ];
       const result = normalizeConversationHistory(raw, "hi");
-      // The test passed text "hi" which already exists in the history (extracted via extractConversationMessageText mock)
-      // wait, extractConversationMessageText is not mocked here, it's the real function.
-      // I should check what extractConversationMessageText returns for { message: { conversation: "hi" } }
       expect(result).toHaveLength(1);
       expect(result[0].parts[0].text).toBe("hi");
     });
