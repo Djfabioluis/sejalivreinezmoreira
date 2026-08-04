@@ -176,16 +176,28 @@ export async function sendEvolutionText(
   instance: string,
   to: string,
   body: string,
+  typingMs = 0,
 ): Promise<boolean> {
   const number = to.replace(/\D/g, "");
+  const text = sanitizeCustomerText(body).slice(0, 3500);
+  // Na Evolution v2, `delay` + `presence` no próprio sendText faz o WhatsApp
+  // exibir "digitando…" durante o intervalo antes de entregar a mensagem.
+  // Enviamos também dentro de `options` para compatibilidade com v1.
+  const payload: Record<string, unknown> = { number, text };
+  if (typingMs > 0) {
+    payload.delay = typingMs;
+    payload.presence = "composing";
+    payload.options = { delay: typingMs, presence: "composing" };
+  }
   const res = await evoFetch(`/message/sendText/${encodeURIComponent(instance)}`, {
     method: "POST",
-    body: { number, text: sanitizeCustomerText(body).slice(0, 3500) },
+    body: payload,
   });
   if (!res.ok)
     console.error("[evolution] envio de texto falhou:", res.status, res.text.slice(0, 300));
   return res.ok;
 }
+
 
 /**
  * Ativa o indicador nativo "digitando…" do WhatsApp (presença composing/paused).
