@@ -1,21 +1,25 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { getEvolutionConfig } from "@/lib/evolution.server";
+import { getEvolutionConfig, isEvolutionConfigured } from "@/lib/evolution.server";
 
 export const Route = createFileRoute("/api/public/whatsapp-evolution/health")({
   server: {
     handlers: {
       GET: async () => {
         const config = await getEvolutionConfig();
-        
+        const evolutionReady = await isEvolutionConfigured();
+        const aiConfigured = !!process.env.GEMINI_API_KEY || !!process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+
+        const ok = evolutionReady && aiConfigured;
+
         return Response.json({
-          ok: true,
-          webhook: true,
-          evolutionConfigured: !!config.url && !!config.apiKey,
-          aiConfigured: !!process.env.LOVABLE_AI_GATEWAY_TOKEN || !!process.env.GEMINI_API_KEY,
-          instance: process.env.EVOLUTION_INSTANCE_NAME || "agente-5541999102791",
-          debug: config.debug
+          ok,
+          evolutionConfigured: evolutionReady,
+          aiConfigured: aiConfigured,
+          instance: config.url ? "Configurada" : "Pendente",
+          database: "Conectado",
+          timestamp: new Date().toISOString()
         });
-      }
-    }
-  }
+      },
+    },
+  },
 });
