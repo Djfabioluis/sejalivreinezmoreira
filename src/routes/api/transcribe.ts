@@ -1,6 +1,7 @@
 // Transcreve um upload de áudio do cliente. Uso interno autenticado não é obrigatório
 // (o STT é chamado pelo próprio chat da secretária), mas mantemos limite de tamanho.
 import { createFileRoute } from "@tanstack/react-router";
+import { requireSupabaseUser } from "@/lib/http-auth.server";
 import { transcribeAudio } from "@/lib/ai-audio.server";
 
 const MAX_BYTES = 15 * 1024 * 1024; // 15 MB
@@ -10,6 +11,7 @@ export const Route = createFileRoute("/api/transcribe")({
     handlers: {
       POST: async ({ request }) => {
         try {
+          await requireSupabaseUser(request);
           const form = await request.formData();
           const file = form.get("audio");
           if (!(file instanceof File)) {
@@ -25,6 +27,7 @@ export const Route = createFileRoute("/api/transcribe")({
           const text = await transcribeAudio(buf, file.type || "audio/webm");
           return Response.json({ text });
         } catch (err) {
+          if (err instanceof Response) return err;
           console.error("[transcribe] falhou", err);
           const msg = err instanceof Error ? err.message : "Falha ao transcrever";
           return Response.json({ error: msg }, { status: 500 });

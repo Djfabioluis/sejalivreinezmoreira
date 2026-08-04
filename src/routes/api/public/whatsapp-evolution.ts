@@ -34,7 +34,11 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
         const instancia = new URL(request.url).searchParams.get("instance") || "unknown";
 
         const provided = request.headers.get("x-webhook-secret") || request.headers.get("Authorization") || "";
-        if (config.webhookSecret && provided !== config.webhookSecret) {
+        if (!config.webhookSecret) {
+          await logEvent({ instance: instancia, event: "auth", status: "secret_not_configured" });
+          return new Response("Unauthorized", { status: 401 });
+        }
+        if (provided !== config.webhookSecret) {
           await logEvent({ instance: instancia, event: "auth", status: "unauthorized" });
           return new Response("Unauthorized", { status: 401 });
         }

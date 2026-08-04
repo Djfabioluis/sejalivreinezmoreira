@@ -1,5 +1,6 @@
 // Sintetiza texto em MP3 (voz feminina calma pt-BR). Chamado pelo chat web.
 import { createFileRoute } from "@tanstack/react-router";
+import { requireSupabaseUser } from "@/lib/http-auth.server";
 import { z } from "zod";
 import { synthesizeSpeechMp3 } from "@/lib/ai-audio.server";
 
@@ -10,6 +11,7 @@ export const Route = createFileRoute("/api/tts")({
     handlers: {
       POST: async ({ request }) => {
         try {
+          await requireSupabaseUser(request);
           const json = await request.json().catch(() => null);
           const parsed = Body.safeParse(json);
           if (!parsed.success) {
@@ -24,6 +26,7 @@ export const Route = createFileRoute("/api/tts")({
             },
           });
         } catch (err) {
+          if (err instanceof Response) return err;
           console.error("[tts] falhou", err);
           const msg = err instanceof Error ? err.message : "Falha ao gerar áudio";
           return Response.json({ error: msg }, { status: 500 });
