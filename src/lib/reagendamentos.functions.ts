@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertPermission } from "@/lib/permissions.functions";
 
 export type ReagendamentoHist = {
   id: string;
@@ -24,7 +25,8 @@ export type ReagendamentoHist = {
 
 export const listReagendamentos = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async (): Promise<ReagendamentoHist[]> => {
+  .handler(async ({ context }): Promise<ReagendamentoHist[]> => {
+    await assertPermission(context, "painel");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await supabaseAdmin
       .from("reagendamentos_hist" as never)

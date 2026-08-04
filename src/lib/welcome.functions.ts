@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertPermission } from "@/lib/permissions.functions";
 
 const WELCOME_ID = 2;
 
@@ -9,7 +10,8 @@ export const DEFAULT_WELCOME =
 
 export const getWelcomeMessage = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async () => {
+  .handler(async ({ context }) => {
+    await assertPermission(context, "boas-vindas");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await supabaseAdmin
       .from("base_conhecimento" as never)
@@ -30,7 +32,8 @@ export const saveWelcomeMessage = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     z.object({ conteudo: z.string().min(1).max(2000) }).parse(input),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    await assertPermission(context, "boas-vindas");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("base_conhecimento" as never)

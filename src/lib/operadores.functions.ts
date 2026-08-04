@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertPermission } from "@/lib/permissions.functions";
 
 export type Operador = {
   id: string;
@@ -15,7 +16,8 @@ export type Operador = {
 export const listOperadores = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(
-  async (): Promise<Operador[]> => {
+  async ({ context }): Promise<Operador[]> => {
+    await assertPermission(context, "operadores");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await supabaseAdmin
       .from("operadores" as never)
@@ -47,7 +49,8 @@ export const createOperador = createServerFn({ method: "POST" })
       return { nome, email, telefone, observacoes };
     },
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    await assertPermission(context, "operadores");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row, error } = await supabaseAdmin
       .from("operadores" as never)
@@ -73,7 +76,8 @@ export const updateOperador = createServerFn({ method: "POST" })
       return input;
     },
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    await assertPermission(context, "operadores");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const patch: Record<string, unknown> = {};
     if (data.nome !== undefined) patch.nome = data.nome.trim();
@@ -95,7 +99,8 @@ export const deleteOperador = createServerFn({ method: "POST" })
     if (!input.id) throw new Error("ID obrigatório");
     return input;
   })
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    await assertPermission(context, "operadores");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("operadores" as never)
