@@ -108,8 +108,6 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
             console.warn("[evolution] webhook_authenticated_failed: invalid secret");
             return new Response("Unauthorized", { status: 401 });
           }
-        } else if (process.env.NODE_ENV === "development") {
-          console.warn("[evolution] webhook_authenticated_warning: no EVOLUTION_WEBHOOK_SECRET configured");
         }
 
         let payload: any;
@@ -120,31 +118,52 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           return new Response("Bad JSON", { status: 400 });
         }
 
-        // 3. Normalização do Evento
         const rawEvent = (payload.event || "").toLowerCase().replace(/_/g, ".");
         let event = rawEvent;
         if (event === "messages.upsert" || event === "message.upsert" || event === "messages_upsert") {
           event = "messages.upsert";
         }
 
-        const instancia = payload.instance || payload.instanceName || payload.data?.instance || payload.data?.instanceName || "";
+        const instancia = payload.instance || payload.instanceName || payload.data?.instance || payload.data?.instanceName || "unknown";
         
-        if (debug) console.log(`[evolution] event_normalized: ${event} | instance: ${instancia}`);
+        // Log inicial (Received)
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const logId = crypto.randomUUID();
+        
+        try {
+          await supabaseAdmin.from("evo_webhook_logs" as never).insert({
+            id: logId,
+            instance: instancia,
+            event: event,
+            status: "received",
+            payload: payload,
+            created_at: new Date().toISOString()
+          } as never);
+        } catch (err) {
+          console.error("[evolution] log_initial_error:", err);
+        }
 
         if (event === "connection.update") {
           const state = payload.data?.state || payload.state;
           if (state === "open") {
-             const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
              await supabaseAdmin.from("wa_agentes" as never).update({ status: "conectado", atualizado_em: new Date().toISOString() } as never).eq("instancia", instancia);
           }
+          await supabaseAdmin.from("evo_webhook_logs" as never).update({ 
+            status: "success", 
+            duration_ms: Date.now() - start 
+          } as never).eq("id", logId);
           return Response.json({ ok: true });
         }
 
         if (event !== "messages.upsert") {
+          await supabaseAdmin.from("evo_webhook_logs" as never).update({ 
+            status: "success", 
+            error_detail: "ignored_event",
+            duration_ms: Date.now() - start 
+          } as never).eq("id", logId);
           return Response.json({ ok: true, ignored: true, reason: "unsupported_event", event: rawEvent });
         }
 
-        // 4. Suporte a Payloads 2.3.7
         let messagesArr: any[] = [];
         if (Array.isArray(payload.data?.messages)) messagesArr = payload.data.messages;
         else if (payload.data?.message) messagesArr = [payload.data.message];
@@ -160,86 +179,64 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           const messageId = key.id || "";
           const fromMe = key.fromMe === true;
 
-          if (fromMe) {
-            if (debug) console.log(`[evolution] message_ignored_from_me: ${messageId}`);
-            continue;
-          }
+          if (fromMe) continue;
 
           if (!remoteJid || remoteJid.endsWith("@g.us") || remoteJid.endsWith("@broadcast") || remoteJid === "status@broadcast") {
-            if (debug) console.log(`[evolution] message_ignored_group_or_broadcast: ${remoteJid}`);
             continue;
           }
 
           const userText = extractMessageText(msgData.message);
-          if (!userText) {
-            if (debug) console.log(`[evolution] message_ignored_empty: ${messageId}`);
-            continue;
-          }
+          if (!userText) continue;
 
-          if (debug) console.log(`[evolution] message_extracted: "${userText.slice(0, 50)}..." | jid: ${remoteJid}`);
-
-          // 7. Identificação do Agente
           const agente = await loadAgente(instancia);
           if (!agente) {
-            console.warn(`[evolution] agent_not_found: ${instancia}`);
+            await supabaseAdmin.from("evo_webhook_logs" as never).update({ 
+              status: "error", 
+              message_id: messageId,
+              error_detail: `agent_not_found: ${instancia}`,
+              duration_ms: Date.now() - start 
+            } as never).eq("id", logId);
             continue;
           }
 
-          if (agente.status === "inativo") {
-             if (debug) console.log(`[evolution] agent_inactive: ${instancia}`);
-             continue;
-          }
-
-          if (debug) console.log(`[evolution] agent_found: ${agente.nome}`);
-
-          // Processamento
           const phone = remoteJid.split("@")[0].replace(/\D/g, "");
           
-          // IIFE para processar assíncrono e responder 200 logo
           (async () => {
+            const processStart = Date.now();
             try {
-              const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-              
-              // Carregar Histórico
               const { data: historyData } = await supabaseAdmin.from("wa_conversas" as never).select("messages").eq("phone", phone).maybeSingle();
               const history = Array.isArray((historyData as any)?.messages) ? (historyData as any).messages : [];
-              
               const nextIn = [...history, { id: `u-${Date.now()}`, role: "user", parts: [{ type: "text", text: userText }] }];
               
-              if (debug) console.log(`[evolution] ai_request_started: ${phone}`);
-              
-              const reply = await runAgent(nextIn, { 
-                persona: personaNote(agente),
-                // Adicionamos timeout na chamada da IA (runAgent deve respeitar ou o wrapper fetch dentro dele)
-              });
+              const reply = await runAgent(nextIn, { persona: personaNote(agente) });
 
-              if (debug) console.log(`[evolution] ai_request_succeeded: ${phone}`);
-
-              // Salvar Histórico
               await supabaseAdmin.from("wa_conversas" as never).upsert({ 
                 phone, 
                 messages: [...nextIn, { id: `a-${Date.now()}`, role: "assistant", parts: [{ type: "text", text: reply }] }].slice(-40),
                 updated_at: new Date().toISOString() 
               } as never);
 
-              // Enviar Resposta
-              if (debug) console.log(`[evolution] evolution_send_started: ${instancia} -> ${phone}`);
-              
               const sent = await sendEvolutionText(instancia, phone, reply);
               
-              if (sent) {
-                if (debug) console.log(`[evolution] evolution_send_succeeded: ${messageId}`);
-              } else {
-                console.error(`[evolution] evolution_send_failed: ${messageId}`);
-              }
+              await supabaseAdmin.from("evo_webhook_logs" as never).update({ 
+                status: sent ? "success" : "error", 
+                message_id: messageId,
+                error_detail: sent ? null : "evolution_send_failed",
+                duration_ms: Date.now() - start 
+              } as never).eq("id", logId);
 
-            } catch (err) {
+            } catch (err: any) {
               console.error("[evolution] ai_request_failed:", err);
+              await supabaseAdmin.from("evo_webhook_logs" as never).update({ 
+                status: "error", 
+                message_id: messageId,
+                error_detail: err?.message || String(err),
+                duration_ms: Date.now() - start 
+              } as never).eq("id", logId);
             }
           })().catch(e => console.error("[evolution] background_error:", e));
         }
 
-        if (debug) console.log(`[evolution] webhook_completed: ${Date.now() - start}ms`);
         return Response.json({ ok: true });
       }
     }
