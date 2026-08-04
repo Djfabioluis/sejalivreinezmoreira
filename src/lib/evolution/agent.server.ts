@@ -68,6 +68,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage) {
         instance, 
         messageId, 
         event: "agent_status_checked",
+        status: "success",
         payload: { status: agent.status, unitId: agent.unidade_id }
       });
     }
@@ -94,7 +95,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage) {
       return;
     }
 
-    await logEvent({ instance, messageId, event: "agent_unit_resolved", payload: { unitId: agent.unidade_id } });
+    await logEvent({ instance, messageId, event: "agent_unit_resolved", status: "success", payload: { unitId: agent.unidade_id } });
 
     const text = extractMessageText(msg.message);
     if (!text) {

@@ -62,7 +62,7 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
       }
 
       // 3. Agente e Unidade
-      await logEvent({ instance: msg.instance, messageId: finalMessageId, event: "agent_lookup_started" });
+      await logEvent({ instance: msg.instance, messageId: finalMessageId, event: "agent_lookup_started", status: "started" });
       const agent = await findAgentByInstance(msg.instance);
       
       if (!agent) {
@@ -72,6 +72,7 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
           instance: msg.instance, 
           messageId: finalMessageId, 
           event: "agent_found",
+          status: "success",
           payload: { agentId: agent.id, agentStatus: agent.status, unitIdAvailable: !!agent.unidade_id }
         });
       }
