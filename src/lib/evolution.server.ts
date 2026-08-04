@@ -21,7 +21,7 @@ async function getDbConfig(): Promise<{ url: string; apiKey: string; webhookSecr
 
 export async function getEvolutionConfig() {
   const db = await getDbConfig();
-  const url = (db?.url || process.env.EVOLUTION_API_URL || "").trim().replace(/\/+$/, "");
+  const url = (db?.url || process.env.EVOLUTION_API_URL || process.env.EVOLUTION_BASE_URL || "").trim().replace(/\/+$/, "");
   const apiKey = db?.apiKey || process.env.EVOLUTION_API_KEY || "";
   const webhookSecret = db?.webhookSecret || process.env.EVOLUTION_WEBHOOK_SECRET || "";
   const debug = process.env.WHATSAPP_DEBUG === "true";
