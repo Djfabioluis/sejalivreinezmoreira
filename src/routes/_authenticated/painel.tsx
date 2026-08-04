@@ -1,8 +1,79 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { VirtualRows, Pagination } from "@/components/virtual-rows";
+import {
+  listSalons,
+  listServices,
+  listProfessionals,
+  listSlots,
+} from "@/lib/bemp-catalog.functions";
+import {
+  listCustomerAppointments,
+  cancelAppointment,
+} from "@/lib/bemp-appointments.functions";
+import { listLeads } from "@/lib/leads.functions";
+import {
+  listAgentes,
+  createAgente,
+  deleteAgente,
+  getQrCode,
+} from "@/lib/evolution.functions";
+import {
+  getEvolutionSettings,
+  saveEvolutionSettings,
+  checkEvolutionConfig,
+} from "@/lib/evolution-config.functions";
+import { verifyStripeSetup } from "@/lib/payments.functions";
+import { getStripeEnvironment } from "@/lib/stripe";
+import { listClientesAtendidos } from "@/lib/clientes.functions";
+import { listAtendimentosHumanos } from "@/lib/atendimento-humano.functions";
+import { listReagendamentos } from "@/lib/reagendamentos.functions";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
+import {
+  Calendar,
+  Clock,
+  User,
+  Search,
+  CheckCircle2,
+  XCircle,
+  Building2,
+  Phone,
+  MessageSquare,
+  Users,
+  QrCode,
+  RefreshCw,
+  Plus,
+  Trash2,
+  ExternalLink,
+  ShieldCheck,
+  ShieldAlert,
+  PlugZap,
+  Loader2,
+  Info,
+  AlertTriangle,
+  UserCheck,
+  LifeBuoy,
+  CalendarClock,
+  Activity,
+} from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { supabase } from "@/integrations/supabase/client";
+
 
 function EvolutionConfigPanel() {
   const getSettings = useServerFn(getEvolutionSettings);
