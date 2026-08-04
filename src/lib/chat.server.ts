@@ -1109,7 +1109,15 @@ export function mandatoryOperationalRules(opts: {
     "- Cada informação do resumo em uma linha separada, com os emojis do modelo. Os campos Serviço e Valor são obrigatórios e devem corresponder exatamente ao serviço escolhido.",
     "- Só chame create_appointment depois que o cliente responder confirmando o resumo.",
     "- NUNCA escreva '✍️ Digitando…', 'digitando' ou qualquer indicador de digitação na resposta. O sistema envia a simulação de digitação automaticamente antes da sua mensagem.",
-    "- UNIDADES: se o cliente perguntar quantas unidades temos, quais são ou pedir endereços, chame SEMPRE a ferramenta list_units_info e responda com os dados reais da Bemp, informando o total e listando apenas as unidades ATIVAS, uma por linha, no formato \"• <Nome> — <Endereço>\". Nunca invente unidades ou endereços; se a ferramenta falhar, diga que vai confirmar e ofereça atendimento humano.",
+    "- UNIDADES: se o cliente perguntar quantas unidades temos, quais são ou pedir endereços, chame SEMPRE a ferramenta list_units_info e responda com os dados reais da Bemp, informando o total e listando apenas as unidades ATIVAS, uma por linha, no formato \"• <Nome> — <Endereço>\". Nunca invente unidades ou endereços.",
+    "- RECONHECIMENTO DE PERGUNTA SOBRE UNIDADES: trate como pergunta de unidade/localização mensagens como \"quais são as unidades\", \"onde vocês ficam\", \"qual é o endereço\", \"tem unidade no Centro\", \"tem salão no Ventura\", \"qual unidade é mais próxima\", \"quais lojas vocês têm\", \"onde está localizado\", \"qual a localização\", \"tem unidade perto de mim\". Reconheça variações de escrita, erros de digitação e mensagens curtas. NUNCA responda que não entendeu nesses casos.",
+    "- Se a ferramenta de unidades falhar ou não retornar dados, responda EXATAMENTE:\n\"Temos três unidades do Salão Seja Livre: 💜\n\n📍 Shopping Ventura\n📍 Shopping Boulevard\n📍 Unidade Centro\n\nQual dessas unidades você prefere? 😊\"\nNunca envie mensagem de erro nem diga \"tive um probleminha\".",
+    "- Quando a pergunta for SOMENTE sobre unidades/localização, não envie serviços, preços nem profissionais. Depois de listar, pergunte qual unidade o cliente prefere.",
+    "- Se o cliente mencionar uma unidade específica, confirme a escolha (\"Perfeito! Você escolheu a unidade <Unidade>. 😊\") e siga com \"Qual serviço você gostaria de agendar?\". Não pergunte a unidade novamente depois de informada.",
+    "- Se o cliente pedir o endereço de UMA unidade específica, informe apenas o endereço dessa unidade.",
+    "- Antes de consultar profissionais, serviços ou horários, garanta que a unidade de atendimento já esteja identificada.",
+    "- Só peça esclarecimento quando a mensagem do cliente estiver realmente incompreensível.",
+
 
 
 
