@@ -1,8 +1,36 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { getPlanLabel, PLANS } from "@/lib/plans";
+import {
+  getMySubscription,
+  createPortalSession,
+  changePlan,
+} from "@/lib/payments.functions";
 import { getStripeEnvironment } from "@/lib/stripe";
+import { getPlanLabel, PLANS } from "@/lib/plans";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
+import { ArrowUpRight, ExternalLink, Check, AlertTriangle } from "lucide-react";
+
+export const Route = createFileRoute("/_authenticated/assinatura")({
+  head: () => ({
+    meta: [{ title: "Minha assinatura — Seja Livre" }],
+  }),
+  component: AssinaturaPage,
+});
+
+const STATUS_LABEL: Record<string, string> = {
+  active: "Ativa",
+  trialing: "Em teste",
+  past_due: "Pagamento pendente",
+  canceled: "Cancelada",
+  incomplete: "Incompleta",
+  unpaid: "Não paga",
+  paused: "Pausada",
+};
 
 
 function AssinaturaPage() {
@@ -124,7 +152,7 @@ function AssinaturaPage() {
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <CardTitle>
-                    {PLAN_LABEL[(sub.price_id as string) ?? ""] ?? (sub.price_id as string)}
+                    {getPlanLabel((sub.price_id as string) ?? "")}
                   </CardTitle>
                   <CardDescription className="mt-1">
                     Ambiente: {(sub.environment as string) === "sandbox" ? "teste" : "produção"}
@@ -199,7 +227,7 @@ function AssinaturaPage() {
                         <p className="font-medium">
                           {p.name} · {p.cycle}
                         </p>
-                        <p className="text-sm text-muted-foreground">{p.price}</p>
+                        <p className="text-sm text-muted-foreground">{p.priceLabel}</p>
                       </div>
                       {isCurrent ? (
                         <Badge variant="secondary">
