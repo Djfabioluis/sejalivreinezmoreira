@@ -8,12 +8,14 @@ import {
   listServices,
   listProfessionals,
   listSlots,
-} from "@/lib/bemp-catalog.functions";
-import {
   listCustomerAppointments,
-  cancelAppointment,
-} from "@/lib/bemp-appointments.functions";
-import { listLeads } from "@/lib/leads.functions";
+} from "@/lib/bemp.functions";
+import { cancelAppointment } from "@/lib/bemp-appointments.functions";
+import {
+  listLeadsAssinatura,
+  updateLeadStatus,
+  type LeadAssinatura,
+} from "@/lib/leads.functions";
 import {
   listAgentes,
   createAgente,
@@ -23,13 +25,19 @@ import {
 import {
   getEvolutionSettings,
   saveEvolutionSettings,
-  checkEvolutionConfig,
 } from "@/lib/evolution-config.functions";
+import { checkEvolutionConfig } from "@/lib/evolution-check.functions";
 import { verifyStripeSetup } from "@/lib/payments.functions";
 import { getStripeEnvironment } from "@/lib/stripe";
-import { listClientesAtendidos } from "@/lib/clientes.functions";
-import { listAtendimentosHumanos } from "@/lib/atendimento-humano.functions";
-import { listReagendamentos } from "@/lib/reagendamentos.functions";
+import {
+  listClientesAtendidos,
+  listAtendimentosHumanos,
+  updateAtendimentoStatus,
+  type ClienteAtendido,
+  type AtendimentoHumano,
+} from "@/lib/atendimentos.functions";
+import { listReagendamentos, type ReagendamentoHist } from "@/lib/reagendamentos.functions";
+import { getWhatsAppPhoneNumber } from "@/lib/whatsapp.functions";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -68,12 +76,28 @@ import {
   LifeBuoy,
   CalendarClock,
   Activity,
+  Scissors,
+  Bot,
+  DollarSign,
+  BookOpen,
+  Filter,
+  Sparkles,
+  ClipboardList,
+  AlertCircle,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
-
+import { WhatsAppQr } from "@/components/whatsapp-qr";
+import { SandboxToggle } from "@/components/sandbox-toggle";
 
 function EvolutionConfigPanel() {
   const getSettings = useServerFn(getEvolutionSettings);
@@ -111,7 +135,12 @@ function EvolutionConfigPanel() {
     }
   };
 
-  if (q.isLoading) return <div className="p-8 text-center"><Loader2 className="animate-spin h-6 w-6 mx-auto" /></div>;
+  if (q.isLoading)
+    return (
+      <div className="p-8 text-center">
+        <Loader2 className="animate-spin h-6 w-6 mx-auto" />
+      </div>
+    );
 
   return (
     <Card>
@@ -120,7 +149,8 @@ function EvolutionConfigPanel() {
           <PlugZap className="h-5 w-5 text-primary" /> Configuração da Evolution API
         </CardTitle>
         <CardDescription>
-          Gerencie a URL e a API Key do seu servidor Evolution. Estas configurações sobrescrevem as variáveis de ambiente.
+          Gerencie a URL e a API Key do seu servidor Evolution. Estas configurações sobrescrevem
+          as variáveis de ambiente.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -134,7 +164,9 @@ function EvolutionConfigPanel() {
               onChange={(e) => setUrl(e.target.value)}
               required
             />
-            <p className="text-[10px] text-muted-foreground">Ex: https://api.evolution.seudominio.com</p>
+            <p className="text-[10px] text-muted-foreground">
+              Ex: https://api.evolution.seudominio.com
+            </p>
           </div>
           <div className="space-y-2">
             <Label htmlFor="evo_key">Global API Key</Label>
@@ -148,7 +180,11 @@ function EvolutionConfigPanel() {
             />
           </div>
           <Button type="submit" disabled={saving}>
-            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle2 className="mr-2 h-4 w-4" />}
+            {saving ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <CheckCircle2 className="mr-2 h-4 w-4" />
+            )}
             Salvar Configurações
           </Button>
           {q.data?.source === "env" && (
@@ -156,7 +192,8 @@ function EvolutionConfigPanel() {
               <Info className="h-4 w-4" />
               <AlertTitle>Usando Variáveis de Ambiente</AlertTitle>
               <AlertDescription>
-                Atualmente o sistema está usando as credenciais configuradas no servidor (ENV). Ao salvar aqui, elas serão ignoradas em favor dos novos dados.
+                Atualmente o sistema está usando as credenciais configuradas no servidor (ENV). Ao
+                salvar aqui, elas serão ignoradas em favor dos novos dados.
               </AlertDescription>
             </Alert>
           )}
@@ -166,50 +203,8 @@ function EvolutionConfigPanel() {
   );
 }
 
-
-
 const PAGE_SIZE = 30;
-import {
-  listSalons,
-  listServices,
-  listProfessionals,
-  listSlots,
-  listCustomerAppointments,
-} from "@/lib/bemp.functions";
-import { getWhatsAppPhoneNumber } from "@/lib/whatsapp.functions";
-import { listLeadsAssinatura, updateLeadStatus, type LeadAssinatura } from "@/lib/leads.functions";
-import {
-  listClientesAtendidos,
-  listAtendimentosHumanos,
-  updateAtendimentoStatus,
-  type ClienteAtendido,
-  type AtendimentoHumano,
-} from "@/lib/atendimentos.functions";
-import { listReagendamentos, type ReagendamentoHist } from "@/lib/reagendamentos.functions";
-import { useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
-import { WhatsAppQr } from "@/components/whatsapp-qr";
-import { SandboxToggle } from "@/components/sandbox-toggle";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { CalendarClock, Building2, Scissors, Bot, Clock, DollarSign, Phone, RefreshCw, Search, BookOpen, QrCode, Users, Filter, Sparkles, ClipboardList, UserCheck, LifeBuoy, MessageSquare, CheckCircle2, PlugZap, Info, Loader2 } from "lucide-react";
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
-import { checkEvolutionConfig } from "@/lib/evolution-check.functions";
-import { getEvolutionSettings, saveEvolutionSettings } from "@/lib/evolution-config.functions";
 
 export const Route = createFileRoute("/_authenticated/painel")({
   head: () => ({
