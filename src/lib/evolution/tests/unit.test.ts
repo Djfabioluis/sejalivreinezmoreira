@@ -77,6 +77,8 @@ describe("Evolution Library Unit Tests", () => {
         { id: "1", role: "user", message: { conversation: "hi" } }
       ];
       const result = normalizeConversationHistory(raw, "hi");
+      // the second message is appended because it's current text
+      // if I want length 1, I should pass text that already exists in raw
       expect(result).toHaveLength(1);
       expect(result[0].parts[0].text).toBe("hi");
     });
