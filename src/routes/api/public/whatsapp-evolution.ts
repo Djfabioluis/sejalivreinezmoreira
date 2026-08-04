@@ -22,14 +22,14 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
         }
 
         // 3. Normalização do Evento
-        const event = normalizeEvolutionEvent(payload);
-        await logEvent({ instance: event.instance, event: "webhook_received", status: "success" });
+        const eventData = normalizeEvolutionEvent(payload);
+        await logEvent({ instance: eventData.instance, event: "webhook_received", status: "success" });
 
         // 4. Delegação ao Processor
-        if (event.event === "connection.update") {
-          await processConnectionUpdate(event);
-        } else if (event.event === "messages.upsert") {
-          await processMessagesUpsert(event, request.url);
+        if (eventData.event === "connection.update") {
+          await processConnectionUpdate(payload);
+        } else if (eventData.event === "messages.upsert") {
+          await processMessagesUpsert(payload, request.url);
         }
 
         return new Response("OK");
