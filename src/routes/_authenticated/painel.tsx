@@ -356,7 +356,11 @@ function Dashboard() {
               <TabsTrigger value="reagendamentos">
                 <CalendarClock className="h-4 w-4 mr-1" /> Reagendamentos
               </TabsTrigger>
+              <TabsTrigger value="stripe_health">
+                <Activity className="h-4 w-4 mr-1" /> Saúde Stripe
+              </TabsTrigger>
             </TabsList>
+
           </div>
 
           <TabsContent value="catalogo">
@@ -386,7 +390,11 @@ function Dashboard() {
           <TabsContent value="reagendamentos">
             <ReagendamentosPanel />
           </TabsContent>
+          <TabsContent value="stripe_health">
+            <StripeHealthPanel />
+          </TabsContent>
         </Tabs>
+
 
       </main>
     </div>
