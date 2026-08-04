@@ -29,6 +29,8 @@ function safeNext(next: string): string {
   return next;
 }
 
+const NEXT_KEY = "auth:next";
+
 function AuthPage() {
   const { next } = useSearch({ from: "/auth" });
   const navigate = useNavigate();
@@ -40,10 +42,32 @@ function AuthPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    let done = false;
+    const go = () => {
+      if (done) return;
+      done = true;
+      let dest = target;
+      try {
+        const stored = sessionStorage.getItem(NEXT_KEY);
+        if (stored) {
+          dest = safeNext(stored);
+          sessionStorage.removeItem(NEXT_KEY);
+        }
+      } catch {
+        /* sessionStorage indisponível */
+      }
+      window.location.replace(dest);
+    };
+
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) window.location.replace(target);
+      if (data.session) go();
     });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      if (session) go();
+    });
+    return () => sub.subscription.unsubscribe();
   }, [target]);
+
 
   async function submitEmail(e: React.FormEvent) {
     e.preventDefault();
