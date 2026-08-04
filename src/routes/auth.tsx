@@ -33,7 +33,7 @@ const NEXT_KEY = "auth:next";
 
 function AuthPage() {
   const { next } = useSearch({ from: "/auth" });
-  const navigate = useNavigate();
+  
   const target = safeNext(next);
 
   const [mode, setMode] = useState<"signin" | "signup">("signin");
