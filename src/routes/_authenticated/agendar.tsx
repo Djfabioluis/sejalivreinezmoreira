@@ -151,8 +151,8 @@ function AgendarPage() {
         "postgres_changes", 
         { event: "*", schema: "public", table: "wa_conversas" }, 
         (payload) => {
-          console.log("Realtime event received:", payload.eventType, payload.new?.phone);
           const updated = (payload.new || payload.old) as any;
+          console.log("Realtime event received:", payload.eventType, updated?.phone);
           if (!updated || !updated.phone) return;
 
           // 1. Update the conversation list
