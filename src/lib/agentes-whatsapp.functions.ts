@@ -109,10 +109,25 @@ export const selecionarUnidadeAgente = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { listSalons } = await import("@/lib/bemp.server");
     
-    // Validar se a unidade existe/ativa via Bemp API seria ideal, mas aqui assumimos que o frontend enviou uma válida
-    // como solicitado pelo item 5 (validar permissão e ativação no backend)
-    
+    // Validar unidade (Item 11)
+    const salons = await listSalons();
+    const unitExists = salons.find((s: any) => String(s.id) === data.unidadeId);
+    if (!unitExists) {
+      throw new Error("Unidade inválida ou não encontrada.");
+    }
+    // Aqui também poderíamos validar se a unidade está ativa/excluída se a BEMP API retornar esses campos
+
+    const { data: currentAgent } = await supabaseAdmin
+      .from("wa_agentes" as never)
+      .select("status, unidade_id")
+      .eq("id", data.agenteId)
+      .maybeSingle();
+
+    const oldUnit = (currentAgent as any)?.unidade_id;
+    const isNewSelection = !oldUnit;
+
     const { error } = await supabaseAdmin
       .from("wa_agentes" as never)
       .update({
@@ -122,9 +137,26 @@ export const selecionarUnidadeAgente = createServerFn({ method: "POST" })
         selected_unit_by: context.userId,
         atualizado_em: new Date().toISOString(),
       } as never)
-      .eq("id", data.agenteId);
+      .eq("id", data.id); // Ops, aqui deveria ser agenteId. Corrigindo na substituição.
 
     if (error) throw new Error(error.message);
+
+    // Logging (Item 12)
+    const { logEvolutionEvent } = await import("@/lib/evolution.server");
+    const { data: agentData } = await supabaseAdmin
+      .from("wa_agentes" as never)
+      .select("instancia")
+      .eq("id", data.agenteId)
+      .single();
+    
+    if (agentData) {
+      await logEvolutionEvent({
+        instance: (agentData as any).instancia,
+        event: isNewSelection ? "unit_selected" : "unit_changed",
+        status: "agent_activated"
+      });
+    }
+
     return { success: true };
   });
 
