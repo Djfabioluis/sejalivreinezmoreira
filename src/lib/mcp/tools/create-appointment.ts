@@ -7,6 +7,7 @@ import {
   tryUpdateBempScheduleNote,
   withProfessionalPreferenceNote,
 } from "@/lib/bemp.server";
+import { checkMcpPermission, deniedResult } from "../permissions";
 
 export default defineTool({
   name: "create_appointment",
@@ -30,7 +31,9 @@ export default defineTool({
     idempotentHint: false,
     openWorldHint: false,
   },
-  handler: async (input) => {
+  handler: async (input, ctx) => {
+    const denied = await checkMcpPermission(ctx, "bemp");
+    if (denied) return deniedResult(denied);
     const payload = withProfessionalPreferenceNote(input);
     const data = await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule`, {
       method: "POST",

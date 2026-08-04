@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertPermission } from "@/lib/permissions.functions";
 
 export type RegraCrossSell = {
   id: string;
@@ -71,7 +72,8 @@ function normalize(input: z.infer<typeof RegraInput>) {
 
 export const listRegrasCrossSell = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async () => {
+  .handler(async ({ context }) => {
+  await assertPermission(context, "sugestoes");
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin
     .from("sugestoes_cross_sell" as never)
@@ -85,7 +87,8 @@ export const listRegrasCrossSell = createServerFn({ method: "GET" })
 export const createRegraCrossSell = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => RegraInput.parse(input))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    await assertPermission(context, "sugestoes");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row, error } = await supabaseAdmin
       .from("sugestoes_cross_sell" as never)
@@ -101,7 +104,8 @@ export const updateRegraCrossSell = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) =>
     RegraInput.extend({ id: z.string().uuid() }).parse(input),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    await assertPermission(context, "sugestoes");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { id, ...rest } = data;
     const { error } = await supabaseAdmin
@@ -118,7 +122,8 @@ export const updateRegraCrossSell = createServerFn({ method: "POST" })
 export const deleteRegraCrossSell = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    await assertPermission(context, "sugestoes");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("sugestoes_cross_sell" as never)
@@ -130,7 +135,8 @@ export const deleteRegraCrossSell = createServerFn({ method: "POST" })
 
 export const listRegistrosSugestoes = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async () => {
+  .handler(async ({ context }) => {
+  await assertPermission(context, "sugestoes");
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
   const { data, error } = await supabaseAdmin
@@ -169,7 +175,8 @@ export const listAuditoriaSugestoes = createServerFn({ method: "GET" })
       })
       .parse(input ?? {}),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    await assertPermission(context, "sugestoes");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const since = new Date(Date.now() - data.dias * 24 * 60 * 60 * 1000).toISOString();
     let q = supabaseAdmin

@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { assertPermission } from "@/lib/permissions.functions";
 
 export type ClienteAtendido = {
   phone: string;
@@ -42,7 +43,8 @@ function formatPhone(row: {
 export const listClientesAtendidos = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(
-  async (): Promise<ClienteAtendido[]> => {
+  async ({ context }): Promise<ClienteAtendido[]> => {
+    await assertPermission(context, "painel");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await supabaseAdmin
       .from("wa_conversas" as never)
@@ -83,7 +85,8 @@ export const listClientesAtendidos = createServerFn({ method: "GET" })
 export const listAtendimentosHumanos = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { status?: string } | undefined) => input ?? {})
-  .handler(async ({ data }): Promise<AtendimentoHumano[]> => {
+  .handler(async ({ data, context }): Promise<AtendimentoHumano[]> => {
+    await assertPermission(context, "painel");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let q = supabaseAdmin
       .from("atendimentos_humanos" as never)
@@ -102,7 +105,8 @@ export const listAtendimentosHumanos = createServerFn({ method: "GET" })
 export const updateAtendimentoStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { id: string; status: string; observacoes?: string }) => input)
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    await assertPermission(context, "painel");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const patch: Record<string, unknown> = { status: data.status };
     if (data.observacoes !== undefined) patch.observacoes = data.observacoes;
