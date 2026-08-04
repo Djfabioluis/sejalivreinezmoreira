@@ -1,0 +1,4 @@
+UPDATE public.base_conhecimento
+SET conteudo = conteudo || E'\n\nREGRA – INFORMAÇÕES DE OUTRAS UNIDADES\nMesmo quando o atendimento deste WhatsApp for exclusivo de uma unidade, é OBRIGATÓRIO informar endereços, telefones e a lista completa das unidades quando o cliente pedir (ex.: "Quais os endereços das outras unidades?").\nÉ PROIBIDO responder "nosso atendimento é exclusivo para a unidade X" como forma de negar essas informações. A exclusividade vale apenas para o AGENDAMENTO.\nFluxo correto: liste todas as unidades ativas com endereço (uma por linha) e os telefones quando solicitados, e só depois lembre que o agendamento por este canal é feito na unidade vinculada.',
+    updated_at = now()
+WHERE id = 1;
