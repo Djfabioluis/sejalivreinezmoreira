@@ -59,16 +59,20 @@ function safeTool<T>(label: string, fn: () => Promise<T>) {
 }
 
 function buildTools(sandbox: boolean, forcedUnitId?: string | null) {
-  const base = {
-    list_salons: tool({
-      description: "Lista todas as unidades (salões) disponíveis na conta Bemp.",
-      inputSchema: z.object({}),
-      execute: async () =>
-        safeTool("list_salons", async () => {
-          const cfg = await getBempConfig();
-          return await bempFetch(`${cfg.apiBase}/salons`);
+  const base: Record<string, any> = {
+    ...(forcedUnitId
+      ? {}
+      : {
+          list_salons: tool({
+            description: "Lista todas as unidades (salões) disponíveis na conta Bemp.",
+            inputSchema: z.object({}),
+            execute: async () =>
+              safeTool("list_salons", async () => {
+                const cfg = await getBempConfig();
+                return await bempFetch(`${cfg.apiBase}/salons`);
+              }),
+          }),
         }),
-    }),
     list_services: tool({
       description: "Lista serviços de uma unidade, com preço e duração.",
       inputSchema: z.object({ salon_id: z.number().optional() }),
