@@ -1116,7 +1116,9 @@ export function mandatoryOperationalRules(opts: {
   if (opts.unidadeId) {
     lines.push(
       `- A unidade de atendimento é FIXA: ${opts.unitName || `Unidade vinculada ID ${opts.unidadeId}`} (ID ${opts.unidadeId}).`,
-      "- É PROIBIDO perguntar, sugerir ou listar unidades. Não chame list_salons (ela não está disponível).",
+      "- É PROIBIDO perguntar ou sugerir a troca de unidade para o agendamento. Não chame list_salons (ela não está disponível).",
+      "- EXCEÇÃO INFORMATIVA: se o cliente perguntar quantas unidades existem, quais são as unidades/lojas ou pedir endereços, chame list_units_info e informe as unidades ATIVAS com o endereço de cada uma, uma por linha no formato \"• <Nome> — <Endereço>\". Em seguida lembre que o atendimento por este WhatsApp é feito na unidade <NOME DA UNIDADE FIXA> e siga o agendamento nela.",
+
     );
   }
   if (opts.contactPhone) lines.push("- É PROIBIDO pedir telefone, DDD ou código de país: já são conhecidos.");
