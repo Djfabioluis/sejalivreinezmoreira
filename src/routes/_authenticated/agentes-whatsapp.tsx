@@ -37,8 +37,10 @@ import {
   RefreshCw,
   MessageCircle,
   Building2,
+  CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
 import {
   listAgentes,
   criarAgente,
@@ -74,13 +76,13 @@ function formatSaved(digits: string) {
 function StatusBadge({ status }: { status: AgenteWa["status"] }) {
   const config: Record<string, { label: string; className: string }> = {
     ativo: { label: "Ativo", className: "bg-emerald-600 text-white" },
-    conectado_sem_unidade: { label: "Conectado - Sem Unidade", className: "bg-amber-500 text-white" },
+    conectado_sem_unidade: { label: "Escolha a unidade", className: "bg-amber-500 text-white" }, // Item 10
     aguardando_conexao: { label: "Aguardando Conexão", className: "bg-blue-500 text-white" },
     aguardando_qr: { label: "Aguardando QR", className: "bg-blue-400 text-white" },
     inativo: { label: "Inativo", className: "bg-slate-400 text-white" },
-    erro_conexao: { label: "Erro de Conexão", className: "bg-red-500 text-white" },
+    erro_conexao: { label: "Erro", className: "bg-red-500 text-white" }, // Item 10
     conectado: { label: "Conectado", className: "bg-emerald-600 text-white" },
-    desconectado: { label: "Desconectado", className: "bg-slate-400 text-white" },
+    desconectado: { label: "Aguardando conexão", className: "bg-slate-400 text-white" }, // Item 10
   };
   const c = config[status] || config.inativo;
   return <Badge className={c.className}>{c.label}</Badge>;
@@ -202,6 +204,11 @@ function AgentesWhatsAppPage() {
 
   async function handleConfirmUnit() {
     if (!selectedAgente || !unitId) return;
+    
+    const selectedUnitName = salons.find(s => String(s.id) === unitId)?.name || "esta unidade";
+    const confirmed = window.confirm(`Confirma o vínculo deste WhatsApp com a unidade ${selectedUnitName}?`); // Item 3
+    if (!confirmed) return;
+
     setSaving(true);
     try {
       await selectUnit({ data: { agenteId: selectedAgente.id, unidadeId: unitId } });
@@ -248,7 +255,7 @@ function AgentesWhatsAppPage() {
       if (r.status === "conectado" || r.status === "ativo" || r.status === "conectado_sem_unidade") {
         setQrOpen(false);
         toast.success("Este agente já está conectado.");
-        if (r.status === "conectado_sem_unidade") handleOpenUnit(agente);
+        if (r.status === "conectado_sem_unidade") handleOpenUnit(agente, "auto");
         void reload();
         return;
       }
@@ -287,10 +294,10 @@ function AgentesWhatsAppPage() {
                 <StatusBadge status={a.status} />
                 <div className="flex gap-2">
                   {a.status === "conectado_sem_unidade" && (
-                    <Button size="sm" variant="default" className="h-7 text-[10px]" onClick={() => handleOpenUnit(a)}>Escolher Unidade</Button>
+                    <Button size="sm" variant="default" className="h-7 text-[10px]" onClick={() => handleOpenUnit(a, "manual")}>Escolher Unidade</Button>
                   )}
                   {a.status === "ativo" && (
-                    <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => handleOpenUnit(a)}>Alterar Unidade</Button>
+                    <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => handleOpenUnit(a, "manual")}>Alterar Unidade</Button>
                   )}
                   <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => openQr(a)}><QrCode className="h-3.5 w-3.5" /></Button>
                   <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => void removerAgente({data:{id:a.id}}).then(()=>reload())}><Trash2 className="h-3.5 w-3.5" /></Button>
@@ -302,11 +309,14 @@ function AgentesWhatsAppPage() {
       </div>
 
       {/* Modal Unidade */}
-      <Dialog open={unitOpen} onOpenChange={setUnitOpen}>
-        <DialogContent>
+      <Dialog open={unitOpen} onOpenChange={(open) => {
+        // Não permitir fechar clicando fora ou com ESC (Item 1)
+        if (!saving) setUnitOpen(open);
+      }}>
+        <DialogContent onPointerDownOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
           <DialogHeader>
-            <DialogTitle>Em qual unidade este WhatsApp irá operar?</DialogTitle>
-            <DialogDescription>A IA utilizará a agenda, os profissionais e serviços da unidade selecionada.</DialogDescription>
+            <DialogTitle>WhatsApp conectado com sucesso</DialogTitle>
+            <DialogDescription>Agora escolha em qual unidade este número irá operar. A IA utilizará somente os dados dessa unidade.</DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-4">
              <div className="space-y-2">
