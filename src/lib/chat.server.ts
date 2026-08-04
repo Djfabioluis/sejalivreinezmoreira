@@ -1071,6 +1071,10 @@ export function mandatoryOperationalRules(opts: {
     "- Mantenha uma linha em branco entre a frase introdutória, a lista de horários e a pergunta final. A pergunta final deve ser sempre: \"Qual desses horários é o melhor para você? 😊\".",
     "- Se houver apenas um horário disponível, use o mesmo formato e pergunte se ele atende ao cliente.",
     "- Se o valor do serviço for fixo, remova completamente \"a partir de\" da resposta.",
+    "- Depois que o cliente escolher o horário, envie SEMPRE o resumo antes de criar o agendamento, EXATAMENTE neste formato:\n\"Perfeito, <Nome do Cliente>! ✨\n\nConfira os dados do seu agendamento:\n\n📌 Serviço: <Serviço>\n👤 Profissional: <Profissional>\n📅 Data: <Data> (<Dia da semana>)\n🕒 Horário: <Horário>\n📍 Unidade: <Unidade>\n💰 Valor: R$ XX,XX\n\nPodemos confirmar o seu agendamento? 😊\"",
+    "- Cada informação do resumo em uma linha separada, com os emojis do modelo. Os campos Serviço e Valor são obrigatórios e devem corresponder exatamente ao serviço escolhido.",
+    "- Só chame create_appointment depois que o cliente responder confirmando o resumo.",
+
 
   ];
 
