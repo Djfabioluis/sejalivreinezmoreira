@@ -1138,19 +1138,124 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
 }
 
 // Non-streaming run used by the WhatsApp webhook (needs the final text).
+export async function runAgentWithLogging(params: {
+  instance: string;
+  remoteJid: string;
+  messageId: string;
+  pushName?: string;
+  text: string;
+  unidadeId: string;
+  phone: string;
+  conversationKey: string;
+}) {
+  const { instance, messageId, phone, conversationKey, unidadeId, pushName } = params;
+
+  try {
+    await logEvent({ instance, messageId, event: "history_load_started", status: "started" });
+    const { getConversationHistory } = await import("./evolution/conversation.server");
+    const historyData = await getConversationHistory(conversationKey);
+
+    if (!historyData) {
+      await logEvent({ instance, messageId, event: "history_load_failed", status: "using_minimal_context" });
+    } else {
+      await logEvent({ 
+        instance, 
+        messageId, 
+        event: "history_loaded", 
+        status: "success",
+        payload: { historyCount: (historyData.messages as any[])?.length || 0 } 
+      });
+    }
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: unit } = await supabaseAdmin
+      .from("unidades" as never)
+      .select("nome")
+      .eq("id", unidadeId)
+      .maybeSingle();
+
+    const unitName = (unit as any)?.nome || "Unidade não identificada";
+
+    await logEvent({
+      instance,
+      messageId,
+      event: "ai_context_prepared",
+      status: "success",
+      payload: {
+        contactNameAvailable: !!pushName || !!historyData?.contact_name,
+        contactPhoneAvailable: !!phone,
+        unitAvailable: !!unidadeId,
+        historyCount: (historyData?.messages as any[])?.length || 0,
+        currentMessageAvailable: !!params.text
+      }
+    });
+
+    await logEvent({ instance, messageId, event: "ai_request_started", status: "started" });
+
+    // Preparar mensagens para a IA
+    const historyMessages: UIMessage[] = (historyData?.messages || []).map((m: any) => ({
+      id: m.id,
+      role: m.role,
+      parts: Array.isArray(m.parts) ? m.parts : [{ type: "text", text: String(m.parts || "") }],
+      content: Array.isArray(m.parts) ? m.parts.map((p: any) => p.text).join(" ") : String(m.parts || ""),
+    } as UIMessage));
+
+    // Injetar mensagem atual se não estiver no histórico
+    if (!historyMessages.find(m => m.id === messageId)) {
+      historyMessages.push({ 
+        id: messageId, 
+        role: "user", 
+        content: params.text,
+        parts: [{ type: "text", text: params.text }]
+      } as UIMessage);
+    }
+
+    const reply = await runAgent(historyMessages, {
+      unidadeId,
+      unitName,
+      contactName: pushName || (historyData?.contact_name as string),
+      contactPhone: phone,
+      customerContext: historyData?.customer_context || {}
+    });
+
+    if (!reply || reply.trim().length === 0) {
+      await logEvent({ instance, messageId, event: "ai_empty_response", status: "failed" });
+      return;
+    }
+
+    await logEvent({ instance, messageId, event: "ai_request_completed", status: "success" });
+
+    const { replyToUser } = await import("./evolution/reply.server");
+    await replyToUser({
+      instance,
+      phone,
+      text: reply,
+      conversationKey,
+      messageId
+    });
+
+  } catch (error) {
+    console.error("[chat] Erro em runAgentWithLogging:", error);
+    await logEvent({
+      instance,
+      messageId,
+      event: "ai_request_failed",
+      status: "error",
+      errorDetail: error instanceof Error ? error.message : String(error)
+    });
+  }
+}
+
 export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {}): Promise<string> {
   const sandbox = opts.sandbox === true || envSandbox();
   
-  // 1. Contexto de Unidade
   let unitContext = "";
   if (opts.unidadeId) {
     unitContext = `\n\nUNIDADE: ID ${opts.unidadeId}${opts.unitName ? ` (${opts.unitName})` : ""}.`;
   }
 
-  // 2. Dados Confiáveis do Contato
   const contactInfo = `\n\nDADOS DO CONTATO:\n- Nome conhecido: ${opts.contactName || "não identificado"}\n- Telefone: ${opts.contactPhone || "não identificado"}`;
 
-  // 3. Resumo do Contexto Estruturado (customer_context)
   let contextSummary = "Nenhum dado registrado ainda.";
   if (opts.customerContext && Object.keys(opts.customerContext).length > 0) {
     const ctx = opts.customerContext;
@@ -1166,7 +1271,6 @@ export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {})
 
   const basePrompt = await loadSystemPrompt();
   
-  // Injetar dados conhecidos no prompt base se as chaves existirem
   let fullSystem = basePrompt.replace("{{contactName}}", opts.contactName || "não identificado")
     .replace("{{contactPhone}}", opts.contactPhone || "não identificado")
     .replace("{{unitName}}", opts.unitName || "não vinculada")
@@ -1187,6 +1291,7 @@ export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {})
     messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
     tools: buildTools(sandbox, opts.unidadeId),
     stopWhen: stepCountIs(5),
+    abortSignal: AbortSignal.timeout(60000),
   });
 
   return sanitizeCustomerText(result.text?.trim() || "Desculpe, tive um probleminha aqui. Pode repetir?");

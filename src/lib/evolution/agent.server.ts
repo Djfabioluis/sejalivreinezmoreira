@@ -106,8 +106,9 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage) {
     const phone = normalizePhone(msg.remoteJid);
     const conversationKey = buildConversationKey(instance, msg.remoteJid);
 
-    // Chama o orquestrador da IA Julia
-    await runAgent({
+    // Chama o orquestrador da IA Julia com logging
+    const { runAgentWithLogging } = await import("@/lib/chat.server");
+    await runAgentWithLogging({
       instance,
       remoteJid: msg.remoteJid,
       messageId,
@@ -116,7 +117,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage) {
       unidadeId: agent.unidade_id,
       phone,
       conversationKey
-    } as any);
+    });
 
     await logEvent({ instance, messageId, event: "agent_flow", status: "agent_triggered" });
   } catch (error) {
