@@ -239,7 +239,7 @@ function buildTools(sandbox: boolean, forcedUnitId?: string | null) {
             const sent = await sendWhatsAppText(phone, msg);
             await supabaseAdmin.from("agendamentos_notif" as never).insert({
               bemp_appointment_id: bempId,
-              salon_id: String(input.salon_id),
+              salon_id: String(targetUnitId),
               service_id: String(input.service_id),
               service_name: serviceName,
               start_at: input.start,
