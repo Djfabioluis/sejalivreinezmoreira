@@ -1,53 +1,24 @@
-## Objetivo
+# Corrigir "OAuth timed out waiting for response" no login com Google
 
-Criar uma tela **WhatsApp — Agentes** parecida com as imagens do iuzer, onde você adiciona vários agentes (cada um com um número próprio), escaneia o QR Code e conecta de verdade via **Evolution API**.
+## O que está acontecendo
 
-## Como vai funcionar
+Os logs de autenticação mostram um login Google concluído com sucesso às 17:56 (provedor `google`, token emitido). Ou seja, o Google autenticou, mas a tela de login continuou esperando a resposta e estourou o tempo limite.
 
-```text
-Tela "WhatsApp"  →  [+ Adicionar agente]
-                        ↓
-          Tipo do agente: Julia (feminino) / João (masculino)
-          Número do WhatsApp: (00) 00000-0000
-                        ↓
-        [Adicionar e gerar QR Code] → QR na tela → escanear no celular
-                        ↓
-     Agente "Conectado" na lista, respondendo com o cérebro da Julia
-```
+A causa está em `src/routes/auth.tsx`: o botão do Google envia como URL de retorno `window.location.origin + destino`, onde o destino padrão é `/painel` — uma rota protegida (exige sessão ativa e assinatura). O fluxo gerenciado do Lovable Cloud exige que a URL de retorno seja pública (a origem do app ou uma rota pública de callback). Como o retorno cai numa rota protegida, o handshake do popup/preview não é concluído e o cliente fica aguardando até dar timeout.
 
-Cada agente vira uma **instância própria** no seu servidor Evolution. Todos usam o mesmo motor de IA (`runAgent`), mesmo histórico e mesmas ferramentas Bemp — muda só a voz/persona e o número.
+Isso também afeta o consentimento OAuth (`/.lovable/oauth/consent`), que envia o usuário para `/auth?next=...` — hoje esse `next` vai para o `redirect_uri` do Google, então o mesmo timeout ocorre no fluxo de conexão de clientes externos (MCP).
 
-## Pré-requisito fora do app
+## O que vou mudar
 
-A Evolution API precisa rodar num servidor seu (VPS/Docker). Vou pedir com segurança:
-- `EVOLUTION_API_URL` (ex.: `https://evo.seudominio.com`)
-- `EVOLUTION_API_KEY` (chave global do Evolution)
+1. **`src/routes/auth.tsx`**
+   - Passar `redirect_uri: window.location.origin` (URL pública) no `lovable.auth.signInWithOAuth("google", ...)`.
+   - Guardar o destino pretendido (`next`) separadamente em `sessionStorage`, validado como caminho relativo same-origin.
+   - Após o retorno, só navegar para o destino quando a sessão estiver confirmada (`getSession`/`onAuthStateChange`), em vez de redirecionar imediatamente.
+2. **Retomada do destino** — ao carregar `/auth` (ou a origem) com sessão já ativa, ler o destino salvo, limpá-lo e navegar para ele. Isso preserva o retorno ao consentimento OAuth (`/.lovable/oauth/consent?authorization_id=...`) depois do login com Google.
+3. **Sem mudanças** no login por e-mail/senha, no RBAC, na verificação de assinatura ou no restante do painel.
 
-Se ainda não tiver o servidor, te passo o `docker-compose.yml` pronto na implementação.
+## Como testar no preview
 
-## O que vou construir
-
-### 1. Banco
-Tabela `wa_agentes`: `id`, `nome`, `tipo` (`feminino` | `masculino`), `telefone`, `instancia`, `status` (`aguardando_qr` | `conectado` | `desconectado`), `criado_em`. Com RLS restrita a admin/operador autorizado e GRANTs.
-
-### 2. Tela nova `/agentes-whatsapp`
-- Cabeçalho "WhatsApp — Agentes e envio de mensagens automáticas".
-- Botão **Adicionar agente** no topo.
-- Estado vazio com o card tracejado e o botão **Adicionar agente WhatsApp** (igual às imagens).
-- Modal (bottom sheet no celular): seletor **Tipo do agente** (Agente feminino / Agente masculino), caixa informativa, campo **Número do WhatsApp** com máscara, botões **Cancelar** e **Adicionar e gerar QR Code**.
-- Lista de agentes com nome, número, selo de status e ações **Ver QR**, **Reconectar**, **Desconectar**, **Remover**.
-- Modal de QR Code com atualização automática do status a cada 5s até conectar.
-- Estilo seguindo o tema atual do sistema (Blush & Lavender), não o roxo do iuzer.
-
-### 3. Backend
-- `src/lib/evolution.server.ts`: criar instância, obter QR (base64), status, logout, enviar texto/áudio.
-- `src/lib/agentes-whatsapp.functions.ts`: server functions autenticadas (`assertAdmin`/permissão) para criar, listar, gerar QR, reconectar, desconectar e remover agentes.
-- `src/routes/api/public/whatsapp-evolution.ts`: webhook que recebe mensagens do Evolution, valida a `apikey`, identifica o agente pela instância e reusa o pipeline atual (transcrição de áudio, `runAgent`, histórico, resposta em texto ou áudio).
-- Persona por tipo: agente feminino = Julia (voz `shimmer`); agente masculino = nome masculino + voz masculina no TTS.
-
-### 4. Menu
-Item **WhatsApp — Agentes** na sidebar, junto das configurações de WhatsApp.
-
-## Fora do escopo
-
-Não vou mexer no tema geral do app, na navegação inferior nem na página de checkout do link enviado — conforme você escolheu, só a tela de agentes.
+1. Abrir `/auth` deslogado e clicar em "Continuar com Google" — deve autenticar e cair no painel sem timeout.
+2. Abrir `/painel` deslogado, ser redirecionado para `/auth`, entrar com Google — deve voltar para `/painel`.
+3. Abrir `/.lovable/oauth/consent?authorization_id=teste` deslogado, entrar com Google — deve retornar à mesma URL de consentimento.
