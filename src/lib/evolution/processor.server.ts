@@ -4,15 +4,20 @@ import { appendIncomingMessage } from "./conversation.server";
 import { runAgentFlow } from "./agent.server";
 import { logEvent } from "./logger.server";
 import { NormalizedEvolutionMessage } from "./types";
+import { findAgentByInstance, isIAEnabled } from "./agent.server";
+import { extractMessageText } from "./message-text";
+import { normalizePhone, buildConversationKey } from "./contact";
 
-export async function processEvolutionWebhook(payload: any, requestUrl: string) {
+/**
+ * Orquestrador principal para eventos de mensagens (messages.upsert)
+ */
+export async function processMessagesUpsert(payload: any, requestUrl: string) {
   const startTime = Date.now();
   
   // 1. Normalização
   const messages = normalizeEvolutionMessages(payload, requestUrl);
   
   if (messages.length === 0) {
-    // Log detalhado de falha na normalização ou ausência de mensagens
     await logEvent({
       instance: payload.instance || payload.instanceName || "unknown",
       event: "payload_shape_detected",
@@ -26,7 +31,6 @@ export async function processEvolutionWebhook(payload: any, requestUrl: string) 
     return;
   }
 
-  // Log de mensagens normalizadas
   await logEvent({
     instance: messages[0].instance,
     event: "message_normalized",
@@ -48,8 +52,23 @@ export async function processEvolutionWebhook(payload: any, requestUrl: string) 
         continue;
       }
 
-      // 3. Persistência
-      const saved = await appendIncomingMessage(msg);
+      // 3. Preparação de metadados
+      const agent = await findAgentByInstance(msg.instance);
+      const isIAActive = isIAEnabled(agent);
+      const text = extractMessageText(msg.message);
+      const phone = normalizePhone(msg.remoteJid);
+      const conversationKey = buildConversationKey(msg.instance, msg.remoteJid);
+
+      // 4. Persistência
+      const saved = await appendIncomingMessage({
+        conversationKey,
+        messageId: msg.messageId,
+        text: text || "[Mídia/Outro]",
+        instance: msg.instance,
+        phone,
+        contactName: msg.pushName || undefined,
+        isIAActive
+      });
       
       if (saved) {
         await logEvent({
@@ -59,17 +78,9 @@ export async function processEvolutionWebhook(payload: any, requestUrl: string) 
           status: "success",
           durationMs: Date.now() - startTime
         });
-      } else {
-        await logEvent({
-          instance: msg.instance,
-          messageId: msg.messageId,
-          event: "message_save_failed",
-          status: "error",
-          errorDetail: "RPC append_wa_message returned false"
-        });
       }
 
-      // 4. Fluxo da IA (se não for do próprio bot)
+      // 5. Fluxo da IA (se não for do próprio bot)
       if (!msg.fromMe) {
         await runAgentFlow(msg);
       }
@@ -83,5 +94,28 @@ export async function processEvolutionWebhook(payload: any, requestUrl: string) 
         errorDetail: error instanceof Error ? error.message : String(error)
       });
     }
+  }
+}
+
+/**
+ * Orquestrador para atualizações de conexão
+ */
+export async function processConnectionUpdate(payload: any) {
+  const instance = payload.instance || payload.instanceName || "unknown";
+  
+  await logEvent({
+    instance,
+    event: "connection.update",
+    status: payload.data?.status || "updated",
+    payload: payload.data
+  });
+
+  // Se a conexão foi aberta, podemos atualizar o status do agente no banco
+  if (payload.data?.status === "open") {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await supabaseAdmin
+      .from("wa_agentes" as never)
+      .update({ status_conexao: "conectado" } as never)
+      .eq("instancia", instance);
   }
 }
