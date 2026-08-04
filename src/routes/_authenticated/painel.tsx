@@ -553,9 +553,14 @@ function Dashboard() {
                 <CalendarClock className="h-4 w-4 mr-1" /> Reagendamentos
               </TabsTrigger>
               {isAdmin && (
-                <TabsTrigger value="stripe_health">
-                  <Activity className="h-4 w-4 mr-1" /> Saúde Stripe
-                </TabsTrigger>
+                <>
+                  <TabsTrigger value="stripe_health">
+                    <Activity className="h-4 w-4 mr-1" /> Saúde Stripe
+                  </TabsTrigger>
+                  <TabsTrigger value="evolution_logs">
+                    <ClipboardList className="h-4 w-4 mr-1" /> Logs Evolution
+                  </TabsTrigger>
+                </>
               )}
             </TabsList>
 
