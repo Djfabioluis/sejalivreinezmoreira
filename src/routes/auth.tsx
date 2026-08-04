@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
+import { createFileRoute, useSearch } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable/index";
@@ -29,9 +29,11 @@ function safeNext(next: string): string {
   return next;
 }
 
+const NEXT_KEY = "auth:next";
+
 function AuthPage() {
   const { next } = useSearch({ from: "/auth" });
-  const navigate = useNavigate();
+  
   const target = safeNext(next);
 
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -40,10 +42,32 @@ function AuthPage() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    let done = false;
+    const go = () => {
+      if (done) return;
+      done = true;
+      let dest = target;
+      try {
+        const stored = sessionStorage.getItem(NEXT_KEY);
+        if (stored) {
+          dest = safeNext(stored);
+          sessionStorage.removeItem(NEXT_KEY);
+        }
+      } catch {
+        /* sessionStorage indisponível */
+      }
+      window.location.replace(dest);
+    };
+
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) window.location.replace(target);
+      if (data.session) go();
     });
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      if (session) go();
+    });
+    return () => sub.subscription.unsubscribe();
   }, [target]);
+
 
   async function submitEmail(e: React.FormEvent) {
     e.preventDefault();
@@ -72,17 +96,24 @@ function AuthPage() {
   async function signInGoogle() {
     setBusy(true);
     try {
+      try {
+        sessionStorage.setItem(NEXT_KEY, target);
+      } catch {
+        /* sessionStorage indisponível */
+      }
+      // redirect_uri deve ser uma URL pública same-origin (nunca rota protegida).
       const result = await lovable.auth.signInWithOAuth("google", {
-        redirect_uri: `${window.location.origin}${target}`,
+        redirect_uri: window.location.origin,
       });
       if (result.error) throw result.error;
       if (result.redirected) return;
-      window.location.replace(target);
+      // Sessão definida: o listener onAuthStateChange faz a navegação.
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Falha no Google");
       setBusy(false);
     }
   }
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
