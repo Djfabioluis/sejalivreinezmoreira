@@ -1348,6 +1348,15 @@ export async function runAgentWithLogging(params: {
 
     if (!reply || reply.trim().length === 0) {
       await logEvent({ instance, messageId, event: "ai_empty_response", status: "failed" });
+      const { handleAIFallback } = await import("./evolution/fallback.server");
+      await handleAIFallback({
+        instance,
+        phone,
+        conversationKey,
+        messageId,
+        contactName: pushName || (historyData?.contact_name as string) || null,
+        reason: "resposta vazia da IA",
+      });
       return;
     }
 
@@ -1371,8 +1380,19 @@ export async function runAgentWithLogging(params: {
       status: "error",
       errorDetail: error instanceof Error ? error.message : String(error)
     });
+
+    const { handleAIFallback } = await import("./evolution/fallback.server");
+    await handleAIFallback({
+      instance,
+      phone,
+      conversationKey,
+      messageId,
+      contactName: pushName || null,
+      reason: error instanceof Error ? error.message : String(error),
+    });
   }
 }
+
 
 export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {}): Promise<string> {
   const sandbox = opts.sandbox === true || envSandbox();
