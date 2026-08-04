@@ -1109,6 +1109,8 @@ export function mandatoryOperationalRules(opts: {
     "- Cada informação do resumo em uma linha separada, com os emojis do modelo. Os campos Serviço e Valor são obrigatórios e devem corresponder exatamente ao serviço escolhido.",
     "- Só chame create_appointment depois que o cliente responder confirmando o resumo.",
     "- NUNCA escreva '✍️ Digitando…', 'digitando' ou qualquer indicador de digitação na resposta. O sistema envia a simulação de digitação automaticamente antes da sua mensagem.",
+    "- UNIDADES: se o cliente perguntar quantas unidades temos, quais são ou pedir endereços, chame SEMPRE a ferramenta list_units_info e responda com os dados reais da Bemp, informando o total e listando apenas as unidades ATIVAS, uma por linha, no formato \"• <Nome> — <Endereço>\". Nunca invente unidades ou endereços; se a ferramenta falhar, diga que vai confirmar e ofereça atendimento humano.",
+
 
 
   ];
