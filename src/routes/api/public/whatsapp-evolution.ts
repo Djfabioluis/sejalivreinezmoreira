@@ -3,11 +3,12 @@ import { runAgent } from "@/lib/chat.server";
 import { getEvolutionConfig, sendEvolutionText } from "@/lib/evolution.server";
 import { normalizeContactName, buildConversationKey, normalizeWhatsAppPhone } from "@/lib/whatsapp-utils";
 import { extractConversationMessageText } from "@/lib/whatsapp-inbox.functions";
+import { createHash } from "crypto";
+
+// --- HELPERS ---
 
 function extractMessageText(message: any): string {
   if (!message) return "";
-  
-  // Recursively extract text from various message types
   const content = message.conversation || 
                   message.extendedTextMessage?.text || 
                   message.imageMessage?.caption || 
@@ -23,7 +24,6 @@ function extractMessageText(message: any): string {
 
   if (typeof content === "string") return content;
   if (typeof content === "object" && content !== null) return extractMessageText(content);
-  
   return "";
 }
 
@@ -50,6 +50,28 @@ async function logEvent(entry: {
   }
 }
 
+function normalizeEvolutionMessage(payload: any) {
+  // Extract data (can be object, array, or directly in payload)
+  const data = payload.data || payload;
+  const msgArray = Array.isArray(data) ? data : (data.messages || [data]);
+  const msg = msgArray[0];
+
+  if (!msg) return null;
+
+  const instance = payload.instance || payload.instanceName || data.instance || data.instanceName || "unknown";
+  const key = msg.key || {};
+  const remoteJid = key.remoteJid;
+  const messageId = key.id;
+  const pushName = msg.pushName || data.pushName || payload.pushName;
+  const message = msg.message || msg;
+  const timestamp = msg.messageTimestamp || data.messageTimestamp || Math.floor(Date.now() / 1000);
+  const fromMe = !!key.fromMe;
+
+  return { instance, key, remoteJid, messageId, pushName, message, timestamp, fromMe };
+}
+
+// --- ROUTE ---
+
 export const Route = createFileRoute("/api/public/whatsapp-evolution")({
   server: {
     handlers: {
@@ -58,11 +80,10 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
         const config = await getEvolutionConfig();
         const url = new URL(request.url);
         
-        // 1. AUTENTICAÇÃO DO WEBHOOK
+        // 1. AUTENTICAÇÃO
         const xSecret = request.headers.get("x-webhook-secret");
         const authHeader = request.headers.get("Authorization");
         const querySecret = url.searchParams.get("webhook_secret");
-        
         let providedSecret = xSecret || querySecret || "";
         if (!providedSecret && authHeader?.startsWith("Bearer ")) {
           providedSecret = authHeader.substring(7);
@@ -80,131 +101,116 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
 
         const payload = await request.json().catch(() => null);
         if (!payload) {
-          await logEvent({ instance: "unknown", event: "webhook_received", status: "bad_request" });
+          await logEvent({ instance: "unknown", event: "webhook_received", status: "invalid_payload" });
           return new Response("Bad Request", { status: 400 });
         }
 
-        // 2. EXTRAÇÃO DA INSTÂNCIA
-        let instancia = url.searchParams.get("instance") || 
-                        payload.instance || 
-                        payload.instanceName || 
-                        payload.data?.instance || 
-                        payload.data?.instanceName;
-        
-        if (!instancia && Array.isArray(payload.data) && payload.data[0]?.instance) {
-          instancia = payload.data[0].instance;
-        }
+        await logEvent({ instance: payload.instance || "unknown", event: "webhook_received", status: "success" });
 
-        if (!instancia || instancia === "unknown") {
-          await logEvent({ instance: "missing_instance", event: "instance_extracted", status: "error" });
-          return new Response("OK"); // Ignorado conforme padrão
-        }
-
-        await logEvent({ instance: instancia, event: "webhook_received", status: "success" });
-        await logEvent({ instance: instancia, event: "instance_extracted", status: "success" });
-
-        // 3. NORMALIZAÇÃO DE EVENTOS
+        // 2. NORMALIZAÇÃO DO EVENTO
         const rawEvent = (payload.event || "unknown").toLowerCase().replace(/_/g, ".");
-        let normalizedEvent = rawEvent;
-        if (rawEvent.includes("messages.upsert") || rawEvent.includes("message.upsert")) normalizedEvent = "messages.upsert";
-        if (rawEvent.includes("connection.update")) normalizedEvent = "connection.update";
-
-        await logEvent({ instance: instancia, event: "event_normalized", status: normalizedEvent });
+        let normalizedEventName = rawEvent;
+        if (rawEvent.includes("messages.upsert") || rawEvent.includes("message.upsert")) normalizedEventName = "messages.upsert";
+        if (rawEvent.includes("connection.update")) normalizedEventName = "connection.update";
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-        // CONNECTION_UPDATE
-        if (normalizedEvent === "connection.update") {
+        // 3. CONNECTION UPDATE
+        if (normalizedEventName === "connection.update") {
+          const instance = payload.instance || payload.instanceName || payload.data?.instance || "unknown";
           const state = payload.data?.state || payload.state;
           if (state === "open" || state === "connected") {
-            const { data: agente } = await supabaseAdmin
-              .from("wa_agentes" as never)
-              .select("id, unidade_id")
-              .eq("instancia", instancia)
-              .maybeSingle();
-            
+            const { data: agente } = await supabaseAdmin.from("wa_agentes" as never).select("id, unidade_id").eq("instancia", instance).maybeSingle();
             if (agente) {
               const ag = agente as any;
               const newStatus = ag.unidade_id ? "ativo" : "conectado_sem_unidade";
-              await supabaseAdmin
-                .from("wa_agentes" as never)
-                .update({ status: newStatus, atualizado_em: new Date().toISOString() } as never)
-                .eq("id", ag.id);
+              await supabaseAdmin.from("wa_agentes" as never).update({ status: newStatus, atualizado_em: new Date().toISOString() } as never).eq("id", ag.id);
             }
           }
           return new Response("OK");
         }
 
-        if (normalizedEvent !== "messages.upsert") {
+        if (normalizedEventName !== "messages.upsert") {
           return new Response("OK");
         }
 
-        const messages = Array.isArray(payload.data) ? payload.data : [payload.data].filter(Boolean);
-        if (messages.length === 0) return new Response("OK");
+        // 4. PROCESSAMENTO DE MENSAGENS
+        const dataForNormalization = payload.data || payload;
+        const messagesToProcess = Array.isArray(dataForNormalization) ? dataForNormalization : [dataForNormalization];
 
-        for (const msg of messages) {
-          const msgData = msg.message || msg;
-          const pushNameRaw = msg.pushName || payload.pushName || payload.data?.pushName;
-          const remoteJid = msg.key?.remoteJid || payload.data?.key?.remoteJid;
-          const messageId = msg.key?.id || payload.data?.key?.id;
-
-          if (!remoteJid || !messageId) continue;
-          if (msg.key?.fromMe || remoteJid.includes("@g.us") || remoteJid.includes("broadcast")) {
-            await logEvent({ instance: instancia, messageId, event: "message_ignored_from_me", status: "success" });
+        for (const rawMsg of messagesToProcess) {
+          const event = normalizeEvolutionMessage({ ...payload, data: rawMsg });
+          if (!event) {
+            await logEvent({ instance: "unknown", event: "message_normalized", status: "payload_shape_detected" });
             continue;
           }
 
-          // IDEMPOTÊNCIA ATÔMICA (Instância + MessageId)
-          const { error: eventErr } = await supabaseAdmin.from("evo_events" as never).insert({ 
-            message_id: messageId, 
-            instance: instancia 
-          } as never);
+          const { instance, remoteJid, pushName, message, timestamp, fromMe } = event;
+          let { messageId } = event;
 
+          await logEvent({ instance, event: "message_normalized", status: "success" });
+
+          if (!remoteJid) {
+            await logEvent({ instance, event: "validation", status: "missing_remote_jid", errorDetail: JSON.stringify(payload).slice(0, 500) });
+            continue;
+          }
+
+          if (!messageId) {
+            const textForHash = extractMessageText(message);
+            messageId = `temp-${instance}-${remoteJid}-${timestamp}-${createHash("md5").update(textForHash).digest("hex").slice(0, 8)}`;
+            await logEvent({ instance, messageId, event: "validation", status: "missing_message_id", errorDetail: "Generated temporary ID" });
+          }
+
+          if (fromMe) {
+            await logEvent({ instance, messageId, event: "filter", status: "ignored_from_me" });
+            continue;
+          }
+
+          if (remoteJid.includes("@g.us")) {
+            await logEvent({ instance, messageId, event: "filter", status: "ignored_group" });
+            continue;
+          }
+
+          if (remoteJid.includes("broadcast")) {
+            await logEvent({ instance, messageId, event: "filter", status: "ignored_broadcast" });
+            continue;
+          }
+
+          // IDEMPOTÊNCIA
+          const { error: eventErr } = await supabaseAdmin.from("evo_events" as never).insert({ message_id: messageId, instance } as never);
           if (eventErr) {
             if (eventErr.code === "23505") {
-              await logEvent({ instance: instancia, messageId, event: "duplicate_message", status: "ignored" });
+              await logEvent({ instance, messageId, event: "idempotency", status: "duplicate_message" });
               continue;
             }
-            await logEvent({ instance: instancia, messageId, event: "event_save_failed", status: "error", errorDetail: eventErr.message });
+            await logEvent({ instance, messageId, event: "idempotency", status: "error", errorDetail: eventErr.message });
             continue;
           }
 
           const phone = normalizeWhatsAppPhone(remoteJid);
-          const conversationId = buildConversationKey(instancia, phone);
-          const contactName = normalizeContactName(pushNameRaw);
+          const conversationKey = buildConversationKey(instance, phone);
+          const contactName = normalizeContactName(pushName);
+          const text = extractMessageText(message);
 
-          const text = extractMessageText(msgData);
           if (!text) {
-            await logEvent({ instance: instancia, messageId, event: "incoming_message_extracted", status: "empty_text" });
+            await logEvent({ instance, messageId, event: "extraction", status: "empty_text" });
             continue;
           }
 
-          await logEvent({ instance: instancia, messageId, event: "contact_identified", status: "success" });
-
-          // Buscar conversa existente para pegar o histórico e contexto
-          const { data: existingConv } = await supabaseAdmin
-            .from("wa_conversas" as never)
-            .select("messages, customer_context, contact_name")
-            .eq("phone", conversationId)
-            .maybeSingle();
-          
-          const history = (existingConv as any)?.messages || [];
-          const customerContext = (existingConv as any)?.customer_context || {};
-
-          // Buscar agente
-          const { data: agenteRow } = await supabaseAdmin
-            .from("wa_agentes" as never)
-            .select("id, status, unidade_id")
-            .eq("instancia", instancia)
-            .maybeSingle();
-          
+          // BUSCAR AGENTE
+          const { data: agenteRow } = await supabaseAdmin.from("wa_agentes" as never).select("id, status, unidade_id").eq("instancia", instance).maybeSingle();
           const agente = agenteRow as any;
+          if (!agente) {
+            await logEvent({ instance, messageId, event: "agent_lookup", status: "agent_not_found" });
+          } else if (!agente.unidade_id) {
+            await logEvent({ instance, messageId, event: "agent_lookup", status: "agent_without_unit" });
+          }
 
-          // Salvar mensagem do usuário
-          const { error: rpcErr } = await supabaseAdmin.rpc("append_wa_message", {
-            p_phone: conversationId,
+          // SALVAR MENSAGEM
+          const { data: rpcData, error: rpcErr } = await supabaseAdmin.rpc("append_wa_message", {
+            p_phone: conversationKey,
             p_message: { id: messageId, role: "user", parts: [{ type: "text", text }] },
-            p_instance: instancia,
+            p_instance: instance,
             p_phone_number: phone,
             p_contact_name: contactName ?? undefined,
             p_increment_unread: true,
@@ -212,34 +218,52 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           });
 
           if (rpcErr) {
-            await logEvent({ instance: instancia, messageId, event: "conversation_save_failed", status: "error", errorDetail: rpcErr.message });
+            await logEvent({ instance, messageId, event: "persistence", status: "conversation_rpc_failed", errorDetail: rpcErr.message });
             continue;
           }
+          await logEvent({ instance, messageId, event: "persistence", status: "message_saved" });
 
+          // ATUALIZAR CONVERSA (AGENT/UNIT)
           if (agente) {
-            await supabaseAdmin
-              .from("wa_conversas" as never)
-              .update({ agent_id: agente.id, unidade_id: agente.unidade_id } as never)
-              .eq("phone", conversationId);
+            const { error: updateErr } = await supabaseAdmin.from("wa_conversas" as never).update({ agent_id: agente.id, unidade_id: agente.unidade_id } as never).eq("phone", conversationKey);
+            if (updateErr) {
+              await logEvent({ instance, messageId, event: "persistence", status: "conversation_update_failed", errorDetail: updateErr.message });
+            } else {
+              await logEvent({ instance, messageId, event: "persistence", status: "conversation_update_ok" });
+            }
           }
 
-          // Bloqueio se não houver unidade
+          // BLOQUEIO IA
           if (!agente || !agente.unidade_id || agente.status !== "ativo") {
             continue;
           }
 
-          // Executar IA com histórico e contexto
+          // EXECUTAR IA
           try {
-            await logEvent({ instance: instancia, messageId, event: "ai_started", status: "pending" });
+            await logEvent({ instance, messageId, event: "ai_flow", status: "runAgent_started" });
             
-            // Preparar mensagens para a IA (Histórico + Mensagem Atual)
-            // Limitamos a 10 últimas mensagens para contexto
-            const modelMessages = history.slice(-10).map((m: any) => ({
+            const { data: conv } = await supabaseAdmin.from("wa_conversas" as never).select("messages, customer_context, contact_name").eq("phone", conversationKey).maybeSingle();
+            const existingConv = conv as any;
+            
+            // Histórico limpo: mensagens válidas, ordenadas, sem duplicadas (ID)
+            const rawHistory = existingConv?.messages || [];
+            const seenIds = new Set();
+            const history = rawHistory
+              .filter((m: any) => {
+                if (!m.id || seenIds.has(m.id)) return false;
+                seenIds.add(m.id);
+                return true;
+              })
+              .slice(-10);
+
+            await logEvent({ instance, messageId, event: "ai_flow", status: "history_loaded" });
+
+            const modelMessages = history.map((m: any) => ({
               role: m.role === "operator" ? "assistant" : m.role,
               parts: [{ type: "text", text: extractConversationMessageText(m) }]
             }));
             
-            // Adicionar a mensagem atual se não estiver no histórico
+            // Garantir que a mensagem atual está no final se não for a última salva
             if (!modelMessages.some((m: any) => m.parts[0].text === text)) {
               modelMessages.push({ role: "user", parts: [{ type: "text", text }] });
             }
@@ -247,29 +271,28 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
             const aiResponse = await runAgent(modelMessages, { 
               sandbox: false,
               unidadeId: agente.unidade_id,
-              contactName: (contactName || (existingConv as any)?.contact_name) ?? undefined,
+              contactName: (contactName || existingConv?.contact_name) ?? undefined,
               contactPhone: phone,
-              customerContext: customerContext
+              customerContext: existingConv?.customer_context || {}
             });
             
             if (aiResponse) {
-              const sent = await sendEvolutionText(instancia, phone, aiResponse);
+              await logEvent({ instance, messageId, event: "evolution_send", status: "sendEvolution_started" });
+              const sent = await sendEvolutionText(instance, phone, aiResponse);
               if (sent) {
-                // Tenta extrair dados estruturados da resposta da IA ou do texto (simplificado)
-                // Em um cenário real, poderíamos usar tool calling outputs para atualizar o contexto
-                
                 await supabaseAdmin.rpc("append_wa_message", {
-                  p_phone: conversationId,
+                  p_phone: conversationKey,
                   p_message: { id: `ai-${Date.now()}`, role: "assistant", parts: [{ type: "text", text: aiResponse }] },
-                  p_instance: instancia,
+                  p_instance: instance,
                   p_phone_number: phone,
                   p_increment_unread: false
                 });
-                await logEvent({ instance: instancia, messageId, event: "ai_completed", status: "success" });
+                await logEvent({ instance, messageId, event: "ai_flow", status: "runAgent_finished" });
+                await logEvent({ instance, messageId, event: "evolution_send", status: "sendEvolution_finished" });
               }
             }
           } catch (aiErr: any) {
-            await logEvent({ instance: instancia, messageId, event: "ai_processing", status: "error", errorDetail: aiErr.message });
+            await logEvent({ instance, messageId, event: "ai_flow", status: "error", errorDetail: aiErr.message });
           }
         }
 
