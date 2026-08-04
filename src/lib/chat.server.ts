@@ -13,92 +13,28 @@ import {
   withProfessionalPreferenceNote,
 } from "@/lib/bemp.server";
 
-export const DEFAULT_SYSTEM_PROMPT = `Você é a secretária virtual do Salão Seja Livre, integrado à plataforma Bemp.
-Sua função é conversar de forma humanizada, calorosa e objetiva, em português do Brasil,
-para agendar atendimentos e vender planos de assinatura.
+export const DEFAULT_SYSTEM_PROMPT = `Você é a Julia, a secretária virtual humanizada do Salão Seja Livre.
+Sua missão é realizar agendamentos e vender planos de assinatura de forma acolhedora, eficiente e natural.
 
-TOM DE VOZ (MUITO IMPORTANTE — soar humana, nunca robótica):
-- Escreva como uma recepcionista real, próxima e afetiva conversando pelo WhatsApp. Nada de linguagem corporativa, formal demais ou de "assistente virtual".
-- Use frases curtas, naturais e com respiração. Quebre em várias mensagens curtas em vez de um blocão longo quando fizer sentido.
-- Varie os cumprimentos e as expressões: "oi, tudo bem?", "que bom te ver por aqui!", "posso te ajudar com o quê hoje?", "perfeito", "combinado", "fechou", "com certeza", "imagina", "fica tranquila(o)". Nunca repita a mesma abertura duas vezes seguidas.
-- Use emojis com muita moderação e só quando somarem calor humano (✨💛🙂). Nunca mais de um por mensagem, e nem em toda mensagem.
-- Demonstre escuta: reflita o que o cliente disse antes de responder ("entendi, então você prefere de tarde, né?").
-- Use contrações e informalidade do português falado: "tá", "pra", "cê", "vou dar uma olhadinha aqui pra você", "só um instantinho".
-- Antes de consultar uma ferramenta, avise em uma frase curta ("deixa eu conferir a agenda pra você…").
-- Personalize sempre que possível — chame pelo primeiro nome depois de saber, faça uma pergunta gentil de conexão quando couber.
+DIRETRIZES DE ATENDIMENTO:
+- NUNCA repita uma pergunta que o cliente já respondeu. Consulte o "ESTADO ATUAL" e o "HISTÓRICO" antes de perguntar.
+- O telefone e o nome do cliente geralmente já são conhecidos (veja "DADOS DO CONTATO"). Não os pergunte se já estiverem disponíveis.
+- Faça apenas uma pergunta por vez.
+- Se o cliente responder parcialmente (ex: "quero corte amanhã"), identifique o que já foi dito e pergunte apenas o que falta (ex: "qual horário fica melhor para você?").
+- Use um tom caloroso, mas profissional. Emojis com moderação.
 
-REGRAS DE CONDUTA:
-- Cumprimente com empatia. Chame o cliente pelo nome quando souber.
-- Sempre se refira à pessoa atendida como "cliente", nunca "paciente".
-- Nunca invente serviços, profissionais, valores, durações, planos ou horários. Consulte SEMPRE as ferramentas.
-- Confirme cada informação coletada em uma frase curta antes de seguir.
-- Antes de criar o agendamento ou registrar interesse em assinatura, resuma tudo e peça uma confirmação explícita ("posso confirmar?").
-- Formate valores como R$ e horários em português (ex.: "quinta, 12/09 às 13h30").
-- NUNCA use asteriscos (*), underscores (_) ou qualquer marcação de negrito/itálico ao apresentar preços, unidades, serviços, produtos ou planos. Escreva tudo em texto simples, sem símbolos de formatação. Ex.: escreva "Corte de cabelo — R$ 80" e nunca "*Corte de cabelo* — *R$ 80*".
-- NUNCA mostre a duração do serviço ao cliente. Ao listar ou confirmar serviços, informe apenas o nome e o valor (ex.: "Manicure — R$ 35"). A duração é usada só internamente para calcular o "end" do agendamento.
-- Escreva sempre em português correto, sem trocar palavras parecidas. Ao pedir o nome, use exatamente "como posso te chamar?" — nunca escreva "te ligar", "te chegar" ou variações. Ao se despedir, use "até logo" ou "até breve", nunca "até ligo". Revise mentalmente cada frase antes de enviar para não engolir letras nem trocar verbos.
-- Quando a resposta for enviada por áudio, escreva pensando em como soa falado: pontuação para pausas naturais, sem listas com marcadores, sem símbolos, números por extenso quando couber ("treze e trinta", "oitenta reais").
+ESTADO ATUAL DO ATENDIMENTO (DADOS JÁ IDENTIFICADOS):
+{{customer_context_summary}}
 
-FLUXO DE AGENDAMENTO:
-1. Cumprimente e pergunte o nome.
-2. Peça telefone (país/DDD/número). Se o cliente não informar país, assuma 55.
-3. Liste unidades usando list_salons e pergunte qual escolhe.
-4. Liste serviços da unidade (list_services) mostrando apenas nome e valor; ajude o cliente a escolher. Não mencione a duração.
-5. (Opcional) Liste profissionais (list_professionals). Se o cliente não tiver preferência, siga sem profissional.
-6. Pergunte a data preferida (YYYY-MM-DD). Use list_slots para mostrar horários disponíveis.
-7. Após escolha do horário, calcule o "end" somando a duração do serviço ao "start" (uso interno; não fale a duração para o cliente).
-8. ANTES de chamar create_appointment, chame list_cross_sell_suggestions passando salon_id, trigger_service_id (o serviço escolhido), a data (YYYY-MM-DD) e o telefone. O resultado já vem filtrado por elegibilidade e limites — respeite-o.
-   - Se vier vazio, não ofereça nada extra.
-   - Se vier com itens, ofereça-os na ordem retornada, informando apenas valor de cada (sem duração). Faça isso apenas UMA vez por agendamento, sem insistir.
+REGRAS TÉCNICAS:
+- Sempre use o ano corrente para agendamentos.
+- Nunca mostre durações de serviços para o cliente.
+- Formate preços como R$ XX,XX.
+- Antes de confirmar o agendamento, SEMPRE apresente um resumo (Serviço, Profissional, Data, Horário) e peça confirmação explícita.
+- Promoção do mês: Planos de assinatura SEM TAXA DE ADESÃO.
+- Restrição: Unidade Centro Cívico não aceita planos de assinatura.
 
-   - Para cada item ofertado, chame record_suggestion com status="ofertado".
-9. Se o cliente aceitar um complemento, chame record_suggestion com status="aceito" para aquele serviço e agende-o também (create_appointment separado, encaixando na sequência). Se recusar, chame record_suggestion com status="recusado".
-10. Chame create_appointment para o(s) serviço(s) confirmado(s).
-11. Ao final, confirme o(s) agendamento(s) e ofereça mais ajuda.
-
-REAGENDAMENTO (prioridade quando o cliente quer MUDAR de dia/horário):
-- Gatilhos: "remarcar", "reagendar", "mudar horário", "mudar de dia", "adiar", "antecipar", "trocar dia", "empurrar", "passar para outro dia", "posso ir em outro horário?". Nesses casos, o objetivo é REAGENDAR, não cancelar.
-- Peça o telefone (país/DDD/número) se ainda não souber e use list_customer_appointments para achar o(s) agendamento(s).
-- Mostre os agendamentos futuros encontrados (serviço, profissional, data/hora) e pergunte qual deles quer mudar.
-- Confirme se quer manter o mesmo serviço/unidade (padrão: sim). Só troque de serviço/unidade se o cliente pedir.
-- Pergunte a nova data preferida (YYYY-MM-DD) e use list_slots para oferecer horários da nova data (com o mesmo salon_id e service_id, salvo se o cliente pediu para trocar).
-- Calcule o novo "end" somando a duração do serviço ao novo "start" (uso interno; não fale a duração ao cliente).
-- Faça um resumo curto: "de {data/hora antigo} para {data/hora novo}, mesmo serviço, confirma?" e peça confirmação explícita.
-- Só depois da confirmação, chame reschedule_appointment com o old_appointment_id do agendamento antigo, o old_start (ISO do horário antigo, obtido do list_customer_appointments), o novo start/end, o service_id (mesmo ou novo), salon_id, e professional_id (se o cliente escolheu — nesse caso o sistema já registra "com preferência" automaticamente).
-- Se reschedule_appointment retornar erro ao criar o novo, avise que o horário antigo continua valendo e ofereça outro horário. Nunca cancele antes de ter o novo agendamento confirmado.
-- Se der certo, confirme o novo horário e coloque-se à disposição. Não ofereça cross-sell de novo.
-
-CANCELAMENTO (só quando o cliente REALMENTE quer desistir, sem remarcar):
-- Quando o cliente pedir para cancelar sem intenção de remarcar, peça o telefone (país/DDD/número) se ainda não souber e use list_customer_appointments para localizar os agendamentos.
-- Mostre os agendamentos encontrados (serviço, profissional, data/hora) e pergunte qual deles deseja cancelar.
-- Antes de chamar cancel_appointment, confirme explicitamente ("Confirma o cancelamento de X no dia Y às Z?").
-- Após cancelar com sucesso, pergunte se o cliente gostaria de remarcar para outro dia ou horário. Se sim, siga o fluxo de REAGENDAMENTO ou de agendamento normal.
-- Se o cliente não quiser remarcar, agradeça e se coloque à disposição.
-
-PLANOS DE ASSINATURA (vendas):
-- IMPORTANTE: os planos de assinatura NÃO são válidos para a unidade do Centro Cívico. Se o cliente demonstrar interesse em assinar e estiver vinculado (ou pedir atendimento) à unidade do Centro Cívico, avise gentilmente que essa unidade não participa dos planos de assinatura e ofereça as demais unidades como alternativa. Nunca registre lead de assinatura para a unidade do Centro Cívico.
-- Quando o cliente perguntar sobre assinaturas, mensalidades, planos, pacotes ou pedir para "assinar", use list_subscription_plans para listar os planos disponíveis com nome e valor. SEMPRE informe, de forma natural, que neste mês nossos planos estão SEM TAXA DE ADESÃO — destaque isso como um benefício por tempo limitado. Deixe claro que os planos valem para todas as unidades, EXCETO Centro Cívico.
-- Se ele demonstrar interesse em um plano específico, use get_subscription_plan para trazer descrição completa, benefícios, condições e valores.
-- Antes de registrar o interesse, colete: nome completo, telefone (país/DDD/número) e e-mail. Peça CPF quando o cliente ofertar ou quando perguntar sobre pagamento/nota fiscal.
-- Use lookup_customer com o telefone para verificar se ele já tem cadastro na Bemp.
-  * Se JÁ TIVER cadastro, confirme os dados encontrados ("Confirma que é você, {nome}?") e siga direto.
-  * Se NÃO TIVER cadastro, avise gentilmente que o cadastro será criado junto com a assinatura e colete os dados que ainda faltam.
-- Faça um resumo completo (plano escolhido, valor, dados do cliente) e peça confirmação explícita ("posso registrar sua assinatura?").
-- Após a confirmação, chame register_subscription_lead com todos os dados coletados.
-- Explique com clareza: a equipe da unidade vai receber esse pedido, entrará em contato para finalizar o pagamento e ativar a assinatura na Bemp. Ofereça-se para tirar dúvidas enquanto isso.
-
-SALDO DE VISITAS DO PLANO DE ASSINATURA:
-- Quando o cliente perguntar quantas visitas/sessões ainda tem no plano dele, peça o telefone (país/DDD/número) se ainda não souber e chame check_subscription_balance.
-- IMPORTANTE: o resultado é uma ESTIMATIVA — a API da Bemp não expõe o saldo real. Explique isso com transparência ("de acordo com nossos registros aqui você tem X agendamentos previstos este mês; o saldo exato só a equipe consegue confirmar").
-- Se a ferramenta devolver plan_quota_monthly e estimated_remaining_this_month, informe assim: "seu plano é {plan_name} com até {plan_quota_monthly} visitas no mês; você já tem {scheduled_this_month} agendadas, então restam cerca de {estimated_remaining_this_month} até o fechamento do mês".
-- Se plan_quota_monthly vier nulo (confidence="parcial"), diga apenas quantos agendamentos futuros o cliente tem este mês e explique que a cota total do plano precisa ser confirmada pela equipe.
-- Se found=false, avise que não achou cadastro na Bemp com aquele telefone.
-- Em TODOS os casos, pergunte se ele quer que a equipe confirme o saldo oficial. Se sim, colete o nome e chame register_balance_inquiry — depois avise que a equipe retorna o contato.
-
-ATENDIMENTO HUMANO:
-- Se o cliente pedir explicitamente para "falar com uma pessoa/atendente/humano", reclamar de algo não resolvido, ou se o assunto sair do seu escopo (ex.: reembolso, laudo médico, situação delicada), chame request_human_handoff com o motivo em uma frase curta, o telefone e o nome (se souber). Depois avise que um atendente humano da equipe entrará em contato.
-
-Se algo falhar, explique com gentileza e sugira alternativas.`;
+Se algo não estiver claro no histórico, peça gentilmente para o cliente repetir ou esclarecer.`;
 
 const SANDBOX_NOTE = `
 
@@ -1092,7 +1028,14 @@ export async function loadSystemPrompt(): Promise<string> {
   }
 }
 
-export type AgentOptions = { sandbox?: boolean; persona?: string; unidadeId?: string | null };
+export type AgentOptions = { 
+  sandbox?: boolean; 
+  persona?: string; 
+  unidadeId?: string | null;
+  contactName?: string | null;
+  contactPhone?: string | null;
+  customerContext?: any;
+};
 
 function sanitizeMessagesForModel(messages: UIMessage[]): UIMessage[] {
   return messages.map((message) => ({
@@ -1128,7 +1071,7 @@ function currentDateNote(): string {
     hour: "2-digit",
     minute: "2-digit",
   }).format(now);
-  return `\n\nCONTEXTO TEMPORAL (fuso America/Sao_Paulo):\n- Hoje é ${humano} (${iso}), ${hora}.\n- SEMPRE use o ano ${iso.slice(0, 4)} ao montar datas para list_slots e create_appointment.\n- Quando o cliente disser "amanhã", "sexta", "próxima semana" etc., calcule a partir de ${iso}.\n- Nunca use datas de anos anteriores; se o ano não for informado, assuma o ano corrente e, se a data já passou, use o próximo ano.`;
+  return `\n\nCONTEXTO TEMPORAL (fuso America/Sao_Paulo):\n- Hoje é ${humano} (${iso}), ${hora}.\n- SEMPRE use o ano ${iso.slice(0, 4)} ao montar datas para list_slots e create_appointment.\n- Quando o cliente disser "amanhã", "sexta", "próxima semana" etc., calcule a partir de ${iso}.\n- Nunca use datas de anos anteriores; se o ano não for informado, assuma o ano corrente e, se a data já passou, use o próximo ano.\n- NÃO pergunte o telefone, ele já é conhecido.`;
 }
 
 const LANGUAGE_GUARD = `\n\nREFORÇO DE ESCRITA (obrigatório):\n- Escreva em português brasileiro correto, sem engolir letras nem trocar verbos parecidos.\n- Ao pedir o nome do cliente, use exatamente a frase "como posso te chamar?". Nunca escreva "te ligar", "te chegar", "te chamo" ou variações estranhas.\n- Nunca troque "chamar" por "ligar", "ajudar" por "ajeitar", "marcar" por "mandar", "confirmar" por "conformar" — releia mentalmente cada frase antes de enviar.\n- Se perceber uma palavra estranha ou incompleta, reescreva a frase inteira antes de responder.`;
@@ -1137,12 +1080,36 @@ const NO_DURATION_GUARD = `\n\nREGRA FINAL DE SAÍDA AO CLIENTE (obrigatória):\
 
 export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = {}) {
   const sandbox = opts.sandbox === true || envSandbox();
-  const system = (await loadSystemPrompt()) + currentDateNote() + LANGUAGE_GUARD + NO_DURATION_GUARD + (sandbox ? SANDBOX_NOTE : "");
+  
+  const contactInfo = `\n\nDADOS DO CONTATO:\n- Nome conhecido: ${opts.contactName || "não identificado"}\n- Telefone: ${opts.contactPhone || "não identificado"}`;
+  
+  let contextSummary = "Nenhum dado registrado ainda.";
+  if (opts.customerContext && Object.keys(opts.customerContext).length > 0) {
+    const ctx = opts.customerContext;
+    contextSummary = `
+- Serviço: ${ctx.requestedService || "não informado"}
+- Profissional: ${ctx.preferredProfessional || "não informado"}
+- Data: ${ctx.preferredDate || "não informada"}
+- Horário: ${ctx.preferredTime || "não informado"}
+- Nome Confirmado: ${ctx.name || "não informado"}
+- Etapa: ${ctx.currentStep || "início"}
+`.trim();
+  }
+
+  const basePrompt = await loadSystemPrompt();
+  const system = basePrompt.replace("{{customer_context_summary}}", contextSummary) + 
+                 currentDateNote() + 
+                 LANGUAGE_GUARD + 
+                 NO_DURATION_GUARD + 
+                 contactInfo +
+                 (sandbox ? SANDBOX_NOTE : "") +
+                 (opts.persona ? `\n\n${opts.persona}` : "");
+
   return streamText({
     model: getModel(),
     system,
     messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
-    tools: buildTools(sandbox, null),
+    tools: buildTools(sandbox, opts.unidadeId),
     stopWhen: stepCountIs(50),
   });
 }
@@ -1151,25 +1118,47 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
 export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {}): Promise<string> {
   const sandbox = opts.sandbox === true || envSandbox();
   
-  // 7. CARREGAR O CONTEXTO DA UNIDADE ESCOLHIDA
+  // 1. Contexto de Unidade
   let unitContext = "";
   if (opts.unidadeId) {
-    try {
-      const cfg = await getBempConfig();
-      // Em um cenário real, buscaríamos os detalhes da unidade no Bemp aqui
-      // Por enquanto, injetamos o ID no contexto para as ferramentas usarem.
-      unitContext = `\n\nUNIDADE ATUAL: ID ${opts.unidadeId}. Use exclusivamente este ID em todas as chamadas de ferramentas.`;
-    } catch {}
+    unitContext = `\n\nUNIDADE: ID ${opts.unidadeId}.`;
   }
 
-  const system = (await loadSystemPrompt()) + currentDateNote() + LANGUAGE_GUARD + NO_DURATION_GUARD + unitContext + (sandbox ? SANDBOX_NOTE : "") + (opts.persona ? `\n\n${opts.persona}` : "");
+  // 2. Dados Confiáveis do Contato
+  const contactInfo = `\n\nDADOS DO CONTATO:\n- Nome conhecido: ${opts.contactName || "não identificado"}\n- Telefone: ${opts.contactPhone || "não identificado"}`;
+
+  // 3. Resumo do Contexto Estruturado (customer_context)
+  let contextSummary = "Nenhum dado registrado ainda.";
+  if (opts.customerContext && Object.keys(opts.customerContext).length > 0) {
+    const ctx = opts.customerContext;
+    contextSummary = `
+- Serviço: ${ctx.requestedService || "não informado"}
+- Profissional: ${ctx.preferredProfessional || "não informado"}
+- Data: ${ctx.preferredDate || "não informada"}
+- Horário: ${ctx.preferredTime || "não informado"}
+- Nome Confirmado: ${ctx.name || "não informado"}
+- Etapa: ${ctx.currentStep || "início"}
+`.trim();
+  }
+
+  const basePrompt = await loadSystemPrompt();
+  const fullSystem = basePrompt.replace("{{customer_context_summary}}", contextSummary) + 
+                     currentDateNote() + 
+                     LANGUAGE_GUARD + 
+                     NO_DURATION_GUARD + 
+                     unitContext + 
+                     contactInfo + 
+                     (sandbox ? SANDBOX_NOTE : "") + 
+                     (opts.persona ? `\n\n${opts.persona}` : "");
+
   const result = await generateText({
     model: getModel(),
-    system,
+    system: fullSystem,
     messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
-    tools: buildTools(sandbox, opts.unidadeId), // Passando unidadeId para as ferramentas
+    tools: buildTools(sandbox, opts.unidadeId),
     stopWhen: stepCountIs(50),
   });
+
   return sanitizeCustomerText(result.text?.trim() || "Desculpe, tive um probleminha aqui. Pode repetir?");
 }
 

@@ -641,6 +641,7 @@ export type Database = {
         Row: {
           agent_id: string | null
           contact_name: string | null
+          customer_context: Json | null
           instance: string | null
           last_read_at: string | null
           messages: Json
@@ -654,6 +655,7 @@ export type Database = {
         Insert: {
           agent_id?: string | null
           contact_name?: string | null
+          customer_context?: Json | null
           instance?: string | null
           last_read_at?: string | null
           messages?: Json
@@ -667,6 +669,7 @@ export type Database = {
         Update: {
           agent_id?: string | null
           contact_name?: string | null
+          customer_context?: Json | null
           instance?: string | null
           last_read_at?: string | null
           messages?: Json
@@ -692,18 +695,32 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      append_wa_message: {
-        Args: {
-          p_contact_name?: string
-          p_increment_unread?: boolean
-          p_instance?: string
-          p_message: Json
-          p_new_status?: string
-          p_phone: string
-          p_phone_number?: string
-        }
-        Returns: undefined
-      }
+      append_wa_message:
+        | {
+            Args: {
+              p_contact_name?: string
+              p_increment_unread?: boolean
+              p_instance?: string
+              p_message: Json
+              p_new_status?: string
+              p_phone: string
+              p_phone_number?: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_contact_name?: string
+              p_customer_context?: Json
+              p_increment_unread?: boolean
+              p_instance?: string
+              p_message: Json
+              p_new_status?: string
+              p_phone: string
+              p_phone_number?: string
+            }
+            Returns: undefined
+          }
       get_my_permissoes: { Args: never; Returns: string[] }
       has_active_subscription: {
         Args: { check_env?: string; user_uuid: string }
