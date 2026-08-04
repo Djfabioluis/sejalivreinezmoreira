@@ -91,25 +91,40 @@ export async function processMessagesUpsert(event: NormalizedEvolutionEvent, req
         isIAActive
       });
 
-      // Metadados
+      // Metadados e Contexto
       if (agent) {
         await updateConversationMetadata(conversationKey, {
           agent_id: agent.id,
           unidade_id: agent.unidade_id,
-          contact_name: contactName
+          contact_name: contactName || msg.pushName
         });
       }
 
       // IA
       if (isIAActive) {
         const historyData = await getConversationHistory(conversationKey);
-        const history = normalizeConversationHistory(historyData?.messages || [], text);
+        
+        // Obter dados da unidade vinculada ao agente
+        let unitData = null;
+        if (agent?.unidade_id) {
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          const { data: unit } = await supabaseAdmin
+            .from("unidades" as never)
+            .select("id, nome, endereco")
+            .eq("id", agent.unidade_id)
+            .maybeSingle();
+          unitData = unit;
+        }
+
+        const history = normalizeConversationHistory(historyData?.messages || [], text, finalMessageId);
         
         const aiResponse = await executeAI({
-          contactName: contactName || historyData?.contact_name,
+          contactName: contactName || historyData?.contact_name || msg.pushName,
           contactPhone: phone,
           instance: msg.instance,
-          unidadeId: agent.unidade_id,
+          agentId: agent?.id,
+          unidadeId: agent?.unidade_id,
+          unitName: (unitData as any)?.nome,
           customerContext: historyData?.customer_context,
           history
         });
