@@ -630,18 +630,36 @@ export type Database = {
       }
       wa_conversas: {
         Row: {
+          contact_name: string | null
+          instance: string | null
+          last_read_at: string | null
           messages: Json
           phone: string
+          phone_number: string | null
+          status: string
+          unread_count: number
           updated_at: string
         }
         Insert: {
+          contact_name?: string | null
+          instance?: string | null
+          last_read_at?: string | null
           messages?: Json
           phone: string
+          phone_number?: string | null
+          status?: string
+          unread_count?: number
           updated_at?: string
         }
         Update: {
+          contact_name?: string | null
+          instance?: string | null
+          last_read_at?: string | null
           messages?: Json
           phone?: string
+          phone_number?: string | null
+          status?: string
+          unread_count?: number
           updated_at?: string
         }
         Relationships: []
@@ -651,6 +669,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      append_wa_message: {
+        Args: {
+          p_contact_name?: string
+          p_increment_unread?: boolean
+          p_instance: string
+          p_message: Json
+          p_phone: string
+          p_phone_number: string
+        }
+        Returns: undefined
+      }
       get_my_permissoes: { Args: never; Returns: string[] }
       has_active_subscription: {
         Args: { check_env?: string; user_uuid: string }
