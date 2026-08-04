@@ -97,8 +97,8 @@ function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="bg-red-500 text-white p-2 text-center text-sm">
-        Execute esta instrucao no projeto: Não recebi o QR Code do servidor Evolution.
+      <div className="bg-green-500 text-white p-2 text-center text-sm">
+        Execute esta instrucao no projeto: definido
       </div>
       <PaymentTestModeBanner />
 
