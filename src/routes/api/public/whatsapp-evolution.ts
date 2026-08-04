@@ -264,7 +264,7 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
               updated_at: new Date().toISOString() 
             } as never);
 
-            if (debug) console.log("[evolution] evolution_send_started", { phone });
+            if (debug) console.log("[evolution] evolution_send_started", { phone: maskedPhone });
             const sent = await sendEvolutionText(instancia, phone, reply);
             if (debug) console.log("[evolution] evolution_send_completed", { sent });
             
