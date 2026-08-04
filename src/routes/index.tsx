@@ -43,66 +43,7 @@ export const Route = createFileRoute("/")({
   component: LandingPage,
 });
 
-type PlanKey = "starter" | "pro" | "business";
-type Cycle = "monthly" | "yearly";
-
-const PLANS: Record<
-  PlanKey,
-  {
-    name: string;
-    tagline: string;
-    monthly: { priceId: string; label: string };
-    yearly: { priceId: string; label: string; hint: string };
-    features: string[];
-    highlight?: boolean;
-  }
-> = {
-  starter: {
-    name: "Starter",
-    tagline: "Para começar",
-    monthly: { priceId: "starter_monthly", label: "R$ 297" },
-    yearly: { priceId: "starter_yearly", label: "R$ 2.970", hint: "≈ R$ 247/mês" },
-    features: [
-      "1 número de WhatsApp",
-      "Até 500 conversas/mês",
-      "Agenda automática (Bemp)",
-      "Base de conhecimento personalizável",
-      "Confirmações e lembretes",
-    ],
-  },
-  pro: {
-    name: "Pro",
-    tagline: "Mais escolhido",
-    monthly: { priceId: "pro_monthly", label: "R$ 597" },
-    yearly: { priceId: "pro_yearly", label: "R$ 5.970", hint: "≈ R$ 497/mês" },
-    features: [
-      "Até 3 números de WhatsApp",
-      "Até 2.000 conversas/mês",
-      "Sugestões de cross-sell configuráveis",
-      "Auditoria de sugestões",
-      "Handoff humano com operadores",
-      "Áudio bidirecional",
-    ],
-    highlight: true,
-  },
-  business: {
-    name: "Business",
-    tagline: "Para redes",
-    monthly: { priceId: "business_monthly", label: "R$ 1.297" },
-    yearly: {
-      priceId: "business_yearly",
-      label: "R$ 12.970",
-      hint: "≈ R$ 1.080/mês",
-    },
-    features: [
-      "Números e conversas ilimitados",
-      "Multi-unidade",
-      "Integrações avançadas",
-      "Prioridade no suporte",
-      "SLA dedicado",
-    ],
-  },
-};
+import { PLAN_METADATA, PLANS as CENTRAL_PLANS, type PlanKey, type Cycle } from "@/lib/plans";
 
 function LandingPage() {
   const navigate = useNavigate();
