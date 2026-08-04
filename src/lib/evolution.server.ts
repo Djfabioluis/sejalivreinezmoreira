@@ -8,7 +8,7 @@ async function getDbConfig(): Promise<{ url: string; apiKey: string } | null> {
     const { data } = await supabaseAdmin
       .from("base_conhecimento" as never)
       .select("conteudo")
-      .eq("id", 5)
+      .eq("id", 20)
       .maybeSingle();
     if (!data) return null;
     const parsed = JSON.parse((data as any).conteudo);

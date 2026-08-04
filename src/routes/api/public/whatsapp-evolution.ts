@@ -15,16 +15,7 @@ import {
 type EvoPayload = {
   event?: string;
   instance?: string;
-  data?: {
-    key?: { remoteJid?: string; fromMe?: boolean; id?: string };
-    message?: {
-      conversation?: string;
-      extendedTextMessage?: { text?: string };
-      audioMessage?: { mimetype?: string };
-    };
-    messageType?: string;
-    base64?: string;
-  };
+  data?: any;
 };
 
 type Agente = {
@@ -112,6 +103,7 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           request.headers.get("x-api-key") ??
           (request.headers.get("authorization") ?? "").replace(/^Bearer\s+/i, "");
         if (!provided || !safeEqual(provided, expected)) {
+          console.warn("[evolution] Webhook unauthorized: apikey mismatch");
           return new Response("Unauthorized", { status: 401 });
         }
 
@@ -126,7 +118,7 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
         const event = (payload.event ?? "").toLowerCase().replace(/_/g, ".");
 
         if (event === "connection.update") {
-          const state = (payload.data as unknown as { state?: string })?.state;
+          const state = (payload.data as any)?.state;
           if (state === "open") await markConnected(instancia, "conectado");
           else if (state === "close") await markConnected(instancia, "desconectado");
           return new Response("ok", { status: 200 });
@@ -134,76 +126,82 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
 
         if (event !== "messages.upsert") return new Response("ok", { status: 200 });
 
-        const d = payload.data;
-        const jid = d?.key?.remoteJid ?? "";
-        if (!d || d.key?.fromMe || !jid || jid.endsWith("@g.us")) {
-          return new Response("ok", { status: 200 });
-        }
-        const phone = jid.split("@")[0].replace(/\D/g, "");
-        if (!phone) return new Response("ok", { status: 200 });
+        // Evolution v2 envia as mensagens em data.messages[]
+        // Evolution v1 envia a mensagem direto em data
+        const messagesArr = Array.isArray(payload.data?.messages) 
+          ? payload.data.messages 
+          : [payload.data];
 
-        const agente = await loadAgente(instancia);
-        if (!agente) return new Response("ok", { status: 200 });
+        for (const d of messagesArr) {
+          if (!d) continue;
+          
+          const jid = d.key?.remoteJid ?? "";
+          if (d.key?.fromMe || !jid || jid.endsWith("@g.us")) continue;
 
-        const process = async () => {
-          let userText: string | null = null;
-          let wasVoice = false;
+          const phone = jid.split("@")[0].replace(/\D/g, "");
+          if (!phone) continue;
 
-          const plain = d.message?.conversation ?? d.message?.extendedTextMessage?.text ?? null;
-          if (plain?.trim()) {
-            userText = plain.trim();
-          } else if (d.message?.audioMessage) {
-            wasVoice = true;
-            try {
-              const b64 =
-                d.base64 ?? (d.key?.id ? await fetchEvolutionMediaBase64(instancia, d.key.id) : null);
-              if (!b64) {
-                await sendEvolutionText(instancia, phone, "Não consegui baixar seu áudio, pode tentar de novo?");
-                return;
-              }
-              const bytes = new Uint8Array(Buffer.from(b64, "base64"));
-              userText = await transcribeAudio(bytes, d.message.audioMessage.mimetype ?? "audio/ogg");
-              if (!userText?.trim()) {
-                await sendEvolutionText(instancia, phone, "Não entendi o áudio, pode repetir por favor?");
-                return;
-              }
-            } catch (err) {
-              console.error("[evolution] transcrição falhou:", err);
-              await sendEvolutionText(instancia, phone, "Tive um problema ao ouvir seu áudio. Pode tentar de novo?");
-              return;
-            }
-          } else {
-            return;
-          }
+          const agente = await loadAgente(instancia);
+          if (!agente) continue;
 
-          try {
-            const history = await loadHistory(phone);
-            const nextIn = [...history, textMessage("user", userText)];
-            const reply = await runAgent(nextIn, { persona: personaNote(agente) });
-            await saveHistory(phone, [...nextIn, textMessage("assistant", reply)]);
-            if (wasVoice) {
+          // Processamento assíncrono para não travar o webhook
+          (async () => {
+            let userText: string | null = null;
+            let wasVoice = false;
+
+            const message = d.message;
+            const plain = message?.conversation ?? message?.extendedTextMessage?.text ?? null;
+
+            if (plain?.trim()) {
+              userText = plain.trim();
+            } else if (message?.audioMessage) {
+              wasVoice = true;
               try {
-                const mp3 = await synthesizeSpeechMp3(reply, { voice: VOICES[agente.tipo] });
-                const sent = await sendEvolutionAudio(instancia, phone, mp3);
-                if (!sent) await sendEvolutionText(instancia, phone, reply);
+                const b64 = d.base64 ?? (d.key?.id ? await fetchEvolutionMediaBase64(instancia, d.key.id) : null);
+                if (!b64) {
+                  await sendEvolutionText(instancia, phone, "Não consegui baixar seu áudio, pode tentar de novo?");
+                  return;
+                }
+                const bytes = new Uint8Array(Buffer.from(b64, "base64"));
+                userText = await transcribeAudio(bytes, message.audioMessage.mimetype ?? "audio/ogg");
               } catch (err) {
-                console.error("[evolution] TTS falhou, enviando texto:", err);
+                console.error("[evolution] transcrição falhou:", err);
+                await sendEvolutionText(instancia, phone, "Tive um problema ao ouvir seu áudio. Pode tentar de novo?");
+                return;
+              }
+            }
+
+            if (!userText?.trim()) return;
+
+            try {
+              const history = await loadHistory(phone);
+              const nextIn = [...history, textMessage("user", userText)];
+              const reply = await runAgent(nextIn, { persona: personaNote(agente) });
+              await saveHistory(phone, [...nextIn, textMessage("assistant", reply)]);
+              
+              if (wasVoice) {
+                try {
+                  const mp3 = await synthesizeSpeechMp3(reply, { voice: VOICES[agente.tipo] });
+                  const sent = await sendEvolutionAudio(instancia, phone, mp3);
+                  if (!sent) await sendEvolutionText(instancia, phone, reply);
+                } catch (err) {
+                  console.error("[evolution] TTS falhou, enviando texto:", err);
+                  await sendEvolutionText(instancia, phone, reply);
+                }
+              } else {
                 await sendEvolutionText(instancia, phone, reply);
               }
-            } else {
-              await sendEvolutionText(instancia, phone, reply);
+            } catch (err) {
+              console.error("[evolution] erro processando mensagem:", err);
+              await sendEvolutionText(
+                instancia,
+                phone,
+                "Desculpe, tivemos uma instabilidade aqui. Pode enviar de novo em instantes?",
+              );
             }
-          } catch (err) {
-            console.error("[evolution] erro processando mensagem:", err);
-            await sendEvolutionText(
-              instancia,
-              phone,
-              "Desculpe, tivemos uma instabilidade aqui. Pode enviar de novo em instantes?",
-            );
-          }
-        };
+          })().catch(e => console.error("[evolution] erro em background:", e));
+        }
 
-        await process();
         return new Response("ok", { status: 200 });
       },
     },

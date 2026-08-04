@@ -3,7 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-const EVOLUTION_SETTINGS_ID = 5; // ID na tabela base_conhecimento
+const EVOLUTION_SETTINGS_ID = 20; // ID na tabela base_conhecimento (movido do 5 para evitar conflito com health check)
 
 export type EvolutionConfig = {
   url: string;
@@ -59,10 +59,10 @@ export const saveEvolutionSettings = createServerFn({ method: "POST" })
     // Aceita "meu-servidor.com" ou "http://..." e normaliza para https://
     let url = typeof raw?.url === "string" ? raw.url.trim().replace(/\/+$/, "") : "";
     if (url && !/^https?:\/\//i.test(url)) url = `https://${url}`;
-    url = url.replace(/^http:\/\//i, "https://");
     return z
       .object({
-        url: z.string().url("URL inválida").startsWith("https://", "A URL deve usar HTTPS"),
+        url: z.string().url("URL inválida"),
+
         apiKey: z.string().trim().min(5, "API Key obrigatória"),
       })
       .parse({ ...raw, url });
