@@ -186,6 +186,10 @@ function buildTools(sandbox: boolean, forcedUnitId?: string | null) {
       }),
       execute: async (input) =>
         safeTool("create_appointment", async () => {
+          const targetUnitId = forcedUnitId || input.salon_id;
+          if (!targetUnitId) throw new Error("ID da unidade não fornecido.");
+          const fullInput = { ...input, salon_id: Number(targetUnitId) };
+
           if (sandbox) {
             return {
               sandbox: true,
@@ -194,11 +198,11 @@ function buildTools(sandbox: boolean, forcedUnitId?: string | null) {
               status: "simulated",
               message:
                 "Agendamento SIMULADO (modo sandbox). Nada foi gravado na Bemp. (Confirmação por WhatsApp não é enviada em sandbox.)",
-              appointment: input,
+              appointment: fullInput,
               created_at: new Date().toISOString(),
             };
           }
-          const payload = withProfessionalPreferenceNote(input);
+          const payload = withProfessionalPreferenceNote(fullInput);
           const result = await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule`, {
             method: "POST",
             body: JSON.stringify(payload),
@@ -219,7 +223,7 @@ function buildTools(sandbox: boolean, forcedUnitId?: string | null) {
             try {
               const cfg = await getBempConfig();
               const services = (await bempFetch(
-                `${cfg.apiBase}/salons/${input.salon_id}/services`,
+                `${cfg.apiBase}/salons/${targetUnitId}/services`,
               )) as Array<Record<string, unknown>> | null;
               if (Array.isArray(services)) {
                 const found = services.find((s) => Number(s.id) === input.service_id);
