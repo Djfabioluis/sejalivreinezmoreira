@@ -238,8 +238,9 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           const phone = remoteJid.split("@")[0].replace(/\D/g, "");
           const conversationId = `${instancia}:${phone}`; // Scoping histórico por instância e telefone
 
+          const maskedPhone = phone.slice(0, 4) + "****" + phone.slice(-2);
           try {
-            if (debug) console.log("[evolution] ai_started", { phone });
+            if (debug) console.log("[evolution] ai_started", { phone: maskedPhone });
             const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
             
             // Busca histórico usando a nova chave composta se possível, ou phone para compatibilidade
