@@ -1584,7 +1584,7 @@ function StripeHealthPanel() {
           </Alert>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {results.map((r: any) => (
+            {Array.isArray(results) && results.map((r: any) => (
               <Card key={r.planId} className="bg-muted/30">
                 <CardHeader className="pb-2">
                   <div className="flex items-center justify-between">
