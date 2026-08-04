@@ -1,12 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { timingSafeEqual } from "crypto";
-import { type UIMessage } from "ai";
 import { runAgent } from "@/lib/chat.server";
-import { transcribeAudio, synthesizeSpeechMp3 } from "@/lib/ai-audio.server";
 import {
   getEvolutionConfig,
-  fetchEvolutionMediaBase64,
-  sendEvolutionAudio,
   sendEvolutionText,
 } from "@/lib/evolution.server";
 
@@ -18,11 +14,6 @@ type Agente = {
   status?: string;
 };
 
-const VOICES: Record<"feminino" | "masculino", string> = {
-  feminino: "shimmer",
-  masculino: "onyx",
-};
-
 function personaNote(a: Agente): string {
   if (a.tipo === "masculino") {
     return `IDENTIDADE DESTE CANAL: você é ${a.nome}, recepcionista do Salão Seja Livre, homem, voz e escrita masculinas. Use concordância no masculino ao falar de si ("pronto", "obrigado"). Mantenha o mesmo tom acolhedor e humano.`;
@@ -32,10 +23,10 @@ function personaNote(a: Agente): string {
 
 function safeEqual(a: string, b: string): boolean {
   if (!a || !b) return false;
-  const x = Buffer.from(a);
-  const y = Buffer.from(b);
-  if (x.length !== y.length) return false;
   try {
+    const x = Buffer.from(a);
+    const y = Buffer.from(b);
+    if (x.length !== y.length) return false;
     return timingSafeEqual(x, y);
   } catch {
     return false;
@@ -53,17 +44,58 @@ async function loadAgente(instancia: string): Promise<Agente | null> {
   return (data as unknown as Agente | null) ?? null;
 }
 
-async function isDuplicate(instancia: string, messageId: string): Promise<boolean> {
+/**
+ * Registra a tentativa de processamento de uma mensagem de forma atômica para idempotência.
+ */
+async function registerProcessed(instance: string, messageId: string, remoteJid?: string): Promise<{ success: boolean; isDuplicate: boolean }> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  // Usamos wa_conversas ou uma tabela dedicada se existisse. 
-  // Por simplicidade e sem alterar schema, vamos checar se o ID já está nas mensagens de alguma conversa.
-  // Mas como a instrução pede idempotência, vamos usar wa_conversas de forma inteligente ou apenas logar se não houver tabela de eventos.
-  // Como não podemos alterar tabelas, vamos confiar nos logs e no processamento sequencial por JID se possível.
-  return false; 
+  try {
+    const { error } = await supabaseAdmin.from("evo_events" as never).insert({
+      instance,
+      message_id: messageId,
+      remote_jid: remoteJid,
+      status: "processing",
+      created_at: new Date().toISOString()
+    } as never);
+
+    if (error) {
+      if (error.code === "23505") { // Unique violation
+        return { success: false, isDuplicate: true };
+      }
+      console.error("[evolution] idempotency_error:", error);
+      return { success: false, isDuplicate: false };
+    }
+    return { success: true, isDuplicate: false };
+  } catch (err) {
+    console.error("[evolution] idempotency_exception:", err);
+    return { success: false, isDuplicate: false };
+  }
+}
+
+async function markCompleted(instance: string, messageId: string, status: "completed" | "error" = "completed") {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  await supabaseAdmin.from("evo_events" as never).update({
+    status,
+    processed_at: new Date().toISOString()
+  } as never).match({ instance, message_id: messageId });
 }
 
 function extractMessageText(message: any): string | null {
   if (!message) return null;
+
+  // Recursão para mensagens encapsuladas
+  const subMessage = 
+    message.ephemeralMessage?.message || 
+    message.viewOnceMessage?.message || 
+    message.viewOnceMessageV2?.message || 
+    message.documentWithCaptionMessage?.message || 
+    message.editedMessage?.message ||
+    message.protocolMessage?.editedMessage?.message;
+
+  if (subMessage) {
+    return extractMessageText(subMessage);
+  }
+
   const text = 
     message.conversation || 
     message.extendedTextMessage?.text || 
@@ -77,10 +109,8 @@ function extractMessageText(message: any): string | null {
     message.templateButtonReplyMessage?.selectedDisplayText || 
     message.templateButtonReplyMessage?.selectedId || 
     message.interactiveResponseMessage?.body?.text ||
-    message.ephemeralMessage?.message?.conversation ||
-    message.viewOnceMessage?.message?.conversation ||
-    message.viewOnceMessageV2?.message?.conversation ||
     null;
+    
   return text?.trim() || null;
 }
 
@@ -97,7 +127,7 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
 
         if (debug) console.log("[evolution] webhook_received");
 
-        // 2. Autenticação
+        // 1. Autenticação do Webhook
         const provided = 
           request.headers.get("x-webhook-secret") ||
           (request.headers.get("authorization") || "").replace(/^Bearer\s+/i, "") ||
@@ -108,6 +138,7 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
             console.warn("[evolution] webhook_authenticated_failed: invalid secret");
             return new Response("Unauthorized", { status: 401 });
           }
+          if (debug) console.log("[evolution] webhook_authenticated");
         }
 
         let payload: any;
@@ -123,53 +154,35 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
         if (event === "messages.upsert" || event === "message.upsert" || event === "messages_upsert") {
           event = "messages.upsert";
         }
+        if (debug) console.log("[evolution] payload_shape_detected", { event });
 
         const instancia = payload.instance || payload.instanceName || payload.data?.instance || payload.data?.instanceName || "unknown";
-        
-        // Log inicial (Received)
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const logId = crypto.randomUUID();
-        
-        try {
-          await supabaseAdmin.from("evo_webhook_logs" as never).insert({
-            id: logId,
-            instance: instancia,
-            event: event,
-            status: "received",
-            payload: payload,
-            created_at: new Date().toISOString()
-          } as never);
-        } catch (err) {
-          console.error("[evolution] log_initial_error:", err);
-        }
+        if (debug) console.log("[evolution] instance_extracted", { instancia });
 
         if (event === "connection.update") {
           const state = payload.data?.state || payload.state;
           if (state === "open") {
+             const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
              await supabaseAdmin.from("wa_agentes" as never).update({ status: "conectado", atualizado_em: new Date().toISOString() } as never).eq("instancia", instancia);
           }
-          await supabaseAdmin.from("evo_webhook_logs" as never).update({ 
-            status: "success", 
-            duration_ms: Date.now() - start 
-          } as never).eq("id", logId);
           return Response.json({ ok: true });
         }
 
         if (event !== "messages.upsert") {
-          await supabaseAdmin.from("evo_webhook_logs" as never).update({ 
-            status: "success", 
-            error_detail: "ignored_event",
-            duration_ms: Date.now() - start 
-          } as never).eq("id", logId);
           return Response.json({ ok: true, ignored: true, reason: "unsupported_event", event: rawEvent });
         }
 
+        // Normalização de mensagens
         let messagesArr: any[] = [];
-        if (Array.isArray(payload.data?.messages)) messagesArr = payload.data.messages;
-        else if (payload.data?.message) messagesArr = [payload.data.message];
-        else if (Array.isArray(payload.messages)) messagesArr = payload.messages;
-        else if (payload.message) messagesArr = [payload.message];
-        else if (payload.data) messagesArr = [payload.data];
+        if (payload.data?.key && payload.data?.message) {
+          messagesArr = [payload.data]; // Caso payload.data seja a própria mensagem (2.3.7 flat)
+        } else if (Array.isArray(payload.data?.messages)) {
+          messagesArr = payload.data.messages;
+        } else if (Array.isArray(payload.messages)) {
+          messagesArr = payload.messages;
+        } else if (payload.data && !Array.isArray(payload.data)) {
+          messagesArr = [payload.data];
+        }
 
         for (const msgData of messagesArr) {
           if (!msgData) continue;
@@ -179,65 +192,90 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           const messageId = key.id || "";
           const fromMe = key.fromMe === true;
 
+          if (debug) console.log("[evolution] message_key_extracted", { messageId, remoteJid, fromMe });
+
           if (fromMe) continue;
 
-          if (!remoteJid || remoteJid.endsWith("@g.us") || remoteJid.endsWith("@broadcast") || remoteJid === "status@broadcast") {
+          if (!remoteJid) {
+            console.warn("[evolution] missing_remote_jid", { messageId });
+            continue;
+          }
+
+          if (!messageId) {
+            console.warn("[evolution] missing_message_id", { remoteJid });
+            continue;
+          }
+
+          if (remoteJid.endsWith("@g.us") || remoteJid.endsWith("@broadcast") || remoteJid === "status@broadcast") {
             continue;
           }
 
           const userText = extractMessageText(msgData.message);
-          if (!userText) continue;
+          if (!userText) {
+            if (debug) console.log("[evolution] message_ignored_empty_or_media", { messageId });
+            continue;
+          }
 
+          // Idempotência
+          const { success: registered, isDuplicate } = await registerProcessed(instancia, messageId, remoteJid);
+          if (isDuplicate) {
+            console.warn("[evolution] duplicate_message", { messageId, instancia });
+            continue;
+          }
+          if (!registered) {
+            // Se falhou por erro de banco mas não duplicidade, tentamos prosseguir mas logamos
+            if (debug) console.warn("[evolution] register_failed_continuing", { messageId });
+          }
+
+          if (debug) console.log("[evolution] agent_lookup_started", { instancia });
           const agente = await loadAgente(instancia);
           if (!agente) {
-            await supabaseAdmin.from("evo_webhook_logs" as never).update({ 
-              status: "error", 
-              message_id: messageId,
-              error_detail: `agent_not_found: ${instancia}`,
-              duration_ms: Date.now() - start 
-            } as never).eq("id", logId);
+            console.warn("[evolution] agent_not_found", { instancia });
+            await markCompleted(instancia, messageId, "error");
             continue;
           }
 
           const phone = remoteJid.split("@")[0].replace(/\D/g, "");
-          
-          (async () => {
-            const processStart = Date.now();
-            try {
-              const { data: historyData } = await supabaseAdmin.from("wa_conversas" as never).select("messages").eq("phone", phone).maybeSingle();
-              const history = Array.isArray((historyData as any)?.messages) ? (historyData as any).messages : [];
-              const nextIn = [...history, { id: `u-${Date.now()}`, role: "user", parts: [{ type: "text", text: userText }] }];
-              
-              const reply = await runAgent(nextIn, { persona: personaNote(agente) });
+          const conversationId = `${instancia}:${phone}`; // Scoping histórico por instância e telefone
 
-              await supabaseAdmin.from("wa_conversas" as never).upsert({ 
-                phone, 
-                messages: [...nextIn, { id: `a-${Date.now()}`, role: "assistant", parts: [{ type: "text", text: reply }] }].slice(-40),
-                updated_at: new Date().toISOString() 
-              } as never);
+          try {
+            if (debug) console.log("[evolution] ai_started", { phone });
+            const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+            
+            // Busca histórico usando a nova chave composta se possível, ou phone para compatibilidade
+            const { data: historyData } = await supabaseAdmin
+              .from("wa_conversas" as never)
+              .select("messages")
+              .or(`phone.eq.${phone},phone.eq.${conversationId}`)
+              .order("updated_at", { ascending: false })
+              .limit(1)
+              .maybeSingle();
 
-              const sent = await sendEvolutionText(instancia, phone, reply);
-              
-              await supabaseAdmin.from("evo_webhook_logs" as never).update({ 
-                status: sent ? "success" : "error", 
-                message_id: messageId,
-                error_detail: sent ? null : "evolution_send_failed",
-                duration_ms: Date.now() - start 
-              } as never).eq("id", logId);
+            const history = Array.isArray((historyData as any)?.messages) ? (historyData as any).messages : [];
+            const nextIn = [...history, { id: `u-${Date.now()}`, role: "user", parts: [{ type: "text", text: userText }] }];
+            
+            const reply = await runAgent(nextIn, { persona: personaNote(agente) });
+            if (debug) console.log("[evolution] ai_completed", { duration: Date.now() - start });
 
-            } catch (err: any) {
-              console.error("[evolution] ai_request_failed:", err);
-              await supabaseAdmin.from("evo_webhook_logs" as never).update({ 
-                status: "error", 
-                message_id: messageId,
-                error_detail: err?.message || String(err),
-                duration_ms: Date.now() - start 
-              } as never).eq("id", logId);
-            }
-          })().catch(e => console.error("[evolution] background_error:", e));
+            await supabaseAdmin.from("wa_conversas" as never).upsert({ 
+              phone: conversationId, // Usamos o ID composto para salvar
+              messages: [...nextIn, { id: `a-${Date.now()}`, role: "assistant", parts: [{ type: "text", text: reply }] }].slice(-40),
+              updated_at: new Date().toISOString() 
+            } as never);
+
+            if (debug) console.log("[evolution] evolution_send_started", { phone });
+            const sent = await sendEvolutionText(instancia, phone, reply);
+            if (debug) console.log("[evolution] evolution_send_completed", { sent });
+            
+            await markCompleted(instancia, messageId, sent ? "completed" : "error");
+
+          } catch (err: any) {
+            console.error("[evolution] process_failed:", err);
+            await markCompleted(instancia, messageId, "error");
+          }
         }
 
-        return Response.json({ ok: true });
+        return Response.json({ ok: true, duration_ms: Date.now() - start });
       }
     }
   }
