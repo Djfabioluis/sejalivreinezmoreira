@@ -1133,7 +1133,7 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
     system,
     messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
     tools: buildTools(sandbox, opts.unidadeId),
-    stopWhen: stepCountIs(50),
+    maxSteps: 5,
   });
 }
 
