@@ -5,6 +5,7 @@ export async function logEvent(entry: {
   status: string;
   durationMs?: number | null;
   errorDetail?: string | null;
+  payload?: any;
 }) {
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -15,6 +16,7 @@ export async function logEvent(entry: {
       status: entry.status,
       duration_ms: entry.durationMs ?? null,
       error_detail: entry.errorDetail ? String(entry.errorDetail).slice(0, 500) : null,
+      payload: entry.payload ? JSON.stringify(entry.payload) : null
     } as never);
   } catch (err) {
     console.error("[evolution] log_failed", err);

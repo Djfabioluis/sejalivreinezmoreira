@@ -54,29 +54,28 @@ describe("Evolution Library Unit Tests", () => {
 
   describe("contact", () => {
     it("should normalize phone removing suffix", () => {
-      expect(normalizePhone("5511999999999@s.whatsapp.net")).toBe("5511999999999");
-      expect(normalizePhone("5511999999999@c.us")).toBe("5511999999999");
+      expect(normalizePhone("5541998803684@s.whatsapp.net")).toBe("5541998803684");
+      expect(normalizePhone("5541998803684@c.us")).toBe("5541998803684");
     });
 
     it("should build conversation key correctly", () => {
-      expect(buildConversationKey("inst1", "1234@s.whatsapp.net")).toBe("inst1:1234");
+      expect(buildConversationKey("inst1", "5541998803684@s.whatsapp.net")).toBe("inst1:5541998803684");
     });
   });
 
   describe("history", () => {
-    it("should normalize history and append current message if missing", () => {
-      const raw = [{ id: "1", role: "user", text: "hi" }];
-      const result = normalizeConversationHistory(raw, "new message");
+    it("should normalize history and include current message", () => {
+      const raw = [{ id: "1", role: "user", messages: { id: "1", role: "user", parts: [{ text: "hi" }] } }];
+      const result = normalizeConversationHistory(raw, "new message", "msg-current-id");
       expect(result).toHaveLength(2);
       expect(result[1].parts[0].text).toBe("new message");
     });
 
     it("should deduplicate messages by ID", () => {
       const raw = [
-        { id: "1", role: "user", text: "hi" },
-        { id: "1", role: "user", text: "hi" }
+        { id: "msg1", role: "user", messages: { id: "msg1", role: "user", parts: [{ text: "hi" }] } }
       ];
-      const result = normalizeConversationHistory(raw, "hi");
+      const result = normalizeConversationHistory(raw, "hi", "msg1");
       expect(result).toHaveLength(1);
       expect(result[0].parts[0].text).toBe("hi");
     });

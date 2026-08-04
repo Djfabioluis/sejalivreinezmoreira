@@ -16,14 +16,22 @@ import {
 export const DEFAULT_SYSTEM_PROMPT = `Você é a Julia, a secretária virtual humanizada do Salão Seja Livre.
 Sua missão é realizar agendamentos e vender planos de assinatura de forma acolhedora, eficiente e natural.
 
-DIRETRIZES DE ATENDIMENTO:
-- NUNCA repita uma pergunta que o cliente já respondeu. Consulte o "ESTADO ATUAL" e o "HISTÓRICO" antes de perguntar.
-- O telefone e o nome do cliente geralmente já são conhecidos (veja "DADOS DO CONTATO"). Não os pergunte se já estiverem disponíveis.
-- Faça apenas uma pergunta por vez.
-- Se o cliente responder parcialmente (ex: "quero corte amanhã"), identifique o que já foi dito e pergunte apenas o que falta (ex: "qual horário fica melhor para você?").
+DADOS CONFIÁVEIS DO ATENDIMENTO:
+Nome do cliente: {{contactName}}
+Telefone do WhatsApp: {{contactPhone}}
+Unidade operacional: {{unitName}}
+
+REGRAS OBRIGATÓRIAS:
+- Se "Nome do cliente" estiver preenchido, NUNCA pergunte o nome.
+- Se "Telefone do WhatsApp" estiver preenchido, NUNCA pergunte telefone ou DDD.
+- Se "Unidade operacional" estiver preenchida, NUNCA pergunte qual unidade o cliente deseja. A unidade é fixa para esta instância.
+- NÃO liste outras unidades quando uma unidade já estiver vinculada.
+- NÃO reinicie o atendimento a cada mensagem. Se o cliente disser "Olá", responda com uma saudação breve e prossiga de onde pararam.
+- NÃO repita perguntas já respondidas. Consulte o "ESTADO ATUAL" e o "HISTÓRICO".
+- Faça apenas uma pergunta por vez, focando no próximo passo necessário para o agendamento.
 - Use um tom caloroso, mas profissional. Emojis com moderação.
 
-ESTADO ATUAL DO ATENDIMENTO (DADOS JÁ IDENTIFICADOS):
+ESTADO ATUAL DO ATENDIMENTO (CONTEXTO):
 {{customer_context_summary}}
 
 REGRAS TÉCNICAS:
@@ -32,9 +40,7 @@ REGRAS TÉCNICAS:
 - Formate preços como R$ XX,XX.
 - Antes de confirmar o agendamento, SEMPRE apresente um resumo (Serviço, Profissional, Data, Horário) e peça confirmação explícita.
 - Promoção do mês: Planos de assinatura SEM TAXA DE ADESÃO.
-- Restrição: Unidade Centro Cívico não aceita planos de assinatura.
-
-Se algo não estiver claro no histórico, peça gentilmente para o cliente repetir ou esclarecer.`;
+- Restrição: Unidade Centro Cívico não aceita planos de assinatura.`;
 
 const SANDBOX_NOTE = `
 
@@ -1032,6 +1038,7 @@ export type AgentOptions = {
   sandbox?: boolean; 
   persona?: string; 
   unidadeId?: string | null;
+  unitName?: string | null;
   contactName?: string | null;
   contactPhone?: string | null;
   customerContext?: any;
@@ -1081,8 +1088,16 @@ const NO_DURATION_GUARD = `\n\nREGRA FINAL DE SAÍDA AO CLIENTE (obrigatória):\
 export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = {}) {
   const sandbox = opts.sandbox === true || envSandbox();
   
+  // 1. Contexto de Unidade
+  let unitContext = "";
+  if (opts.unidadeId) {
+    unitContext = `\n\nUNIDADE: ID ${opts.unidadeId}${opts.unitName ? ` (${opts.unitName})` : ""}.`;
+  }
+
+  // 2. Dados Confiáveis do Contato
   const contactInfo = `\n\nDADOS DO CONTATO:\n- Nome conhecido: ${opts.contactName || "não identificado"}\n- Telefone: ${opts.contactPhone || "não identificado"}`;
   
+  // 3. Resumo do Contexto Estruturado (customer_context)
   let contextSummary = "Nenhum dado registrado ainda.";
   if (opts.customerContext && Object.keys(opts.customerContext).length > 0) {
     const ctx = opts.customerContext;
@@ -1097,20 +1112,28 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
   }
 
   const basePrompt = await loadSystemPrompt();
-  const system = basePrompt.replace("{{customer_context_summary}}", contextSummary) + 
-                 currentDateNote() + 
-                 LANGUAGE_GUARD + 
-                 NO_DURATION_GUARD + 
-                 contactInfo +
-                 (sandbox ? SANDBOX_NOTE : "") +
-                 (opts.persona ? `\n\n${opts.persona}` : "");
+  
+  // Injetar dados conhecidos no prompt base se as chaves existirem
+  let system = basePrompt.replace("{{contactName}}", opts.contactName || "não identificado")
+    .replace("{{contactPhone}}", opts.contactPhone || "não identificado")
+    .replace("{{unitName}}", opts.unitName || "não vinculada")
+    .replace("{{customer_context_summary}}", contextSummary);
+
+  system = system + 
+           currentDateNote() + 
+           LANGUAGE_GUARD + 
+           NO_DURATION_GUARD + 
+           unitContext +
+           contactInfo +
+           (sandbox ? SANDBOX_NOTE : "") +
+           (opts.persona ? `\n\n${opts.persona}` : "");
 
   return streamText({
     model: getModel(),
     system,
     messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
     tools: buildTools(sandbox, opts.unidadeId),
-    stopWhen: stepCountIs(50),
+    stopWhen: stepCountIs(5),
   });
 }
 
@@ -1121,7 +1144,7 @@ export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {})
   // 1. Contexto de Unidade
   let unitContext = "";
   if (opts.unidadeId) {
-    unitContext = `\n\nUNIDADE: ID ${opts.unidadeId}.`;
+    unitContext = `\n\nUNIDADE: ID ${opts.unidadeId}${opts.unitName ? ` (${opts.unitName})` : ""}.`;
   }
 
   // 2. Dados Confiáveis do Contato
@@ -1142,21 +1165,28 @@ export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {})
   }
 
   const basePrompt = await loadSystemPrompt();
-  const fullSystem = basePrompt.replace("{{customer_context_summary}}", contextSummary) + 
-                     currentDateNote() + 
-                     LANGUAGE_GUARD + 
-                     NO_DURATION_GUARD + 
-                     unitContext + 
-                     contactInfo + 
-                     (sandbox ? SANDBOX_NOTE : "") + 
-                     (opts.persona ? `\n\n${opts.persona}` : "");
+  
+  // Injetar dados conhecidos no prompt base se as chaves existirem
+  let fullSystem = basePrompt.replace("{{contactName}}", opts.contactName || "não identificado")
+    .replace("{{contactPhone}}", opts.contactPhone || "não identificado")
+    .replace("{{unitName}}", opts.unitName || "não vinculada")
+    .replace("{{customer_context_summary}}", contextSummary);
+
+  fullSystem = fullSystem + 
+               currentDateNote() + 
+               LANGUAGE_GUARD + 
+               NO_DURATION_GUARD + 
+               unitContext + 
+               contactInfo + 
+               (sandbox ? SANDBOX_NOTE : "") + 
+               (opts.persona ? `\n\n${opts.persona}` : "");
 
   const result = await generateText({
     model: getModel(),
     system: fullSystem,
     messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
     tools: buildTools(sandbox, opts.unidadeId),
-    stopWhen: stepCountIs(50),
+    stopWhen: stepCountIs(5),
   });
 
   return sanitizeCustomerText(result.text?.trim() || "Desculpe, tive um probleminha aqui. Pode repetir?");
