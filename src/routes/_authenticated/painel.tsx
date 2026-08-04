@@ -40,6 +40,8 @@ import {
   type AtendimentoHumano,
 } from "@/lib/atendimentos.functions";
 import { listReagendamentos, type ReagendamentoHist } from "@/lib/reagendamentos.functions";
+import { checkIsAdmin } from "@/lib/access.functions";
+
 import { getWhatsAppPhoneNumber } from "@/lib/whatsapp.functions";
 import { Button } from "@/components/ui/button";
 import {
@@ -264,6 +266,13 @@ const dur = (v: unknown) => {
 
 // ---------- root ----------
 function Dashboard() {
+  const isAdminQ = useQuery({
+    queryKey: ["is-admin"],
+    queryFn: () => checkIsAdmin(),
+    staleTime: 5 * 60_000,
+  });
+  const isAdmin = isAdminQ.data?.isAdmin ?? false;
+
   const evolutionCheckQ = useQuery({
     queryKey: ["evolution-check"],
     queryFn: () => checkEvolutionCheck(),
@@ -274,6 +283,7 @@ function Dashboard() {
   }
 
   const evoError = evolutionCheckQ.data?.isValid === false ? evolutionCheckQ.data.error : null;
+
 
   return (
     <div className="min-h-screen bg-background">
@@ -356,9 +366,11 @@ function Dashboard() {
               <TabsTrigger value="reagendamentos">
                 <CalendarClock className="h-4 w-4 mr-1" /> Reagendamentos
               </TabsTrigger>
-              <TabsTrigger value="stripe_health">
-                <Activity className="h-4 w-4 mr-1" /> Saúde Stripe
-              </TabsTrigger>
+              {isAdmin && (
+                <TabsTrigger value="stripe_health">
+                  <Activity className="h-4 w-4 mr-1" /> Saúde Stripe
+                </TabsTrigger>
+              )}
             </TabsList>
 
           </div>
@@ -390,9 +402,11 @@ function Dashboard() {
           <TabsContent value="reagendamentos">
             <ReagendamentosPanel />
           </TabsContent>
-          <TabsContent value="stripe_health">
-            <StripeHealthPanel />
-          </TabsContent>
+          {isAdmin && (
+            <TabsContent value="stripe_health">
+              <StripeHealthPanel />
+            </TabsContent>
+          )}
         </Tabs>
 
 
