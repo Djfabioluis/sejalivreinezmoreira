@@ -18,9 +18,11 @@ import {
 } from "@/lib/leads.functions";
 import {
   listAgentes,
-  createAgente,
-  deleteAgente,
-  getQrCode,
+  criarAgente,
+  removerAgente,
+  gerarQrAgente,
+  statusAgente,
+  desconectarAgente,
 } from "@/lib/agentes-whatsapp.functions";
 import {
   getEvolutionSettings,
