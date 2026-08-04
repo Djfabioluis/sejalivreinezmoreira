@@ -77,8 +77,9 @@ describe("Evolution Library Unit Tests", () => {
         { id: "1", role: "user", message: { conversation: "hi" } }
       ];
       const result = normalizeConversationHistory(raw, "hi");
-      // the second message is appended because it's current text
-      // if I want length 1, I should pass text that already exists in raw
+      // The test passed text "hi" which already exists in the history (extracted via extractConversationMessageText mock)
+      // wait, extractConversationMessageText is not mocked here, it's the real function.
+      // I should check what extractConversationMessageText returns for { message: { conversation: "hi" } }
       expect(result).toHaveLength(1);
       expect(result[0].parts[0].text).toBe("hi");
     });
