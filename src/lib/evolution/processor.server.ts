@@ -4,6 +4,8 @@ import { appendIncomingMessage } from "./conversation.server";
 import { runAgentFlow, findAgentByInstance, isIAEnabled } from "./agent.server";
 import { logEvent } from "./logger.server";
 import { extractMessageText } from "./message-text";
+import { normalizeIncomingMessage } from "./media-normalizer";
+import { mediaPlaceholderText } from "./media-pipeline.server";
 import { normalizePhone, buildConversationKey, normalizeContactName } from "./contact";
 
 /** Normalização estrita: só valores explicitamente verdadeiros contam como fromMe. */
@@ -138,24 +140,77 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
           });
         }
 
-        // 6. Persistência da mensagem do cliente (sempre, mesmo sem IA)
+        // 6. Persistência imediata (mídia aparece na Caixa de Entrada antes da análise)
+        const normalized = normalizeIncomingMessage(msg.message, finalMessageId);
+        const isMedia = normalized.messageType !== "text";
+        const displayText = isMedia ? mediaPlaceholderText(normalized) : text || "[Mídia/Outro]";
+
         await appendIncomingMessage({
           conversationKey,
           messageId: finalMessageId,
-          text: text || "[Mídia/Outro]",
+          text: displayText,
           instance: msg.instance,
           phone,
           contactName: normalizeContactName(msg.pushName || undefined),
-          isIAActive
+          isIAActive,
+          metadata: isMedia
+            ? {
+                sourceType: normalized.messageType,
+                mediaStatus: "queued",
+                mimeType: normalized.mimeType ?? null,
+                fileName: normalized.fileName ?? null,
+                duration: normalized.duration ?? null,
+                caption: normalized.caption || null,
+                mediaReference: `${msg.instance}:${finalMessageId}`,
+              }
+            : null,
         });
 
-        // 7. Fluxo da IA (uma única chamada por mensagem)
-        if (isIAActive) {
-          await runAgentFlow({
-            ...msg,
-            messageId: finalMessageId
+        // 6b. Análise de mídia → texto para a IA
+        let agentText: string | undefined = text || undefined;
+
+        if (isMedia) {
+          const { processIncomingMedia } = await import("./media-pipeline.server");
+          const outcome = await processIncomingMedia({
+            instance: msg.instance,
+            messageId: finalMessageId,
+            conversationKey,
+            normalized,
           });
+
+          agentText = outcome.agentText || undefined;
+
+          if (!agentText && outcome.fallbackText && outcome.status !== "duplicate") {
+            const { replyToUser } = await import("./reply.server");
+            await replyToUser({
+              instance: msg.instance,
+              phone,
+              text: outcome.fallbackText,
+              conversationKey,
+              messageId: finalMessageId,
+              traceId,
+            });
+            await logEvent({
+              instance: msg.instance,
+              messageId: finalMessageId,
+              event: "media_response_sent",
+              status: outcome.status,
+              payload: { traceId },
+            });
+          }
         }
+
+        // 7. Fluxo da IA (uma única chamada por mensagem)
+        if (isIAActive && agentText) {
+          await runAgentFlow(
+            {
+              ...msg,
+              messageId: finalMessageId
+            },
+            agentText
+          );
+        }
+
 
         await markEventProcessed(msg.instance, finalMessageId);
 

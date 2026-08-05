@@ -56,7 +56,7 @@ export function isIAEnabled(agent: any): boolean {
   return !isBlocked && !!agent.unidade_id;
 }
 
-export async function runAgentFlow(msg: NormalizedEvolutionMessage) {
+export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride?: string) {
   const messageId = msg.messageId;
   const instance = msg.instance;
   const traceId = `${instance}:${messageId}`;
@@ -96,11 +96,12 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage) {
       return;
     }
 
-    const text = extractMessageText(msg.message);
+    const text = textOverride?.trim() || extractMessageText(msg.message);
     if (!text) {
       await logEvent({ instance, messageId, event: "agent_flow", status: "empty_text_skipped", payload: { traceId } });
       return;
     }
+
 
     const phone = normalizePhone(msg.remoteJid);
     const conversationKey = buildConversationKey(instance, msg.remoteJid);

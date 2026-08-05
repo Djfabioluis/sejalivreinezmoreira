@@ -379,6 +379,42 @@ export type Database = {
         }
         Relationships: []
       }
+      evo_media_analysis: {
+        Row: {
+          created_at: string
+          error_detail: string | null
+          id: string
+          instance: string
+          media_hash: string
+          message_id: string
+          source_type: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          error_detail?: string | null
+          id?: string
+          instance: string
+          media_hash?: string
+          message_id: string
+          source_type?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          error_detail?: string | null
+          id?: string
+          instance?: string
+          media_hash?: string
+          message_id?: string
+          source_type?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       evo_webhook_logs: {
         Row: {
           created_at: string | null
@@ -990,6 +1026,25 @@ export type Database = {
         }
         Returns: Json
       }
+      evo_claim_media: {
+        Args: {
+          p_instance: string
+          p_media_hash: string
+          p_message_id: string
+          p_source_type: string
+        }
+        Returns: boolean
+      }
+      evo_finish_media: {
+        Args: {
+          p_error: string
+          p_instance: string
+          p_media_hash: string
+          p_message_id: string
+          p_status: string
+        }
+        Returns: undefined
+      }
       get_my_permissoes: { Args: never; Returns: string[] }
       has_active_subscription: {
         Args: { check_env?: string; user_uuid: string }
@@ -1015,6 +1070,15 @@ export type Database = {
           p_user_id?: string
         }
         Returns: Json
+      }
+      update_wa_message_metadata: {
+        Args: {
+          p_message_id: string
+          p_metadata: Json
+          p_phone: string
+          p_text: string
+        }
+        Returns: undefined
       }
       user_has_permission: {
         Args: { _perm: string; _user_id: string }
