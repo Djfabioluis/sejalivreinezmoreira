@@ -29,13 +29,17 @@ const baseMemory: any = {
 };
 
 describe("memória: regras de confiança", () => {
+  const confirmed = { source: "bemp_confirmed", confidence: 1, updated_at: "" } as any;
+  const inferredEntry = { source: "inferred", confidence: 0.5, updated_at: "" } as any;
+
   it("não deixa inferência sobrescrever dado confirmado", () => {
-    expect(canOverride("bemp_confirmed", "inferred")).toBe(false);
+    expect(canOverride(confirmed, "inferred", 0.9)).toBe(false);
   });
 
   it("permite confirmação sobrescrever inferência", () => {
-    expect(canOverride("inferred", "bemp_confirmed")).toBe(true);
+    expect(canOverride(inferredEntry, "bemp_confirmed", 1)).toBe(true);
   });
+
 
   it("preserva nome confirmado diante de fato inferido", () => {
     const result = mergeCustomerMemory(baseMemory, {
