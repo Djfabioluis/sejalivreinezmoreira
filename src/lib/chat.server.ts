@@ -467,7 +467,37 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
         safeTool("create_appointment", async () => {
           const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: fallbackAgentUnitId });
           if (!effectiveUnitId) throw new Error("ID da unidade não resolvido.");
-          const fullInput = { ...input, salon_id: Number(effectiveUnitId) };
+
+          // Validação obrigatória das atribuições reais no BEMP (unidade + serviço + profissional).
+          const { getAvailableServiceAssignments, validateProfessionalServiceAssignment } = await import(
+            "@/lib/bemp/assignments.server"
+          );
+          const availableServices = await getAvailableServiceAssignments(effectiveUnitId);
+          const svc = availableServices.find((s) => String(s.id) === String(input.service_id));
+          if (!svc) {
+            return {
+              success: false,
+              code: "service_not_available_in_unit",
+              message: "Esse serviço não está disponível com profissionais atribuídos nesta unidade.",
+            };
+          }
+          if (input.professional_id != null) {
+            const check = await validateProfessionalServiceAssignment({
+              unitId: effectiveUnitId,
+              professionalId: input.professional_id,
+              serviceId: svc.id,
+            });
+            if (!check.valid) {
+              return {
+                success: false,
+                code: "professional_not_assigned_to_service",
+                message: "Esse profissional não realiza esse serviço nesta unidade.",
+              };
+            }
+          }
+
+          const fullInput = { ...input, salon_id: Number(effectiveUnitId), service_id: Number(svc.id) };
+
 
           if (sandbox) {
             return {
