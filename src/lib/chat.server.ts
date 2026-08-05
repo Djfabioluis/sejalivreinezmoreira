@@ -59,6 +59,21 @@ function safeTool<T>(label: string, fn: () => Promise<T>) {
   });
 }
 
+async function resolveEffectiveUnitId(conversationKey: string | undefined, fallbackUnitId: string | null | undefined) {
+  if (!conversationKey) return fallbackUnitId;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("wa_conversas")
+    .select("unidade_id")
+    .eq("phone", conversationKey)
+    .maybeSingle();
+  
+  if (error || !data?.unidade_id) {
+    return fallbackUnitId;
+  }
+  return data.unidade_id;
+}
+
 function buildTools(sandbox: boolean, initialUnitId?: string | null, conversationKey?: string) {
   const base: Record<string, any> = {
     transfer_conversation_unit: tool({
@@ -80,6 +95,7 @@ function buildTools(sandbox: boolean, initialUnitId?: string | null, conversatio
             console.log(`[transfer] transfer_idempotent for ${conversationKey}`);
             return { success: true, message: "A conversa já está nesta unidade.", idempotent: true };
           }
+
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
           const { data: conv, error: convError } = await supabaseAdmin
             .from("wa_conversas" as never)
@@ -100,11 +116,27 @@ function buildTools(sandbox: boolean, initialUnitId?: string | null, conversatio
           
           if (error) {
             console.error(`[transfer] transfer_failed for ${conversationKey}:`, error.message);
-            throw new Error(error.message);
+            return { success: false, code: "transfer_failed", message: error.message };
           }
           
           console.log(`[transfer] transfer_completed for ${conversationKey} to ${target_unit_id}`);
-          return data;
+          
+          // Buscar nome da nova unidade para retorno amigável
+          let newUnitName = `Unidade ${target_unit_id}`;
+          try {
+            const cfg = await getBempConfig();
+            const salons = (await bempFetch(`${cfg.apiBase}/salons`)) as any;
+            const list = Array.isArray(salons) ? salons : (salons?.data ?? salons?.salons ?? []);
+            const found = list.find((s: any) => String(s?.id) === String(target_unit_id));
+            if (found?.name || found?.nome) newUnitName = String(found.name || found.nome);
+          } catch {}
+
+          return { 
+            success: true, 
+            old_unit_id: initialUnitId, 
+            new_unit_id: target_unit_id,
+            new_unit_name: newUnitName
+          };
         }),
     }),
     list_units_info: tool({
