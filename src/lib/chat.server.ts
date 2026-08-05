@@ -1520,7 +1520,8 @@ export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {})
     model: getModel(),
     system: fullSystem,
     messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
-    tools: buildTools(sandbox, opts.unidadeId),
+    tools: buildTools(sandbox, opts.unidadeId, opts.contactPhone || undefined),
+
     stopWhen: stepCountIs(5),
     abortSignal: AbortSignal.timeout(60000),
   });
