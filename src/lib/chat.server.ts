@@ -59,7 +59,7 @@ function safeTool<T>(label: string, fn: () => Promise<T>) {
   });
 }
 
-function buildTools(sandbox: boolean, forcedUnitId?: string | null, conversationPhone?: string) {
+function buildTools(sandbox: boolean, initialUnitId?: string | null, conversationKey?: string) {
   const base: Record<string, any> = {
     transfer_conversation_unit: tool({
       description:
@@ -71,28 +71,39 @@ function buildTools(sandbox: boolean, forcedUnitId?: string | null, conversation
       }),
       execute: async ({ target_unit_id, reason, confirmed }) =>
         safeTool("transfer_conversation_unit", async () => {
-          if (!conversationPhone) throw new Error("ID da conversa não fornecido para transferência.");
+          if (!conversationKey) throw new Error("Chave da conversa não fornecida para transferência.");
           if (!confirmed) return { success: false, message: "Transferência não confirmada pelo cliente." };
           
-          console.log(`[transfer] transfer_started for ${conversationPhone} to ${target_unit_id}`);
+          console.log(`[transfer] transfer_started for ${conversationKey} to ${target_unit_id}`);
           
-          if (forcedUnitId === target_unit_id) {
-            console.log(`[transfer] transfer_idempotent for ${conversationPhone}`);
+          if (initialUnitId === target_unit_id) {
+            console.log(`[transfer] transfer_idempotent for ${conversationKey}`);
             return { success: true, message: "A conversa já está nesta unidade.", idempotent: true };
           }
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          const { data: conv, error: convError } = await supabaseAdmin
+            .from("wa_conversas" as never)
+            .select("phone, unidade_id")
+            .eq("phone", conversationKey)
+            .maybeSingle();
+
+          if (convError || !conv) {
+             console.error(`[transfer] conversation_not_found for ${conversationKey}`);
+             return { success: false, code: "conversation_not_found", message: "Não foi possível localizar a conversa." };
+          }
+
           const { data, error } = await supabaseAdmin.rpc("transfer_conversation_unit", {
-            p_conversation_phone: conversationPhone,
+            p_conversation_phone: conversationKey,
             p_target_unit_id: target_unit_id,
             p_reason: reason || "Solicitado pelo cliente via IA",
           });
           
           if (error) {
-            console.error(`[transfer] transfer_failed for ${conversationPhone}:`, error.message);
+            console.error(`[transfer] transfer_failed for ${conversationKey}:`, error.message);
             throw new Error(error.message);
           }
           
-          console.log(`[transfer] transfer_completed for ${conversationPhone} to ${target_unit_id}`);
+          console.log(`[transfer] transfer_completed for ${conversationKey} to ${target_unit_id}`);
           return data;
         }),
     }),
@@ -1338,7 +1349,7 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
     model: getModel(),
     system,
     messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
-    tools: buildTools(sandbox, opts.unidadeId, opts.contactPhone || undefined),
+    tools: buildTools(sandbox, opts.unidadeId, opts.conversationKey || undefined),
     stopWhen: stepCountIs(5),
   });
 }
