@@ -35,6 +35,7 @@ import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { MediaMessageBody } from "@/components/wa-media-message";
 
 export const Route = createFileRoute("/_authenticated/agendar")({
   head: () => ({
@@ -407,11 +408,16 @@ function AgendarPage() {
                           </div>
                         ) : (
                           <div className={`max-w-[75%] px-4 py-2 rounded-2xl text-sm ${m.role === 'user' ? 'bg-card border rounded-tl-none' : 'bg-primary text-primary-foreground rounded-tr-none'}`}>
-                            {extractConversationMessageText(m)}
+                            {m.metadata?.sourceType && m.metadata.sourceType !== 'text' ? (
+                              <MediaMessageBody metadata={m.metadata} />
+                            ) : (
+                              extractConversationMessageText(m)
+                            )}
                           </div>
                         )}
                       </div>
                     ))}
+
 
                     <div ref={bottomRef} />
                   </div>

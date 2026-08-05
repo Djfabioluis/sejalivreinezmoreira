@@ -9,12 +9,21 @@ export async function appendIncomingMessage(params: {
   phone: string;
   contactName?: string;
   isIAActive: boolean;
+  metadata?: Record<string, unknown> | null;
 }) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  
+
+  const message: Record<string, unknown> = {
+    id: params.messageId,
+    role: "user",
+    parts: [{ type: "text", text: params.text }],
+    createdAt: new Date().toISOString(),
+  };
+  if (params.metadata) message.metadata = params.metadata;
+
   const { data, error } = await supabaseAdmin.rpc("append_wa_message" as any, {
     p_phone: params.conversationKey,
-    p_message: { id: params.messageId, role: "user", parts: [{ type: "text", text: params.text }] },
+    p_message: message,
     p_instance: params.instance,
     p_phone_number: params.phone,
     p_contact_name: params.contactName ?? null,
@@ -22,6 +31,7 @@ export async function appendIncomingMessage(params: {
     p_new_status: "aberta", // Sempre aberta se entrou mensagem (ou conforme lógica de unidade)
     p_customer_context: null
   });
+
 
   if (error) {
     await logEvent({ 
