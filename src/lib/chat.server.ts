@@ -250,51 +250,33 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
           // Limpeza de contexto após transferência
           const currentContext = (conv as any).customer_context || {};
           
-          // Extrair requestedService como nome puro se for objeto ou tiver ID
-          let requestedServiceName = currentContext.requestedService;
-          if (requestedServiceName && typeof requestedServiceName === "object") {
-            requestedServiceName = requestedServiceName.name || requestedServiceName.nome || null;
-          }
-
           const newContext = {
-            ...currentContext,
             currentUnitId: target_unit_id,
-            // Preservar somente o NOME do serviço solicitado, limpar IDs vinculados à unidade antiga
-            requestedService: requestedServiceName,
-            serviceId: null,
-            selectedServiceId: null,
-            requestedServiceId: null,
-            availableServices: null,
-
-            professionalId: null,
-            professionalName: null,
-            selectedProfessional: null,
-            preferredProfessional: null,
-            availableProfessionals: null,
-
-            selectedSlot: null,
-            preferredDate: null,
-            preferredTime: null,
-            availableSlots: null,
+            requestedService: (typeof currentContext.requestedService === "object" ? currentContext.requestedService?.name || currentContext.requestedService?.nome : currentContext.requestedService) || null,
           };
 
+          // A transferência e a limpeza são atômicas via update_context no RPC ou nesta transação Supabase
           const { error: updateError } = await supabaseAdmin
             .from("wa_conversas")
             .update({ customer_context: newContext })
             .eq("phone", conversationKey);
 
           if (updateError) {
-            console.error(`[transfer] context_reset_failed for ${conversationKey}:`, updateError.message);
-          } else {
-            console.log(`[transfer] transfer_completed and context_reset for ${conversationKey}`);
+             console.error(`[transfer] context_reset_failed for ${conversationKey}:`, updateError.message);
+             // Se falhar a limpeza, falha a transação (rollback manual)
+             throw new Error(`Falha ao resetar contexto: ${updateError.message}`);
           }
+          console.log(`[transfer] transfer_completed and context_reset for ${conversationKey}`);
 
           // Descartar atribuições em cache da unidade anterior e da nova unidade.
           try {
             const { invalidateAssignmentsCache } = await import("@/lib/bemp/assignments.server");
             if ((conv as any).unidade_id) invalidateAssignmentsCache((conv as any).unidade_id);
             invalidateAssignmentsCache(target_unit_id);
-          } catch { }
+            console.log(`[transfer] assignments_cache_invalidated for ${target_unit_id}`);
+          } catch (e) {
+            console.error("[transfer] cache_invalidation_failed", e);
+          }
 
           
           // Buscar nome da nova unidade

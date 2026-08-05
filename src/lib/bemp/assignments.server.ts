@@ -33,10 +33,18 @@ function maskId(id: unknown): string {
   return `${s.slice(0, 2)}***${s.slice(-1)}`;
 }
 
-function asArray(raw: any): any[] {
+function asArray(raw: any, depth = 0): any[] {
+  if (depth > 5) return [];
   if (Array.isArray(raw)) return raw;
   if (!raw || typeof raw !== "object") return [];
-  return raw.data ?? raw.services ?? raw.professionals ?? raw.results ?? raw.items ?? [];
+  const keys = ["data", "services", "professionals", "results", "items", "result"];
+  for (const key of keys) {
+    if (raw[key]) {
+      const found = asArray(raw[key], depth + 1);
+      if (found.length > 0) return found;
+    }
+  }
+  return [];
 }
 
 function isActive(entity: any): boolean {
@@ -126,10 +134,14 @@ export async function getUnitProfessionalAssignments(
 
   const results = await Promise.allSettled(
     services.map(async (service) => {
-      const pros = asArray(
-        await bempFetch(`${cfg.apiBase}/salons/${key}/services/${service.id}/professionals`),
-      );
-      return { service, pros };
+      const url = `${cfg.apiBase}/salons/${key}/services/${service.id}/professionals`;
+      try {
+        const pros = asArray(await bempFetch(url));
+        return { service, pros };
+      } catch (err: any) {
+        console.error(`[bemp] professionals_endpoint_failed: unit=${maskId(key)}, service=${maskId(service.id)}, status=${err?.status ?? "n/a"}, message=${sanitizeErrorText(err?.message ?? "unknown", 100)}`);
+        throw err;
+      }
     }),
   );
 
