@@ -1,6 +1,7 @@
 // Server-only: fonte oficial de atribuições profissional x serviço no BEMP.
 // Nunca importar em componentes de frontend.
 import { bempFetch, getBempConfig } from "@/lib/bemp.server";
+import { sanitizeErrorText } from "@/lib/evolution/failure";
 
 export type BempProfessionalServiceAssignment = {
   unitId: string | number;
@@ -33,14 +34,22 @@ function maskId(id: unknown): string {
   return `${s.slice(0, 2)}***${s.slice(-1)}`;
 }
 
-function asArray(raw: any): any[] {
+function asArray(raw: any, depth = 0): any[] {
+  if (depth > 5) return [];
   if (Array.isArray(raw)) return raw;
   if (!raw || typeof raw !== "object") return [];
-  return raw.data ?? raw.services ?? raw.professionals ?? raw.results ?? raw.items ?? [];
+  const keys = ["data", "services", "professionals", "results", "items", "result"];
+  for (const key of keys) {
+    if (raw[key]) {
+      const found = asArray(raw[key], depth + 1);
+      if (found.length > 0) return found;
+    }
+  }
+  return [];
 }
 
 function isActive(entity: any): boolean {
-  const flag = entity?.active ?? entity?.ativo ?? entity?.is_active ?? entity?.enabled ?? entity?.status;
+  const flag = entity?.active ?? entity?.ativo ?? entity?.is_active ?? entity?.enabled ?? entity?.status ?? entity?.available ?? entity?.availability ?? entity?.assignment_active;
   if (flag === undefined || flag === null) return true;
   if (typeof flag === "string") return !/inativ|disabled|false|^0$/i.test(flag.trim());
   return Boolean(flag);
@@ -126,24 +135,53 @@ export async function getUnitProfessionalAssignments(
 
   const results = await Promise.allSettled(
     services.map(async (service) => {
-      const pros = asArray(
-        await bempFetch(`${cfg.apiBase}/salons/${key}/services/${service.id}/professionals`),
-      );
-      return { service, pros };
+      const url = `${cfg.apiBase}/salons/${key}/services/${service.id}/professionals`;
+      try {
+        const pros = asArray(await bempFetch(url));
+        return { service, pros };
+      } catch (err: any) {
+        console.error(`[bemp] professionals_endpoint_failed: unit=${maskId(key)}, service=${maskId(service.id)}, status=${err?.status ?? "n/a"}, message=${sanitizeErrorText(err?.message ?? "unknown", 100)}`);
+        throw err;
+      }
     }),
   );
 
   const seen = new Set<string>();
   const assignments: BempProfessionalServiceAssignment[] = [];
+  let totalFulfilled = 0;
+  let totalRejected = 0;
 
   for (const r of results) {
-    if (r.status !== "fulfilled") continue;
+    if (r.status !== "fulfilled") {
+      totalRejected++;
+      continue;
+    }
+    totalFulfilled++;
     const { service, pros } = r.value;
+    
+    // Log formato da resposta (amostra)
+    if (pros.length > 0) {
+       const first = pros[0];
+       console.log(`[bemp] professionals_response_shape: unit=${maskId(key)}, keys=${Object.keys(first).join(",")}, items=${pros.length}, dataType=${typeof pros}`);
+    }
+
     for (const pro of pros) {
       if (pro?.id == null || !isActive(pro)) continue;
+      
+      // Validação defensiva (item 8 e 11)
       const professionalName = nameOf(pro);
       const serviceName = nameOf(service);
       if (!professionalName || !serviceName) continue;
+      
+      // Confirmar vínculo à unidade se o campo existir
+      const proUnitId = pro.salon_id ?? pro.unit_id ?? pro.salonId ?? pro.unitId;
+      if (proUnitId !== undefined && String(proUnitId) !== String(key)) {
+        console.warn(`[bemp] professional_unit_mismatch: pro=${pro.id}, expected=${key}, got=${proUnitId}`);
+        continue;
+      } else if (proUnitId === undefined) {
+        // console.log(`[bemp] professional_unit_not_verifiable: pro=${pro.id}`);
+      }
+
       const dedupe = `${key}|${pro.id}|${service.id}`;
       if (seen.has(dedupe)) continue;
       seen.add(dedupe);
@@ -159,6 +197,11 @@ export async function getUnitProfessionalAssignments(
         price: priceOf(service),
       });
     }
+  }
+
+  if (totalFulfilled === 0 && totalRejected > 0) {
+    console.error(`[bemp] professionals_api_failed: all services failed for unit=${maskId(key)}`);
+    throw new Error("Falha total na integração de profissionais do BEMP.");
   }
 
   console.log(
@@ -251,14 +294,27 @@ export async function resolveProfessionalByName(unitId: string | number, profess
 export async function resolveServiceAssignment(unitId: string | number, serviceName: string) {
   const services = await getAvailableServiceAssignments(unitId);
   const target = normalizeName(serviceName);
-  const exact = services.find((s) => normalizeName(s.name) === target);
-  if (exact) return exact;
+  
+  // 1. Busca exata
+  const exact = services.filter((s) => normalizeName(s.name) === target);
+  if (exact.length === 1) return { success: true, service: exact[0] };
+  if (exact.length > 1) {
+    return { success: false, code: "service_ambiguous", options: exact.map(s => ({ id: s.id, name: s.name })) };
+  }
+
+  // 2. Busca parcial
   const partial = services.filter((s) => {
     const n = normalizeName(s.name);
     return n.includes(target) || target.includes(n);
   });
-  if (partial.length === 1) return partial[0]!;
-  return null;
+  
+  if (partial.length === 1) return { success: true, service: partial[0] };
+  if (partial.length > 1) {
+     console.log(`[bemp] service_ambiguous: target="${serviceName}", matches=${partial.length}`);
+     return { success: false, code: "service_ambiguous", options: partial.map(s => ({ id: s.id, name: s.name })) };
+  }
+  
+  return { success: false, code: "service_not_found" };
 }
 
 export async function validateProfessionalServiceAssignment(params: {

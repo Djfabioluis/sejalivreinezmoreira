@@ -247,54 +247,17 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
             return { success: false, code: "transfer_failed", message: error.message };
           }
 
-          // Limpeza de contexto após transferência
-          const currentContext = (conv as any).customer_context || {};
-          
-          // Extrair requestedService como nome puro se for objeto ou tiver ID
-          let requestedServiceName = currentContext.requestedService;
-          if (requestedServiceName && typeof requestedServiceName === "object") {
-            requestedServiceName = requestedServiceName.name || requestedServiceName.nome || null;
-          }
-
-          const newContext = {
-            ...currentContext,
-            currentUnitId: target_unit_id,
-            // Preservar somente o NOME do serviço solicitado, limpar IDs vinculados à unidade antiga
-            requestedService: requestedServiceName,
-            serviceId: null,
-            selectedServiceId: null,
-            requestedServiceId: null,
-            availableServices: null,
-
-            professionalId: null,
-            professionalName: null,
-            selectedProfessional: null,
-            preferredProfessional: null,
-            availableProfessionals: null,
-
-            selectedSlot: null,
-            preferredDate: null,
-            preferredTime: null,
-            availableSlots: null,
-          };
-
-          const { error: updateError } = await supabaseAdmin
-            .from("wa_conversas")
-            .update({ customer_context: newContext })
-            .eq("phone", conversationKey);
-
-          if (updateError) {
-            console.error(`[transfer] context_reset_failed for ${conversationKey}:`, updateError.message);
-          } else {
-            console.log(`[transfer] transfer_completed and context_reset for ${conversationKey}`);
-          }
+          console.log(`[transfer] transfer_completed and context_reset at database level for ${conversationKey}`);
 
           // Descartar atribuições em cache da unidade anterior e da nova unidade.
           try {
             const { invalidateAssignmentsCache } = await import("@/lib/bemp/assignments.server");
             if ((conv as any).unidade_id) invalidateAssignmentsCache((conv as any).unidade_id);
             invalidateAssignmentsCache(target_unit_id);
-          } catch { }
+            console.log(`[transfer] assignments_cache_invalidated: unit=${target_unit_id}`);
+          } catch (e) {
+            console.error("[transfer] cache_invalidation_failed", e);
+          }
 
           
           // Buscar nome da nova unidade
@@ -306,11 +269,8 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
             const found = list.find((s: any) => String(s?.id) === String(target_unit_id));
             if (found?.name || found?.nome) {
               newUnitName = String(found.name || found.nome);
-              // Atualizar nome da unidade no contexto também
-              await supabaseAdmin
-                .from("wa_conversas")
-                .update({ customer_context: { ...newContext, currentUnitName: newUnitName } })
-                .eq("phone", conversationKey);
+              // Como a transferência já limpou o contexto no RPC, aqui apenas adicionamos o nome da nova unidade se necessário para a UI/IA
+              await patchCustomerContext(conversationKey, { currentUnitName: newUnitName });
             }
           } catch {}
 
@@ -398,21 +358,27 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
       }),
       execute: async ({ service_name }) =>
         safeTool("list_professionals", async () => {
-          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: fallbackAgentUnitId });
+          const { effectiveUnitId, effectiveUnitName } = await resolveEffectiveUnit({ conversationKey, agentUnitId: fallbackAgentUnitId });
           if (!effectiveUnitId) return { success: false, code: "unit_not_resolved", message: "Não foi possível identificar a unidade correta." };
           console.log(`[chat] effective_unit_for_assignments: ${effectiveUnitId}`);
+          
           const { resolveServiceAssignment, getProfessionalsForService, computeProfessionalSelection } =
             await import("@/lib/bemp/assignments.server");
-          const service = await resolveServiceAssignment(effectiveUnitId, service_name);
-          if (!service) {
+          
+          const resolution = await resolveServiceAssignment(effectiveUnitId, service_name);
+          if (!resolution.success) {
             return {
-              success: false,
-              code: "service_not_available_in_unit",
-              message: `O serviço "${service_name}" não está disponível com profissionais atribuídos nesta unidade.`,
+               success: false,
+               code: resolution.code,
+               message: resolution.code === "service_ambiguous" 
+                 ? `Encontrei mais de um serviço para "${service_name}". Qual destes você prefere?`
+                 : `Não encontrei o serviço "${service_name}" na unidade ${effectiveUnitName || effectiveUnitId}.`,
+               options: (resolution as any).options
             };
           }
+
+          const service = resolution.service!;
           const allPros = await getProfessionalsForService(effectiveUnitId, service.id);
-          // "Sem preferência" NUNCA é um profissional: filtramos qualquer entrada inválida.
           const selection = computeProfessionalSelection(allPros);
           const {
             professionals,
@@ -426,7 +392,7 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
 
           if (professionalsCount === 0) {
             return {
-              success: false,
+              success: true, // success true pois a busca ocorreu, mas retornamos erro estruturado
               code: "no_assigned_professionals",
               professionals: [],
               professionalsCount: 0,
@@ -446,6 +412,7 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
               professionalId: selectedProfessional.id,
               professionalName: selectedProfessional.name,
               preferredProfessional: selectedProfessional.name,
+              selectedProfessional: selectedProfessional
             });
             console.log(
               `[chat] single_professional_auto_selected: unit=${effectiveUnitId}, service=${service.id}, professional=${selectedProfessional.id}`,
@@ -454,7 +421,8 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
 
           return {
             success: true,
-            unitId: effectiveUnitId,
+            effectiveUnitId,
+            effectiveUnitName,
             service: { id: service.id, name: service.name },
             professionals,
             professionalsCount,
@@ -518,8 +486,8 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
 
           let resolvedServiceId: string | number | null = null;
           if (service_name) {
-            const svc = await resolveServiceAssignment(effectiveUnitId, service_name);
-            resolvedServiceId = svc?.id ?? null;
+            const resolution = await resolveServiceAssignment(effectiveUnitId, service_name);
+            resolvedServiceId = resolution.success ? resolution.service!.id : null;
           }
           if (!resolvedServiceId && service_id != null) {
             const available = await getAvailableServiceAssignments(effectiveUnitId);

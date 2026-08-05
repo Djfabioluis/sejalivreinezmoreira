@@ -52,9 +52,11 @@ describe("bemp assignments", () => {
   });
 
   it("resolve serviço por nome sem acento/caixa", async () => {
-    const svc = await mod.resolveServiceAssignment(10, "pedicure");
-    expect(svc?.id).toBe(115);
-    expect(await mod.resolveServiceAssignment(10, "Design de Sobrancelha")).toBeNull();
+    const res = await mod.resolveServiceAssignment(10, "pedicure");
+    expect(res.success).toBe(true);
+    expect((res as any).service?.id).toBe(115);
+    const res2 = await mod.resolveServiceAssignment(10, "Design de Sobrancelha");
+    expect(res2.success).toBe(false);
   });
 });
 
