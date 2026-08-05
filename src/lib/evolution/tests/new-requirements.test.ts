@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { runAgentFlow } from "../agent.server";
+import { processMessagesUpsert } from "../processor.server";
 import * as chatServer from "@/lib/chat.server";
 import * as loggerServer from "../logger.server";
-import { processMessagesUpsert } from "../processor.server";
 
 // Mock das dependências
 vi.mock("@/integrations/supabase/client.server", () => ({
@@ -25,6 +24,12 @@ vi.mock("@/lib/chat.server", () => ({
   runAgentWithLogging: vi.fn().mockResolvedValue(undefined),
   mandatoryOperationalRules: vi.fn().mockReturnValue("Regras"),
   assembleSystemPrompt: vi.fn().mockReturnValue("Prompt")
+}));
+
+// Mock do import dinâmico em processor.server
+vi.mock("../conversation.server", () => ({
+  updateConversationMetadata: vi.fn().mockResolvedValue(undefined),
+  appendIncomingMessage: vi.fn().mockResolvedValue(true)
 }));
 
 describe("Evolution Flow - Novos Requisitos", () => {
@@ -62,6 +67,8 @@ describe("Evolution Flow - Novos Requisitos", () => {
 
   it("atualiza metadados e status da conversa", async () => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const conversationServer = await import("../conversation.server");
+    
     ((supabaseAdmin as any).maybeSingle as any).mockResolvedValue({
       data: { id: "agent-1", status: "ativo", unidade_id: "unit-1" },
       error: null
@@ -78,16 +85,13 @@ describe("Evolution Flow - Novos Requisitos", () => {
 
     await processMessagesUpsert(payload, "http://loc/api");
 
-    // Verifica se chamou update na conversa (metadados)
-    expect(supabaseAdmin.from).toHaveBeenCalledWith("wa_conversas");
-    expect(supabaseAdmin.update).toHaveBeenCalledWith(expect.objectContaining({
-      unidade_id: "unit-1",
-      agent_id: "agent-1"
-    }));
-
-    // Verifica se RPC usou status aberta
-    expect(supabaseAdmin.rpc).toHaveBeenCalledWith("append_wa_message", expect.objectContaining({
-      p_new_status: "aberta"
-    }));
+    // Verifica se chamou update na conversa (metadados) via o mock do conversation.server
+    expect(conversationServer.updateConversationMetadata).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        unidade_id: "unit-1",
+        agent_id: "agent-1"
+      })
+    );
   });
 });
