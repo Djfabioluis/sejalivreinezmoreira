@@ -35,3 +35,31 @@ export async function updateCustomerPipeline(params: {
     console.error("[crm] updateCustomerPipeline failed:", error.message);
   }
 }
+
+/**
+ * Infer pipeline stage from tool call or context.
+ * Internal helper to avoid IA determining stages when logic can do it.
+ */
+export function inferStageFromTool(toolName: string, result: any): PipelineStage | null {
+  switch (toolName) {
+    case 'list_services':
+    case 'list_services_for_professional':
+      return 'IDENTIFICANDO_SERVICO';
+    case 'list_salons':
+    case 'list_units_info':
+      return 'ESCOLHENDO_UNIDADE';
+    case 'list_professionals':
+      return 'ESCOLHENDO_PROFISSIONAL';
+    case 'list_slots':
+      return 'ESCOLHENDO_DATA'; // Date is usually chosen here
+    case 'create_appointment':
+      if (result?.id || result?.success) return 'AGENDADO';
+      return null;
+    case 'cancel_appointment':
+      return 'CANCELADO';
+    case 'transfer_conversation_unit':
+      return 'ESCOLHENDO_UNIDADE';
+    default:
+      return null;
+  }
+}
