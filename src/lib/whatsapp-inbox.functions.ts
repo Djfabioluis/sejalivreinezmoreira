@@ -77,7 +77,7 @@ export const getWAConversation = createServerFn({ method: "GET" })
       .maybeSingle();
     
     if (error) throw new Error(error.message);
-    return row as WAConversation | null;
+    return row as any as WAConversation | null;
   });
 
 export const markAsRead = createServerFn({ method: "POST" })
