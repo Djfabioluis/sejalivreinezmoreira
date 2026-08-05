@@ -1,6 +1,6 @@
 // Server-only. Shared AI-agent runner for /api/chat (web) and /api/public/whatsapp.
 import { convertToModelMessages, streamText, generateText, stepCountIs, tool, type UIMessage } from "ai";
-import { type AgentOptions } from "./agent-types";
+// import { type AgentOptions } from "./agent-types"; // Comentado para usar a interface local exportada abaixo e evitar conflito
 import { z } from "zod";
 import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
 import { sanitizeCustomerText } from "@/lib/text-sanitize";
