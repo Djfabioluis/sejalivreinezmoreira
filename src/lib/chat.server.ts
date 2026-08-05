@@ -1,5 +1,6 @@
 // Server-only. Shared AI-agent runner for /api/chat (web) and /api/public/whatsapp.
 import { convertToModelMessages, streamText, generateText, stepCountIs, tool, type UIMessage } from "ai";
+import { type AgentOptions } from "./agent-types";
 import { z } from "zod";
 import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
 import { sanitizeCustomerText } from "@/lib/text-sanitize";
@@ -629,7 +630,8 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
             const msg = serviceName
               ? `Oi ${input.name}! 💜 Seu agendamento de *${serviceName}* está confirmado para ${when}.\n\nSe precisar remarcar ou cancelar, é só me chamar por aqui. Até lá! ✨\n— Julia, Salão Seja Livre`
               : `Oi ${input.name}! 💜 Seu agendamento está confirmado para ${when}.\n\nSe precisar remarcar ou cancelar, é só me chamar por aqui. Até lá! ✨\n— Julia, Salão Seja Livre`;
-            const sent = await sendWhatsAppText(phone, msg);
+            // Removido o envio direto de mensagem para evitar duplicidade. A Julia já responderá via agent runner.
+            const sent = true; // Simulado para manter a lógica de inserção no banco se necessário
             await supabaseAdmin.from("agendamentos_notif" as never).insert({
               bemp_appointment_id: bempId,
               salon_id: String(effectiveUnitId),
@@ -1556,6 +1558,8 @@ export function mandatoryOperationalRules(opts: {
     "- Após uma transferência de unidade, descarte serviços/profissionais da unidade anterior e consulte novamente as ferramentas.",
     "- Nunca crie agendamento sem que a combinação unidade + serviço + profissional tenha sido validada; se retornar professional_not_assigned_to_service, ofereça profissionais válidos ou serviços atribuídos ao profissional.",
     "- Nunca exiba IDs técnicos ao cliente. Liste profissionais com 💜 *Nome* e serviços com • *Nome*.",
+    "- Se houver apenas um profissional disponível para o serviço, NUNCA pergunte preferência nem apresente a opção 'Sem preferência'; informe o profissional selecionado com entusiasmo e avance.",
+    "- NUNCA use aspas triplas no conteúdo da resposta.",
   ];
 
 
@@ -1627,16 +1631,6 @@ export function assembleSystemPrompt(
 }
 
 
-export type AgentOptions = { 
-  sandbox?: boolean; 
-  persona?: string; 
-  unidadeId?: string | null;
-  unitName?: string | null;
-  contactName?: string | null;
-  contactPhone?: string | null;
-  customerContext?: any;
-  conversationKey?: string | null;
-};
 
 function sanitizeMessagesForModel(messages: UIMessage[]): UIMessage[] {
   return messages.map((message) => ({
@@ -1757,8 +1751,11 @@ export async function runAgentWithLogging(params: {
   unidadeId: string;
   phone: string;
   conversationKey: string;
+  traceId?: string;
 }) {
-  const { instance, messageId, phone, conversationKey, unidadeId, pushName } = params;
+  const { instance, messageId, phone, conversationKey, unidadeId, pushName, remoteJid, text, traceId } = params;
+  const effectiveTraceId = traceId || `${instance}:${messageId}`;
+
 
   try {
     await logEvent({ instance, messageId, event: "history_load_started", status: "started" });
@@ -1793,16 +1790,22 @@ export async function runAgentWithLogging(params: {
 
 
     const messagesArray = Array.isArray(historyData?.messages) ? historyData.messages : [];
-    const historyMessages: UIMessage[] = messagesArray
-      .filter((m: any) => {
+    const seenIds = new Set<string>();
+    const historyMessages: UIMessage[] = [];
+    
+    for (const m of messagesArray) {
+      if (m.id && !seenIds.has(m.id)) {
+        seenIds.add(m.id);
         const text = Array.isArray(m.parts) ? m.parts.map((p: any) => p.text).join(" ").trim() : String(m.parts || "").trim();
-        return text.length > 0;
-      })
-      .map((m: any) => ({
-        id: m.id,
-        role: m.role,
-        parts: Array.isArray(m.parts) ? m.parts : [{ type: "text", text: String(m.parts || "") }],
-      } as any));
+        if (text.length > 0) {
+          historyMessages.push({
+            id: m.id,
+            role: m.role,
+            parts: Array.isArray(m.parts) ? m.parts : [{ type: "text", text: String(m.parts || "") }],
+          } as any);
+        }
+      }
+    }
 
     await logEvent({
       instance,
@@ -1810,6 +1813,7 @@ export async function runAgentWithLogging(params: {
       event: "ai_context_prepared",
       status: "success",
       payload: {
+        traceId: effectiveTraceId,
         contactNameAvailable: !!pushName || !!historyData?.contact_name,
         contactPhoneAvailable: !!phone,
         unitAvailable: !!unidadeId,
@@ -1838,8 +1842,8 @@ export async function runAgentWithLogging(params: {
     const currentUnitName = effectiveUnitName || unitName;
 
     const reply = await runAgent(historyMessages, {
-      unidadeId: effectiveUnitId,
-      unitName: currentUnitName,
+      unidadeId: effectiveUnitId || undefined,
+      unitName: currentUnitName || undefined,
       contactName: pushName || (historyData?.contact_name as string),
       contactPhone: phone,
       customerContext: historyData?.customer_context || {},
@@ -1975,7 +1979,7 @@ export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {})
     stopWhen: stepCountIs(5),
     abortSignal: AbortSignal.timeout(60000),
   });
-
   return sanitizeCustomerText(result.text?.trim() || "Desculpe, tive um probleminha aqui. Pode repetir?");
 }
+
 

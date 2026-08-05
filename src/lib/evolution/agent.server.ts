@@ -59,6 +59,7 @@ export function isIAEnabled(agent: any): boolean {
 export async function runAgentFlow(msg: NormalizedEvolutionMessage) {
   const messageId = msg.messageId;
   const instance = msg.instance;
+  const traceId = `${instance}:${messageId}`;
 
   try {
     const agent = await findAgentByInstance(instance);
@@ -69,7 +70,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage) {
         messageId, 
         event: "agent_status_checked",
         status: "success",
-        payload: { status: agent.status, unitId: agent.unidade_id }
+        payload: { status: agent.status, unitId: agent.unidade_id, traceId }
       });
     }
 
@@ -80,33 +81,31 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage) {
       const blockedStates = ["inativo", "inactive", "disabled", "desativado", "false"];
       
       if (blockedStates.includes(status)) {
-        await logEvent({ instance, messageId, event: "agent_inactive", status: "skipped" });
+        await logEvent({ instance, messageId, event: "agent_inactive", status: "skipped", payload: { traceId } });
       } else if (!agent?.unidade_id) {
-        await logEvent({ instance, messageId, event: "agent_without_unit", status: "skipped" });
+        await logEvent({ instance, messageId, event: "agent_without_unit", status: "skipped", payload: { traceId } });
       } else {
         await logEvent({
           instance,
           messageId,
           event: "agent_flow",
           status: "ia_disabled_generic",
-          payload: { agent_status: agent?.status, unit_id: agent?.unidade_id }
+          payload: { agent_status: agent?.status, unit_id: agent?.unidade_id, traceId }
         });
       }
       return;
     }
 
-    await logEvent({ instance, messageId, event: "agent_unit_resolved", status: "success", payload: { unitId: agent.unidade_id } });
-
     const text = extractMessageText(msg.message);
     if (!text) {
-      await logEvent({ instance, messageId, event: "agent_flow", status: "empty_text_skipped" });
+      await logEvent({ instance, messageId, event: "agent_flow", status: "empty_text_skipped", payload: { traceId } });
       return;
     }
 
     const phone = normalizePhone(msg.remoteJid);
     const conversationKey = buildConversationKey(instance, msg.remoteJid);
 
-    // Chama o orquestrador da IA Julia com logging
+    // Chama o orquestrador da IA Julia com logging e traceId
     const { runAgentWithLogging } = await import("@/lib/chat.server");
     await runAgentWithLogging({
       instance,
@@ -116,10 +115,11 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage) {
       text,
       unidadeId: agent.unidade_id,
       phone,
-      conversationKey
+      conversationKey,
+      traceId
     });
 
-    await logEvent({ instance, messageId, event: "agent_flow", status: "agent_triggered" });
+    await logEvent({ instance, messageId, event: "agent_flow_completed", status: "success", payload: { traceId } });
   } catch (error) {
     console.error("[evolution] Error in runAgentFlow", error);
     await logEvent({
@@ -127,7 +127,8 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage) {
       messageId,
       event: "agent_flow_error",
       status: "error",
-      errorDetail: error instanceof Error ? error.message : String(error)
+      errorDetail: error instanceof Error ? error.message : String(error),
+      payload: { traceId }
     });
   }
 }

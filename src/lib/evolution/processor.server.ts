@@ -30,15 +30,23 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
     return;
   }
 
-  await logEvent({
-    instance: messages[0].instance,
-    event: "message_normalized",
-    status: "success",
-    payload: { count: messages.length, first_id: messages[0].messageId }
-  });
-
   for (const msg of messages) {
+    const traceId = `${msg.instance}:${msg.messageId}`;
+    
     try {
+      // 2. Verificar fromMe IMEDIATAMENTE (antes de idempotência e persistência)
+      // O requisito diz: registrar message_ignored_from_me, retornar imediatamente, não salvar como user, não chamar IA.
+      if (msg.fromMe) {
+        await logEvent({
+          instance: msg.instance,
+          messageId: msg.messageId,
+          event: "message_ignored_from_me",
+          status: "skipped",
+          payload: { traceId }
+        });
+        continue;
+      }
+
       const text = extractMessageText(msg.message);
       const phone = normalizePhone(msg.remoteJid);
 
@@ -49,26 +57,12 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
           messageId: msg.messageId,
           event: "ignored_chat_type",
           status: "skipped",
-          payload: { remoteJid: msg.remoteJid }
-        });
-        continue;
-      }
-
-      // Ignorar mensagens enviadas pelo próprio bot (fromMe) para processamento da IA
-      // mas mantemos o fluxo caso precise de idempotência ou log, 
-      // porém a IA só roda se !fromMe.
-      // O requisito diz "Ignorar fromMe antes de appendIncomingMessage".
-      if (msg.fromMe) {
-        await logEvent({
-          instance: msg.instance,
-          messageId: msg.messageId,
-          event: "from_me_ignored",
-          status: "skipped"
+          payload: { remoteJid: msg.remoteJid, traceId }
         });
         continue;
       }
       
-      // 2. Idempotência
+      // 3. Idempotência Atômica
       const { isDuplicate, finalMessageId } = await checkIdempotency(
         msg.instance, 
         msg.messageId,
@@ -82,84 +76,83 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
           instance: msg.instance,
           messageId: finalMessageId,
           event: "duplicate_message",
-          status: "skipped"
+          status: "skipped",
+          payload: { traceId }
         });
         continue;
       }
 
-      // 3. Agente e Unidade
-      await logEvent({ instance: msg.instance, messageId: finalMessageId, event: "agent_lookup_started", status: "started" });
-      const agent = await findAgentByInstance(msg.instance);
-      
-      if (!agent) {
-        await logEvent({ instance: msg.instance, messageId: finalMessageId, event: "agent_not_found", status: "skipped" });
-      } else {
-        await logEvent({ 
-          instance: msg.instance, 
-          messageId: finalMessageId, 
-          event: "agent_found",
-          status: "success",
-          payload: { agentId: agent.id, agentStatus: agent.status, unitIdAvailable: !!agent.unidade_id }
-        });
-      }
-
-      const isIAActive = isIAEnabled(agent);
+      // 4. Lock por Conversa (Prevenção de concorrência)
       const conversationKey = buildConversationKey(msg.instance, msg.remoteJid);
-
-      // 3.1 Atualizar metadados da conversa se o agente foi encontrado
-      if (agent) {
-        const { updateConversationMetadata } = await import("./conversation.server");
-        await updateConversationMetadata(conversationKey, {
-          agent_id: agent.id,
-          unidade_id: agent.unidade_id,
-          contact_name: msg.pushName || undefined
-        });
-      }
-
-      // 4. Persistência da Mensagem do Usuário
-      const saved = await appendIncomingMessage({
-        conversationKey,
-        messageId: finalMessageId,
-        text: text || "[Mídia/Outro]",
-        instance: msg.instance,
-        phone,
-        contactName: normalizeContactName(msg.pushName || undefined),
-        isIAActive
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      
+      const { data: lockAcquired } = await supabaseAdmin.rpc("acquire_conversation_lock" as any, {
+        p_conversation_key: conversationKey,
+        p_trace_id: traceId
       });
-      
-      // 4.1 Se o agente possui unidade, garantir que o status da conversa seja aberto
-      if (agent?.unidade_id) {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        await supabaseAdmin
-          .from("wa_conversas" as never)
-          .update({ status: "aberta" } as never)
-          .eq("key", conversationKey);
-      }
-      
-      if (saved) {
+
+      if (!lockAcquired) {
         await logEvent({
           instance: msg.instance,
           messageId: finalMessageId,
-          event: "message_saved",
-          status: "success",
-          durationMs: Date.now() - startTime
+          event: "conversation_processing_locked",
+          status: "skipped",
+          payload: { traceId, conversationKey }
         });
+        continue;
       }
 
-      // 5. Fluxo da IA (se não for do próprio bot)
-      if (!msg.fromMe) {
-        await runAgentFlow({
-          ...msg,
-          messageId: finalMessageId
+      try {
+        await logEvent({ instance: msg.instance, messageId: finalMessageId, event: "processing_started", status: "started", payload: { traceId } });
+
+        // 5. Agente e Unidade
+        const agent = await findAgentByInstance(msg.instance);
+        const isIAActive = isIAEnabled(agent);
+
+        // 5.1 Atualizar metadados da conversa se o agente foi encontrado
+        if (agent) {
+          const { updateConversationMetadata } = await import("./conversation.server");
+          await updateConversationMetadata(conversationKey, {
+            agent_id: agent.id,
+            unidade_id: agent.unidade_id,
+            contact_name: msg.pushName || undefined
+          });
+        }
+
+        // 6. Persistência da Mensagem do Usuário
+        await appendIncomingMessage({
+          conversationKey,
+          messageId: finalMessageId,
+          text: text || "[Mídia/Outro]",
+          instance: msg.instance,
+          phone,
+          contactName: normalizeContactName(msg.pushName || undefined),
+          isIAActive
         });
+        
+        // 7. Fluxo da IA
+        if (isIAActive) {
+          await runAgentFlow({
+            ...msg,
+            messageId: finalMessageId
+          });
+        }
+        
+        await logEvent({
+          instance: msg.instance,
+          messageId: finalMessageId,
+          event: "message_processing_completed",
+          status: "success",
+          payload: { traceId }
+        });
+      } finally {
+        // 8. Liberar Lock
+        await supabaseAdmin.rpc("release_conversation_lock" as any, {
+          p_conversation_key: conversationKey,
+          p_trace_id: traceId
+        });
+        await logEvent({ instance: msg.instance, messageId: finalMessageId, event: "conversation_lock_released", status: "success", payload: { traceId } });
       }
-      
-      await logEvent({
-        instance: msg.instance,
-        messageId: finalMessageId,
-        event: "message_processing_completed",
-        status: "success"
-      });
     } catch (error) {
       console.error("[evolution] Error processing message", msg.messageId, error);
       await logEvent({
@@ -167,7 +160,8 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
         messageId: msg.messageId,
         event: "process_error",
         status: "error",
-        errorDetail: error instanceof Error ? error.message : String(error)
+        errorDetail: error instanceof Error ? error.message : String(error),
+        payload: { traceId: `${msg.instance}:${msg.messageId}` }
       });
     }
   }
