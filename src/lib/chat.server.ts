@@ -1141,27 +1141,27 @@ export function mandatoryOperationalRules(opts: {
     "- Se o cliente perguntar onde fica uma unidade específica, responda apenas \"📍 <Unidade>\" seguido do endereço dessa unidade obtido em list_units_info.",
     "- NUNCA diga que não sabe onde ficam as unidades nem que não encontrou essas informações.",
     "- Depois de responder sobre unidades, telefones ou endereços, pergunte gentilmente se pode ajudar com um agendamento ou outra dúvida.",
-
-
-
-
-
+    "- TRANSFERÊNCIA DE UNIDADE: A unidade operacional atual ({{unitName}}) é a unidade padrão, mas pode ser alterada se o cliente pedir explicitamente.",
+    "- RECONHECER INTENÇÃO DE TRANSFERÊNCIA: Identifique pedidos claros como \"Quero agendar no Centro\", \"Quero outra unidade\", \"Tem horário no Ventura?\".",
+    "- NÃO TRANSFERIR em consultas puramente informativas sobre endereço ou telefone.",
+    "- CONFIRMAÇÃO OBRIGATÓRIA: Antes de transferir, você DEVE perguntar: \"Entendi! Você deseja continuar este atendimento na unidade *[NOME DA UNIDADE]*, correto?\".",
+    "- EXECUÇÃO: Somente após o \"Sim\" ou confirmação clara do cliente, chame transfer_conversation_unit.",
+    "- PÓS-TRANSFERÊNCIA: Informe que o atendimento foi transferido e continue normalmente (não reinicie a saudação). Todas as ferramentas subsequentes usarão a nova unidade.",
   ];
 
   if (opts.unidadeId) {
     lines.push(
-      `- A unidade de atendimento é FIXA: ${opts.unitName || `Unidade vinculada ID ${opts.unidadeId}`} (ID ${opts.unidadeId}).`,
-      "- É PROIBIDO perguntar ou sugerir a troca de unidade para o agendamento. NUNCA pergunte \"qual dessas unidades você prefere?\" ou \"em qual unidade deseja ser atendido?\". Não chame list_salons (ela não está disponível).",
-      "- EXCEÇÃO INFORMATIVA (OBRIGATÓRIA): se o cliente perguntar quantas unidades existem, quais são as unidades/lojas, os endereços das OUTRAS unidades ou os telefones, você DEVE responder com as informações completas de TODAS as unidades. Chame list_units_info e informe as unidades ATIVAS com o endereço de cada uma, uma por linha no formato \"• <Nome> — <Endereço>\". Em seguida lembre que o agendamento por este WhatsApp é feito na unidade <NOME DA UNIDADE FIXA>. NÃO pergunte qual delas o cliente prefere.",
-      "- É PROIBIDO responder que \"o atendimento por aqui é exclusivo desta unidade\" como forma de NEGAR endereços, telefones ou a lista de unidades. A restrição de unidade vale apenas para o AGENDAMENTO, nunca para informações de localização e contato. Nunca interprete menção a outra unidade como uma mudança operacional.",
-
-
+      `- A unidade de atendimento atual é: ${opts.unitName || `Unidade vinculada ID ${opts.unidadeId}`} (ID ${opts.unidadeId}).`,
+      "- Se o cliente disser explicitamente que deseja agendar em OUTRA unidade, você deve iniciar o fluxo de transferência descrito nas regras acima.",
+      "- Informe que o agendamento por este canal é realizado para a unidade atual, mas que você pode transferir a conversa se ele preferir.",
+      "- É PROIBIDO perguntar a unidade no início se já houver uma unidade atual definida.",
     );
   }
   if (opts.contactPhone) lines.push("- É PROIBIDO pedir telefone, DDD ou código de país: já são conhecidos.");
   if (opts.contactName) lines.push("- É PROIBIDO perguntar o nome do cliente: já é conhecido.");
   return lines.join("\n");
 }
+
 
 export async function loadSystemPrompt(): Promise<string> {
   try {
