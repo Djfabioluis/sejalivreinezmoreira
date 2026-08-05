@@ -1558,6 +1558,8 @@ export function mandatoryOperationalRules(opts: {
     "- Após uma transferência de unidade, descarte serviços/profissionais da unidade anterior e consulte novamente as ferramentas.",
     "- Nunca crie agendamento sem que a combinação unidade + serviço + profissional tenha sido validada; se retornar professional_not_assigned_to_service, ofereça profissionais válidos ou serviços atribuídos ao profissional.",
     "- Nunca exiba IDs técnicos ao cliente. Liste profissionais com 💜 *Nome* e serviços com • *Nome*.",
+    "- Se houver apenas um profissional disponível para o serviço, NUNCA pergunte preferência nem apresente a opção 'Sem preferência'; informe o profissional selecionado com entusiasmo e avance.",
+    "- NUNCA use aspas triplas no conteúdo da resposta.",
   ];
 
 
@@ -1990,43 +1992,4 @@ export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {})
   return sanitizeCustomerText(result.text?.trim() || "Desculpe, tive um probleminha aqui. Pode repetir?");
 }
 
-/** Gera um prompt operacional com regras de prioridade e detecção de redundância. */
-function mandatoryOperationalRules(params: {
-  unidadeId: string | null;
-  unitName: string | null;
-  contactName: string | null | undefined;
-  contactPhone: string | null | undefined;
-  hasHistory: boolean;
-}) {
-  const { unitName, contactName, hasHistory } = params;
-
-  let rules = `
-\nREGRA DE PREFERÊNCIA ABSOLUTA (PROFISSIONAIS):
-- SEMPRE use a ferramenta 'list_professionals' para saber quem faz o serviço.
-- Se a ferramenta retornar autoSelectProfessional=true (apenas 1 profissional disponível), NUNCA pergunte a preferência do cliente e NÃO apresente a opção "Sem preferência". Informe diretamente o nome do profissional.
-- Se a ferramenta retornar includeNoPreference=true (2 ou mais profissionais), você DEVE perguntar se o cliente tem preferência por algum profissional ou se deseja a opção "Sem preferência".
-- NUNCA invente nomes de profissionais.`;
-
-  if (unitName) {
-    rules += `
-\nREGRA DE UNIDADE FIXA:
-- Você está operando na unidade: ${unitName}.
-- NUNCA pergunte em qual unidade o cliente deseja agendar.
-- Se o cliente mencionar outra unidade, informe educadamente que este canal é exclusivo para a unidade ${unitName}, mas que ele pode agendar aqui se desejar ou entrar em contato com a outra unidade.`;
-  }
-
-  if (contactName) {
-    rules += `
-\nREGRA DE NOME:
-- O nome do cliente é ${contactName}. Trate-o pelo nome e NUNCA pergunte como ele se chama.`;
-  }
-
-  if (hasHistory) {
-    rules += `
-\nREGRA DE CONTINUIDADE:
-- Analise o histórico acima. Se um serviço ou horário já foi discutido, não pergunte novamente. Prossiga para a confirmação.`;
-  }
-
-  return rules;
-}
 
