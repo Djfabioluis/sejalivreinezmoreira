@@ -162,6 +162,21 @@ async function patchCustomerContext(
   }
 }
 
+/**
+ * Linha de estado do CPF para o prompt.
+ * A validação só vale para o mesmo dia: em nova conversa/dia o CPF é pedido novamente.
+ */
+export function cpfContextLine(ctx: Record<string, any>): string {
+  const validatedAt = ctx?.validatedAt ? Date.parse(String(ctx.validatedAt)) : NaN;
+  const sameDay =
+    Number.isFinite(validatedAt) &&
+    new Date(validatedAt).toDateString() === new Date().toDateString();
+  if (ctx?.cpf_validado === true && sameDay) {
+    return `- CPF validado nesta conversa: SIM (${ctx.cpfMasked || "***.***.***-**"}) — NÃO pedir novamente. Cliente BEMP: ${ctx.customerIdBemp ?? "não informado"}. Plano: ${ctx.planName || ctx.subscriptionPlanName || "não identificado"} (${ctx.subscriptionStatus || "status desconhecido"})`;
+  }
+  return "- CPF validado nesta conversa: NÃO — solicite o CPF antes de usar qualquer plano.";
+}
+
 
 async function resolveServiceForEffectiveUnit(params: { serviceName: string; effectiveUnitId: string }) {
   console.log(`[chat] service_resolution_started: serviceName="${params.serviceName}", unitId=${params.effectiveUnitId}`);
@@ -1039,6 +1054,134 @@ function buildTools(
           };
         }),
     }),
+    validate_subscription_cpf: tool({
+      description:
+        "Valida o CPF informado pelo cliente e consulta o cadastro no BEMP para localizar planos de assinatura. Use SEMPRE que o cliente disser que possui plano/benefício/assinatura. Nunca assuma que o cliente tem plano ativo sem chamar esta ferramenta.",
+      inputSchema: z.object({
+        cpf: z.string().describe("CPF informado pelo cliente (com ou sem pontuação)"),
+      }),
+      execute: async ({ cpf }) =>
+        safeTool("validate_subscription_cpf", async () => {
+          const { normalizeCPF, isValidCPF, maskCPF, extractCPFFromText } = await import("@/lib/cpf");
+          const digits = normalizeCPF(cpf) || (extractCPFFromText(cpf) ?? "");
+
+          if (!isValidCPF(digits)) {
+            console.log("[bemp-plan] cpf_invalid");
+            return {
+              success: false,
+              code: "cpf_invalid",
+              message:
+                "CPF inválido. Responda: \"Não consegui validar esse CPF.\n\nPode conferir e enviar novamente, por favor?\"",
+            };
+          }
+
+          const { getCustomerByCPF } = await import("@/lib/bemp/subscriptions.server");
+          const res = await getCustomerByCPF(digits);
+
+          if (!res.found) {
+            await patchCustomerContext(conversationKey, {
+              cpf_validado: false,
+              cpfMasked: maskCPF(digits),
+              subscriptionBenefitAvailable: false,
+              subscriptionCheckedAt: new Date().toISOString(),
+            });
+            return {
+              success: false,
+              code: "customer_not_found",
+              message:
+                "Cadastro não localizado. Responda: \"Não encontrei um cadastro com esse CPF.\n\nPode conferir o número ou, se preferir, posso encaminhar você para nossa equipe.\" NÃO continue o fluxo de plano.",
+            };
+          }
+
+          const plans = res.plans.map((p) => ({
+            id: p.id,
+            name: p.name,
+            status: p.status,
+            validUntil: p.validUntil,
+            availableUses: p.availableUses,
+            benefitServiceName: p.serviceName,
+          }));
+          const invalidPlans = res.inactivePlans.map((p) => ({
+            name: p.name,
+            status: p.status,
+            reason: p.inactiveReason,
+            benefitServiceName: p.serviceName,
+          }));
+
+          const validatedAt = new Date().toISOString();
+          const base: Record<string, unknown> = {
+            cpf_validado: true,
+            cpfMasked: maskCPF(digits),
+            customerIdBemp: res.customerId,
+            validatedAt,
+            subscriptionCheckedAt: validatedAt,
+          };
+
+          if (plans.length === 1) {
+            const only = res.plans[0]!;
+            await patchCustomerContext(conversationKey, {
+              ...base,
+              planId: only.id,
+              planName: only.name,
+              subscriptionStatus: only.status,
+              subscriptionPlanId: only.id,
+              subscriptionPlanName: only.name,
+              subscriptionServiceName: only.serviceName,
+              subscriptionBenefitAvailable: true,
+            });
+          } else {
+            await patchCustomerContext(conversationKey, {
+              ...base,
+              subscriptionBenefitAvailable: plans.length > 1,
+              subscriptionStatus: plans.length === 0 ? (invalidPlans[0]?.status ?? "sem plano") : "multiplos",
+            });
+          }
+
+          if (plans.length === 0 && invalidPlans.length === 0) {
+            return {
+              success: true,
+              cpfValid: true,
+              customerFound: true,
+              customerName: res.customerName,
+              plans: [],
+              invalidPlans: [],
+              code: "no_plan",
+              message:
+                "Cliente cadastrado, porém SEM plano de assinatura. Informe com cordialidade e pergunte se deseja seguir com um agendamento convencional.",
+            };
+          }
+
+          if (plans.length === 0) {
+            return {
+              success: true,
+              cpfValid: true,
+              customerFound: true,
+              customerName: res.customerName,
+              plans: [],
+              invalidPlans,
+              code: "plan_inactive",
+              message:
+                "Plano localizado, porém inativo (cancelado, vencido, suspenso ou sem saldo). NÃO utilize o benefício: explique a situação e ofereça agendamento convencional ou atendimento humano.",
+            };
+          }
+
+          return {
+            success: true,
+            cpfValid: true,
+            customerFound: true,
+            customerName: res.customerName,
+            customerIdBemp: res.customerId,
+            plans,
+            invalidPlans,
+            multiplePlans: plans.length > 1,
+            code: plans.length > 1 ? "multiple_active_plans" : "active_plan",
+            message:
+              plans.length > 1
+                ? "Mais de um benefício ativo: liste os benefícios e pergunte qual o cliente deseja usar."
+                : "Plano ativo confirmado. Informe o benefício e chame resolve_subscription_service em seguida.",
+          };
+        }),
+    }),
     resolve_subscription_service: tool({
       description:
         "Resolve, na unidade EFETIVA da conversa, qual serviço do BEMP corresponde ao plano do cliente (ex.: plano de manicure → 'Manicure Plano Beauty'). Chame antes de consultar profissionais/horários de um agendamento por plano. O backend resolve o service_id — nunca invente IDs.",
@@ -1864,7 +2007,18 @@ export function mandatoryOperationalRules(opts: {
     "- Nunca crie agendamento sem que a combinação unidade + serviço + profissional tenha sido validada; se retornar professional_not_assigned_to_service, ofereça profissionais válidos ou serviços atribuídos ao profissional.",
     "- Nunca exiba IDs técnicos ao cliente. Liste profissionais com 💜 *Nome* e serviços com • *Nome*.",
     "- Se houver apenas um profissional disponível para o serviço, NUNCA pergunte preferência nem apresente a opção 'Sem preferência'; informe o profissional selecionado com entusiasmo e avance.",
-    "- PLANOS DE ASSINATURA (BENEFÍCIO): se o cliente mencionar plano, benefício, assinatura ou disser \"quero usar meu plano\", chame SEMPRE get_customer_active_plans antes de qualquer outra coisa.",
+    "- PLANOS DE ASSINATURA (BENEFÍCIO): NUNCA assuma que o cliente possui plano ativo. Se ele mencionar plano, benefício ou assinatura, peça o CPF ANTES de qualquer consulta:\n\"Perfeito! 😊\n\nPara localizar seu plano, por favor informe seu CPF (somente números ou no formato 000.000.000-00).\"",
+    "- Ao receber o CPF, chame SEMPRE validate_subscription_cpf. Não invente validação nem prossiga sem essa ferramenta.",
+    "- Se retornar cpf_invalid, responda: \"Não consegui validar esse CPF.\n\nPode conferir e enviar novamente, por favor?\" e aguarde um novo CPF.",
+    "- Se retornar customer_not_found, responda: \"Não encontrei um cadastro com esse CPF.\n\nPode conferir o número ou, se preferir, posso encaminhar você para nossa equipe.\" e NÃO continue o fluxo de plano.",
+    "- Se retornar no_plan, informe com cordialidade que não há plano vinculado e pergunte se deseja seguir com um agendamento convencional.",
+    "- Se retornar plan_inactive (cancelado, vencido, suspenso ou sem saldo), NÃO utilize o benefício: explique a situação e ofereça agendamento convencional ou atendimento humano.",
+    "- Se retornar active_plan, responda: \"Encontrei seu plano ativo. 💜\n\nBenefício disponível:\n\n✨ *<Benefício>*\n\nAgora vou consultar os profissionais disponíveis.\" e siga para resolve_subscription_service.",
+    "- Se retornar multiple_active_plans, liste os benefícios e pergunte qual usar:\n\"Encontrei estes benefícios:\n\n💜 *<Benefício 1>*\n💜 *<Benefício 2>*\n\nQual deles deseja utilizar?\"",
+    "- Se o CPF já foi validado NESTA conversa (cpf_validado = true no estado atual), NUNCA peça o CPF de novo.",
+    "- Em uma NOVA conversa, sempre solicite o CPF novamente antes de usar qualquer plano; nunca reutilize CPF validado em outra data.",
+    "- NUNCA repita o CPF completo nas mensagens; se precisar citar, use o formato mascarado ***.***.***-12.",
+    "- Depois da validação do CPF você pode usar get_customer_active_plans para reconferir saldo, mas a validação por CPF é obrigatória primeiro.",
     "- Mapeamento oficial de benefícios (resolvido pelo backend, nunca invente): plano de manicure → *Manicure Plano Beauty*; plano de escova → *Escova Plano Beauty*; plano de hidratação e escova → *Hidratação e Escova*.",
     "- Quando houver plano ativo, NÃO pergunte qual serviço o cliente deseja: o plano já determina o serviço. Informe o benefício e siga para profissional, data e horário.",
     "- Depois de identificar o plano, chame resolve_subscription_service para obter o serviço correto NA UNIDADE ATUAL; só então chame list_professionals e list_slots com esse service_id.",
@@ -2015,6 +2169,7 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
 - Etapa: ${ctx.currentStep || "início"}
 - Plano de assinatura: ${ctx.subscriptionPlanName || "não identificado"}
 - Serviço do benefício: ${ctx.subscriptionServiceName || "não resolvido"}${ctx.subscriptionServiceId ? ` (id ${ctx.subscriptionServiceId})` : ""}
+${cpfContextLine(ctx as Record<string, any>)}
 `.trim();
   }
 
@@ -2289,6 +2444,7 @@ export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {})
 - Etapa: ${ctx.currentStep || "início"}
 - Plano de assinatura: ${ctx.subscriptionPlanName || "não identificado"}
 - Serviço do benefício: ${ctx.subscriptionServiceName || "não resolvido"}${ctx.subscriptionServiceId ? ` (id ${ctx.subscriptionServiceId})` : ""}
+${cpfContextLine(ctx as Record<string, any>)}
 `.trim();
   }
 
