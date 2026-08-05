@@ -645,9 +645,14 @@ export type Database = {
           instance: string | null
           last_read_at: string | null
           messages: Json
+          origin_unit_id: string | null
           phone: string
           phone_number: string | null
+          previous_unit_id: string | null
           status: string
+          transfer_reason: string | null
+          transferred_at: string | null
+          transferred_by: string | null
           unidade_id: string | null
           unread_count: number
           updated_at: string
@@ -659,9 +664,14 @@ export type Database = {
           instance?: string | null
           last_read_at?: string | null
           messages?: Json
+          origin_unit_id?: string | null
           phone: string
           phone_number?: string | null
+          previous_unit_id?: string | null
           status?: string
+          transfer_reason?: string | null
+          transferred_at?: string | null
+          transferred_by?: string | null
           unidade_id?: string | null
           unread_count?: number
           updated_at?: string
@@ -673,9 +683,14 @@ export type Database = {
           instance?: string | null
           last_read_at?: string | null
           messages?: Json
+          origin_unit_id?: string | null
           phone?: string
           phone_number?: string | null
+          previous_unit_id?: string | null
           status?: string
+          transfer_reason?: string | null
+          transferred_at?: string | null
+          transferred_by?: string | null
           unidade_id?: string | null
           unread_count?: number
           updated_at?: string
@@ -720,6 +735,15 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      transfer_conversation_unit: {
+        Args: {
+          p_conversation_phone: string
+          p_reason?: string
+          p_target_unit_id: string
+          p_user_id?: string
+        }
+        Returns: Json
       }
       user_has_permission: {
         Args: { _perm: string; _user_id: string }

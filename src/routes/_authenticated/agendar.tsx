@@ -25,8 +25,10 @@ import {
   updateConversationStatus, 
   sendManualWAMessage,
   extractConversationMessageText,
+  transferConversationUnit,
   type WAConversation 
 } from "@/lib/whatsapp-inbox.functions";
+
 import { listAgentes } from "@/lib/agentes-whatsapp.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
@@ -70,6 +72,11 @@ function AgendarPage() {
   const fnMarkAsRead = useServerFn(markAsRead);
   const fnUpdateStatus = useServerFn(updateConversationStatus);
   const fnSendMessage = useServerFn(sendManualWAMessage);
+  const fnTransferUnit = useServerFn(transferConversationUnit);
+  
+  const [showTransferDialog, setShowTransferDialog] = useState(false);
+  const [transferring, setTransferring] = useState(false);
+
 
   // Sync refs to avoid closure staleness in realtime callbacks
   useEffect(() => { selectedPhoneRef.current = selectedPhone; }, [selectedPhone]);
@@ -234,6 +241,28 @@ function AgendarPage() {
     }
   };
 
+  const handleTransfer = async (targetUnitId: string) => {
+    if (!selectedPhone || transferring) return;
+    setTransferring(true);
+    try {
+      await fnTransferUnit({ 
+        data: { 
+          phone: selectedPhone, 
+          targetUnitId, 
+          reason: "Transferência manual pelo operador" 
+        } 
+      });
+      toast.success("Atendimento transferido com sucesso");
+      setShowTransferDialog(false);
+      loadConversation(selectedPhone, true);
+    } catch (err: any) {
+      toast.error(err.message || "Erro ao transferir atendimento");
+    } finally {
+      setTransferring(false);
+    }
+  };
+
+
   const formatPhoneDisplay = (phone: string) => {
     const num = phone.split(":").pop() || "";
     if (num.length === 13 && num.startsWith("55")) {
@@ -336,7 +365,24 @@ function AgendarPage() {
                       <SelectItem value="resolvida">Resolvida</SelectItem>
                     </SelectContent>
                   </Select>
+                  <Select onValueChange={handleTransfer} disabled={transferring}>
+                    <SelectTrigger className="h-8 text-xs w-[160px]">
+                      <SelectValue placeholder="Transferir Unidade" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {agentes.map(a => (
+                        <SelectItem 
+                          key={a.unidade_id} 
+                          value={a.unidade_id} 
+                          disabled={a.unidade_id === selectedConversation?.unidade_id}
+                        >
+                          {a.nome}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
+
                 {selectedConversation?.status === "waiting_for_unit_selection" && (
                   <div className="bg-amber-50 border-b border-amber-200 p-2 flex items-center justify-between px-4">
                     <span className="text-xs text-amber-800 font-medium">Aguardando escolha da unidade</span>
@@ -354,12 +400,19 @@ function AgendarPage() {
                   <div className="space-y-4">
                     {loadingConv && <div className="flex justify-center p-4"><RefreshCcw className="h-6 w-6 animate-spin opacity-20" /></div>}
                     {selectedConversation?.messages.map((m: any, idx: number) => (
-                      <div key={m.id || idx} className={`flex gap-2 ${m.role === 'user' ? 'justify-start' : 'justify-end'}`}>
-                        <div className={`max-w-[75%] px-4 py-2 rounded-2xl text-sm ${m.role === 'user' ? 'bg-card border rounded-tl-none' : 'bg-primary text-primary-foreground rounded-tr-none'}`}>
-                          {extractConversationMessageText(m)}
-                        </div>
+                      <div key={m.id || idx} className={`flex gap-2 ${m.role === 'system' ? 'justify-center w-full' : m.role === 'user' ? 'justify-start' : 'justify-end'}`}>
+                        {m.role === 'system' ? (
+                          <div className="bg-muted px-3 py-1 rounded-full text-[10px] text-muted-foreground border italic">
+                            {extractConversationMessageText(m)}
+                          </div>
+                        ) : (
+                          <div className={`max-w-[75%] px-4 py-2 rounded-2xl text-sm ${m.role === 'user' ? 'bg-card border rounded-tl-none' : 'bg-primary text-primary-foreground rounded-tr-none'}`}>
+                            {extractConversationMessageText(m)}
+                          </div>
+                        )}
                       </div>
                     ))}
+
                     <div ref={bottomRef} />
                   </div>
                 </ScrollArea>

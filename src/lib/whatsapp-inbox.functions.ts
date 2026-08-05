@@ -13,7 +13,9 @@ export type WAConversation = {
   status: string;
   messages: any[];
   updated_at: string;
+  unidade_id?: string | null;
 };
+
 
 export function extractConversationMessageText(message: any): string {
   if (!message) return "";
@@ -42,7 +44,7 @@ export const listWAConversations = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let query = supabaseAdmin
       .from("wa_conversas" as never)
-      .select("phone, instance, phone_number, contact_name, unread_count, status, updated_at", { count: "exact" })
+      .select("phone, instance, phone_number, contact_name, unread_count, status, updated_at, unidade_id", { count: "exact" })
       .order("updated_at", { ascending: false });
 
     if (data.instance) query = query.eq("instance", data.instance);
@@ -75,7 +77,7 @@ export const getWAConversation = createServerFn({ method: "GET" })
       .maybeSingle();
     
     if (error) throw new Error(error.message);
-    return row as WAConversation | null;
+    return row as any as WAConversation | null;
   });
 
 export const markAsRead = createServerFn({ method: "POST" })
@@ -144,3 +146,52 @@ export const sendManualWAMessage = createServerFn({ method: "POST" })
 
     return { success: true };
   });
+
+export const transferConversationUnit = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({
+    phone: z.string(),
+    targetUnitId: z.string(),
+    reason: z.string().optional()
+  }))
+  .handler(async ({ data, context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const userId = (context as any).userId;
+
+    const { data: result, error } = await supabaseAdmin.rpc("transfer_conversation_unit", {
+      p_conversation_phone: data.phone,
+      p_target_unit_id: data.targetUnitId,
+      p_user_id: userId,
+      p_reason: data.reason || "Transferência manual via painel"
+    });
+
+    if (error) throw new Error(error.message);
+    
+    // Inserir evento de sistema no histórico
+    const { data: conv } = await supabaseAdmin
+      .from("wa_conversas" as never)
+      .select("previous_unit_id, unidade_id")
+      .eq("phone", data.phone)
+      .single();
+
+    if (conv) {
+      const c = conv as any;
+      const message = {
+        id: `sys-${Date.now()}`,
+        role: "system",
+        parts: [{ 
+          type: "text", 
+          text: `🔄 Atendimento transferido para a unidade ${data.targetUnitId}.` 
+        }]
+      };
+      
+      await supabaseAdmin.rpc("append_wa_message", {
+        p_phone: data.phone,
+        p_message: message,
+        p_increment_unread: false
+      });
+    }
+
+    return result;
+  });
+

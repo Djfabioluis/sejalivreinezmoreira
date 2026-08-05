@@ -59,13 +59,34 @@ function safeTool<T>(label: string, fn: () => Promise<T>) {
   });
 }
 
-function buildTools(sandbox: boolean, forcedUnitId?: string | null) {
+function buildTools(sandbox: boolean, forcedUnitId?: string | null, conversationPhone?: string) {
   const base: Record<string, any> = {
-    // Sempre disponível (mesmo com unidade fixa): usada apenas para INFORMAR
-    // quantas/quais unidades ativas existem, com endereço.
+    transfer_conversation_unit: tool({
+      description:
+        "Transfere a conversa para outra unidade operacional. Use somente APÓS o cliente confirmar claramente que deseja ser atendido em outra unidade. Não use para simples perguntas informativas.",
+      inputSchema: z.object({
+        target_unit_id: z.string().describe("O ID da unidade de destino"),
+        reason: z.string().optional().describe("Motivo da transferência"),
+      }),
+      execute: async ({ target_unit_id, reason }) =>
+        safeTool("transfer_conversation_unit", async () => {
+          if (!conversationPhone) throw new Error("ID da conversa não fornecido para transferência.");
+          if (forcedUnitId === target_unit_id) {
+            return { success: true, message: "A conversa já está nesta unidade.", idempotent: true };
+          }
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          const { data, error } = await supabaseAdmin.rpc("transfer_conversation_unit", {
+            p_conversation_phone: conversationPhone,
+            p_target_unit_id: target_unit_id,
+            p_reason: reason || "Solicitado pelo cliente via IA",
+          });
+          if (error) throw new Error(error.message);
+          return data;
+        }),
+    }),
     list_units_info: tool({
       description:
-        "Use quando o cliente perguntar quantas unidades existem, quais são as unidades/lojas/endereços. Retorna as unidades ativas na Bemp com endereço. NÃO use para trocar a unidade do agendamento.",
+        "Use quando o cliente perguntar quantas unidades existem, quais são as unidades/lojas/endereços. Retorna as unidades ativas na Bemp com endereço. NÃO use para trocar a unidade do agendamento automaticamente.",
       inputSchema: z.object({}),
       execute: async () =>
         safeTool("list_units_info", async () => {
@@ -86,7 +107,7 @@ function buildTools(sandbox: boolean, forcedUnitId?: string | null) {
                 .filter(Boolean)
                 .join(", ");
             return {
-              id: s?.id,
+              id: String(s?.id),
               nome: s?.name ?? s?.nome ?? s?.title,
               endereco: typeof addr === "string" ? addr : JSON.stringify(addr),
             };
@@ -94,19 +115,16 @@ function buildTools(sandbox: boolean, forcedUnitId?: string | null) {
           return { total: units.length, unidades: units };
         }),
     }),
-    ...(forcedUnitId
-      ? {}
-      : {
-          list_salons: tool({
-            description: "Lista todas as unidades (salões) disponíveis na conta Bemp.",
-            inputSchema: z.object({}),
-            execute: async () =>
-              safeTool("list_salons", async () => {
-                const cfg = await getBempConfig();
-                return await bempFetch(`${cfg.apiBase}/salons`);
-              }),
-          }),
+    list_salons: tool({
+      description: "Lista todas as unidades (salões) disponíveis na conta Bemp.",
+      inputSchema: z.object({}),
+      execute: async () =>
+        safeTool("list_salons", async () => {
+          const cfg = await getBempConfig();
+          return await bempFetch(`${cfg.apiBase}/salons`);
         }),
+    }),
+
 
     list_services: tool({
       description: "Lista serviços de uma unidade, com preço e duração.",
@@ -1123,27 +1141,27 @@ export function mandatoryOperationalRules(opts: {
     "- Se o cliente perguntar onde fica uma unidade específica, responda apenas \"📍 <Unidade>\" seguido do endereço dessa unidade obtido em list_units_info.",
     "- NUNCA diga que não sabe onde ficam as unidades nem que não encontrou essas informações.",
     "- Depois de responder sobre unidades, telefones ou endereços, pergunte gentilmente se pode ajudar com um agendamento ou outra dúvida.",
-
-
-
-
-
+    "- TRANSFERÊNCIA DE UNIDADE: A unidade operacional atual ({{unitName}}) é a unidade padrão, mas pode ser alterada se o cliente pedir explicitamente.",
+    "- RECONHECER INTENÇÃO DE TRANSFERÊNCIA: Identifique pedidos claros como \"Quero agendar no Centro\", \"Quero outra unidade\", \"Tem horário no Ventura?\".",
+    "- NÃO TRANSFERIR em consultas puramente informativas sobre endereço ou telefone.",
+    "- CONFIRMAÇÃO OBRIGATÓRIA: Antes de transferir, você DEVE perguntar: \"Entendi! Você deseja continuar este atendimento na unidade *[NOME DA UNIDADE]*, correto?\".",
+    "- EXECUÇÃO: Somente após o \"Sim\" ou confirmação clara do cliente, chame transfer_conversation_unit.",
+    "- PÓS-TRANSFERÊNCIA: Informe que o atendimento foi transferido e continue normalmente (não reinicie a saudação). Todas as ferramentas subsequentes usarão a nova unidade.",
   ];
 
   if (opts.unidadeId) {
     lines.push(
-      `- A unidade de atendimento é FIXA: ${opts.unitName || `Unidade vinculada ID ${opts.unidadeId}`} (ID ${opts.unidadeId}).`,
-      "- É PROIBIDO perguntar ou sugerir a troca de unidade para o agendamento. NUNCA pergunte \"qual dessas unidades você prefere?\" ou \"em qual unidade deseja ser atendido?\". Não chame list_salons (ela não está disponível).",
-      "- EXCEÇÃO INFORMATIVA (OBRIGATÓRIA): se o cliente perguntar quantas unidades existem, quais são as unidades/lojas, os endereços das OUTRAS unidades ou os telefones, você DEVE responder com as informações completas de TODAS as unidades. Chame list_units_info e informe as unidades ATIVAS com o endereço de cada uma, uma por linha no formato \"• <Nome> — <Endereço>\". Em seguida lembre que o agendamento por este WhatsApp é feito na unidade <NOME DA UNIDADE FIXA>. NÃO pergunte qual delas o cliente prefere.",
-      "- É PROIBIDO responder que \"o atendimento por aqui é exclusivo desta unidade\" como forma de NEGAR endereços, telefones ou a lista de unidades. A restrição de unidade vale apenas para o AGENDAMENTO, nunca para informações de localização e contato. Nunca interprete menção a outra unidade como uma mudança operacional.",
-
-
+      `- A unidade de atendimento atual é: ${opts.unitName || `Unidade vinculada ID ${opts.unidadeId}`} (ID ${opts.unidadeId}).`,
+      "- Se o cliente disser explicitamente que deseja agendar em OUTRA unidade, você deve iniciar o fluxo de transferência descrito nas regras acima.",
+      "- Informe que o agendamento por este canal é realizado para a unidade atual, mas que você pode transferir a conversa se ele preferir.",
+      "- É PROIBIDO perguntar a unidade no início se já houver uma unidade atual definida.",
     );
   }
   if (opts.contactPhone) lines.push("- É PROIBIDO pedir telefone, DDD ou código de país: já são conhecidos.");
   if (opts.contactName) lines.push("- É PROIBIDO perguntar o nome do cliente: já é conhecido.");
   return lines.join("\n");
 }
+
 
 export async function loadSystemPrompt(): Promise<string> {
   try {
@@ -1502,7 +1520,8 @@ export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {})
     model: getModel(),
     system: fullSystem,
     messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
-    tools: buildTools(sandbox, opts.unidadeId),
+    tools: buildTools(sandbox, opts.unidadeId, opts.contactPhone || undefined),
+
     stopWhen: stepCountIs(5),
     abortSignal: AbortSignal.timeout(60000),
   });
