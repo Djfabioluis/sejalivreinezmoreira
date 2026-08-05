@@ -148,7 +148,7 @@ async function resolveServiceForEffectiveUnit(params: { serviceName: string; eff
   return found || null;
 }
 
-function buildTools(sandbox: boolean, initialUnitId?: string | null, conversationKey?: string) {
+function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conversationKey?: string) {
   const base: Record<string, any> = {
     transfer_conversation_unit: tool({
       description:
@@ -190,18 +190,32 @@ function buildTools(sandbox: boolean, initialUnitId?: string | null, conversatio
 
           // Limpeza de contexto após transferência
           const currentContext = (conv as any).customer_context || {};
+          
+          // Extrair requestedService como nome puro se for objeto ou tiver ID
+          let requestedServiceName = currentContext.requestedService;
+          if (requestedServiceName && typeof requestedServiceName === "object") {
+            requestedServiceName = requestedServiceName.name || requestedServiceName.nome || null;
+          }
+
           const newContext = {
             ...currentContext,
             currentUnitId: target_unit_id,
-            // Limpar dados vinculados à unidade antiga
+            // Preservar somente o NOME do serviço solicitado, limpar IDs vinculados à unidade antiga
+            requestedService: requestedServiceName,
+            serviceId: null,
+            selectedServiceId: null,
+            requestedServiceId: null,
+            availableServices: null,
+
             professionalId: null,
             professionalName: null,
             selectedProfessional: null,
             preferredProfessional: null,
+            availableProfessionals: null,
+
             selectedSlot: null,
             preferredDate: null,
             preferredTime: null,
-            availableProfessionals: null,
             availableSlots: null,
           };
 
@@ -235,6 +249,7 @@ function buildTools(sandbox: boolean, initialUnitId?: string | null, conversatio
 
           return { 
             success: true, 
+            message: `Pronto! Seu atendimento foi transferido para *${newUnitName}*. Agora vou consultar o serviço nessa unidade. 😊`,
             old_unit_id: (conv as any).unidade_id, 
             new_unit_id: target_unit_id,
             new_unit_name: newUnitName,
@@ -290,25 +305,46 @@ function buildTools(sandbox: boolean, initialUnitId?: string | null, conversatio
       execute: async ({ salon_id }) =>
         safeTool("list_services", async () => {
           const cfg = await getBempConfig();
-          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: initialUnitId });
+          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: fallbackAgentUnitId });
           if (!effectiveUnitId) throw new Error("ID da unidade não resolvido.");
           return await bempFetch(`${cfg.apiBase}/salons/${effectiveUnitId}/services`);
         }),
     }),
     list_professionals: tool({
       description: "Lista profissionais disponíveis para um serviço em uma unidade.",
-      inputSchema: z.object({ salon_id: z.number().optional(), service_id: z.number() }),
-      execute: async ({ salon_id, service_id }) =>
+      inputSchema: z.object({ 
+        service_name: z.string().describe("Nome do serviço para o qual deseja listar profissionais"),
+        service_id: z.number().optional().describe("ID do serviço (opcional, será resolvido dinamicamente)"),
+        salon_id: z.number().optional().describe("ID do salão (opcional, será resolvido dinamicamente)")
+      }),
+      execute: async ({ service_name, service_id }) =>
         safeTool("list_professionals", async () => {
           const cfg = await getBempConfig();
-          const { effectiveUnitId, source } = await resolveEffectiveUnit({ conversationKey, agentUnitId: initialUnitId });
+          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: fallbackAgentUnitId });
           if (!effectiveUnitId) return { error: "unit_not_resolved", message: "Não foi possível identificar a unidade correta." };
           
-          console.log(`[professionals] professionals_unit_resolved: source=${source}, effectiveUnitId=${effectiveUnitId}`);
+          // Ignoramos service_id vindo do modelo e resolvemos na unidade ATUAL pelo NOME
+          const service = await resolveServiceForEffectiveUnit({ serviceName: service_name, effectiveUnitId });
           
-          return await bempFetch(
-            `${cfg.apiBase}/salons/${effectiveUnitId}/services/${service_id}/professionals`,
+          if (!service) {
+            return { 
+              success: false, 
+              code: "service_not_available_in_unit", 
+              message: `O serviço "${service_name}" não foi localizado na unidade atual. Por favor, verifique se o serviço está disponível nesta unidade.` 
+            };
+          }
+
+          const effectiveServiceId = Number(service.id);
+          console.log(`[professionals] professionals_query_started: unitId=${effectiveUnitId}, serviceId=${effectiveServiceId}, serviceName="${service_name}"`);
+          
+          const result = await bempFetch(
+            `${cfg.apiBase}/salons/${effectiveUnitId}/services/${effectiveServiceId}/professionals`,
           );
+          
+          const professionalsCount = Array.isArray(result) ? result.length : (Array.isArray((result as any)?.data) ? (result as any).data.length : 0);
+          console.log(`[professionals] professionals_query_completed: count=${professionalsCount}`);
+          
+          return result;
         }),
     }),
     list_slots: tool({
