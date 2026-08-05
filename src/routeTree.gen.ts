@@ -30,6 +30,7 @@ import { Route as AuthenticatedBaseConhecimentoRouteImport } from './routes/_aut
 import { Route as AuthenticatedAuditoriaSugestoesRouteImport } from './routes/_authenticated/auditoria-sugestoes'
 import { Route as AuthenticatedAssinaturaRouteImport } from './routes/_authenticated/assinatura'
 import { Route as AuthenticatedAssinantesRouteImport } from './routes/_authenticated/assinantes'
+import { Route as AuthenticatedAprendizadoIaRouteImport } from './routes/_authenticated/aprendizado-ia'
 import { Route as AuthenticatedAgentesWhatsappRouteImport } from './routes/_authenticated/agentes-whatsapp'
 import { Route as AuthenticatedAgendarRouteImport } from './routes/_authenticated/agendar'
 import { Route as AuthenticatedAcessosRouteImport } from './routes/_authenticated/acessos'
@@ -45,6 +46,7 @@ import { Route as ApiPublicWhatsappEvolutionHealthRouteImport } from './routes/a
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 import { Route as ApiPublicHooksWhatsappHealthRouteImport } from './routes/api/public/hooks/whatsapp-health'
 import { Route as ApiPublicHooksLembretesRouteImport } from './routes/api/public/hooks/lembretes'
+import { Route as ApiPublicHooksLearningPatternsRouteImport } from './routes/api/public/hooks/learning-patterns'
 
 const McpRoute = McpRouteImport.update({
   id: '/mcp',
@@ -154,6 +156,12 @@ const AuthenticatedAssinantesRoute = AuthenticatedAssinantesRouteImport.update({
   path: '/assinantes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAprendizadoIaRoute =
+  AuthenticatedAprendizadoIaRouteImport.update({
+    id: '/aprendizado-ia',
+    path: '/aprendizado-ia',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAgentesWhatsappRoute =
   AuthenticatedAgentesWhatsappRouteImport.update({
     id: '/agentes-whatsapp',
@@ -238,6 +246,12 @@ const ApiPublicHooksLembretesRoute = ApiPublicHooksLembretesRouteImport.update({
   path: '/api/public/hooks/lembretes',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicHooksLearningPatternsRoute =
+  ApiPublicHooksLearningPatternsRouteImport.update({
+    id: '/api/public/hooks/learning-patterns',
+    path: '/api/public/hooks/learning-patterns',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -248,6 +262,7 @@ export interface FileRoutesByFullPath {
   '/acessos': typeof AuthenticatedAcessosRoute
   '/agendar': typeof AuthenticatedAgendarRoute
   '/agentes-whatsapp': typeof AuthenticatedAgentesWhatsappRoute
+  '/aprendizado-ia': typeof AuthenticatedAprendizadoIaRoute
   '/assinantes': typeof AuthenticatedAssinantesRoute
   '/assinatura': typeof AuthenticatedAssinaturaRoute
   '/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
@@ -270,6 +285,7 @@ export interface FileRoutesByFullPath {
   '/api/public/test-ia': typeof ApiPublicTestIaRoute
   '/api/public/whatsapp': typeof ApiPublicWhatsappRoute
   '/api/public/whatsapp-evolution': typeof ApiPublicWhatsappEvolutionRouteWithChildren
+  '/api/public/hooks/learning-patterns': typeof ApiPublicHooksLearningPatternsRoute
   '/api/public/hooks/lembretes': typeof ApiPublicHooksLembretesRoute
   '/api/public/hooks/whatsapp-health': typeof ApiPublicHooksWhatsappHealthRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -285,6 +301,7 @@ export interface FileRoutesByTo {
   '/acessos': typeof AuthenticatedAcessosRoute
   '/agendar': typeof AuthenticatedAgendarRoute
   '/agentes-whatsapp': typeof AuthenticatedAgentesWhatsappRoute
+  '/aprendizado-ia': typeof AuthenticatedAprendizadoIaRoute
   '/assinantes': typeof AuthenticatedAssinantesRoute
   '/assinatura': typeof AuthenticatedAssinaturaRoute
   '/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
@@ -307,6 +324,7 @@ export interface FileRoutesByTo {
   '/api/public/test-ia': typeof ApiPublicTestIaRoute
   '/api/public/whatsapp': typeof ApiPublicWhatsappRoute
   '/api/public/whatsapp-evolution': typeof ApiPublicWhatsappEvolutionRouteWithChildren
+  '/api/public/hooks/learning-patterns': typeof ApiPublicHooksLearningPatternsRoute
   '/api/public/hooks/lembretes': typeof ApiPublicHooksLembretesRoute
   '/api/public/hooks/whatsapp-health': typeof ApiPublicHooksWhatsappHealthRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -324,6 +342,7 @@ export interface FileRoutesById {
   '/_authenticated/acessos': typeof AuthenticatedAcessosRoute
   '/_authenticated/agendar': typeof AuthenticatedAgendarRoute
   '/_authenticated/agentes-whatsapp': typeof AuthenticatedAgentesWhatsappRoute
+  '/_authenticated/aprendizado-ia': typeof AuthenticatedAprendizadoIaRoute
   '/_authenticated/assinantes': typeof AuthenticatedAssinantesRoute
   '/_authenticated/assinatura': typeof AuthenticatedAssinaturaRoute
   '/_authenticated/auditoria-sugestoes': typeof AuthenticatedAuditoriaSugestoesRoute
@@ -346,6 +365,7 @@ export interface FileRoutesById {
   '/api/public/test-ia': typeof ApiPublicTestIaRoute
   '/api/public/whatsapp': typeof ApiPublicWhatsappRoute
   '/api/public/whatsapp-evolution': typeof ApiPublicWhatsappEvolutionRouteWithChildren
+  '/api/public/hooks/learning-patterns': typeof ApiPublicHooksLearningPatternsRoute
   '/api/public/hooks/lembretes': typeof ApiPublicHooksLembretesRoute
   '/api/public/hooks/whatsapp-health': typeof ApiPublicHooksWhatsappHealthRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
@@ -363,6 +383,7 @@ export interface FileRouteTypes {
     | '/acessos'
     | '/agendar'
     | '/agentes-whatsapp'
+    | '/aprendizado-ia'
     | '/assinantes'
     | '/assinatura'
     | '/auditoria-sugestoes'
@@ -385,6 +406,7 @@ export interface FileRouteTypes {
     | '/api/public/test-ia'
     | '/api/public/whatsapp'
     | '/api/public/whatsapp-evolution'
+    | '/api/public/hooks/learning-patterns'
     | '/api/public/hooks/lembretes'
     | '/api/public/hooks/whatsapp-health'
     | '/api/public/payments/webhook'
@@ -400,6 +422,7 @@ export interface FileRouteTypes {
     | '/acessos'
     | '/agendar'
     | '/agentes-whatsapp'
+    | '/aprendizado-ia'
     | '/assinantes'
     | '/assinatura'
     | '/auditoria-sugestoes'
@@ -422,6 +445,7 @@ export interface FileRouteTypes {
     | '/api/public/test-ia'
     | '/api/public/whatsapp'
     | '/api/public/whatsapp-evolution'
+    | '/api/public/hooks/learning-patterns'
     | '/api/public/hooks/lembretes'
     | '/api/public/hooks/whatsapp-health'
     | '/api/public/payments/webhook'
@@ -438,6 +462,7 @@ export interface FileRouteTypes {
     | '/_authenticated/acessos'
     | '/_authenticated/agendar'
     | '/_authenticated/agentes-whatsapp'
+    | '/_authenticated/aprendizado-ia'
     | '/_authenticated/assinantes'
     | '/_authenticated/assinatura'
     | '/_authenticated/auditoria-sugestoes'
@@ -460,6 +485,7 @@ export interface FileRouteTypes {
     | '/api/public/test-ia'
     | '/api/public/whatsapp'
     | '/api/public/whatsapp-evolution'
+    | '/api/public/hooks/learning-patterns'
     | '/api/public/hooks/lembretes'
     | '/api/public/hooks/whatsapp-health'
     | '/api/public/payments/webhook'
@@ -483,6 +509,7 @@ export interface RootRouteChildren {
   ApiPublicTestIaRoute: typeof ApiPublicTestIaRoute
   ApiPublicWhatsappRoute: typeof ApiPublicWhatsappRoute
   ApiPublicWhatsappEvolutionRoute: typeof ApiPublicWhatsappEvolutionRouteWithChildren
+  ApiPublicHooksLearningPatternsRoute: typeof ApiPublicHooksLearningPatternsRoute
   ApiPublicHooksLembretesRoute: typeof ApiPublicHooksLembretesRoute
   ApiPublicHooksWhatsappHealthRoute: typeof ApiPublicHooksWhatsappHealthRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
@@ -637,6 +664,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAssinantesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/aprendizado-ia': {
+      id: '/_authenticated/aprendizado-ia'
+      path: '/aprendizado-ia'
+      fullPath: '/aprendizado-ia'
+      preLoaderRoute: typeof AuthenticatedAprendizadoIaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/agentes-whatsapp': {
       id: '/_authenticated/agentes-whatsapp'
       path: '/agentes-whatsapp'
@@ -742,6 +776,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicHooksLembretesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/hooks/learning-patterns': {
+      id: '/api/public/hooks/learning-patterns'
+      path: '/api/public/hooks/learning-patterns'
+      fullPath: '/api/public/hooks/learning-patterns'
+      preLoaderRoute: typeof ApiPublicHooksLearningPatternsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -749,6 +790,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAcessosRoute: typeof AuthenticatedAcessosRoute
   AuthenticatedAgendarRoute: typeof AuthenticatedAgendarRoute
   AuthenticatedAgentesWhatsappRoute: typeof AuthenticatedAgentesWhatsappRoute
+  AuthenticatedAprendizadoIaRoute: typeof AuthenticatedAprendizadoIaRoute
   AuthenticatedAssinantesRoute: typeof AuthenticatedAssinantesRoute
   AuthenticatedAssinaturaRoute: typeof AuthenticatedAssinaturaRoute
   AuthenticatedAuditoriaSugestoesRoute: typeof AuthenticatedAuditoriaSugestoesRoute
@@ -768,6 +810,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAcessosRoute: AuthenticatedAcessosRoute,
   AuthenticatedAgendarRoute: AuthenticatedAgendarRoute,
   AuthenticatedAgentesWhatsappRoute: AuthenticatedAgentesWhatsappRoute,
+  AuthenticatedAprendizadoIaRoute: AuthenticatedAprendizadoIaRoute,
   AuthenticatedAssinantesRoute: AuthenticatedAssinantesRoute,
   AuthenticatedAssinaturaRoute: AuthenticatedAssinaturaRoute,
   AuthenticatedAuditoriaSugestoesRoute: AuthenticatedAuditoriaSugestoesRoute,
@@ -821,6 +864,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicTestIaRoute: ApiPublicTestIaRoute,
   ApiPublicWhatsappRoute: ApiPublicWhatsappRoute,
   ApiPublicWhatsappEvolutionRoute: ApiPublicWhatsappEvolutionRouteWithChildren,
+  ApiPublicHooksLearningPatternsRoute: ApiPublicHooksLearningPatternsRoute,
   ApiPublicHooksLembretesRoute: ApiPublicHooksLembretesRoute,
   ApiPublicHooksWhatsappHealthRoute: ApiPublicHooksWhatsappHealthRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,

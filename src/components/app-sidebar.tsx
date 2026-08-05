@@ -16,6 +16,7 @@ import {
   KeyRound,
   Lock,
   QrCode,
+  Brain,
   
 
 
@@ -46,6 +47,7 @@ const items = [
   { title: "Operadores", url: "/operadores", icon: UserCog, group: "Configuração", key: "operadores" },
   { title: "Sugestões", url: "/sugestoes", icon: Sparkles, group: "Configuração", key: "sugestoes" },
   { title: "Auditoria de sugestões", url: "/auditoria-sugestoes", icon: ClipboardList, group: "Configuração", key: "auditoria-sugestoes" },
+  { title: "Aprendizado da IA", url: "/aprendizado-ia", icon: Brain, group: "Configuração", key: "aprendizado-ia" },
   { title: "Integração Bemp", url: "/integracao-bemp", icon: KeyRound, group: "Configuração", key: "integracao-bemp" },
   { title: "Configuração do WhatsApp", url: "/configuracao-whatsapp", icon: MessageCircle, group: "Configuração", key: "config-whatsapp" },
   { title: "WhatsApp — Agentes", url: "/agentes-whatsapp", icon: QrCode, group: "Configuração", key: "config-whatsapp" },

@@ -10,4 +10,7 @@ export interface AgentOptions {
   persona?: string;
   traceId?: string;
   messageId?: string | null;
+  /** Bloco "MEMÓRIA CONFIRMADA DO CLIENTE" injetado no system prompt. */
+  memoryBlock?: string;
 }
+
