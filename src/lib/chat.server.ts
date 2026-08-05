@@ -63,15 +63,21 @@ function buildTools(sandbox: boolean, forcedUnitId?: string | null, conversation
   const base: Record<string, any> = {
     transfer_conversation_unit: tool({
       description:
-        "Transfere a conversa para outra unidade operacional. Use somente APÓS o cliente confirmar claramente que deseja ser atendido em outra unidade. Não use para simples perguntas informativas.",
+        "Transfere REALMENTE a conversa para outra unidade operacional. Use somente APÓS o cliente confirmar claramente que deseja ser atendido em outra unidade (ex.: após ele dizer 'Sim' para a sua pergunta de confirmação). Não use para simples perguntas informativas.",
       inputSchema: z.object({
         target_unit_id: z.string().describe("O ID da unidade de destino"),
         reason: z.string().optional().describe("Motivo da transferência"),
+        confirmed: z.boolean().describe("Deve ser true se o cliente confirmou explicitamente"),
       }),
-      execute: async ({ target_unit_id, reason }) =>
+      execute: async ({ target_unit_id, reason, confirmed }) =>
         safeTool("transfer_conversation_unit", async () => {
           if (!conversationPhone) throw new Error("ID da conversa não fornecido para transferência.");
+          if (!confirmed) return { success: false, message: "Transferência não confirmada pelo cliente." };
+          
+          console.log(`[transfer] transfer_started for ${conversationPhone} to ${target_unit_id}`);
+          
           if (forcedUnitId === target_unit_id) {
+            console.log(`[transfer] transfer_idempotent for ${conversationPhone}`);
             return { success: true, message: "A conversa já está nesta unidade.", idempotent: true };
           }
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -80,7 +86,13 @@ function buildTools(sandbox: boolean, forcedUnitId?: string | null, conversation
             p_target_unit_id: target_unit_id,
             p_reason: reason || "Solicitado pelo cliente via IA",
           });
-          if (error) throw new Error(error.message);
+          
+          if (error) {
+            console.error(`[transfer] transfer_failed for ${conversationPhone}:`, error.message);
+            throw new Error(error.message);
+          }
+          
+          console.log(`[transfer] transfer_completed for ${conversationPhone} to ${target_unit_id}`);
           return data;
         }),
     }),
