@@ -156,12 +156,16 @@ function buildTools(sandbox: boolean, initialUnitId?: string | null, conversatio
             availableSlots: null,
           };
 
-          await supabaseAdmin
+          const { error: updateError } = await supabaseAdmin
             .from("wa_conversas")
             .update({ customer_context: newContext })
             .eq("phone", conversationKey);
 
-          console.log(`[transfer] transfer_completed and context_reset for ${conversationKey}`);
+          if (updateError) {
+            console.error(`[transfer] context_reset_failed for ${conversationKey}:`, updateError.message);
+          } else {
+            console.log(`[transfer] transfer_completed and context_reset for ${conversationKey}`);
+          }
           
           // Buscar nome da nova unidade
           let newUnitName = `Unidade ${target_unit_id}`;
