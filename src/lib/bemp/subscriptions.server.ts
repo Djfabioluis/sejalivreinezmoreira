@@ -193,20 +193,7 @@ export async function getCustomerActivePlans(params: {
   const container =
     customer?.customer && typeof customer.customer === "object" ? customer.customer : customer;
 
-  let rawPlans = asArray(container);
-  if (rawPlans.length === 0) {
-    for (const key of ["subscription", "active_subscription", "plan", "subscription_plan"]) {
-      const single = container?.[key];
-      if (single && typeof single === "object" && !Array.isArray(single)) {
-        rawPlans = [single];
-        break;
-      }
-    }
-  }
-
-  const evaluated = rawPlans.map(evaluatePlan).filter((p) => p.name.length > 0);
-  const plans = evaluated.filter((p) => p.active);
-  const inactivePlans = evaluated.filter((p) => !p.active);
+  const { plans, inactivePlans, evaluated } = extractPlansFromCustomer(container);
 
   log("subscription_lookup_completed", {
     ok: true,
@@ -221,6 +208,123 @@ export async function getCustomerActivePlans(params: {
 
   return { success: true, found: evaluated.length > 0, plans, inactivePlans };
 }
+
+/** Extrai e avalia os planos a partir do payload do cliente no BEMP. */
+export function extractPlansFromCustomer(container: any): {
+  plans: CustomerPlan[];
+  inactivePlans: CustomerPlan[];
+  evaluated: CustomerPlan[];
+} {
+  let rawPlans = asArray(container);
+  if (rawPlans.length === 0) {
+    for (const key of ["subscription", "active_subscription", "plan", "subscription_plan"]) {
+      const single = container?.[key];
+      if (single && typeof single === "object" && !Array.isArray(single)) {
+        rawPlans = [single];
+        break;
+      }
+    }
+  }
+  const evaluated = rawPlans.map(evaluatePlan).filter((p) => p.name.length > 0);
+  return {
+    plans: evaluated.filter((p) => p.active),
+    inactivePlans: evaluated.filter((p) => !p.active),
+    evaluated,
+  };
+}
+
+export type CustomerByCPFResult =
+  | { success: true; found: false; reason: "customer_not_found"; message: string }
+  | {
+      success: true;
+      found: true;
+      customerId: string | number | null;
+      customerName: string | null;
+      unitId: string | number | null;
+      plans: CustomerPlan[];
+      inactivePlans: CustomerPlan[];
+    };
+
+/**
+ * Consulta o cadastro do cliente no BEMP pelo CPF. SEM CACHE — sempre consulta ao vivo.
+ * O CPF nunca é logado em texto completo.
+ */
+export async function getCustomerByCPF(cpfInput: string): Promise<CustomerByCPFResult> {
+  const cpf = normalizeCPF(cpfInput);
+  log("cpf_lookup_started", { cpf: maskCPF(cpf) });
+
+  const attempts = [
+    `${BEMP_WEBHOOK_BASE}/whatsapp_customer?document=${encodeURIComponent(cpf)}`,
+    `${BEMP_WEBHOOK_BASE}/whatsapp_customer?cpf=${encodeURIComponent(cpf)}`,
+  ];
+
+  let customer: any = null;
+  let lastError: unknown = null;
+  for (const url of attempts) {
+    try {
+      const data = await bempFetch(url);
+      if (data && typeof data === "object") {
+        customer = data;
+        break;
+      }
+    } catch (err) {
+      lastError = err;
+      const message = err instanceof Error ? err.message : String(err);
+      if (!/404|not\s*found|não encontrado/i.test(message)) continue;
+    }
+  }
+
+  if (!customer) {
+    const message = lastError instanceof Error ? lastError.message : String(lastError ?? "");
+    if (lastError && !/404|not\s*found|não encontrado/i.test(message)) {
+      log("cpf_lookup_failed", { cpf: maskCPF(cpf) });
+      throw lastError;
+    }
+    log("cpf_customer_not_found", { cpf: maskCPF(cpf) });
+    return {
+      success: true,
+      found: false,
+      reason: "customer_not_found",
+      message: "Nenhum cadastro localizado para este CPF no BEMP.",
+    };
+  }
+
+  const container =
+    customer?.customer && typeof customer.customer === "object" ? customer.customer : customer;
+
+  const hasIdentity =
+    container?.id != null ||
+    container?.customer_id != null ||
+    container?.name ||
+    container?.nome;
+  if (!hasIdentity) {
+    log("cpf_customer_not_found", { cpf: maskCPF(cpf) });
+    return {
+      success: true,
+      found: false,
+      reason: "customer_not_found",
+      message: "Nenhum cadastro localizado para este CPF no BEMP.",
+    };
+  }
+
+  const { plans, inactivePlans } = extractPlansFromCustomer(container);
+  log("cpf_lookup_completed", {
+    cpf: maskCPF(cpf),
+    active: plans.length,
+    inactive: inactivePlans.length,
+  });
+
+  return {
+    success: true,
+    found: true,
+    customerId: container?.id ?? container?.customer_id ?? null,
+    customerName: container?.name ?? container?.nome ?? null,
+    unitId: container?.salon_id ?? container?.unit_id ?? container?.unidade_id ?? null,
+    plans,
+    inactivePlans,
+  };
+}
+
 
 /**
  * Resolve o serviço do plano na unidade EFETIVA da conversa.
