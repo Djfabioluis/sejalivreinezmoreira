@@ -166,31 +166,49 @@ export type Database = {
       }
       evo_events: {
         Row: {
+          assistant_response_id: string | null
+          assistant_response_status: string | null
           created_at: string | null
+          error_detail: string | null
           id: string
           instance: string
           message_id: string
+          payload: Json | null
           processed_at: string | null
+          processing_started_at: string | null
           remote_jid: string | null
           status: string | null
+          trace_id: string | null
         }
         Insert: {
+          assistant_response_id?: string | null
+          assistant_response_status?: string | null
           created_at?: string | null
+          error_detail?: string | null
           id?: string
           instance: string
           message_id: string
+          payload?: Json | null
           processed_at?: string | null
+          processing_started_at?: string | null
           remote_jid?: string | null
           status?: string | null
+          trace_id?: string | null
         }
         Update: {
+          assistant_response_id?: string | null
+          assistant_response_status?: string | null
           created_at?: string | null
+          error_detail?: string | null
           id?: string
           instance?: string
           message_id?: string
+          payload?: Json | null
           processed_at?: string | null
+          processing_started_at?: string | null
           remote_jid?: string | null
           status?: string | null
+          trace_id?: string | null
         }
         Relationships: []
       }
@@ -705,11 +723,36 @@ export type Database = {
           },
         ]
       }
+      wa_conversation_locks: {
+        Row: {
+          acquired_at: string
+          conversation_key: string
+          expires_at: string
+          trace_id: string
+        }
+        Insert: {
+          acquired_at?: string
+          conversation_key: string
+          expires_at?: string
+          trace_id: string
+        }
+        Update: {
+          acquired_at?: string
+          conversation_key?: string
+          expires_at?: string
+          trace_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      acquire_conversation_lock: {
+        Args: { p_conversation_key: string; p_trace_id: string }
+        Returns: boolean
+      }
       append_wa_message: {
         Args: {
           p_contact_name?: string
@@ -720,6 +763,15 @@ export type Database = {
           p_new_status?: string
           p_phone: string
           p_phone_number?: string
+        }
+        Returns: Json
+      }
+      evo_claim_event: {
+        Args: {
+          p_instance: string
+          p_message_id: string
+          p_remote_jid: string
+          p_trace_id: string
         }
         Returns: Json
       }
@@ -735,6 +787,10 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      release_conversation_lock: {
+        Args: { p_conversation_key: string; p_trace_id: string }
+        Returns: undefined
       }
       transfer_conversation_unit: {
         Args: {
