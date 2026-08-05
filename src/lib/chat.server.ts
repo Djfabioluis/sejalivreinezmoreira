@@ -204,7 +204,12 @@ async function resolveServiceForEffectiveUnit(params: { serviceName: string; eff
   return found || null;
 }
 
-function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conversationKey?: string) {
+function buildTools(
+  sandbox: boolean,
+  fallbackAgentUnitId?: string | null,
+  conversationKey?: string,
+  currentMessageId?: string | null,
+) {
   // Sombreia o helper do módulo injetando o contexto da conversa em todos os logs de tool.
   const safeTool = <T,>(label: string, fn: () => Promise<T>) =>
     runTool(label, fn, { conversationKey, effectiveUnitId: fallbackAgentUnitId });
@@ -249,6 +254,19 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
           }
 
           console.log(`[transfer] transfer_completed and context_reset at database level for ${conversationKey}`);
+
+          // Plano: preserva o nome do plano, mas descarta o service_id da unidade anterior.
+          const previousContext = ((conv as any).customer_context ?? {}) as Record<string, unknown>;
+          if (previousContext.subscriptionPlanName) {
+            await patchCustomerContext(conversationKey, {
+              subscriptionPlanName: previousContext.subscriptionPlanName,
+              subscriptionPlanId: previousContext.subscriptionPlanId ?? null,
+              subscriptionServiceId: null,
+              subscriptionServiceName: null,
+              subscriptionUnitId: target_unit_id,
+            });
+            console.log("[bemp-plan] subscription_service_reset_after_transfer");
+          }
 
           // Descartar atribuições em cache da unidade anterior e da nova unidade.
           try {
@@ -959,6 +977,293 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
           }
         }),
     }),
+    get_customer_active_plans: tool({
+      description:
+        "Consulta no BEMP se o cliente possui plano de assinatura ATIVO (usando o telefone do WhatsApp). Chame SEMPRE que o cliente mencionar plano, benefício, assinatura ou 'quero usar meu plano'. Retorna os planos ativos com validade e saldo, e também os planos inválidos com o motivo.",
+      inputSchema: z.object({
+        phone_country_code: z.string(),
+        phone_area_code: z.string(),
+        phone_number: z.string(),
+      }),
+      execute: async ({ phone_country_code, phone_area_code, phone_number }) =>
+        safeTool("get_customer_active_plans", async () => {
+          const { getCustomerActivePlans } = await import("@/lib/bemp/subscriptions.server");
+          const res = await getCustomerActivePlans({
+            phoneCountry: phone_country_code,
+            phoneArea: phone_area_code,
+            phoneNumber: phone_number,
+          });
+
+          const plans = res.plans.map((p) => ({
+            id: p.id,
+            name: p.name,
+            status: p.status,
+            validUntil: p.validUntil,
+            availableUses: p.availableUses,
+            benefitServiceName: p.serviceName,
+          }));
+
+          if (plans.length === 1) {
+            const only = res.plans[0]!;
+            await patchCustomerContext(conversationKey, {
+              subscriptionPlanId: only.id,
+              subscriptionPlanName: only.name,
+              subscriptionStatus: only.status,
+              subscriptionBenefitAvailable: true,
+              subscriptionServiceName: only.serviceName,
+              subscriptionCheckedAt: new Date().toISOString(),
+            });
+          } else if (plans.length === 0) {
+            await patchCustomerContext(conversationKey, {
+              subscriptionBenefitAvailable: false,
+              subscriptionCheckedAt: new Date().toISOString(),
+            });
+          }
+
+          return {
+            success: true,
+            found: res.found,
+            plans,
+            multiplePlans: plans.length > 1,
+            invalidPlans: res.inactivePlans.map((p) => ({
+              name: p.name,
+              status: p.status,
+              reason: p.inactiveReason,
+              validUntil: p.validUntil,
+              availableUses: p.availableUses,
+            })),
+            message:
+              plans.length === 0 && res.inactivePlans.length > 0
+                ? "Plano localizado, porém sem utilização disponível/ativo. NÃO agende como benefício."
+                : undefined,
+          };
+        }),
+    }),
+    resolve_subscription_service: tool({
+      description:
+        "Resolve, na unidade EFETIVA da conversa, qual serviço do BEMP corresponde ao plano do cliente (ex.: plano de manicure → 'Manicure Plano Beauty'). Chame antes de consultar profissionais/horários de um agendamento por plano. O backend resolve o service_id — nunca invente IDs.",
+      inputSchema: z.object({
+        plan_name: z.string().describe("Nome do plano retornado por get_customer_active_plans"),
+      }),
+      execute: async ({ plan_name }) =>
+        safeTool("resolve_subscription_service", async () => {
+          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: fallbackAgentUnitId });
+          if (!effectiveUnitId) throw new Error("ID da unidade não resolvido.");
+          const { resolveSubscriptionService } = await import("@/lib/bemp/subscriptions.server");
+          const res = await resolveSubscriptionService({ planName: plan_name, effectiveUnitId });
+
+          if (!res.success) {
+            return {
+              success: false,
+              code: res.code,
+              planType: res.planType,
+              serviceName: res.serviceName,
+              message:
+                res.code === "plan_not_mapped"
+                  ? "Não foi possível identificar o serviço do plano. Peça confirmação ao cliente ou encaminhe para atendimento humano."
+                  : "O serviço do plano não está disponível nesta unidade. NÃO use o serviço comum como substituto: informe a indisponibilidade ou ofereça transferência de unidade.",
+            };
+          }
+
+          await patchCustomerContext(conversationKey, {
+            subscriptionPlanName: plan_name,
+            subscriptionServiceName: res.serviceName,
+            subscriptionServiceId: res.serviceId,
+            subscriptionUnitId: effectiveUnitId,
+            subscriptionCheckedAt: new Date().toISOString(),
+          });
+
+          return {
+            success: true,
+            planType: res.planType,
+            serviceId: res.serviceId,
+            serviceName: res.serviceName,
+            unitId: effectiveUnitId,
+          };
+        }),
+    }),
+    create_subscription_appointment: tool({
+      description:
+        "Cria o agendamento usando o BENEFÍCIO do plano de assinatura. Use no lugar de create_appointment quando o atendimento for por plano. O backend revalida plano, saldo, unidade e resolve o service_id correto — informe apenas o nome do plano. Só chame após a confirmação explícita do resumo pelo cliente.",
+      inputSchema: z.object({
+        plan_name: z.string(),
+        professional_id: z.number().optional(),
+        start: z.string().describe("ISO 8601"),
+        end: z.string().describe("ISO 8601"),
+        name: z.string(),
+        phone_country_code: z.string(),
+        phone_area_code: z.string(),
+        phone_number: z.string(),
+      }),
+      execute: async (input) =>
+        safeTool("create_subscription_appointment", async () => {
+          const {
+            getCustomerActivePlans,
+            resolveSubscriptionService,
+            subscriptionAppointmentKey,
+            getIdempotentSubscriptionResult,
+            rememberSubscriptionResult,
+            normalizeSubscriptionPlanName,
+          } = await import("@/lib/bemp/subscriptions.server");
+
+          console.log("[bemp-plan] subscription_appointment_started");
+
+          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: fallbackAgentUnitId });
+          if (!effectiveUnitId) throw new Error("ID da unidade não resolvido.");
+
+          // 1. Revalidar o plano no BEMP (nunca confiar apenas no contexto local).
+          const lookup = await getCustomerActivePlans({
+            phoneCountry: input.phone_country_code,
+            phoneArea: input.phone_area_code,
+            phoneNumber: input.phone_number,
+          });
+          const wanted = normalizeSubscriptionPlanName(input.plan_name);
+          const plan =
+            lookup.plans.find((p) => normalizeSubscriptionPlanName(p.name) === wanted) ??
+            lookup.plans.find((p) => p.serviceName && normalizeSubscriptionPlanName(p.name).includes(wanted)) ??
+            (lookup.plans.length === 1 ? lookup.plans[0]! : null);
+
+          if (!plan) {
+            console.warn("[bemp-plan] subscription_appointment_failed: plan_not_active");
+            return {
+              success: false,
+              code: "plan_not_active",
+              message:
+                "Seu plano foi localizado, mas não há utilização disponível no momento. Ofereça o agendamento como serviço comum ou atendimento humano. NUNCA diga que o benefício foi utilizado.",
+              invalidPlans: lookup.inactivePlans.map((p) => ({ name: p.name, reason: p.inactiveReason })),
+            };
+          }
+          if (plan.availableUses !== null && plan.availableUses <= 0) {
+            console.warn("[bemp-plan] subscription_plan_no_balance");
+            return { success: false, code: "plan_no_balance", message: "Plano ativo, porém sem saldo de utilização." };
+          }
+
+          // 2. Resolver o serviço do plano NA UNIDADE ATUAL (nunca reutilizar id de outra unidade).
+          const resolved = await resolveSubscriptionService({ planName: plan.name, effectiveUnitId });
+          if (!resolved.success) {
+            console.warn(`[bemp-plan] subscription_appointment_failed: ${resolved.code}`);
+            return {
+              success: false,
+              code: resolved.code,
+              message:
+                "O serviço do plano não está disponível nesta unidade. Não substitua pelo serviço comum: informe a indisponibilidade ou ofereça transferência.",
+            };
+          }
+
+          // 3. Idempotência: mesma confirmação nunca cria dois agendamentos.
+          const idemKey = subscriptionAppointmentKey({
+            conversationKey,
+            messageId: currentMessageId,
+            planId: plan.id,
+            serviceId: resolved.serviceId,
+            start: input.start,
+          });
+          const previous = getIdempotentSubscriptionResult(idemKey);
+          if (previous) {
+            console.log("[bemp-plan] subscription_appointment_completed: idempotent_replay");
+            return previous as Record<string, unknown>;
+          }
+
+          // 4. Validar profissional atribuído ao serviço do plano.
+          const { validateProfessionalServiceAssignment, getProfessionalsForService } = await import(
+            "@/lib/bemp/assignments.server"
+          );
+          if (input.professional_id != null) {
+            const check = await validateProfessionalServiceAssignment({
+              unitId: effectiveUnitId,
+              professionalId: input.professional_id,
+              serviceId: resolved.serviceId,
+            });
+            if (!check.valid) {
+              return {
+                success: false,
+                code: "professional_not_assigned_to_service",
+                message: "Esse profissional não realiza o serviço do plano nesta unidade.",
+              };
+            }
+          }
+
+          const fullInput = {
+            salon_id: Number(effectiveUnitId),
+            service_id: Number(resolved.serviceId),
+            professional_id: input.professional_id,
+            start: input.start,
+            end: input.end,
+            name: input.name,
+            phone_country_code: input.phone_country_code,
+            phone_area_code: input.phone_area_code,
+            phone_number: input.phone_number,
+          };
+
+          if (sandbox) {
+            const simulated = {
+              success: true,
+              sandbox: true,
+              simulated: true,
+              id: `SIM-PLAN-${Date.now()}`,
+              plan_name: plan.name,
+              service_name: resolved.serviceName,
+              appointment: fullInput,
+            };
+            rememberSubscriptionResult(idemKey, simulated);
+            return simulated;
+          }
+
+          const assignedPros = await getProfessionalsForService(effectiveUnitId, resolved.serviceId);
+          const shouldMarkPreference = input.professional_id != null && assignedPros.length > 1;
+          const payload = shouldMarkPreference ? withProfessionalPreferenceNote(fullInput) : { ...fullInput };
+
+          const result = await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule`, {
+            method: "POST",
+            body: JSON.stringify(payload),
+          });
+          if (shouldMarkPreference) await tryUpdateBempScheduleNote(result, PROFESSIONAL_PREFERENCE_NOTE);
+
+          const bempId = extractBempAppointmentId(result);
+          const success = { 
+            success: true,
+            appointment_id: bempId,
+            plan_name: plan.name,
+            plan_id: plan.id,
+            service_id: resolved.serviceId,
+            service_name: resolved.serviceName,
+            unit_id: effectiveUnitId,
+            start: input.start,
+            result,
+          };
+
+          try {
+            const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+            await supabaseAdmin.from("agendamentos_notif" as never).insert({
+              bemp_appointment_id: bempId,
+              salon_id: String(effectiveUnitId),
+              service_id: String(resolved.serviceId),
+              service_name: resolved.serviceName,
+              start_at: input.start,
+              phone: `${input.phone_country_code}${input.phone_area_code}${input.phone_number}`,
+              name: input.name,
+              sandbox: false,
+              confirmation_sent_at: new Date().toISOString(),
+            } as never);
+          } catch (err) {
+            console.error("[bemp-plan] notif_insert_failed", err);
+          }
+
+          await patchCustomerContext(conversationKey, {
+            subscriptionPlanId: plan.id,
+            subscriptionPlanName: plan.name,
+            subscriptionStatus: plan.status,
+            subscriptionServiceId: resolved.serviceId,
+            subscriptionServiceName: resolved.serviceName,
+            subscriptionUnitId: effectiveUnitId,
+            subscriptionCheckedAt: new Date().toISOString(),
+          });
+
+          rememberSubscriptionResult(idemKey, success);
+          console.log("[bemp-plan] subscription_appointment_completed");
+          return success;
+        }),
+    }),
     register_subscription_lead: tool({
       description:
         "Registra o interesse do cliente em um plano de assinatura (cria o cadastro no nosso backend). Use SOMENTE após confirmação explícita do cliente. A equipe da unidade finaliza o pagamento e ativa a assinatura na Bemp.",
@@ -1559,6 +1864,18 @@ export function mandatoryOperationalRules(opts: {
     "- Nunca crie agendamento sem que a combinação unidade + serviço + profissional tenha sido validada; se retornar professional_not_assigned_to_service, ofereça profissionais válidos ou serviços atribuídos ao profissional.",
     "- Nunca exiba IDs técnicos ao cliente. Liste profissionais com 💜 *Nome* e serviços com • *Nome*.",
     "- Se houver apenas um profissional disponível para o serviço, NUNCA pergunte preferência nem apresente a opção 'Sem preferência'; informe o profissional selecionado com entusiasmo e avance.",
+    "- PLANOS DE ASSINATURA (BENEFÍCIO): se o cliente mencionar plano, benefício, assinatura ou disser \"quero usar meu plano\", chame SEMPRE get_customer_active_plans antes de qualquer outra coisa.",
+    "- Mapeamento oficial de benefícios (resolvido pelo backend, nunca invente): plano de manicure → *Manicure Plano Beauty*; plano de escova → *Escova Plano Beauty*; plano de hidratação e escova → *Hidratação e Escova*.",
+    "- Quando houver plano ativo, NÃO pergunte qual serviço o cliente deseja: o plano já determina o serviço. Informe o benefício e siga para profissional, data e horário.",
+    "- Depois de identificar o plano, chame resolve_subscription_service para obter o serviço correto NA UNIDADE ATUAL; só então chame list_professionals e list_slots com esse service_id.",
+    "- NUNCA agende o serviço comum (\"Manicure\", \"Escova\", \"Hidratação\") quando existir serviço específico do plano, e nunca separe \"Hidratação e Escova\" em dois agendamentos.",
+    "- Se houver MAIS DE UM plano ativo, pergunte qual benefício o cliente deseja usar e nunca escolha automaticamente:\n\"Encontrei estes benefícios ativos:\n\n💜 *<Benefício 1>*\n💜 *<Benefício 2>*\n\nQual deles você deseja agendar?\"",
+    "- Se o plano estiver vencido, cancelado, suspenso ou sem utilização disponível, responda \"Seu plano foi localizado, mas não há utilização disponível no momento.\" e ofereça agendamento como serviço comum, atendimento humano ou orientação de renovação. NUNCA diga que o benefício foi utilizado sem confirmação do BEMP.",
+    "- Se o serviço do plano não existir na unidade atual, informe a indisponibilidade e ofereça transferência de unidade. É PROIBIDO usar o serviço comum como substituto silencioso.",
+    "- Após transferência de unidade, resolva o serviço do plano NOVAMENTE na nova unidade (resolve_subscription_service) e nunca reutilize service_id ou profissional da unidade anterior.",
+    "- Para agendamentos por plano use create_subscription_appointment (não create_appointment), informando apenas o nome do plano: o backend resolve unidade, service_id e valida saldo. Nunca invente IDs técnicos.",
+    "- Antes de criar o agendamento por plano, mostre SEMPRE o resumo:\n\"📌 *Confirmação do agendamento*\n\n💜 Plano: <plano>\n✨ Serviço: <serviço do plano>\n👤 Profissional: <nome>\n📅 Data: <data>\n🕐 Horário: <horário>\n📍 Unidade: <unidade>\n\nPosso confirmar?\"",
+    "- Após a confirmação e o sucesso no BEMP, envie apenas UMA mensagem final de confirmação.",
     "- NUNCA use aspas triplas no conteúdo da resposta.",
   ];
 
@@ -1696,6 +2013,8 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
 - Horário: ${ctx.preferredTime || "não informado"}
 - Nome Confirmado: ${ctx.name || "não informado"}
 - Etapa: ${ctx.currentStep || "início"}
+- Plano de assinatura: ${ctx.subscriptionPlanName || "não identificado"}
+- Serviço do benefício: ${ctx.subscriptionServiceName || "não resolvido"}${ctx.subscriptionServiceId ? ` (id ${ctx.subscriptionServiceId})` : ""}
 `.trim();
   }
 
@@ -1736,7 +2055,7 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
     model: getModel(),
     system,
     messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
-    tools: buildTools(sandbox, effectiveUnitId, opts.conversationKey || undefined),
+    tools: buildTools(sandbox, effectiveUnitId, opts.conversationKey || undefined, opts.messageId ?? null),
     stopWhen: stepCountIs(5),
   });
 }
@@ -1847,7 +2166,8 @@ export async function runAgentWithLogging(params: {
       contactName: pushName || (historyData?.contact_name as string),
       contactPhone: phone,
       customerContext: historyData?.customer_context || {},
-      conversationKey
+      conversationKey,
+      messageId,
     });
 
     if (!reply || reply.trim().length === 0) {
@@ -1933,6 +2253,8 @@ export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {})
 - Horário: ${ctx.preferredTime || "não informado"}
 - Nome Confirmado: ${ctx.name || "não informado"}
 - Etapa: ${ctx.currentStep || "início"}
+- Plano de assinatura: ${ctx.subscriptionPlanName || "não identificado"}
+- Serviço do benefício: ${ctx.subscriptionServiceName || "não resolvido"}${ctx.subscriptionServiceId ? ` (id ${ctx.subscriptionServiceId})` : ""}
 `.trim();
   }
 
@@ -1974,7 +2296,7 @@ export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {})
     model: getModel(),
     system: fullSystem,
     messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
-    tools: buildTools(sandbox, effectiveUnitId, opts.conversationKey || undefined),
+    tools: buildTools(sandbox, effectiveUnitId, opts.conversationKey || undefined, opts.messageId ?? null),
 
     stopWhen: stepCountIs(5),
     abortSignal: AbortSignal.timeout(60000),

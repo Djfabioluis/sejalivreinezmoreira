@@ -9,4 +9,5 @@ export interface AgentOptions {
   conversationKey?: string;
   persona?: string;
   traceId?: string;
+  messageId?: string | null;
 }
