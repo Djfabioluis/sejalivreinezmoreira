@@ -95,6 +95,45 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_response_feedback: {
+        Row: {
+          conversation_id: string | null
+          corrected_answer: string | null
+          created_at: string
+          created_by: string | null
+          feedback_type: string
+          id: string
+          message_id: string | null
+          operator_notes: string | null
+          rating: number | null
+          response_id: string | null
+        }
+        Insert: {
+          conversation_id?: string | null
+          corrected_answer?: string | null
+          created_at?: string
+          created_by?: string | null
+          feedback_type?: string
+          id?: string
+          message_id?: string | null
+          operator_notes?: string | null
+          rating?: number | null
+          response_id?: string | null
+        }
+        Update: {
+          conversation_id?: string | null
+          corrected_answer?: string | null
+          created_at?: string
+          created_by?: string | null
+          feedback_type?: string
+          id?: string
+          message_id?: string | null
+          operator_notes?: string | null
+          rating?: number | null
+          response_id?: string | null
+        }
+        Relationships: []
+      }
       atendimentos_humanos: {
         Row: {
           canal: string
@@ -163,6 +202,134 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      customer_ai_memory: {
+        Row: {
+          anonymized_at: string | null
+          appointment_summary: Json
+          bemp_customer_id: string | null
+          communication_preferences: Json
+          confidence_score: number
+          contact_name: string | null
+          created_at: string
+          field_sources: Json
+          id: string
+          important_notes: Json
+          last_interaction_at: string | null
+          memory_summary: string | null
+          memory_version: number
+          org_key: string
+          pending_topics: Json
+          phone_normalized: string
+          phone_number: string | null
+          preferred_days: Json
+          preferred_name: string | null
+          preferred_professionals: Json
+          preferred_services: Json
+          preferred_times: Json
+          preferred_unit_id: string | null
+          restrictions: Json
+          subscription_summary: Json
+          updated_at: string
+        }
+        Insert: {
+          anonymized_at?: string | null
+          appointment_summary?: Json
+          bemp_customer_id?: string | null
+          communication_preferences?: Json
+          confidence_score?: number
+          contact_name?: string | null
+          created_at?: string
+          field_sources?: Json
+          id?: string
+          important_notes?: Json
+          last_interaction_at?: string | null
+          memory_summary?: string | null
+          memory_version?: number
+          org_key?: string
+          pending_topics?: Json
+          phone_normalized: string
+          phone_number?: string | null
+          preferred_days?: Json
+          preferred_name?: string | null
+          preferred_professionals?: Json
+          preferred_services?: Json
+          preferred_times?: Json
+          preferred_unit_id?: string | null
+          restrictions?: Json
+          subscription_summary?: Json
+          updated_at?: string
+        }
+        Update: {
+          anonymized_at?: string | null
+          appointment_summary?: Json
+          bemp_customer_id?: string | null
+          communication_preferences?: Json
+          confidence_score?: number
+          contact_name?: string | null
+          created_at?: string
+          field_sources?: Json
+          id?: string
+          important_notes?: Json
+          last_interaction_at?: string | null
+          memory_summary?: string | null
+          memory_version?: number
+          org_key?: string
+          pending_topics?: Json
+          phone_normalized?: string
+          phone_number?: string | null
+          preferred_days?: Json
+          preferred_name?: string | null
+          preferred_professionals?: Json
+          preferred_services?: Json
+          preferred_times?: Json
+          preferred_unit_id?: string | null
+          restrictions?: Json
+          subscription_summary?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      customer_ai_memory_versions: {
+        Row: {
+          change_reason: string | null
+          changed_by: string | null
+          changed_by_source: string | null
+          created_at: string
+          id: string
+          memory_id: string
+          snapshot: Json
+          version: number
+        }
+        Insert: {
+          change_reason?: string | null
+          changed_by?: string | null
+          changed_by_source?: string | null
+          created_at?: string
+          id?: string
+          memory_id: string
+          snapshot: Json
+          version: number
+        }
+        Update: {
+          change_reason?: string | null
+          changed_by?: string | null
+          changed_by_source?: string | null
+          created_at?: string
+          id?: string
+          memory_id?: string
+          snapshot?: Json
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_ai_memory_versions_memory_id_fkey"
+            columns: ["memory_id"]
+            isOneToOne: false
+            referencedRelation: "customer_ai_memory"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       evo_events: {
         Row: {
@@ -245,6 +412,54 @@ export type Database = {
           message_id?: string | null
           payload?: Json | null
           status?: string
+        }
+        Relationships: []
+      }
+      knowledge_suggestions: {
+        Row: {
+          category: string
+          confidence_score: number
+          created_at: string
+          evidence_summary: string | null
+          id: string
+          occurrence_count: number
+          reviewed_at: string | null
+          reviewed_by: string | null
+          source_conversation_id: string | null
+          status: string
+          suggested_content: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string
+          confidence_score?: number
+          created_at?: string
+          evidence_summary?: string | null
+          id?: string
+          occurrence_count?: number
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source_conversation_id?: string | null
+          status?: string
+          suggested_content: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string
+          confidence_score?: number
+          created_at?: string
+          evidence_summary?: string | null
+          id?: string
+          occurrence_count?: number
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source_conversation_id?: string | null
+          status?: string
+          suggested_content?: string
+          title?: string
+          updated_at?: string
         }
         Relationships: []
       }

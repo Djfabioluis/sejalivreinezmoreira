@@ -17,6 +17,7 @@ export const ALL_PERMISSIONS = [
   "usuarios",
   "assinantes",
   "permissoes",
+  "aprendizado-ia",
 ] as const;
 
 export type PermissionKey = (typeof ALL_PERMISSIONS)[number];

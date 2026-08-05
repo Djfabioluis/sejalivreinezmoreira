@@ -2049,7 +2049,9 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
              contactName: opts.contactName,
              contactPhone: opts.contactPhone,
              hasHistory: uiMessages.length > 1,
-           });
+           }) +
+           (opts.memoryBlock ? opts.memoryBlock : "");
+
 
   return streamText({
     model: getModel(),
@@ -2160,6 +2162,14 @@ export async function runAgentWithLogging(params: {
 
     const currentUnitName = effectiveUnitName || unitName;
 
+    // Memória permanente do cliente (aprendizado contínuo) — nunca bloqueia o atendimento.
+    const { loadMemoryForAgent } = await import("./memory/pipeline.server");
+    const { promptBlock: memoryBlock } = await loadMemoryForAgent({
+      phone,
+      instance,
+      contactName: pushName || (historyData?.contact_name as string) || null,
+    });
+
     const reply = await runAgent(historyMessages, {
       unidadeId: effectiveUnitId || undefined,
       unitName: currentUnitName || undefined,
@@ -2168,7 +2178,9 @@ export async function runAgentWithLogging(params: {
       customerContext: historyData?.customer_context || {},
       conversationKey,
       messageId,
+      memoryBlock,
     });
+
 
     if (!reply || reply.trim().length === 0) {
       await logEvent({ instance, messageId, event: "ai_empty_response", status: "failed" });
@@ -2194,6 +2206,28 @@ export async function runAgentWithLogging(params: {
       conversationKey,
       messageId
     });
+
+    // Aprendizado contínuo: extrai e mescla a memória depois da resposta enviada.
+    try {
+      const { learnFromInteraction } = await import("./memory/pipeline.server");
+      await learnFromInteraction({
+        phone,
+        instance,
+        conversationKey,
+        contactName: pushName || (historyData?.contact_name as string) || null,
+        newMessage: text,
+        assistantReply: reply,
+        recentHistory: historyMessages.slice(-8).map((m: any) => ({
+          role: String(m.role),
+          text: Array.isArray(m.parts) ? m.parts.map((p: any) => p?.text ?? "").join(" ") : "",
+        })),
+        customerContext: (historyData?.customer_context as Record<string, unknown>) || {},
+      });
+    } catch (memErr) {
+      console.warn("[memory] pós-processamento ignorado:", memErr);
+    }
+
+
 
   } catch (error) {
     const info = describeError(error);
@@ -2290,6 +2324,7 @@ export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {})
                  contactPhone: opts.contactPhone,
                  hasHistory: uiMessages.length > 1,
                }) +
+               (opts.memoryBlock ? opts.memoryBlock : "") +
                `\n\nUNIDADE ATUAL DA CONVERSA (PRIORIDADE ABSOLUTA):\n- Unidade operacional: ${currentUnitName || "não definida"}\n- ID: ${effectiveUnitId}\n- Origem: ${source === "conversation" ? "Transferência ativa" : "Padrão do canal"}\n- NUNCA pergunte a unidade se ela já estiver definida acima.`;
 
   const result = await generateText({

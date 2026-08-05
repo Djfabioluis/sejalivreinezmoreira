@@ -40,6 +40,7 @@ const LABELS: Record<PermissionKey, string> = {
   usuarios: "Usuários",
   assinantes: "Assinantes",
   permissoes: "Permissões",
+  "aprendizado-ia": "Aprendizado da IA",
 };
 
 const ADMIN_ONLY: PermissionKey[] = ["acessos", "usuarios", "assinantes", "permissoes", "integracao-bemp"];
