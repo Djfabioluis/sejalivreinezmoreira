@@ -44,7 +44,7 @@ export function normalizeEvolutionMessages(payload: any, requestUrl: string): No
     // EXTRAÇÃO NORMALIZADA conforme especificação
     const key = msg.key ?? {};
     const remoteJid = key.remoteJid ?? msg.remoteJid ?? null;
-    const messageId = key.id ?? msg.messageId ?? null;
+    const messageId = key.id ?? msg.messageId ?? undefined; // Não usar null aqui para não quebrar checkIdempotency
     const pushName = msg.pushName ?? payload.pushName ?? null;
     const messageContent = msg.message ?? msg;
     const timestamp = Number(msg.messageTimestamp ?? payload.messageTimestamp ?? Date.now() / 1000);
