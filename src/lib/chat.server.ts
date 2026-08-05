@@ -1630,7 +1630,7 @@ export async function runAgentWithLogging(params: {
 
     const reply = await runAgent(historyMessages, {
       unidadeId: effectiveUnitId,
-      unitName,
+      unitName: currentUnitName,
       contactName: pushName || (historyData?.contact_name as string),
       contactPhone: phone,
       customerContext: historyData?.customer_context || {},
