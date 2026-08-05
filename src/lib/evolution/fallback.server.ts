@@ -64,7 +64,12 @@ export async function handleAIFallback(params: {
     const sent = await sendEvolutionText(params.instance, params.phone, text);
 
     if (sent) {
-      await (supabaseAdmin.rpc as unknown as (fn: string, args: Record<string, unknown>) => Promise<unknown>)("append_wa_message", {
+      await (
+        supabaseAdmin.rpc as unknown as (
+          fn: string,
+          args: Record<string, unknown>,
+        ) => Promise<unknown>
+      )("append_wa_message", {
         p_phone: params.conversationKey,
         p_message: {
           id: `fallback-${Date.now()}`,
