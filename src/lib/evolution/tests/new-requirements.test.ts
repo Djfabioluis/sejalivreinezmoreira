@@ -11,7 +11,14 @@ vi.mock("@/integrations/supabase/client.server", () => ({
     update: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
     insert: vi.fn().mockResolvedValue({ error: null }),
-    rpc: vi.fn().mockResolvedValue({ data: true, error: null }),
+    match: vi.fn().mockReturnThis(),
+    neq: vi.fn().mockResolvedValue({ error: null }),
+    rpc: vi.fn().mockImplementation((fn: string) =>
+      Promise.resolve({
+        data: fn === "evo_claim_event" ? { claimed: true, reason: "new_event" } : true,
+        error: null,
+      }),
+    ),
     maybeSingle: vi.fn()
   }
 }));
@@ -47,7 +54,7 @@ describe("Evolution Flow - Novos Requisitos", () => {
     };
     await processMessagesUpsert(payload, "http://loc/api");
     expect(loggerServer.logEvent).toHaveBeenCalledWith(expect.objectContaining({
-      event: "from_me_ignored"
+      event: "message_ignored_from_me"
     }));
   });
 
