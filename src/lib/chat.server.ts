@@ -359,7 +359,7 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
       execute: async ({ salon_id, service_id, professional_id, date }) =>
         safeTool("list_slots", async () => {
           const cfg = await getBempConfig();
-          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: initialUnitId });
+          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: fallbackAgentUnitId });
           if (!effectiveUnitId) throw new Error("ID da unidade não resolvido.");
           const url = professional_id
             ? `${cfg.apiBase}/salons/${effectiveUnitId}/services/${service_id}/professionals/${professional_id}/slots/${date}`
