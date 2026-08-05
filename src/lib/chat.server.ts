@@ -1891,13 +1891,26 @@ export async function runAgentWithLogging(params: {
     });
 
   } catch (error) {
-    console.error("[chat] Erro em runAgentWithLogging:", error);
+    const info = describeError(error);
+    const failure = classifyFailure(error);
+    console.error(
+      `[chat] ai_request_failed: conversationKey=${conversationKey}, unitId=${unidadeId}, code=${failure.code}, name=${info.name}, message=${info.message}`,
+    );
+    if (info.stack) console.error(`[chat] ai_request_failed_stack:\n${info.stack}`);
     await logEvent({
       instance,
       messageId,
       event: "ai_request_failed",
       status: "error",
-      errorDetail: error instanceof Error ? error.message : String(error)
+      errorDetail: info.message,
+      payload: {
+        failureCode: failure.code,
+        expected: failure.expected,
+        errorName: info.name,
+        errorStatus: info.status ?? null,
+        errorCode: info.code ?? null,
+        stack: info.stack,
+      },
     });
 
     const { handleAIFallback } = await import("./evolution/fallback.server");
@@ -1907,8 +1920,10 @@ export async function runAgentWithLogging(params: {
       conversationKey,
       messageId,
       contactName: pushName || null,
-      reason: error instanceof Error ? error.message : String(error),
+      reason: info.message,
+      error,
     });
+
   }
 }
 
