@@ -59,7 +59,22 @@ function safeTool<T>(label: string, fn: () => Promise<T>) {
   });
 }
 
-function buildTools(sandbox: boolean, forcedUnitId?: string | null, conversationPhone?: string) {
+async function resolveEffectiveUnitId(conversationKey: string | undefined, fallbackUnitId: string | null | undefined) {
+  if (!conversationKey) return fallbackUnitId;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("wa_conversas")
+    .select("unidade_id")
+    .eq("phone", conversationKey)
+    .maybeSingle();
+  
+  if (error || !data?.unidade_id) {
+    return fallbackUnitId;
+  }
+  return data.unidade_id;
+}
+
+function buildTools(sandbox: boolean, initialUnitId?: string | null, conversationKey?: string) {
   const base: Record<string, any> = {
     transfer_conversation_unit: tool({
       description:
@@ -71,29 +86,57 @@ function buildTools(sandbox: boolean, forcedUnitId?: string | null, conversation
       }),
       execute: async ({ target_unit_id, reason, confirmed }) =>
         safeTool("transfer_conversation_unit", async () => {
-          if (!conversationPhone) throw new Error("ID da conversa não fornecido para transferência.");
+          if (!conversationKey) throw new Error("Chave da conversa não fornecida para transferência.");
           if (!confirmed) return { success: false, message: "Transferência não confirmada pelo cliente." };
           
-          console.log(`[transfer] transfer_started for ${conversationPhone} to ${target_unit_id}`);
+          console.log(`[transfer] transfer_started for ${conversationKey} to ${target_unit_id}`);
           
-          if (forcedUnitId === target_unit_id) {
-            console.log(`[transfer] transfer_idempotent for ${conversationPhone}`);
+          if (initialUnitId === target_unit_id) {
+            console.log(`[transfer] transfer_idempotent for ${conversationKey}`);
             return { success: true, message: "A conversa já está nesta unidade.", idempotent: true };
           }
+
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          const { data: conv, error: convError } = await supabaseAdmin
+            .from("wa_conversas" as never)
+            .select("phone, unidade_id")
+            .eq("phone", conversationKey)
+            .maybeSingle();
+
+          if (convError || !conv) {
+             console.error(`[transfer] conversation_not_found for ${conversationKey}`);
+             return { success: false, code: "conversation_not_found", message: "Não foi possível localizar a conversa." };
+          }
+
           const { data, error } = await supabaseAdmin.rpc("transfer_conversation_unit", {
-            p_conversation_phone: conversationPhone,
+            p_conversation_phone: conversationKey,
             p_target_unit_id: target_unit_id,
             p_reason: reason || "Solicitado pelo cliente via IA",
           });
           
           if (error) {
-            console.error(`[transfer] transfer_failed for ${conversationPhone}:`, error.message);
-            throw new Error(error.message);
+            console.error(`[transfer] transfer_failed for ${conversationKey}:`, error.message);
+            return { success: false, code: "transfer_failed", message: error.message };
           }
           
-          console.log(`[transfer] transfer_completed for ${conversationPhone} to ${target_unit_id}`);
-          return data;
+          console.log(`[transfer] transfer_completed for ${conversationKey} to ${target_unit_id}`);
+          
+          // Buscar nome da nova unidade para retorno amigável
+          let newUnitName = `Unidade ${target_unit_id}`;
+          try {
+            const cfg = await getBempConfig();
+            const salons = (await bempFetch(`${cfg.apiBase}/salons`)) as any;
+            const list = Array.isArray(salons) ? salons : (salons?.data ?? salons?.salons ?? []);
+            const found = list.find((s: any) => String(s?.id) === String(target_unit_id));
+            if (found?.name || found?.nome) newUnitName = String(found.name || found.nome);
+          } catch {}
+
+          return { 
+            success: true, 
+            old_unit_id: initialUnitId, 
+            new_unit_id: target_unit_id,
+            new_unit_name: newUnitName
+          };
         }),
     }),
     list_units_info: tool({
@@ -144,7 +187,7 @@ function buildTools(sandbox: boolean, forcedUnitId?: string | null, conversation
       execute: async ({ salon_id }) =>
         safeTool("list_services", async () => {
           const cfg = await getBempConfig();
-          const targetUnitId = forcedUnitId || salon_id;
+          const targetUnitId = await resolveEffectiveUnitId(conversationKey, initialUnitId || (salon_id ? String(salon_id) : undefined));
           if (!targetUnitId) throw new Error("ID da unidade não fornecido.");
           return await bempFetch(`${cfg.apiBase}/salons/${targetUnitId}/services`);
         }),
@@ -155,7 +198,7 @@ function buildTools(sandbox: boolean, forcedUnitId?: string | null, conversation
       execute: async ({ salon_id, service_id }) =>
         safeTool("list_professionals", async () => {
           const cfg = await getBempConfig();
-          const targetUnitId = forcedUnitId || salon_id;
+          const targetUnitId = await resolveEffectiveUnitId(conversationKey, initialUnitId || (salon_id ? String(salon_id) : undefined));
           if (!targetUnitId) throw new Error("ID da unidade não fornecido.");
           return await bempFetch(
             `${cfg.apiBase}/salons/${targetUnitId}/services/${service_id}/professionals`,
@@ -174,7 +217,7 @@ function buildTools(sandbox: boolean, forcedUnitId?: string | null, conversation
       execute: async ({ salon_id, service_id, professional_id, date }) =>
         safeTool("list_slots", async () => {
           const cfg = await getBempConfig();
-          const targetUnitId = forcedUnitId || salon_id;
+          const targetUnitId = await resolveEffectiveUnitId(conversationKey, initialUnitId || (salon_id ? String(salon_id) : undefined));
           if (!targetUnitId) throw new Error("ID da unidade não fornecido.");
           const url = professional_id
             ? `${cfg.apiBase}/salons/${targetUnitId}/services/${service_id}/professionals/${professional_id}/slots/${date}`
@@ -198,7 +241,7 @@ function buildTools(sandbox: boolean, forcedUnitId?: string | null, conversation
       }),
       execute: async (input) =>
         safeTool("create_appointment", async () => {
-          const targetUnitId = forcedUnitId || input.salon_id;
+          const targetUnitId = await resolveEffectiveUnitId(conversationKey, initialUnitId || (input.salon_id ? String(input.salon_id) : undefined));
           if (!targetUnitId) throw new Error("ID da unidade não fornecido.");
           const fullInput = { ...input, salon_id: Number(targetUnitId) };
 
@@ -343,10 +386,11 @@ function buildTools(sandbox: boolean, forcedUnitId?: string | null, conversation
             try {
               const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
               const phone = `${input.phone_country_code}${input.phone_area_code}${input.phone_number}`;
+              const targetUnitId = await resolveEffectiveUnitId(conversationKey, initialUnitId || (input.salon_id ? String(input.salon_id) : undefined));
               await supabaseAdmin.from("reagendamentos_hist" as never).insert({
                 old_appointment_id: String(input.old_appointment_id),
                 new_appointment_id: simId,
-                salon_id: String(forcedUnitId || input.salon_id),
+                salon_id: String(targetUnitId),
                 service_id: String(input.service_id),
                 professional_id:
                   input.professional_id != null ? String(input.professional_id) : null,
@@ -652,7 +696,8 @@ function buildTools(sandbox: boolean, forcedUnitId?: string | null, conversation
       }) =>
         safeTool("list_cross_sell_suggestions", async () => {
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          const salonKey = String(forcedUnitId || salon_id);
+          const targetUnitId = await resolveEffectiveUnitId(conversationKey, initialUnitId || (salon_id ? String(salon_id) : undefined));
+          const salonKey = String(targetUnitId);
           const triggerKey = String(trigger_service_id);
           const phoneKey = `${phone_country_code}${phone_area_code}${phone_number}`;
 
@@ -1239,6 +1284,7 @@ export type AgentOptions = {
   contactName?: string | null;
   contactPhone?: string | null;
   customerContext?: any;
+  conversationKey?: string | null;
 };
 
 function sanitizeMessagesForModel(messages: UIMessage[]): UIMessage[] {
@@ -1338,7 +1384,7 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
     model: getModel(),
     system,
     messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
-    tools: buildTools(sandbox, opts.unidadeId, opts.contactPhone || undefined),
+    tools: buildTools(sandbox, opts.unidadeId, opts.conversationKey || undefined),
     stopWhen: stepCountIs(5),
   });
 }
@@ -1433,7 +1479,8 @@ export async function runAgentWithLogging(params: {
       unitName,
       contactName: pushName || (historyData?.contact_name as string),
       contactPhone: phone,
-      customerContext: historyData?.customer_context || {}
+      customerContext: historyData?.customer_context || {},
+      conversationKey
     });
 
     if (!reply || reply.trim().length === 0) {
