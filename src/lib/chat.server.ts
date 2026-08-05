@@ -380,10 +380,8 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
           }
           const allPros = await getProfessionalsForService(effectiveUnitId, service.id);
           // "Sem preferência" NUNCA é um profissional: filtramos qualquer entrada inválida.
-          const professionals = allPros.filter(
-            (p) => p?.id != null && !!p?.name && !/^sem\s+prefer/i.test(String(p.name).trim()),
-          );
-          const professionalsCount = professionals.length;
+          const { professionals, professionalsCount, autoSelectProfessional } =
+            computeProfessionalSelection(allPros);
 
           if (professionalsCount === 0) {
             return {
@@ -395,7 +393,7 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
             };
           }
 
-          const autoSelectProfessional = professionalsCount === 1;
+
           let selectedProfessional: { id: string | number; name: string } | null = null;
 
           if (autoSelectProfessional) {
