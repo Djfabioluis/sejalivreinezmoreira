@@ -4,7 +4,7 @@ import { appendIncomingMessage } from "./conversation.server";
 import { runAgentFlow, findAgentByInstance, isIAEnabled } from "./agent.server";
 import { logEvent } from "./logger.server";
 import { extractMessageText } from "./message-text";
-import { normalizePhone, buildConversationKey } from "./contact";
+import { normalizePhone, buildConversationKey, normalizeContactName } from "./contact";
 
 /**
  * Orquestrador principal para eventos de mensagens (messages.upsert)
