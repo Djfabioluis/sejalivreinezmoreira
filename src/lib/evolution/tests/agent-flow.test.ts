@@ -51,7 +51,7 @@ describe("agent.server.ts - runAgentFlow", () => {
 
     // Verifica se logEvent foi chamado indicando sucesso
     expect(loggerServer.logEvent).toHaveBeenCalledWith(expect.objectContaining({
-      event: "agent_unit_resolved",
+      event: "agent_status_checked",
       status: "success"
     }));
 
