@@ -1,0 +1,29 @@
+export function extractMessageText(message) {
+    if (!message)
+        return "";
+    const content = message.conversation ||
+        message.extendedTextMessage?.text ||
+        message.imageMessage?.caption ||
+        message.videoMessage?.caption ||
+        message.documentMessage?.caption ||
+        message.buttonsResponseMessage?.selectedButtonId ||
+        message.buttonsResponseMessage?.selectedDisplayText ||
+        message.listResponseMessage?.title ||
+        message.listResponseMessage?.singleSelectReply?.selectedRowId ||
+        message.templateButtonReplyMessage?.selectedId ||
+        message.interactiveResponseMessage?.body?.text ||
+        message.interactiveResponseMessage?.nativeFlowResponseMessage?.paramsJson ||
+        message.ephemeralMessage?.message ||
+        message.viewOnceMessage?.message ||
+        message.viewOnceMessageV2?.message ||
+        message.documentWithCaptionMessage?.message ||
+        message.editedMessage?.message ||
+        message.text; // Fallback para casos simples
+    if (typeof content === "string")
+        return content;
+    // Recursão para mensagens aninhadas (ephemeral, viewOnce, etc)
+    if (typeof content === "object" && content !== null) {
+        return extractMessageText(content);
+    }
+    return "";
+}

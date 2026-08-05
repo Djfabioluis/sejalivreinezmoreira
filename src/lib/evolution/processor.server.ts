@@ -4,7 +4,7 @@ import { appendIncomingMessage } from "./conversation.server";
 import { runAgentFlow, findAgentByInstance, isIAEnabled } from "./agent.server";
 import { logEvent } from "./logger.server";
 import { extractMessageText } from "./message-text";
-import { normalizePhone, buildConversationKey } from "./contact";
+import { normalizePhone, buildConversationKey, normalizeContactName } from "./contact";
 
 /**
  * Orquestrador principal para eventos de mensagens (messages.upsert)
@@ -41,6 +41,32 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
     try {
       const text = extractMessageText(msg.message);
       const phone = normalizePhone(msg.remoteJid);
+
+      // Ignorar grupos, transmissões e status
+      if (msg.remoteJid.includes("@g.us") || msg.remoteJid.includes("@broadcast") || msg.remoteJid === "status@broadcast") {
+        await logEvent({
+          instance: msg.instance,
+          messageId: msg.messageId,
+          event: "ignored_chat_type",
+          status: "skipped",
+          payload: { remoteJid: msg.remoteJid }
+        });
+        continue;
+      }
+
+      // Ignorar mensagens enviadas pelo próprio bot (fromMe) para processamento da IA
+      // mas mantemos o fluxo caso precise de idempotência ou log, 
+      // porém a IA só roda se !fromMe.
+      // O requisito diz "Ignorar fromMe antes de appendIncomingMessage".
+      if (msg.fromMe) {
+        await logEvent({
+          instance: msg.instance,
+          messageId: msg.messageId,
+          event: "from_me_ignored",
+          status: "skipped"
+        });
+        continue;
+      }
       
       // 2. Idempotência
       const { isDuplicate, finalMessageId } = await checkIdempotency(
@@ -80,6 +106,16 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
       const isIAActive = isIAEnabled(agent);
       const conversationKey = buildConversationKey(msg.instance, msg.remoteJid);
 
+      // 3.1 Atualizar metadados da conversa se o agente foi encontrado
+      if (agent) {
+        const { updateConversationMetadata } = await import("./conversation.server");
+        await updateConversationMetadata(conversationKey, {
+          agent_id: agent.id,
+          unidade_id: agent.unidade_id,
+          contact_name: msg.pushName || undefined
+        });
+      }
+
       // 4. Persistência da Mensagem do Usuário
       const saved = await appendIncomingMessage({
         conversationKey,
@@ -87,7 +123,7 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
         text: text || "[Mídia/Outro]",
         instance: msg.instance,
         phone,
-        contactName: msg.pushName || undefined,
+        contactName: normalizeContactName(msg.pushName || undefined),
         isIAActive
       });
       

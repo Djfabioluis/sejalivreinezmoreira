@@ -19,7 +19,7 @@ export async function appendIncomingMessage(params: {
     p_phone_number: params.phone,
     p_contact_name: params.contactName ?? null,
     p_increment_unread: true,
-    p_new_status: params.isIAActive ? "aberta" : "waiting_for_unit_selection",
+    p_new_status: "aberta", // Sempre aberta se entrou mensagem (ou conforme lógica de unidade)
     p_customer_context: null
   });
 
