@@ -1621,10 +1621,12 @@ export async function runAgentWithLogging(params: {
     }
 
     // Determinar a unidade operacional efetiva: unidade da conversa (se transferida) ou do agente.
-    const { effectiveUnitId, source, agentUnitId, conversationUnitId } = await resolveEffectiveUnit({ 
+    const { effectiveUnitId, effectiveUnitName, source: unitSource } = await resolveEffectiveUnit({ 
       conversationKey, 
       agentUnitId: unidadeId 
     });
+
+    const currentUnitName = effectiveUnitName || unitName;
 
     const reply = await runAgent(historyMessages, {
       unidadeId: effectiveUnitId,
