@@ -1,27 +1,31 @@
 import { normalizeEvolutionMessages } from "./message-normalizer";
-import { checkIdempotency } from "./idempotency.server";
+import { claimEvent, markEventProcessed, markEventFailed } from "./idempotency.server";
 import { appendIncomingMessage } from "./conversation.server";
 import { runAgentFlow, findAgentByInstance, isIAEnabled } from "./agent.server";
 import { logEvent } from "./logger.server";
 import { extractMessageText } from "./message-text";
 import { normalizePhone, buildConversationKey, normalizeContactName } from "./contact";
 
+/** Normalização estrita: só valores explicitamente verdadeiros contam como fromMe. */
+export function isFromMe(value: unknown): boolean {
+  return value === true || value === 1 || value === "true" || value === "1";
+}
+
 /**
  * Orquestrador principal para eventos de mensagens (messages.upsert)
  */
 export async function processMessagesUpsert(payload: any, requestUrl: string) {
-  const startTime = Date.now();
   const instance = payload.instance || payload.instanceName || "unknown";
-  
+
   // 1. Normalização
   const messages = normalizeEvolutionMessages(payload, requestUrl);
-  
+
   if (messages.length === 0) {
     await logEvent({
       instance,
       event: "payload_shape_detected",
       status: "no_messages_found",
-      payload: { 
+      payload: {
         event: payload.event,
         data_keys: payload.data ? Object.keys(payload.data) : null,
         payload_keys: Object.keys(payload)
@@ -32,11 +36,10 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
 
   for (const msg of messages) {
     const traceId = `${msg.instance}:${msg.messageId}`;
-    
+
     try {
-      // 2. Verificar fromMe IMEDIATAMENTE (antes de idempotência e persistência)
-      // O requisito diz: registrar message_ignored_from_me, retornar imediatamente, não salvar como user, não chamar IA.
-      if (msg.fromMe) {
+      // 2. fromMe (mensagem enviada pelo próprio número) → ignorar cedo
+      if (isFromMe(msg.fromMe)) {
         await logEvent({
           instance: msg.instance,
           messageId: msg.messageId,
@@ -61,37 +64,54 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
         });
         continue;
       }
-      
-      // 3. Idempotência Atômica
-      const { isDuplicate, finalMessageId } = await checkIdempotency(
-        msg.instance, 
-        msg.messageId,
-        phone,
-        msg.timestamp,
-        text || ""
-      );
 
-      if (isDuplicate) {
+      // 3. Idempotência atômica (instance + messageId), com recuperação de travamentos
+      const { claimed, reason, finalMessageId } = await claimEvent({
+        instance: msg.instance,
+        messageId: msg.messageId,
+        remoteJid: msg.remoteJid,
+        phone,
+        timestamp: msg.timestamp,
+        text: text || "",
+        traceId
+      });
+
+      if (!claimed) {
         await logEvent({
           instance: msg.instance,
           messageId: finalMessageId,
-          event: "duplicate_message",
+          event: "message_skipped",
           status: "skipped",
-          payload: { traceId }
+          payload: { traceId, reason }
         });
         continue;
       }
 
-      // 4. Lock por Conversa (Prevenção de concorrência)
+      // 4. Lock por conversa (concorrência) — nunca bloqueia definitivamente
       const conversationKey = buildConversationKey(msg.instance, msg.remoteJid);
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      
-      const { data: lockAcquired } = await supabaseAdmin.rpc("acquire_conversation_lock" as any, {
+
+      const { data: lockAcquired, error: lockError } = await supabaseAdmin.rpc("acquire_conversation_lock" as any, {
         p_conversation_key: conversationKey,
         p_trace_id: traceId
       });
 
-      if (!lockAcquired) {
+      if (lockError) {
+        await logEvent({
+          instance: msg.instance,
+          messageId: finalMessageId,
+          event: "conversation_lock_error",
+          status: "warning",
+          errorDetail: lockError.message,
+          payload: { traceId, conversationKey }
+        });
+      }
+
+      const hasLock = lockAcquired === true;
+
+      if (!hasLock && !lockError) {
+        // Outra execução está tratando esta conversa neste instante.
+        await markEventFailed(msg.instance, finalMessageId, "conversation_locked_retry");
         await logEvent({
           instance: msg.instance,
           messageId: finalMessageId,
@@ -103,13 +123,12 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
       }
 
       try {
-        await logEvent({ instance: msg.instance, messageId: finalMessageId, event: "processing_started", status: "started", payload: { traceId } });
+        await logEvent({ instance: msg.instance, messageId: finalMessageId, event: "processing_started", status: "started", payload: { traceId, reason } });
 
         // 5. Agente e Unidade
         const agent = await findAgentByInstance(msg.instance);
         const isIAActive = isIAEnabled(agent);
 
-        // 5.1 Atualizar metadados da conversa se o agente foi encontrado
         if (agent) {
           const { updateConversationMetadata } = await import("./conversation.server");
           await updateConversationMetadata(conversationKey, {
@@ -119,7 +138,7 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
           });
         }
 
-        // 6. Persistência da Mensagem do Usuário
+        // 6. Persistência da mensagem do cliente (sempre, mesmo sem IA)
         await appendIncomingMessage({
           conversationKey,
           messageId: finalMessageId,
@@ -129,15 +148,17 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
           contactName: normalizeContactName(msg.pushName || undefined),
           isIAActive
         });
-        
-        // 7. Fluxo da IA
+
+        // 7. Fluxo da IA (uma única chamada por mensagem)
         if (isIAActive) {
           await runAgentFlow({
             ...msg,
             messageId: finalMessageId
           });
         }
-        
+
+        await markEventProcessed(msg.instance, finalMessageId);
+
         await logEvent({
           instance: msg.instance,
           messageId: finalMessageId,
@@ -145,13 +166,29 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
           status: "success",
           payload: { traceId }
         });
+      } catch (innerError) {
+        await markEventFailed(
+          msg.instance,
+          finalMessageId,
+          innerError instanceof Error ? innerError.message : String(innerError)
+        );
+        throw innerError;
       } finally {
-        // 8. Liberar Lock
-        await supabaseAdmin.rpc("release_conversation_lock" as any, {
-          p_conversation_key: conversationKey,
-          p_trace_id: traceId
-        });
-        await logEvent({ instance: msg.instance, messageId: finalMessageId, event: "conversation_lock_released", status: "success", payload: { traceId } });
+        // 8. Liberar lock SEMPRE
+        if (hasLock) {
+          const { error: releaseError } = await supabaseAdmin.rpc("release_conversation_lock" as any, {
+            p_conversation_key: conversationKey,
+            p_trace_id: traceId
+          });
+          await logEvent({
+            instance: msg.instance,
+            messageId: finalMessageId,
+            event: "conversation_lock_released",
+            status: releaseError ? "error" : "success",
+            errorDetail: releaseError?.message,
+            payload: { traceId }
+          });
+        }
       }
     } catch (error) {
       console.error("[evolution] Error processing message", msg.messageId, error);
@@ -161,11 +198,12 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
         event: "process_error",
         status: "error",
         errorDetail: error instanceof Error ? error.message : String(error),
-        payload: { traceId: `${msg.instance}:${msg.messageId}` }
+        payload: { traceId }
       });
     }
   }
 }
+
 
 /**
  * Orquestrador para atualizações de conexão

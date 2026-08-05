@@ -48,7 +48,8 @@ export function normalizeEvolutionMessages(payload: any, requestUrl: string): No
     const pushName = msg.pushName ?? payload.pushName ?? null;
     const messageContent = msg.message ?? msg;
     const timestamp = Number(msg.messageTimestamp ?? payload.messageTimestamp ?? Date.now() / 1000);
-    const fromMe = key.fromMe === true || key.fromMe === "true" || key.fromMe === 1;
+    const rawFromMe = key.fromMe ?? msg.fromMe;
+    const fromMe = rawFromMe === true || rawFromMe === 1 || rawFromMe === "true" || rawFromMe === "1";
 
     if (!remoteJid) {
       console.warn("Evolution: Missing remoteJid in normalized extraction", { msg_keys: Object.keys(msg), key_keys: Object.keys(key) });
