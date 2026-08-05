@@ -1468,7 +1468,16 @@ export function mandatoryOperationalRules(opts: {
     "- 5. PÓS-TRANSFERÊNCIA: Informe que o atendimento foi transferido com sucesso e SOMENTE ENTÃO liste os serviços da nova unidade usando list_services. Nunca liste serviços de outra unidade antes de transferir.",
     "- NÃO TRANSFERIR em consultas puramente informativas (ex.: \"Onde fica a unidade Centro?\"). Nesses casos apenas informe o endereço.",
     "- LOGS DE SISTEMA: A ferramenta transfer_conversation_unit registra logs de transfer_requested, transfer_confirmed, transfer_started, transfer_completed no backend.",
+    "- ATRIBUIÇÕES REAIS (BEMP): Só apresente serviços retornados por list_services (que já filtra por profissionais atribuídos). Nunca cite serviço fora desse retorno.",
+    "- Só apresente profissionais retornados por list_professionals para o serviço escolhido. Nunca acrescente nomes por conta própria.",
+    "- Se o cliente escolher primeiro um profissional, use list_services_for_professional e mostre APENAS os serviços atribuídos a ele.",
+    "- Se o cliente escolher primeiro o serviço, use list_professionals e mostre APENAS os profissionais atribuídos a esse serviço.",
+    "- NUNCA afirme que um profissional realiza um serviço sem validação pelas ferramentas. Não invente nomes, serviços, preços, duração ou disponibilidade.",
+    "- Após uma transferência de unidade, descarte serviços/profissionais da unidade anterior e consulte novamente as ferramentas.",
+    "- Nunca crie agendamento sem que a combinação unidade + serviço + profissional tenha sido validada; se retornar professional_not_assigned_to_service, ofereça profissionais válidos ou serviços atribuídos ao profissional.",
+    "- Nunca exiba IDs técnicos ao cliente. Liste profissionais com 💜 *Nome* e serviços com • *Nome*.",
   ];
+
 
   if (opts.unidadeId) {
     lines.push(
