@@ -63,15 +63,21 @@ function buildTools(sandbox: boolean, forcedUnitId?: string | null, conversation
   const base: Record<string, any> = {
     transfer_conversation_unit: tool({
       description:
-        "Transfere a conversa para outra unidade operacional. Use somente APÓS o cliente confirmar claramente que deseja ser atendido em outra unidade. Não use para simples perguntas informativas.",
+        "Transfere REALMENTE a conversa para outra unidade operacional. Use somente APÓS o cliente confirmar claramente que deseja ser atendido em outra unidade (ex.: após ele dizer 'Sim' para a sua pergunta de confirmação). Não use para simples perguntas informativas.",
       inputSchema: z.object({
         target_unit_id: z.string().describe("O ID da unidade de destino"),
         reason: z.string().optional().describe("Motivo da transferência"),
+        confirmed: z.boolean().describe("Deve ser true se o cliente confirmou explicitamente"),
       }),
-      execute: async ({ target_unit_id, reason }) =>
+      execute: async ({ target_unit_id, reason, confirmed }) =>
         safeTool("transfer_conversation_unit", async () => {
           if (!conversationPhone) throw new Error("ID da conversa não fornecido para transferência.");
+          if (!confirmed) return { success: false, message: "Transferência não confirmada pelo cliente." };
+          
+          console.log(`[transfer] transfer_started for ${conversationPhone} to ${target_unit_id}`);
+          
           if (forcedUnitId === target_unit_id) {
+            console.log(`[transfer] transfer_idempotent for ${conversationPhone}`);
             return { success: true, message: "A conversa já está nesta unidade.", idempotent: true };
           }
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -80,7 +86,13 @@ function buildTools(sandbox: boolean, forcedUnitId?: string | null, conversation
             p_target_unit_id: target_unit_id,
             p_reason: reason || "Solicitado pelo cliente via IA",
           });
-          if (error) throw new Error(error.message);
+          
+          if (error) {
+            console.error(`[transfer] transfer_failed for ${conversationPhone}:`, error.message);
+            throw new Error(error.message);
+          }
+          
+          console.log(`[transfer] transfer_completed for ${conversationPhone} to ${target_unit_id}`);
           return data;
         }),
     }),
@@ -334,7 +346,7 @@ function buildTools(sandbox: boolean, forcedUnitId?: string | null, conversation
               await supabaseAdmin.from("reagendamentos_hist" as never).insert({
                 old_appointment_id: String(input.old_appointment_id),
                 new_appointment_id: simId,
-                salon_id: String(input.salon_id),
+                salon_id: String(forcedUnitId || input.salon_id),
                 service_id: String(input.service_id),
                 professional_id:
                   input.professional_id != null ? String(input.professional_id) : null,
@@ -640,7 +652,7 @@ function buildTools(sandbox: boolean, forcedUnitId?: string | null, conversation
       }) =>
         safeTool("list_cross_sell_suggestions", async () => {
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          const salonKey = String(salon_id);
+          const salonKey = String(forcedUnitId || salon_id);
           const triggerKey = String(trigger_service_id);
           const phoneKey = `${phone_country_code}${phone_area_code}${phone_number}`;
 
@@ -1141,12 +1153,14 @@ export function mandatoryOperationalRules(opts: {
     "- Se o cliente perguntar onde fica uma unidade específica, responda apenas \"📍 <Unidade>\" seguido do endereço dessa unidade obtido em list_units_info.",
     "- NUNCA diga que não sabe onde ficam as unidades nem que não encontrou essas informações.",
     "- Depois de responder sobre unidades, telefones ou endereços, pergunte gentilmente se pode ajudar com um agendamento ou outra dúvida.",
-    "- TRANSFERÊNCIA DE UNIDADE: A unidade operacional atual ({{unitName}}) é a unidade padrão, mas pode ser alterada se o cliente pedir explicitamente.",
-    "- RECONHECER INTENÇÃO DE TRANSFERÊNCIA: Identifique pedidos claros como \"Quero agendar no Centro\", \"Quero outra unidade\", \"Tem horário no Ventura?\".",
-    "- NÃO TRANSFERIR em consultas puramente informativas sobre endereço ou telefone.",
-    "- CONFIRMAÇÃO OBRIGATÓRIA: Antes de transferir, você DEVE perguntar: \"Entendi! Você deseja continuar este atendimento na unidade *[NOME DA UNIDADE]*, correto?\".",
-    "- EXECUÇÃO: Somente após o \"Sim\" ou confirmação clara do cliente, chame transfer_conversation_unit.",
-    "- PÓS-TRANSFERÊNCIA: Informe que o atendimento foi transferido e continue normalmente (não reinicie a saudação). Todas as ferramentas subsequentes usarão a nova unidade.",
+    "- TRANSFERÊNCIA REAL DE UNIDADE: A unidade operacional atual ({{unitName}}) é a unidade padrão para agendamentos. Se o cliente pedir para agendar em outra unidade, você deve seguir este fluxo rigorosamente:",
+    "- 1. RECONHECER INTENÇÃO: Identifique pedidos como \"Quero agendar no Centro\", \"Quero marcar no Ventura\", \"Tem horário no Boulevard?\".",
+    "- 2. RESOLVER ID: Use a ferramenta list_units_info se precisar confirmar o nome ou ID da unidade alvo.",
+    "- 3. CONFIRMAÇÃO OBRIGATÓRIA: Pergunte EXATAMENTE: \"Entendi! Você deseja transferir seu atendimento para a unidade [NOME DA UNIDADE] para realizar o agendamento lá?\"",
+    "- 4. EXECUÇÃO: Somente após o cliente dizer \"Sim\", \"Pode ser\", \"Confirmado\" etc., chame a ferramenta transfer_conversation_unit com confirmed: true.",
+    "- 5. PÓS-TRANSFERÊNCIA: Informe que o atendimento foi transferido com sucesso e SOMENTE ENTÃO liste os serviços da nova unidade usando list_services. Nunca liste serviços de outra unidade antes de transferir.",
+    "- NÃO TRANSFERIR em consultas puramente informativas (ex.: \"Onde fica a unidade Centro?\"). Nesses casos apenas informe o endereço.",
+    "- LOGS DE SISTEMA: A ferramenta transfer_conversation_unit registra logs de transfer_requested, transfer_confirmed, transfer_started, transfer_completed no backend.",
   ];
 
   if (opts.unidadeId) {
@@ -1324,7 +1338,7 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
     model: getModel(),
     system,
     messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
-    tools: buildTools(sandbox, opts.unidadeId),
+    tools: buildTools(sandbox, opts.unidadeId, opts.contactPhone || undefined),
     stopWhen: stepCountIs(5),
   });
 }
@@ -1411,8 +1425,11 @@ export async function runAgentWithLogging(params: {
       } as any);
     }
 
+    // Determinar a unidade operacional efetiva: unidade da conversa (se transferida) ou do agente.
+    const effectiveUnitId = historyData?.unidade_id || unidadeId;
+
     const reply = await runAgent(historyMessages, {
-      unidadeId,
+      unidadeId: effectiveUnitId,
       unitName,
       contactName: pushName || (historyData?.contact_name as string),
       contactPhone: phone,
