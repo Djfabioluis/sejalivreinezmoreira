@@ -2,6 +2,7 @@
 // Mapeamento centralizado plano -> serviço. Nunca importar em componentes de frontend.
 import { bempFetch, BEMP_WEBHOOK_BASE } from "@/lib/bemp.server";
 import { resolveServiceAssignment } from "@/lib/bemp/assignments.server";
+import { normalizeCPF, maskCPF } from "@/lib/cpf";
 
 export type SubscriptionPlanType = "manicure" | "escova" | "hidratacao_escova";
 
