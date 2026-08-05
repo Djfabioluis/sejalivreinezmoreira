@@ -1,6 +1,7 @@
 // Server-only: fonte oficial de atribuições profissional x serviço no BEMP.
 // Nunca importar em componentes de frontend.
 import { bempFetch, getBempConfig } from "@/lib/bemp.server";
+import { sanitizeErrorText } from "@/lib/evolution/failure";
 
 export type BempProfessionalServiceAssignment = {
   unitId: string | number;
@@ -48,7 +49,7 @@ function asArray(raw: any, depth = 0): any[] {
 }
 
 function isActive(entity: any): boolean {
-  const flag = entity?.active ?? entity?.ativo ?? entity?.is_active ?? entity?.enabled ?? entity?.status;
+  const flag = entity?.active ?? entity?.ativo ?? entity?.is_active ?? entity?.enabled ?? entity?.status ?? entity?.available ?? entity?.availability ?? entity?.assignment_active;
   if (flag === undefined || flag === null) return true;
   if (typeof flag === "string") return !/inativ|disabled|false|^0$/i.test(flag.trim());
   return Boolean(flag);
@@ -147,15 +148,40 @@ export async function getUnitProfessionalAssignments(
 
   const seen = new Set<string>();
   const assignments: BempProfessionalServiceAssignment[] = [];
+  let totalFulfilled = 0;
+  let totalRejected = 0;
 
   for (const r of results) {
-    if (r.status !== "fulfilled") continue;
+    if (r.status !== "fulfilled") {
+      totalRejected++;
+      continue;
+    }
+    totalFulfilled++;
     const { service, pros } = r.value;
+    
+    // Log formato da resposta (amostra)
+    if (pros.length > 0) {
+       const first = pros[0];
+       console.log(`[bemp] professionals_response_shape: unit=${maskId(key)}, keys=${Object.keys(first).join(",")}, items=${pros.length}, dataType=${typeof pros}`);
+    }
+
     for (const pro of pros) {
       if (pro?.id == null || !isActive(pro)) continue;
+      
+      // Validação defensiva (item 8 e 11)
       const professionalName = nameOf(pro);
       const serviceName = nameOf(service);
       if (!professionalName || !serviceName) continue;
+      
+      // Confirmar vínculo à unidade se o campo existir
+      const proUnitId = pro.salon_id ?? pro.unit_id ?? pro.salonId ?? pro.unitId;
+      if (proUnitId !== undefined && String(proUnitId) !== String(key)) {
+        console.warn(`[bemp] professional_unit_mismatch: pro=${pro.id}, expected=${key}, got=${proUnitId}`);
+        continue;
+      } else if (proUnitId === undefined) {
+        // console.log(`[bemp] professional_unit_not_verifiable: pro=${pro.id}`);
+      }
+
       const dedupe = `${key}|${pro.id}|${service.id}`;
       if (seen.has(dedupe)) continue;
       seen.add(dedupe);
@@ -171,6 +197,11 @@ export async function getUnitProfessionalAssignments(
         price: priceOf(service),
       });
     }
+  }
+
+  if (totalFulfilled === 0 && totalRejected > 0) {
+    console.error(`[bemp] professionals_api_failed: all services failed for unit=${maskId(key)}`);
+    throw new Error("Falha total na integração de profissionais do BEMP.");
   }
 
   console.log(
