@@ -61,6 +61,24 @@ function priceOf(service: any): number | null {
   const n = Number(p);
   return Number.isFinite(n) ? n : null;
 }
+/**
+ * Regra única de seleção de profissional:
+ * 0 → sem auto-seleção; 1 → auto-seleção; 2+ → cliente escolhe (aí sim "Sem preferência").
+ * "Sem preferência" NUNCA conta como profissional.
+ */
+export function computeProfessionalSelection<T extends { id: string | number; name: string }>(
+  raw: T[] | null | undefined,
+): { professionals: T[]; professionalsCount: number; autoSelectProfessional: boolean } {
+  const professionals = (raw ?? []).filter(
+    (p) => p?.id != null && !!p?.name && !/^sem\s+prefer/i.test(String(p.name).trim()),
+  );
+  return {
+    professionals,
+    professionalsCount: professionals.length,
+    autoSelectProfessional: professionals.length === 1,
+  };
+}
+
 
 export function invalidateAssignmentsCache(unitId?: string | number) {
   if (unitId === undefined || unitId === null) {

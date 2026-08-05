@@ -57,3 +57,40 @@ describe("bemp assignments", () => {
     expect(await mod.resolveServiceAssignment(10, "Design de Sobrancelha")).toBeNull();
   });
 });
+
+describe("computeProfessionalSelection", () => {
+  it("0 profissionais: sem auto-seleção e sem 'Sem preferência'", async () => {
+    const { computeProfessionalSelection } = await import("../assignments.server");
+    const r = computeProfessionalSelection([]);
+    expect(r.professionalsCount).toBe(0);
+    expect(r.autoSelectProfessional).toBe(false);
+  });
+
+  it("1 profissional: auto-seleção", async () => {
+    const { computeProfessionalSelection } = await import("../assignments.server");
+    const r = computeProfessionalSelection([{ id: 1, name: "Gleise Cibela" }]);
+    expect(r.professionalsCount).toBe(1);
+    expect(r.autoSelectProfessional).toBe(true);
+    expect(r.professionals[0]!.name).toBe("Gleise Cibela");
+  });
+
+  it("2 profissionais: cliente escolhe", async () => {
+    const { computeProfessionalSelection } = await import("../assignments.server");
+    const r = computeProfessionalSelection([
+      { id: 1, name: "Gleise Cibela" },
+      { id: 2, name: "Mariana Souza" },
+    ]);
+    expect(r.professionalsCount).toBe(2);
+    expect(r.autoSelectProfessional).toBe(false);
+  });
+
+  it("'Sem preferência' nunca conta como profissional", async () => {
+    const { computeProfessionalSelection } = await import("../assignments.server");
+    const r = computeProfessionalSelection([
+      { id: 1, name: "Gleise Cibela" },
+      { id: 999, name: "Sem preferência" },
+    ]);
+    expect(r.professionalsCount).toBe(1);
+    expect(r.autoSelectProfessional).toBe(true);
+  });
+});

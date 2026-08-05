@@ -107,6 +107,31 @@ async function resolveEffectiveUnit(params: { conversationKey?: string; agentUni
   };
 }
 
+/** Mescla campos no customer_context da conversa (no-op se não houver conversationKey). */
+async function patchCustomerContext(
+  conversationKey: string | undefined,
+  patch: Record<string, unknown>,
+) {
+  if (!conversationKey) return;
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await supabaseAdmin
+      .from("wa_conversas")
+      .select("customer_context")
+      .eq("phone", conversationKey)
+      .maybeSingle();
+    const current = ((data as any)?.customer_context as Record<string, unknown>) || {};
+    const { error } = await supabaseAdmin
+      .from("wa_conversas")
+      .update({ customer_context: { ...current, ...patch } } as never)
+      .eq("phone", conversationKey);
+    if (error) console.error(`[chat] context_patch_failed: ${error.message}`);
+  } catch (e) {
+    console.error("[chat] context_patch_error", e);
+  }
+}
+
+
 async function resolveServiceForEffectiveUnit(params: { serviceName: string; effectiveUnitId: string }) {
   console.log(`[chat] service_resolution_started: serviceName="${params.serviceName}", unitId=${params.effectiveUnitId}`);
   const cfg = await getBempConfig();
@@ -342,9 +367,8 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
           const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: fallbackAgentUnitId });
           if (!effectiveUnitId) return { success: false, code: "unit_not_resolved", message: "Não foi possível identificar a unidade correta." };
           console.log(`[chat] effective_unit_for_assignments: ${effectiveUnitId}`);
-          const { resolveServiceAssignment, getProfessionalsForService } = await import(
-            "@/lib/bemp/assignments.server"
-          );
+          const { resolveServiceAssignment, getProfessionalsForService, computeProfessionalSelection } =
+            await import("@/lib/bemp/assignments.server");
           const service = await resolveServiceAssignment(effectiveUnitId, service_name);
           if (!service) {
             return {
@@ -353,21 +377,47 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
               message: `O serviço "${service_name}" não está disponível com profissionais atribuídos nesta unidade.`,
             };
           }
-          const professionals = await getProfessionalsForService(effectiveUnitId, service.id);
-          if (professionals.length === 0) {
+          const allPros = await getProfessionalsForService(effectiveUnitId, service.id);
+          // "Sem preferência" NUNCA é um profissional: filtramos qualquer entrada inválida.
+          const { professionals, professionalsCount, autoSelectProfessional } =
+            computeProfessionalSelection(allPros);
+
+          if (professionalsCount === 0) {
             return {
               success: false,
               code: "no_assigned_professionals",
+              professionalsCount: 0,
+              autoSelectProfessional: false,
               message: `Nenhum profissional está atribuído a "${service.name}" nesta unidade.`,
             };
           }
+
+
+          const selectedProfessional = autoSelectProfessional ? professionals[0]! : null;
+
+          if (selectedProfessional) {
+            await patchCustomerContext(conversationKey, {
+              serviceId: service.id,
+              requestedService: service.name,
+              professionalId: String(selectedProfessional.id),
+              professionalName: selectedProfessional.name,
+              preferredProfessional: selectedProfessional.name,
+            });
+            console.log(
+              `[chat] single_professional_auto_selected: unit=${effectiveUnitId}, service=${service.id}, professional=${selectedProfessional.id}`,
+            );
+          }
+
           return {
             success: true,
             unitId: effectiveUnitId,
             service: { id: service.id, name: service.name },
             professionals,
-            singleProfessional: professionals.length === 1,
-            autoSelectedProfessional: professionals.length === 1 ? professionals[0] : null,
+            professionalsCount,
+            autoSelectProfessional,
+            selectedProfessional,
+            singleProfessional: autoSelectProfessional,
+            autoSelectedProfessional: selectedProfessional,
           };
         }),
     }),
@@ -1447,10 +1497,12 @@ export function mandatoryOperationalRules(opts: {
     "- Nunca antecipe informações que o cliente não pediu; conduza a conversa com uma pergunta por vez, de forma natural e humanizada.",
     "- PREÇOS: se o serviço tiver valor fixo, escreva apenas \"O serviço custa R$ XX,XX.\" É PROIBIDO usar \"a partir de\", \"valor inicial\" ou \"preço inicial\" nesse caso.",
     "- Use \"a partir de R$ XX,XX\" SOMENTE quando o serviço tiver variação real de preço (comprimento, quantidade, técnica etc.).",
-    "- Ao informar o preço de um serviço escolhido, responda EXATAMENTE neste formato:\n\"Ótima escolha! 💅 O serviço de <Serviço> custa R$ XX,XX.\n\nVocê tem preferência por alguma profissional?\n\n• <Profissional 1>\n• <Profissional 2>\n• Sem preferência\"",
-    "- Cada profissional deve ficar em UMA LINHA separada, iniciada por \"• \". NUNCA coloque os nomes na mesma linha, nem separados por vírgula. Sempre inclua \"• Sem preferência\" na última linha.",
-    "- EXCEÇÃO OBRIGATÓRIA: se list_professionals retornar apenas UM profissional (singleProfessional = true), é PROIBIDO perguntar se o cliente tem preferência e é PROIBIDO exibir a opção \"Sem preferência\" ou lista com marcadores. Nesse caso, selecione automaticamente esse profissional e apenas informe: \"O serviço de <Serviço> custa R$ XX,XX e é realizado pela <Profissional>. 💜\n\nPara qual dia você gostaria de agendar? 😊\"",
-    "- Quando houver apenas um profissional, siga direto para data/horário usando esse profissional, sem citar preferência em nenhum momento nem no resumo.",
+    "- Ao informar o preço de um serviço escolhido QUANDO houver 2 ou mais profissionais, responda EXATAMENTE neste formato:\n\"Ótima escolha! 💅 O serviço de <Serviço> custa R$ XX,XX.\n\nVocê tem preferência por alguma profissional?\n\n• <Profissional 1>\n• <Profissional 2>\n• Sem preferência\"",
+    "- Cada profissional deve ficar em UMA LINHA separada, iniciada por \"• \". NUNCA coloque os nomes na mesma linha, nem separados por vírgula. A linha \"• Sem preferência\" só pode aparecer quando professionalsCount >= 2.",
+    "- REGRA ABSOLUTA DE PREFERÊNCIA (baseada em professionalsCount de list_professionals):\n  • professionalsCount = 0 → informe que não há profissional disponível para esse serviço nesta unidade. NÃO pergunte preferência e NÃO cite \"Sem preferência\".\n  • professionalsCount = 1 (autoSelectProfessional = true) → é PROIBIDO perguntar \"Você tem preferência?\" e PROIBIDO exibir \"Sem preferência\" ou lista com marcadores. Informe assim:\n\"Para *<Serviço>*, a profissional disponível nesta unidade é:\n\n💜 *<Profissional>*\n\nAgora, para qual dia você gostaria de agendar? 😊\"\n  • professionalsCount >= 2 → liste os profissionais, acrescente \"• *Sem preferência*\" e pergunte \"Você tem preferência por alguma delas? 😊\".",
+    "- Quando houver apenas um profissional, ele já foi selecionado automaticamente pelo sistema: siga direto para data/horário, sem citar preferência em nenhum momento nem no resumo.",
+    "- \"Sem preferência\" NÃO é um profissional: nunca conte essa opção em professionalsCount, nunca a use como nome de profissional e nunca invente profissionais fora do retorno do BEMP.",
+    "- Se o cliente escolher \"Sem preferência\" (só possível com 2+ profissionais), não fixe profissional: o sistema buscará qualquer profissional válido atribuído ao serviço.",
     "- Ao apresentar horários disponíveis, use EXATAMENTE este formato:\n\"Temos os seguintes horários disponíveis para <data> com o(a) profissional <nome>:\n\n🕒 15:20\n🕒 16:00\n🕒 16:40\n\nQual desses horários é o melhor para você? 😊\"",
     "- Um horário por linha, sempre precedido de \"🕒 \". NUNCA coloque vários horários na mesma linha e NUNCA use \"•\" ou hífen para horários.",
     "- Mantenha uma linha em branco entre a frase introdutória, a lista de horários e a pergunta final. A pergunta final deve ser sempre: \"Qual desses horários é o melhor para você? 😊\".",
