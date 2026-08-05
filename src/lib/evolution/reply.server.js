@@ -1,0 +1,67 @@
+import { sendEvolutionText, sendEvolutionPresence } from "@/lib/evolution.server";
+import { logEvent } from "./logger.server";
+// Duração do indicador nativo "digitando…" antes do envio da resposta.
+const TYPING_MIN_MS = 1200;
+const TYPING_MAX_MS = 3500;
+const TYPING_PER_CHAR_MS = 25;
+export async function replyToUser(params) {
+    const traceId = params.traceId || `${params.instance}:${params.messageId}`;
+    await logEvent({
+        instance: params.instance,
+        messageId: params.messageId,
+        event: "evolution_send_started",
+        status: "started",
+        payload: { traceId }
+    });
+    // Digitação humanizada
+    const typingMs = Math.min(TYPING_MAX_MS, Math.max(TYPING_MIN_MS, params.text.length * TYPING_PER_CHAR_MS));
+    const typingSent = await sendEvolutionPresence(params.instance, params.phone, "composing", typingMs).catch(() => false);
+    // 9. ENVIO ÚNICO PELA EVOLUTION
+    const sent = await sendEvolutionText(params.instance, params.phone, params.text, typingMs);
+    if (sent) {
+        await logEvent({
+            instance: params.instance,
+            messageId: params.messageId,
+            event: "evolution_send_completed",
+            status: "success",
+            payload: { traceId }
+        });
+        // 10. PERSISTÊNCIA DA RESPOSTA (Atomicamente via RPC)
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { error } = await supabaseAdmin.rpc("append_wa_message", {
+            p_phone: params.conversationKey,
+            p_message: {
+                id: `${params.instance}:${params.messageId}:assistant`,
+                role: "assistant",
+                parts: [{ type: "text", text: params.text }]
+            },
+            p_instance: params.instance,
+            p_phone_number: params.phone,
+            p_increment_unread: false,
+            p_new_status: "aberta",
+            p_customer_context: null
+        });
+        if (error) {
+            await logEvent({
+                instance: params.instance,
+                messageId: params.messageId,
+                event: "assistant_message_save_failed",
+                status: "error",
+                errorDetail: error.message,
+                payload: { traceId }
+            });
+            return false;
+        }
+        return true;
+    }
+    else {
+        await logEvent({
+            instance: params.instance,
+            messageId: params.messageId,
+            event: "evolution_send_failed",
+            status: "failed",
+            payload: { traceId }
+        });
+        return false;
+    }
+}
