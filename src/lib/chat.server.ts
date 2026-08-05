@@ -1338,7 +1338,7 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
     model: getModel(),
     system,
     messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
-    tools: buildTools(sandbox, opts.unidadeId),
+    tools: buildTools(sandbox, opts.unidadeId, opts.contactPhone || undefined),
     stopWhen: stepCountIs(5),
   });
 }
