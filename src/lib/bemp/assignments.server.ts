@@ -294,14 +294,27 @@ export async function resolveProfessionalByName(unitId: string | number, profess
 export async function resolveServiceAssignment(unitId: string | number, serviceName: string) {
   const services = await getAvailableServiceAssignments(unitId);
   const target = normalizeName(serviceName);
-  const exact = services.find((s) => normalizeName(s.name) === target);
-  if (exact) return exact;
+  
+  // 1. Busca exata
+  const exact = services.filter((s) => normalizeName(s.name) === target);
+  if (exact.length === 1) return { success: true, service: exact[0] };
+  if (exact.length > 1) {
+    return { success: false, code: "service_ambiguous", options: exact.map(s => ({ id: s.id, name: s.name })) };
+  }
+
+  // 2. Busca parcial
   const partial = services.filter((s) => {
     const n = normalizeName(s.name);
     return n.includes(target) || target.includes(n);
   });
-  if (partial.length === 1) return partial[0]!;
-  return null;
+  
+  if (partial.length === 1) return { success: true, service: partial[0] };
+  if (partial.length > 1) {
+     console.log(`[bemp] service_ambiguous: target="${serviceName}", matches=${partial.length}`);
+     return { success: false, code: "service_ambiguous", options: partial.map(s => ({ id: s.id, name: s.name })) };
+  }
+  
+  return { success: false, code: "service_not_found" };
 }
 
 export async function validateProfessionalServiceAssignment(params: {
