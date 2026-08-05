@@ -838,7 +838,7 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
       }) =>
         safeTool("list_cross_sell_suggestions", async () => {
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: initialUnitId });
+          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: fallbackAgentUnitId });
           const salonKey = String(effectiveUnitId);
           const triggerKey = String(trigger_service_id);
           const phoneKey = `${phone_country_code}${phone_area_code}${phone_number}`;
