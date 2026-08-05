@@ -62,6 +62,11 @@ function safeTool<T>(label: string, fn: () => Promise<T>) {
 async function resolveEffectiveUnit(params: { conversationKey?: string; agentUnitId?: string | null }) {
   const { conversationKey, agentUnitId } = params;
   let conversationUnitId: string | null = null;
+  let conversationUnitName: string | null = null;
+
+  if (conversationKey && !conversationKey.includes(":")) {
+    console.warn(`[chat] resolveEffectiveUnit: invalid_conversation_key received (pure phone instead of instance:phone): ${conversationKey}`);
+  }
 
   if (conversationKey) {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -78,8 +83,24 @@ async function resolveEffectiveUnit(params: { conversationKey?: string; agentUni
 
   const effectiveUnitId = conversationUnitId || agentUnitId || null;
 
+  // Se a unidade foi resolvida, tentamos pegar o nome dela para manter o contexto consistente
+  if (effectiveUnitId) {
+    try {
+      const cfg = await getBempConfig();
+      const salons = (await bempFetch(`${cfg.apiBase}/salons`)) as any;
+      const list = Array.isArray(salons) ? salons : (salons?.data ?? salons?.salons ?? []);
+      const found = list.find((s: any) => String(s?.id) === String(effectiveUnitId));
+      if (found?.name || found?.nome) {
+        conversationUnitName = String(found.name || found.nome);
+      }
+    } catch {}
+  }
+
+  console.log(`[chat] effective_unit_resolved: unitSource=${conversationUnitId ? "conversation" : "agent"}, conversationKeyAvailable=${!!conversationKey}, effectiveUnitId=${effectiveUnitId}`);
+
   return {
     effectiveUnitId,
+    effectiveUnitName: conversationUnitName,
     source: conversationUnitId ? ("conversation" as const) : ("agent" as const),
     conversationUnitId,
     agentUnitId,
@@ -87,15 +108,43 @@ async function resolveEffectiveUnit(params: { conversationKey?: string; agentUni
 }
 
 async function resolveServiceForEffectiveUnit(params: { serviceName: string; effectiveUnitId: string }) {
+  console.log(`[chat] service_resolution_started: serviceName="${params.serviceName}", unitId=${params.effectiveUnitId}`);
   const cfg = await getBempConfig();
   const services = (await bempFetch(`${cfg.apiBase}/salons/${params.effectiveUnitId}/services`)) as any[];
   const list = Array.isArray(services) ? services : (services as any)?.data ?? (services as any)?.services ?? [];
   
-  // Busca por nome exato ou parcial (case insensitive)
-  const found = list.find((s: any) => 
-    String(s?.name || s?.nome || "").toLowerCase() === params.serviceName.toLowerCase()
-  );
+  const normalize = (s: string) => 
+    s.toLowerCase()
+     .trim()
+     .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // remove acentos
+     .replace(/\s+/g, " "); // remove espaços duplicados
+
+  const target = normalize(params.serviceName);
   
+  // 1. Busca por nome exato
+  let found = list.find((s: any) => 
+    normalize(s?.name || s?.nome || "") === target
+  );
+
+  // 2. Se não achou exato, busca por correspondência parcial (o alvo está contido no nome do serviço)
+  if (!found) {
+    const matches = list.filter((s: any) => {
+      const name = normalize(s?.name || s?.nome || "");
+      return name.includes(target) || target.includes(name);
+    });
+    
+    // Só seleciona se for único e inequívoco
+    if (matches.length === 1) {
+      found = matches[0];
+    }
+  }
+  
+  if (found) {
+    console.log(`[chat] service_resolved_for_unit: serviceId=${found.id}, name="${found.name || found.nome}"`);
+  } else {
+    console.warn(`[chat] service_not_available_in_unit: serviceName="${params.serviceName}" not found in unit ${params.effectiveUnitId}`);
+  }
+
   return found || null;
 }
 
