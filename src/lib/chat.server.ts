@@ -107,6 +107,31 @@ async function resolveEffectiveUnit(params: { conversationKey?: string; agentUni
   };
 }
 
+/** Mescla campos no customer_context da conversa (no-op se não houver conversationKey). */
+async function patchCustomerContext(
+  conversationKey: string | undefined,
+  patch: Record<string, unknown>,
+) {
+  if (!conversationKey) return;
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await supabaseAdmin
+      .from("wa_conversas")
+      .select("customer_context")
+      .eq("phone", conversationKey)
+      .maybeSingle();
+    const current = ((data as any)?.customer_context as Record<string, unknown>) || {};
+    const { error } = await supabaseAdmin
+      .from("wa_conversas")
+      .update({ customer_context: { ...current, ...patch } } as never)
+      .eq("phone", conversationKey);
+    if (error) console.error(`[chat] context_patch_failed: ${error.message}`);
+  } catch (e) {
+    console.error("[chat] context_patch_error", e);
+  }
+}
+
+
 async function resolveServiceForEffectiveUnit(params: { serviceName: string; effectiveUnitId: string }) {
   console.log(`[chat] service_resolution_started: serviceName="${params.serviceName}", unitId=${params.effectiveUnitId}`);
   const cfg = await getBempConfig();
