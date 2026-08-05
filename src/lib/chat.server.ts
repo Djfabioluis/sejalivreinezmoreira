@@ -652,7 +652,7 @@ function buildTools(sandbox: boolean, forcedUnitId?: string | null, conversation
       }) =>
         safeTool("list_cross_sell_suggestions", async () => {
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          const salonKey = String(salon_id);
+          const salonKey = String(forcedUnitId || salon_id);
           const triggerKey = String(trigger_service_id);
           const phoneKey = `${phone_country_code}${phone_area_code}${phone_number}`;
 
