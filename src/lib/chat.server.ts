@@ -6,6 +6,7 @@ import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
 import { sanitizeCustomerText } from "@/lib/text-sanitize";
 import { logEvent } from "./evolution/logger.server";
 import { classifyFailure, describeError, sanitizeErrorText } from "./evolution/failure";
+import { updateCustomerPipeline, inferStageFromTool } from "@/lib/crm.server";
 
 import {
   bempFetch,
@@ -65,8 +66,20 @@ function runTool<T>(label: string, fn: () => Promise<T>, ctx: ToolCtx = {}) {
   const base = `tool=${label}, conversationKey=${ctx.conversationKey ?? "n/a"}, effectiveUnitId=${ctx.effectiveUnitId ?? "n/a"}`;
   console.log(`[chat] tool_started: ${base}`);
   return fn()
-    .then((result) => {
+    .then(async (result) => {
       console.log(`[chat] tool_completed: ${base}, executionTimeMs=${Date.now() - startedAt}`);
+      
+      // CRM Update on tool success
+      if (ctx.conversationKey) {
+        const stage = inferStageFromTool(label, result);
+        if (stage) {
+          await updateCustomerPipeline({
+            phone: ctx.conversationKey,
+            stage
+          });
+        }
+      }
+
       return result;
     })
     .catch((err) => {
