@@ -162,6 +162,21 @@ async function patchCustomerContext(
   }
 }
 
+/**
+ * Linha de estado do CPF para o prompt.
+ * A validação só vale para o mesmo dia: em nova conversa/dia o CPF é pedido novamente.
+ */
+export function cpfContextLine(ctx: Record<string, any>): string {
+  const validatedAt = ctx?.validatedAt ? Date.parse(String(ctx.validatedAt)) : NaN;
+  const sameDay =
+    Number.isFinite(validatedAt) &&
+    new Date(validatedAt).toDateString() === new Date().toDateString();
+  if (ctx?.cpf_validado === true && sameDay) {
+    return `- CPF validado nesta conversa: SIM (${ctx.cpfMasked || "***.***.***-**"}) — NÃO pedir novamente. Cliente BEMP: ${ctx.customerIdBemp ?? "não informado"}. Plano: ${ctx.planName || ctx.subscriptionPlanName || "não identificado"} (${ctx.subscriptionStatus || "status desconhecido"})`;
+  }
+  return "- CPF validado nesta conversa: NÃO — solicite o CPF antes de usar qualquer plano.";
+}
+
 
 async function resolveServiceForEffectiveUnit(params: { serviceName: string; effectiveUnitId: string }) {
   console.log(`[chat] service_resolution_started: serviceName="${params.serviceName}", unitId=${params.effectiveUnitId}`);
