@@ -247,33 +247,14 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
             return { success: false, code: "transfer_failed", message: error.message };
           }
 
-          // Limpeza de contexto após transferência
-          const currentContext = (conv as any).customer_context || {};
-          
-          const newContext = {
-            currentUnitId: target_unit_id,
-            requestedService: (typeof currentContext.requestedService === "object" ? currentContext.requestedService?.name || currentContext.requestedService?.nome : currentContext.requestedService) || null,
-          };
-
-          // A transferência e a limpeza são atômicas via update_context no RPC ou nesta transação Supabase
-          const { error: updateError } = await supabaseAdmin
-            .from("wa_conversas")
-            .update({ customer_context: newContext })
-            .eq("phone", conversationKey);
-
-          if (updateError) {
-             console.error(`[transfer] context_reset_failed for ${conversationKey}:`, updateError.message);
-             // Se falhar a limpeza, falha a transação (rollback manual)
-             throw new Error(`Falha ao resetar contexto: ${updateError.message}`);
-          }
-          console.log(`[transfer] transfer_completed and context_reset for ${conversationKey}`);
+          console.log(`[transfer] transfer_completed and context_reset at database level for ${conversationKey}`);
 
           // Descartar atribuições em cache da unidade anterior e da nova unidade.
           try {
             const { invalidateAssignmentsCache } = await import("@/lib/bemp/assignments.server");
             if ((conv as any).unidade_id) invalidateAssignmentsCache((conv as any).unidade_id);
             invalidateAssignmentsCache(target_unit_id);
-            console.log(`[transfer] assignments_cache_invalidated for ${target_unit_id}`);
+            console.log(`[transfer] assignments_cache_invalidated: unit=${target_unit_id}`);
           } catch (e) {
             console.error("[transfer] cache_invalidation_failed", e);
           }
@@ -288,11 +269,8 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
             const found = list.find((s: any) => String(s?.id) === String(target_unit_id));
             if (found?.name || found?.nome) {
               newUnitName = String(found.name || found.nome);
-              // Atualizar nome da unidade no contexto também
-              await supabaseAdmin
-                .from("wa_conversas")
-                .update({ customer_context: { ...newContext, currentUnitName: newUnitName } })
-                .eq("phone", conversationKey);
+              // Como a transferência já limpou o contexto no RPC, aqui apenas adicionamos o nome da nova unidade se necessário para a UI/IA
+              await patchCustomerContext(conversationKey, { currentUnitName: newUnitName });
             }
           } catch {}
 
