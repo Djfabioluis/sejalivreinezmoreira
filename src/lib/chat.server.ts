@@ -204,7 +204,12 @@ async function resolveServiceForEffectiveUnit(params: { serviceName: string; eff
   return found || null;
 }
 
-function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conversationKey?: string) {
+function buildTools(
+  sandbox: boolean,
+  fallbackAgentUnitId?: string | null,
+  conversationKey?: string,
+  currentMessageId?: string | null,
+) {
   // Sombreia o helper do módulo injetando o contexto da conversa em todos os logs de tool.
   const safeTool = <T,>(label: string, fn: () => Promise<T>) =>
     runTool(label, fn, { conversationKey, effectiveUnitId: fallbackAgentUnitId });
@@ -2023,7 +2028,7 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
     model: getModel(),
     system,
     messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
-    tools: buildTools(sandbox, effectiveUnitId, opts.conversationKey || undefined),
+    tools: buildTools(sandbox, effectiveUnitId, opts.conversationKey || undefined, opts.messageId ?? null),
     stopWhen: stepCountIs(5),
   });
 }
@@ -2261,7 +2266,7 @@ export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {})
     model: getModel(),
     system: fullSystem,
     messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
-    tools: buildTools(sandbox, effectiveUnitId, opts.conversationKey || undefined),
+    tools: buildTools(sandbox, effectiveUnitId, opts.conversationKey || undefined, opts.messageId ?? null),
 
     stopWhen: stepCountIs(5),
     abortSignal: AbortSignal.timeout(60000),
