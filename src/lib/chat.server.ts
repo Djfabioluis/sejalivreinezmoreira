@@ -187,7 +187,7 @@ function buildTools(sandbox: boolean, initialUnitId?: string | null, conversatio
       execute: async ({ salon_id }) =>
         safeTool("list_services", async () => {
           const cfg = await getBempConfig();
-          const targetUnitId = await resolveEffectiveUnitId(conversationKey, initialUnitId || salon_id);
+          const targetUnitId = await resolveEffectiveUnitId(conversationKey, initialUnitId || (salon_id ? String(salon_id) : undefined));
           if (!targetUnitId) throw new Error("ID da unidade não fornecido.");
           return await bempFetch(`${cfg.apiBase}/salons/${targetUnitId}/services`);
         }),
@@ -198,7 +198,7 @@ function buildTools(sandbox: boolean, initialUnitId?: string | null, conversatio
       execute: async ({ salon_id, service_id }) =>
         safeTool("list_professionals", async () => {
           const cfg = await getBempConfig();
-          const targetUnitId = await resolveEffectiveUnitId(conversationKey, initialUnitId || salon_id);
+          const targetUnitId = await resolveEffectiveUnitId(conversationKey, initialUnitId || (salon_id ? String(salon_id) : undefined));
           if (!targetUnitId) throw new Error("ID da unidade não fornecido.");
           return await bempFetch(
             `${cfg.apiBase}/salons/${targetUnitId}/services/${service_id}/professionals`,
@@ -217,7 +217,7 @@ function buildTools(sandbox: boolean, initialUnitId?: string | null, conversatio
       execute: async ({ salon_id, service_id, professional_id, date }) =>
         safeTool("list_slots", async () => {
           const cfg = await getBempConfig();
-          const targetUnitId = await resolveEffectiveUnitId(conversationKey, initialUnitId || salon_id);
+          const targetUnitId = await resolveEffectiveUnitId(conversationKey, initialUnitId || (salon_id ? String(salon_id) : undefined));
           if (!targetUnitId) throw new Error("ID da unidade não fornecido.");
           const url = professional_id
             ? `${cfg.apiBase}/salons/${targetUnitId}/services/${service_id}/professionals/${professional_id}/slots/${date}`
@@ -241,7 +241,7 @@ function buildTools(sandbox: boolean, initialUnitId?: string | null, conversatio
       }),
       execute: async (input) =>
         safeTool("create_appointment", async () => {
-          const targetUnitId = await resolveEffectiveUnitId(conversationKey, initialUnitId || input.salon_id);
+          const targetUnitId = await resolveEffectiveUnitId(conversationKey, initialUnitId || (input.salon_id ? String(input.salon_id) : undefined));
           if (!targetUnitId) throw new Error("ID da unidade não fornecido.");
           const fullInput = { ...input, salon_id: Number(targetUnitId) };
 
@@ -386,7 +386,7 @@ function buildTools(sandbox: boolean, initialUnitId?: string | null, conversatio
             try {
               const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
               const phone = `${input.phone_country_code}${input.phone_area_code}${input.phone_number}`;
-              const targetUnitId = await resolveEffectiveUnitId(conversationKey, initialUnitId || input.salon_id);
+              const targetUnitId = await resolveEffectiveUnitId(conversationKey, initialUnitId || (input.salon_id ? String(input.salon_id) : undefined));
               await supabaseAdmin.from("reagendamentos_hist" as never).insert({
                 old_appointment_id: String(input.old_appointment_id),
                 new_appointment_id: simId,
@@ -696,7 +696,7 @@ function buildTools(sandbox: boolean, initialUnitId?: string | null, conversatio
       }) =>
         safeTool("list_cross_sell_suggestions", async () => {
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          const targetUnitId = await resolveEffectiveUnitId(conversationKey, initialUnitId || salon_id);
+          const targetUnitId = await resolveEffectiveUnitId(conversationKey, initialUnitId || (salon_id ? String(salon_id) : undefined));
           const salonKey = String(targetUnitId);
           const triggerKey = String(trigger_service_id);
           const phoneKey = `${phone_country_code}${phone_area_code}${phone_number}`;
