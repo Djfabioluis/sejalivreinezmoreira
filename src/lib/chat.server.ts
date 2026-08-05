@@ -383,7 +383,7 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
       }),
       execute: async (input) =>
         safeTool("create_appointment", async () => {
-          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: initialUnitId });
+          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: fallbackAgentUnitId });
           if (!effectiveUnitId) throw new Error("ID da unidade não resolvido.");
           const fullInput = { ...input, salon_id: Number(effectiveUnitId) };
 
