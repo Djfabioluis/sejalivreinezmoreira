@@ -21,17 +21,31 @@ export const ALL_PERMISSIONS = [
 
 export type PermissionKey = (typeof ALL_PERMISSIONS)[number];
 
+const PERM_CACHE = new Map<string, { hasPerm: boolean; expires: number }>();
+const PERM_CACHE_TTL = 5_000; // 5 seconds
+
 export async function assertPermission(
   ctx: { supabase: any; userId: string },
   perm: PermissionKey,
 ) {
+  const cacheKey = `${ctx.userId}:${perm}`;
+  const cached = PERM_CACHE.get(cacheKey);
+  if (cached && cached.expires > Date.now()) {
+    if (!cached.hasPerm) throw new Error("Você não tem permissão para esta ação.");
+    return;
+  }
+
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin.rpc("user_has_permission", {
     _user_id: ctx.userId,
     _perm: perm,
   });
   if (error) throw new Error(error.message);
-  if (!data) throw new Error("Você não tem permissão para esta ação.");
+
+  const hasPerm = Boolean(data);
+  PERM_CACHE.set(cacheKey, { hasPerm, expires: Date.now() + PERM_CACHE_TTL });
+
+  if (!hasPerm) throw new Error("Você não tem permissão para esta ação.");
 }
 
 async function assertAdmin(ctx: { supabase: any; userId: string }) {
