@@ -1,5 +1,6 @@
 import { logEvent } from "./logger.server";
 import { extractConversationMessageText } from "@/lib/whatsapp-inbox.functions";
+import { updateCustomerPipeline } from "@/lib/crm.server";
 
 export async function appendIncomingMessage(params: {
   conversationKey: string;
