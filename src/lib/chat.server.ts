@@ -2169,6 +2169,7 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
 - Etapa: ${ctx.currentStep || "início"}
 - Plano de assinatura: ${ctx.subscriptionPlanName || "não identificado"}
 - Serviço do benefício: ${ctx.subscriptionServiceName || "não resolvido"}${ctx.subscriptionServiceId ? ` (id ${ctx.subscriptionServiceId})` : ""}
+${cpfContextLine(ctx as Record<string, any>)}
 `.trim();
   }
 
@@ -2443,6 +2444,7 @@ export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {})
 - Etapa: ${ctx.currentStep || "início"}
 - Plano de assinatura: ${ctx.subscriptionPlanName || "não identificado"}
 - Serviço do benefício: ${ctx.subscriptionServiceName || "não resolvido"}${ctx.subscriptionServiceId ? ` (id ${ctx.subscriptionServiceId})` : ""}
+${cpfContextLine(ctx as Record<string, any>)}
 `.trim();
   }
 
