@@ -528,7 +528,7 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
             try {
               const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
               const phone = `${input.phone_country_code}${input.phone_area_code}${input.phone_number}`;
-              const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: initialUnitId });
+              const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: fallbackAgentUnitId });
               await supabaseAdmin.from("reagendamentos_hist" as never).insert({
                 old_appointment_id: String(input.old_appointment_id),
                 new_appointment_id: simId,
