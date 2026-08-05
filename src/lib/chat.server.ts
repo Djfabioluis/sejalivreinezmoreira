@@ -346,7 +346,7 @@ function buildTools(sandbox: boolean, forcedUnitId?: string | null, conversation
               await supabaseAdmin.from("reagendamentos_hist" as never).insert({
                 old_appointment_id: String(input.old_appointment_id),
                 new_appointment_id: simId,
-                salon_id: String(input.salon_id),
+                salon_id: String(forcedUnitId || input.salon_id),
                 service_id: String(input.service_id),
                 professional_id:
                   input.professional_id != null ? String(input.professional_id) : null,
