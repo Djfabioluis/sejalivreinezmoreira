@@ -33,7 +33,6 @@ export async function appendIncomingMessage(params: {
     p_customer_context: null
   });
 
-
   if (error) {
     await logEvent({ 
       instance: params.instance, 
@@ -43,6 +42,16 @@ export async function appendIncomingMessage(params: {
       errorDetail: error.message 
     });
     throw new Error(`Failed to append message: ${error.message}`);
+  }
+
+  // Update CRM on new incoming message
+  if (data?.id) {
+    await updateCustomerPipeline({
+      phone: params.phone,
+      conversationId: data.id,
+      stage: 'NOVO_CONTATO', // Base stage on message, IA/Tools will refine it
+      customerName: params.contactName
+    });
   }
 
   await logEvent({ 

@@ -22,7 +22,7 @@ export async function updateCustomerPipeline(params: {
   nextAction?: string;
   nextActionAt?: string;
 }) {
-  const { error } = await supabaseAdmin.rpc("update_customer_pipeline", {
+  const { error } = await supabaseAdmin.rpc("update_customer_pipeline" as any, {
     p_phone: params.phone,
     p_conversation_id: params.conversationId || null,
     p_stage: params.stage,
