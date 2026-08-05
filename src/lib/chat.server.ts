@@ -62,6 +62,11 @@ function safeTool<T>(label: string, fn: () => Promise<T>) {
 async function resolveEffectiveUnit(params: { conversationKey?: string; agentUnitId?: string | null }) {
   const { conversationKey, agentUnitId } = params;
   let conversationUnitId: string | null = null;
+  let conversationUnitName: string | null = null;
+
+  if (conversationKey && !conversationKey.includes(":")) {
+    console.warn(`[chat] resolveEffectiveUnit: invalid_conversation_key received (pure phone instead of instance:phone): ${conversationKey}`);
+  }
 
   if (conversationKey) {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -78,8 +83,24 @@ async function resolveEffectiveUnit(params: { conversationKey?: string; agentUni
 
   const effectiveUnitId = conversationUnitId || agentUnitId || null;
 
+  // Se a unidade foi resolvida, tentamos pegar o nome dela para manter o contexto consistente
+  if (effectiveUnitId) {
+    try {
+      const cfg = await getBempConfig();
+      const salons = (await bempFetch(`${cfg.apiBase}/salons`)) as any;
+      const list = Array.isArray(salons) ? salons : (salons?.data ?? salons?.salons ?? []);
+      const found = list.find((s: any) => String(s?.id) === String(effectiveUnitId));
+      if (found?.name || found?.nome) {
+        conversationUnitName = String(found.name || found.nome);
+      }
+    } catch {}
+  }
+
+  console.log(`[chat] effective_unit_resolved: unitSource=${conversationUnitId ? "conversation" : "agent"}, conversationKeyAvailable=${!!conversationKey}, effectiveUnitId=${effectiveUnitId}`);
+
   return {
     effectiveUnitId,
+    effectiveUnitName: conversationUnitName,
     source: conversationUnitId ? ("conversation" as const) : ("agent" as const),
     conversationUnitId,
     agentUnitId,
@@ -87,19 +108,47 @@ async function resolveEffectiveUnit(params: { conversationKey?: string; agentUni
 }
 
 async function resolveServiceForEffectiveUnit(params: { serviceName: string; effectiveUnitId: string }) {
+  console.log(`[chat] service_resolution_started: serviceName="${params.serviceName}", unitId=${params.effectiveUnitId}`);
   const cfg = await getBempConfig();
   const services = (await bempFetch(`${cfg.apiBase}/salons/${params.effectiveUnitId}/services`)) as any[];
   const list = Array.isArray(services) ? services : (services as any)?.data ?? (services as any)?.services ?? [];
   
-  // Busca por nome exato ou parcial (case insensitive)
-  const found = list.find((s: any) => 
-    String(s?.name || s?.nome || "").toLowerCase() === params.serviceName.toLowerCase()
-  );
+  const normalize = (s: string) => 
+    s.toLowerCase()
+     .trim()
+     .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // remove acentos
+     .replace(/\s+/g, " "); // remove espaços duplicados
+
+  const target = normalize(params.serviceName);
   
+  // 1. Busca por nome exato
+  let found = list.find((s: any) => 
+    normalize(s?.name || s?.nome || "") === target
+  );
+
+  // 2. Se não achou exato, busca por correspondência parcial (o alvo está contido no nome do serviço)
+  if (!found) {
+    const matches = list.filter((s: any) => {
+      const name = normalize(s?.name || s?.nome || "");
+      return name.includes(target) || target.includes(name);
+    });
+    
+    // Só seleciona se for único e inequívoco
+    if (matches.length === 1) {
+      found = matches[0];
+    }
+  }
+  
+  if (found) {
+    console.log(`[chat] service_resolved_for_unit: serviceId=${found.id}, name="${found.name || found.nome}"`);
+  } else {
+    console.warn(`[chat] service_not_available_in_unit: serviceName="${params.serviceName}" not found in unit ${params.effectiveUnitId}`);
+  }
+
   return found || null;
 }
 
-function buildTools(sandbox: boolean, initialUnitId?: string | null, conversationKey?: string) {
+function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conversationKey?: string) {
   const base: Record<string, any> = {
     transfer_conversation_unit: tool({
       description:
@@ -141,18 +190,32 @@ function buildTools(sandbox: boolean, initialUnitId?: string | null, conversatio
 
           // Limpeza de contexto após transferência
           const currentContext = (conv as any).customer_context || {};
+          
+          // Extrair requestedService como nome puro se for objeto ou tiver ID
+          let requestedServiceName = currentContext.requestedService;
+          if (requestedServiceName && typeof requestedServiceName === "object") {
+            requestedServiceName = requestedServiceName.name || requestedServiceName.nome || null;
+          }
+
           const newContext = {
             ...currentContext,
             currentUnitId: target_unit_id,
-            // Limpar dados vinculados à unidade antiga
+            // Preservar somente o NOME do serviço solicitado, limpar IDs vinculados à unidade antiga
+            requestedService: requestedServiceName,
+            serviceId: null,
+            selectedServiceId: null,
+            requestedServiceId: null,
+            availableServices: null,
+
             professionalId: null,
             professionalName: null,
             selectedProfessional: null,
             preferredProfessional: null,
+            availableProfessionals: null,
+
             selectedSlot: null,
             preferredDate: null,
             preferredTime: null,
-            availableProfessionals: null,
             availableSlots: null,
           };
 
@@ -186,6 +249,7 @@ function buildTools(sandbox: boolean, initialUnitId?: string | null, conversatio
 
           return { 
             success: true, 
+            message: `Pronto! Seu atendimento foi transferido para *${newUnitName}*. Agora vou consultar o serviço nessa unidade. 😊`,
             old_unit_id: (conv as any).unidade_id, 
             new_unit_id: target_unit_id,
             new_unit_name: newUnitName,
@@ -241,25 +305,46 @@ function buildTools(sandbox: boolean, initialUnitId?: string | null, conversatio
       execute: async ({ salon_id }) =>
         safeTool("list_services", async () => {
           const cfg = await getBempConfig();
-          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: initialUnitId });
+          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: fallbackAgentUnitId });
           if (!effectiveUnitId) throw new Error("ID da unidade não resolvido.");
           return await bempFetch(`${cfg.apiBase}/salons/${effectiveUnitId}/services`);
         }),
     }),
     list_professionals: tool({
       description: "Lista profissionais disponíveis para um serviço em uma unidade.",
-      inputSchema: z.object({ salon_id: z.number().optional(), service_id: z.number() }),
-      execute: async ({ salon_id, service_id }) =>
+      inputSchema: z.object({ 
+        service_name: z.string().describe("Nome do serviço para o qual deseja listar profissionais"),
+        service_id: z.number().optional().describe("ID do serviço (opcional, será resolvido dinamicamente)"),
+        salon_id: z.number().optional().describe("ID do salão (opcional, será resolvido dinamicamente)")
+      }),
+      execute: async ({ service_name, service_id }) =>
         safeTool("list_professionals", async () => {
           const cfg = await getBempConfig();
-          const { effectiveUnitId, source } = await resolveEffectiveUnit({ conversationKey, agentUnitId: initialUnitId });
+          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: fallbackAgentUnitId });
           if (!effectiveUnitId) return { error: "unit_not_resolved", message: "Não foi possível identificar a unidade correta." };
           
-          console.log(`[professionals] professionals_unit_resolved: source=${source}, effectiveUnitId=${effectiveUnitId}`);
+          // Ignoramos service_id vindo do modelo e resolvemos na unidade ATUAL pelo NOME
+          const service = await resolveServiceForEffectiveUnit({ serviceName: service_name, effectiveUnitId });
           
-          return await bempFetch(
-            `${cfg.apiBase}/salons/${effectiveUnitId}/services/${service_id}/professionals`,
+          if (!service) {
+            return { 
+              success: false, 
+              code: "service_not_available_in_unit", 
+              message: `O serviço "${service_name}" não foi localizado na unidade atual. Por favor, verifique se o serviço está disponível nesta unidade.` 
+            };
+          }
+
+          const effectiveServiceId = Number(service.id);
+          console.log(`[professionals] professionals_query_started: unitId=${effectiveUnitId}, serviceId=${effectiveServiceId}, serviceName="${service_name}"`);
+          
+          const result = await bempFetch(
+            `${cfg.apiBase}/salons/${effectiveUnitId}/services/${effectiveServiceId}/professionals`,
           );
+          
+          const professionalsCount = Array.isArray(result) ? result.length : (Array.isArray((result as any)?.data) ? (result as any).data.length : 0);
+          console.log(`[professionals] professionals_query_completed: count=${professionalsCount}`);
+          
+          return result;
         }),
     }),
     list_slots: tool({
@@ -274,7 +359,7 @@ function buildTools(sandbox: boolean, initialUnitId?: string | null, conversatio
       execute: async ({ salon_id, service_id, professional_id, date }) =>
         safeTool("list_slots", async () => {
           const cfg = await getBempConfig();
-          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: initialUnitId });
+          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: fallbackAgentUnitId });
           if (!effectiveUnitId) throw new Error("ID da unidade não resolvido.");
           const url = professional_id
             ? `${cfg.apiBase}/salons/${effectiveUnitId}/services/${service_id}/professionals/${professional_id}/slots/${date}`
@@ -298,7 +383,7 @@ function buildTools(sandbox: boolean, initialUnitId?: string | null, conversatio
       }),
       execute: async (input) =>
         safeTool("create_appointment", async () => {
-          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: initialUnitId });
+          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: fallbackAgentUnitId });
           if (!effectiveUnitId) throw new Error("ID da unidade não resolvido.");
           const fullInput = { ...input, salon_id: Number(effectiveUnitId) };
 
@@ -443,7 +528,7 @@ function buildTools(sandbox: boolean, initialUnitId?: string | null, conversatio
             try {
               const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
               const phone = `${input.phone_country_code}${input.phone_area_code}${input.phone_number}`;
-              const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: initialUnitId });
+              const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: fallbackAgentUnitId });
               await supabaseAdmin.from("reagendamentos_hist" as never).insert({
                 old_appointment_id: String(input.old_appointment_id),
                 new_appointment_id: simId,
@@ -753,7 +838,7 @@ function buildTools(sandbox: boolean, initialUnitId?: string | null, conversatio
       }) =>
         safeTool("list_cross_sell_suggestions", async () => {
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: initialUnitId });
+          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: fallbackAgentUnitId });
           const salonKey = String(effectiveUnitId);
           const triggerKey = String(trigger_service_id);
           const phoneKey = `${phone_country_code}${phone_area_code}${phone_number}`;
@@ -1413,11 +1498,18 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
 
   const basePrompt = await loadSystemPrompt();
 
+  const { effectiveUnitId, effectiveUnitName, source: unitSource } = await resolveEffectiveUnit({ 
+    conversationKey: opts.conversationKey || undefined, 
+    agentUnitId: opts.unidadeId 
+  });
+
+  const currentUnitName = effectiveUnitName || opts.unitName;
+
   let system = assembleSystemPrompt(basePrompt, {
     contactName: opts.contactName,
     contactPhone: opts.contactPhone,
-    unitName: opts.unitName,
-    unidadeId: opts.unidadeId,
+    unitName: currentUnitName,
+    unidadeId: effectiveUnitId,
     contextSummary,
   });
 
@@ -1430,8 +1522,8 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
            (sandbox ? SANDBOX_NOTE : "") +
            (opts.persona ? `\n\n${opts.persona}` : "") +
            mandatoryOperationalRules({
-             unidadeId: opts.unidadeId,
-             unitName: opts.unitName,
+             unidadeId: effectiveUnitId,
+             unitName: currentUnitName,
              contactName: opts.contactName,
              contactPhone: opts.contactPhone,
              hasHistory: uiMessages.length > 1,
@@ -1441,7 +1533,7 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
     model: getModel(),
     system,
     messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
-    tools: buildTools(sandbox, opts.unidadeId, opts.conversationKey || undefined),
+    tools: buildTools(sandbox, effectiveUnitId, opts.conversationKey || undefined),
     stopWhen: stepCountIs(5),
   });
 }
@@ -1529,14 +1621,16 @@ export async function runAgentWithLogging(params: {
     }
 
     // Determinar a unidade operacional efetiva: unidade da conversa (se transferida) ou do agente.
-    const { effectiveUnitId, source, agentUnitId, conversationUnitId } = await resolveEffectiveUnit({ 
+    const { effectiveUnitId, effectiveUnitName, source: unitSource } = await resolveEffectiveUnit({ 
       conversationKey, 
       agentUnitId: unidadeId 
     });
 
+    const currentUnitName = effectiveUnitName || unitName;
+
     const reply = await runAgent(historyMessages, {
       unidadeId: effectiveUnitId,
-      unitName,
+      unitName: currentUnitName,
       contactName: pushName || (historyData?.contact_name as string),
       contactPhone: phone,
       customerContext: historyData?.customer_context || {},
@@ -1616,15 +1710,17 @@ export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {})
 
   const basePrompt = await loadSystemPrompt();
 
-  const { effectiveUnitId, source, agentUnitId, conversationUnitId } = await resolveEffectiveUnit({ 
+  const { effectiveUnitId, effectiveUnitName, source } = await resolveEffectiveUnit({ 
     conversationKey: opts.conversationKey || undefined, 
     agentUnitId: opts.unidadeId 
   });
 
+  const currentUnitName = effectiveUnitName || opts.unitName;
+
   let fullSystem = assembleSystemPrompt(basePrompt, {
     contactName: opts.contactName,
     contactPhone: opts.contactPhone,
-    unitName: opts.unitName,
+    unitName: currentUnitName,
     unidadeId: effectiveUnitId,
     contextSummary,
   });
@@ -1639,18 +1735,18 @@ export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {})
                (opts.persona ? `\n\n${opts.persona}` : "") +
                mandatoryOperationalRules({
                  unidadeId: effectiveUnitId,
-                 unitName: opts.unitName,
+                 unitName: currentUnitName,
                  contactName: opts.contactName,
                  contactPhone: opts.contactPhone,
                  hasHistory: uiMessages.length > 1,
                }) +
-               `\n\nUNIDADE ATUAL DA CONVERSA (PRIORIDADE ABSOLUTA):\n- Unidade operacional: ${opts.unitName || "não definida"}\n- ID: ${effectiveUnitId}\n- Origem: ${source === "conversation" ? "Transferência ativa" : "Padrão do canal"}\n- NUNCA pergunte a unidade se ela já estiver definida acima.`;
+               `\n\nUNIDADE ATUAL DA CONVERSA (PRIORIDADE ABSOLUTA):\n- Unidade operacional: ${currentUnitName || "não definida"}\n- ID: ${effectiveUnitId}\n- Origem: ${source === "conversation" ? "Transferência ativa" : "Padrão do canal"}\n- NUNCA pergunte a unidade se ela já estiver definida acima.`;
 
   const result = await generateText({
     model: getModel(),
     system: fullSystem,
     messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
-    tools: buildTools(sandbox, effectiveUnitId, opts.contactPhone || undefined),
+    tools: buildTools(sandbox, effectiveUnitId, opts.conversationKey || undefined),
 
     stopWhen: stepCountIs(5),
     abortSignal: AbortSignal.timeout(60000),
