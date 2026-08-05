@@ -1850,8 +1850,8 @@ export async function runAgentWithLogging(params: {
     const currentUnitName = effectiveUnitName || unitName;
 
     const reply = await runAgent(historyMessages, {
-      unidadeId: effectiveUnitId,
-      unitName: currentUnitName,
+      unidadeId: effectiveUnitId || undefined,
+      unitName: currentUnitName || undefined,
       contactName: pushName || (historyData?.contact_name as string),
       contactPhone: phone,
       customerContext: historyData?.customer_context || {},
