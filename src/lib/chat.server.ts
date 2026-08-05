@@ -229,6 +229,14 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
           } else {
             console.log(`[transfer] transfer_completed and context_reset for ${conversationKey}`);
           }
+
+          // Descartar atribuições em cache da unidade anterior e da nova unidade.
+          try {
+            const { invalidateAssignmentsCache } = await import("@/lib/bemp/assignments.server");
+            if ((conv as any).unidade_id) invalidateAssignmentsCache((conv as any).unidade_id);
+            invalidateAssignmentsCache(target_unit_id);
+          } catch { }
+
           
           // Buscar nome da nova unidade
           let newUnitName = `Unidade ${target_unit_id}`;
