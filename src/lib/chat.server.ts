@@ -59,19 +59,44 @@ function safeTool<T>(label: string, fn: () => Promise<T>) {
   });
 }
 
-async function resolveEffectiveUnitId(conversationKey: string | undefined, fallbackUnitId: string | null | undefined) {
-  if (!conversationKey) return fallbackUnitId;
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin
-    .from("wa_conversas")
-    .select("unidade_id")
-    .eq("phone", conversationKey)
-    .maybeSingle();
-  
-  if (error || !data?.unidade_id) {
-    return fallbackUnitId;
+async function resolveEffectiveUnit(params: { conversationKey?: string; agentUnitId?: string | null }) {
+  const { conversationKey, agentUnitId } = params;
+  let conversationUnitId: string | null = null;
+
+  if (conversationKey) {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin
+      .from("wa_conversas")
+      .select("unidade_id")
+      .eq("phone", conversationKey)
+      .maybeSingle();
+
+    if (!error && data?.unidade_id) {
+      conversationUnitId = data.unidade_id;
+    }
   }
-  return data.unidade_id;
+
+  const effectiveUnitId = conversationUnitId || agentUnitId || null;
+
+  return {
+    effectiveUnitId,
+    source: conversationUnitId ? ("conversation" as const) : ("agent" as const),
+    conversationUnitId,
+    agentUnitId,
+  };
+}
+
+async function resolveServiceForEffectiveUnit(params: { serviceName: string; effectiveUnitId: string }) {
+  const cfg = await getBempConfig();
+  const services = (await bempFetch(`${cfg.apiBase}/salons/${params.effectiveUnitId}/services`)) as any[];
+  const list = Array.isArray(services) ? services : (services as any)?.data ?? (services as any)?.services ?? [];
+  
+  // Busca por nome exato ou parcial (case insensitive)
+  const found = list.find((s: any) => 
+    String(s?.name || s?.nome || "").toLowerCase() === params.serviceName.toLowerCase()
+  );
+  
+  return found || null;
 }
 
 function buildTools(sandbox: boolean, initialUnitId?: string | null, conversationKey?: string) {
@@ -91,15 +116,10 @@ function buildTools(sandbox: boolean, initialUnitId?: string | null, conversatio
           
           console.log(`[transfer] transfer_started for ${conversationKey} to ${target_unit_id}`);
           
-          if (initialUnitId === target_unit_id) {
-            console.log(`[transfer] transfer_idempotent for ${conversationKey}`);
-            return { success: true, message: "A conversa já está nesta unidade.", idempotent: true };
-          }
-
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
           const { data: conv, error: convError } = await supabaseAdmin
             .from("wa_conversas" as never)
-            .select("phone, unidade_id")
+            .select("phone, unidade_id, customer_context")
             .eq("phone", conversationKey)
             .maybeSingle();
 
@@ -118,24 +138,54 @@ function buildTools(sandbox: boolean, initialUnitId?: string | null, conversatio
             console.error(`[transfer] transfer_failed for ${conversationKey}:`, error.message);
             return { success: false, code: "transfer_failed", message: error.message };
           }
+
+          // Limpeza de contexto após transferência
+          const currentContext = (conv as any).customer_context || {};
+          const newContext = {
+            ...currentContext,
+            currentUnitId: target_unit_id,
+            // Limpar dados vinculados à unidade antiga
+            professionalId: null,
+            professionalName: null,
+            selectedProfessional: null,
+            preferredProfessional: null,
+            selectedSlot: null,
+            preferredDate: null,
+            preferredTime: null,
+            availableProfessionals: null,
+            availableSlots: null,
+          };
+
+          await supabaseAdmin
+            .from("wa_conversas")
+            .update({ customer_context: newContext })
+            .eq("phone", conversationKey);
+
+          console.log(`[transfer] transfer_completed and context_reset for ${conversationKey}`);
           
-          console.log(`[transfer] transfer_completed for ${conversationKey} to ${target_unit_id}`);
-          
-          // Buscar nome da nova unidade para retorno amigável
+          // Buscar nome da nova unidade
           let newUnitName = `Unidade ${target_unit_id}`;
           try {
             const cfg = await getBempConfig();
             const salons = (await bempFetch(`${cfg.apiBase}/salons`)) as any;
             const list = Array.isArray(salons) ? salons : (salons?.data ?? salons?.salons ?? []);
             const found = list.find((s: any) => String(s?.id) === String(target_unit_id));
-            if (found?.name || found?.nome) newUnitName = String(found.name || found.nome);
+            if (found?.name || found?.nome) {
+              newUnitName = String(found.name || found.nome);
+              // Atualizar nome da unidade no contexto também
+              await supabaseAdmin
+                .from("wa_conversas")
+                .update({ customer_context: { ...newContext, currentUnitName: newUnitName } })
+                .eq("phone", conversationKey);
+            }
           } catch {}
 
           return { 
             success: true, 
-            old_unit_id: initialUnitId, 
+            old_unit_id: (conv as any).unidade_id, 
             new_unit_id: target_unit_id,
-            new_unit_name: newUnitName
+            new_unit_name: newUnitName,
+            context_reset: true
           };
         }),
     }),
@@ -187,9 +237,9 @@ function buildTools(sandbox: boolean, initialUnitId?: string | null, conversatio
       execute: async ({ salon_id }) =>
         safeTool("list_services", async () => {
           const cfg = await getBempConfig();
-          const targetUnitId = await resolveEffectiveUnitId(conversationKey, initialUnitId || (salon_id ? String(salon_id) : undefined));
-          if (!targetUnitId) throw new Error("ID da unidade não fornecido.");
-          return await bempFetch(`${cfg.apiBase}/salons/${targetUnitId}/services`);
+          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: initialUnitId });
+          if (!effectiveUnitId) throw new Error("ID da unidade não resolvido.");
+          return await bempFetch(`${cfg.apiBase}/salons/${effectiveUnitId}/services`);
         }),
     }),
     list_professionals: tool({
@@ -198,10 +248,13 @@ function buildTools(sandbox: boolean, initialUnitId?: string | null, conversatio
       execute: async ({ salon_id, service_id }) =>
         safeTool("list_professionals", async () => {
           const cfg = await getBempConfig();
-          const targetUnitId = await resolveEffectiveUnitId(conversationKey, initialUnitId || (salon_id ? String(salon_id) : undefined));
-          if (!targetUnitId) throw new Error("ID da unidade não fornecido.");
+          const { effectiveUnitId, source } = await resolveEffectiveUnit({ conversationKey, agentUnitId: initialUnitId });
+          if (!effectiveUnitId) return { error: "unit_not_resolved", message: "Não foi possível identificar a unidade correta." };
+          
+          console.log(`[professionals] professionals_unit_resolved: source=${source}, effectiveUnitId=${effectiveUnitId}`);
+          
           return await bempFetch(
-            `${cfg.apiBase}/salons/${targetUnitId}/services/${service_id}/professionals`,
+            `${cfg.apiBase}/salons/${effectiveUnitId}/services/${service_id}/professionals`,
           );
         }),
     }),
@@ -217,11 +270,11 @@ function buildTools(sandbox: boolean, initialUnitId?: string | null, conversatio
       execute: async ({ salon_id, service_id, professional_id, date }) =>
         safeTool("list_slots", async () => {
           const cfg = await getBempConfig();
-          const targetUnitId = await resolveEffectiveUnitId(conversationKey, initialUnitId || (salon_id ? String(salon_id) : undefined));
-          if (!targetUnitId) throw new Error("ID da unidade não fornecido.");
+          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: initialUnitId });
+          if (!effectiveUnitId) throw new Error("ID da unidade não resolvido.");
           const url = professional_id
-            ? `${cfg.apiBase}/salons/${targetUnitId}/services/${service_id}/professionals/${professional_id}/slots/${date}`
-            : `${cfg.apiBase}/salons/${targetUnitId}/services/${service_id}/slots/${date}`;
+            ? `${cfg.apiBase}/salons/${effectiveUnitId}/services/${service_id}/professionals/${professional_id}/slots/${date}`
+            : `${cfg.apiBase}/salons/${effectiveUnitId}/services/${service_id}/slots/${date}`;
           return await bempFetch(url);
         }),
     }),
@@ -241,9 +294,9 @@ function buildTools(sandbox: boolean, initialUnitId?: string | null, conversatio
       }),
       execute: async (input) =>
         safeTool("create_appointment", async () => {
-          const targetUnitId = await resolveEffectiveUnitId(conversationKey, initialUnitId || (input.salon_id ? String(input.salon_id) : undefined));
-          if (!targetUnitId) throw new Error("ID da unidade não fornecido.");
-          const fullInput = { ...input, salon_id: Number(targetUnitId) };
+          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: initialUnitId });
+          if (!effectiveUnitId) throw new Error("ID da unidade não resolvido.");
+          const fullInput = { ...input, salon_id: Number(effectiveUnitId) };
 
           if (sandbox) {
             return {
@@ -278,7 +331,7 @@ function buildTools(sandbox: boolean, initialUnitId?: string | null, conversatio
             try {
               const cfg = await getBempConfig();
               const services = (await bempFetch(
-                `${cfg.apiBase}/salons/${targetUnitId}/services`,
+                `${cfg.apiBase}/salons/${effectiveUnitId}/services`,
               )) as Array<Record<string, unknown>> | null;
               if (Array.isArray(services)) {
                 const found = services.find((s) => Number(s.id) === input.service_id);
@@ -294,7 +347,7 @@ function buildTools(sandbox: boolean, initialUnitId?: string | null, conversatio
             const sent = await sendWhatsAppText(phone, msg);
             await supabaseAdmin.from("agendamentos_notif" as never).insert({
               bemp_appointment_id: bempId,
-              salon_id: String(targetUnitId),
+              salon_id: String(effectiveUnitId),
               service_id: String(input.service_id),
               service_name: serviceName,
               start_at: input.start,
@@ -386,11 +439,11 @@ function buildTools(sandbox: boolean, initialUnitId?: string | null, conversatio
             try {
               const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
               const phone = `${input.phone_country_code}${input.phone_area_code}${input.phone_number}`;
-              const targetUnitId = await resolveEffectiveUnitId(conversationKey, initialUnitId || (input.salon_id ? String(input.salon_id) : undefined));
+              const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: initialUnitId });
               await supabaseAdmin.from("reagendamentos_hist" as never).insert({
                 old_appointment_id: String(input.old_appointment_id),
                 new_appointment_id: simId,
-                salon_id: String(targetUnitId),
+                salon_id: String(effectiveUnitId),
                 service_id: String(input.service_id),
                 professional_id:
                   input.professional_id != null ? String(input.professional_id) : null,
@@ -696,8 +749,8 @@ function buildTools(sandbox: boolean, initialUnitId?: string | null, conversatio
       }) =>
         safeTool("list_cross_sell_suggestions", async () => {
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          const targetUnitId = await resolveEffectiveUnitId(conversationKey, initialUnitId || (salon_id ? String(salon_id) : undefined));
-          const salonKey = String(targetUnitId);
+          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: initialUnitId });
+          const salonKey = String(effectiveUnitId);
           const triggerKey = String(trigger_service_id);
           const phoneKey = `${phone_country_code}${phone_area_code}${phone_number}`;
 
