@@ -255,6 +255,19 @@ function buildTools(
 
           console.log(`[transfer] transfer_completed and context_reset at database level for ${conversationKey}`);
 
+          // Plano: preserva o nome do plano, mas descarta o service_id da unidade anterior.
+          const previousContext = ((conv as any).customer_context ?? {}) as Record<string, unknown>;
+          if (previousContext.subscriptionPlanName) {
+            await patchCustomerContext(conversationKey, {
+              subscriptionPlanName: previousContext.subscriptionPlanName,
+              subscriptionPlanId: previousContext.subscriptionPlanId ?? null,
+              subscriptionServiceId: null,
+              subscriptionServiceName: null,
+              subscriptionUnitId: target_unit_id,
+            });
+            console.log("[bemp-plan] subscription_service_reset_after_transfer");
+          }
+
           // Descartar atribuições em cache da unidade anterior e da nova unidade.
           try {
             const { invalidateAssignmentsCache } = await import("@/lib/bemp/assignments.server");
@@ -1851,6 +1864,18 @@ export function mandatoryOperationalRules(opts: {
     "- Nunca crie agendamento sem que a combinação unidade + serviço + profissional tenha sido validada; se retornar professional_not_assigned_to_service, ofereça profissionais válidos ou serviços atribuídos ao profissional.",
     "- Nunca exiba IDs técnicos ao cliente. Liste profissionais com 💜 *Nome* e serviços com • *Nome*.",
     "- Se houver apenas um profissional disponível para o serviço, NUNCA pergunte preferência nem apresente a opção 'Sem preferência'; informe o profissional selecionado com entusiasmo e avance.",
+    "- PLANOS DE ASSINATURA (BENEFÍCIO): se o cliente mencionar plano, benefício, assinatura ou disser \"quero usar meu plano\", chame SEMPRE get_customer_active_plans antes de qualquer outra coisa.",
+    "- Mapeamento oficial de benefícios (resolvido pelo backend, nunca invente): plano de manicure → *Manicure Plano Beauty*; plano de escova → *Escova Plano Beauty*; plano de hidratação e escova → *Hidratação e Escova*.",
+    "- Quando houver plano ativo, NÃO pergunte qual serviço o cliente deseja: o plano já determina o serviço. Informe o benefício e siga para profissional, data e horário.",
+    "- Depois de identificar o plano, chame resolve_subscription_service para obter o serviço correto NA UNIDADE ATUAL; só então chame list_professionals e list_slots com esse service_id.",
+    "- NUNCA agende o serviço comum (\"Manicure\", \"Escova\", \"Hidratação\") quando existir serviço específico do plano, e nunca separe \"Hidratação e Escova\" em dois agendamentos.",
+    "- Se houver MAIS DE UM plano ativo, pergunte qual benefício o cliente deseja usar e nunca escolha automaticamente:\n\"Encontrei estes benefícios ativos:\n\n💜 *<Benefício 1>*\n💜 *<Benefício 2>*\n\nQual deles você deseja agendar?\"",
+    "- Se o plano estiver vencido, cancelado, suspenso ou sem utilização disponível, responda \"Seu plano foi localizado, mas não há utilização disponível no momento.\" e ofereça agendamento como serviço comum, atendimento humano ou orientação de renovação. NUNCA diga que o benefício foi utilizado sem confirmação do BEMP.",
+    "- Se o serviço do plano não existir na unidade atual, informe a indisponibilidade e ofereça transferência de unidade. É PROIBIDO usar o serviço comum como substituto silencioso.",
+    "- Após transferência de unidade, resolva o serviço do plano NOVAMENTE na nova unidade (resolve_subscription_service) e nunca reutilize service_id ou profissional da unidade anterior.",
+    "- Para agendamentos por plano use create_subscription_appointment (não create_appointment), informando apenas o nome do plano: o backend resolve unidade, service_id e valida saldo. Nunca invente IDs técnicos.",
+    "- Antes de criar o agendamento por plano, mostre SEMPRE o resumo:\n\"📌 *Confirmação do agendamento*\n\n💜 Plano: <plano>\n✨ Serviço: <serviço do plano>\n👤 Profissional: <nome>\n📅 Data: <data>\n🕐 Horário: <horário>\n📍 Unidade: <unidade>\n\nPosso confirmar?\"",
+    "- Após a confirmação e o sucesso no BEMP, envie apenas UMA mensagem final de confirmação.",
     "- NUNCA use aspas triplas no conteúdo da resposta.",
   ];
 
@@ -1988,6 +2013,8 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
 - Horário: ${ctx.preferredTime || "não informado"}
 - Nome Confirmado: ${ctx.name || "não informado"}
 - Etapa: ${ctx.currentStep || "início"}
+- Plano de assinatura: ${ctx.subscriptionPlanName || "não identificado"}
+- Serviço do benefício: ${ctx.subscriptionServiceName || "não resolvido"}${ctx.subscriptionServiceId ? ` (id ${ctx.subscriptionServiceId})` : ""}
 `.trim();
   }
 
@@ -2226,6 +2253,8 @@ export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {})
 - Horário: ${ctx.preferredTime || "não informado"}
 - Nome Confirmado: ${ctx.name || "não informado"}
 - Etapa: ${ctx.currentStep || "início"}
+- Plano de assinatura: ${ctx.subscriptionPlanName || "não identificado"}
+- Serviço do benefício: ${ctx.subscriptionServiceName || "não resolvido"}${ctx.subscriptionServiceId ? ` (id ${ctx.subscriptionServiceId})` : ""}
 `.trim();
   }
 
