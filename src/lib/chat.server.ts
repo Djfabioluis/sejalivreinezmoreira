@@ -59,13 +59,34 @@ function safeTool<T>(label: string, fn: () => Promise<T>) {
   });
 }
 
-function buildTools(sandbox: boolean, forcedUnitId?: string | null) {
+function buildTools(sandbox: boolean, forcedUnitId?: string | null, conversationPhone?: string) {
   const base: Record<string, any> = {
-    // Sempre disponível (mesmo com unidade fixa): usada apenas para INFORMAR
-    // quantas/quais unidades ativas existem, com endereço.
+    transfer_conversation_unit: tool({
+      description:
+        "Transfere a conversa para outra unidade operacional. Use somente APÓS o cliente confirmar claramente que deseja ser atendido em outra unidade. Não use para simples perguntas informativas.",
+      inputSchema: z.object({
+        target_unit_id: z.string().describe("O ID da unidade de destino"),
+        reason: z.string().optional().describe("Motivo da transferência"),
+      }),
+      execute: async ({ target_unit_id, reason }) =>
+        safeTool("transfer_conversation_unit", async () => {
+          if (!conversationPhone) throw new Error("ID da conversa não fornecido para transferência.");
+          if (forcedUnitId === target_unit_id) {
+            return { success: true, message: "A conversa já está nesta unidade.", idempotent: true };
+          }
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          const { data, error } = await supabaseAdmin.rpc("transfer_conversation_unit", {
+            p_conversation_phone: conversationPhone,
+            p_target_unit_id: target_unit_id,
+            p_reason: reason || "Solicitado pelo cliente via IA",
+          });
+          if (error) throw new Error(error.message);
+          return data;
+        }),
+    }),
     list_units_info: tool({
       description:
-        "Use quando o cliente perguntar quantas unidades existem, quais são as unidades/lojas/endereços. Retorna as unidades ativas na Bemp com endereço. NÃO use para trocar a unidade do agendamento.",
+        "Use quando o cliente perguntar quantas unidades existem, quais são as unidades/lojas/endereços. Retorna as unidades ativas na Bemp com endereço. NÃO use para trocar a unidade do agendamento automaticamente.",
       inputSchema: z.object({}),
       execute: async () =>
         safeTool("list_units_info", async () => {
@@ -86,7 +107,7 @@ function buildTools(sandbox: boolean, forcedUnitId?: string | null) {
                 .filter(Boolean)
                 .join(", ");
             return {
-              id: s?.id,
+              id: String(s?.id),
               nome: s?.name ?? s?.nome ?? s?.title,
               endereco: typeof addr === "string" ? addr : JSON.stringify(addr),
             };
@@ -94,19 +115,16 @@ function buildTools(sandbox: boolean, forcedUnitId?: string | null) {
           return { total: units.length, unidades: units };
         }),
     }),
-    ...(forcedUnitId
-      ? {}
-      : {
-          list_salons: tool({
-            description: "Lista todas as unidades (salões) disponíveis na conta Bemp.",
-            inputSchema: z.object({}),
-            execute: async () =>
-              safeTool("list_salons", async () => {
-                const cfg = await getBempConfig();
-                return await bempFetch(`${cfg.apiBase}/salons`);
-              }),
-          }),
+    list_salons: tool({
+      description: "Lista todas as unidades (salões) disponíveis na conta Bemp.",
+      inputSchema: z.object({}),
+      execute: async () =>
+        safeTool("list_salons", async () => {
+          const cfg = await getBempConfig();
+          return await bempFetch(`${cfg.apiBase}/salons`);
         }),
+    }),
+
 
     list_services: tool({
       description: "Lista serviços de uma unidade, com preço e duração.",
