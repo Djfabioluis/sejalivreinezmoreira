@@ -1,5 +1,10 @@
 import { describe, it, expect } from "vitest";
-import { classifyFailure, sanitizeErrorText, describeError, GENERIC_FALLBACK_TEXT } from "../failure";
+import {
+  classifyFailure,
+  sanitizeErrorText,
+  describeError,
+  GENERIC_FALLBACK_TEXT,
+} from "../failure";
 
 describe("classifyFailure", () => {
   it("402 Payment Required → créditos esgotados, sem texto de instabilidade", () => {
@@ -35,7 +40,9 @@ describe("classifyFailure", () => {
 
 describe("sanitizeErrorText", () => {
   it("mascara bearer tokens e chaves", () => {
-    expect(sanitizeErrorText("Authorization: Bearer abcdef1234567890")).not.toContain("abcdef1234567890");
+    expect(sanitizeErrorText("Authorization: Bearer abcdef1234567890")).not.toContain(
+      "abcdef1234567890",
+    );
     expect(sanitizeErrorText("api_key=supersecretvalue123")).not.toContain("supersecretvalue123");
   });
 

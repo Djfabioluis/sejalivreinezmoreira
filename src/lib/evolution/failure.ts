@@ -54,8 +54,7 @@ export function classifyFailure(err: unknown): FailureClass {
   const anyErr = err as any;
   const raw = err instanceof Error ? err.message : String(err ?? "");
   const msg = raw.toLowerCase();
-  const status: number | undefined =
-    typeof anyErr?.status === "number" ? anyErr.status : undefined;
+  const status: number | undefined = typeof anyErr?.status === "number" ? anyErr.status : undefined;
   const code: string | undefined = typeof anyErr?.code === "string" ? anyErr.code : undefined;
 
   // --- IA / gateway ---
@@ -80,7 +79,8 @@ export function classifyFailure(err: unknown): FailureClass {
 
   // --- Erros de negócio conhecidos (vindos das tools) ---
   const known: Record<string, string> = {
-    service_not_found: "Não encontrei esse serviço nessa unidade 😊 Quer que eu liste os disponíveis?",
+    service_not_found:
+      "Não encontrei esse serviço nessa unidade 😊 Quer que eu liste os disponíveis?",
     no_assigned_professionals:
       "No momento não temos profissional disponível para esse serviço nesta unidade 😔 Posso te mostrar outras opções?",
     professional_not_assigned_to_service:
@@ -98,7 +98,8 @@ export function classifyFailure(err: unknown): FailureClass {
     if (httpStatus === 404) {
       return {
         code: "bemp_not_found",
-        userMessage: "Não encontrei esse registro na agenda desta unidade 😊 Pode confirmar os dados pra mim?",
+        userMessage:
+          "Não encontrei esse registro na agenda desta unidade 😊 Pode confirmar os dados pra mim?",
         expected: true,
         escalate: false,
       };
@@ -106,7 +107,8 @@ export function classifyFailure(err: unknown): FailureClass {
     if (httpStatus === 422) {
       return {
         code: "bemp_invalid_data",
-        userMessage: "Alguns dados não foram aceitos pela agenda 😊 Pode confirmar serviço, data e horário?",
+        userMessage:
+          "Alguns dados não foram aceitos pela agenda 😊 Pode confirmar serviço, data e horário?",
         expected: true,
         escalate: false,
       };
