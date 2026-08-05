@@ -179,7 +179,18 @@ export async function sendEvolutionText(
   typingMs = 0,
 ): Promise<boolean> {
   const number = to.replace(/\D/g, "");
+  // Preserve line breaks and Markdown for WhatsApp. 
+  // slice(0, 3500) is fine to avoid payload limits.
   const text = sanitizeCustomerText(body).slice(0, 3500);
+
+  if (process.env.WHATSAPP_DEBUG === "true") {
+    console.log("[evolution] Sending text:", {
+      length: text.length,
+      lineBreaks: (text.match(/\n/g) || []).length,
+      preview: text.slice(0, 100).replace(/\n/g, "\\n") + "..."
+    });
+  }
+
   // Na Evolution v2, `delay` + `presence` no próprio sendText faz o WhatsApp
   // exibir "digitando…" durante o intervalo antes de entregar a mensagem.
   // Enviamos também dentro de `options` para compatibilidade com v1.

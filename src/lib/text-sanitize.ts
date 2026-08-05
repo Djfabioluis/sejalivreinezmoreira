@@ -4,17 +4,9 @@
  * Preserva listas numeradas ("1.") e itens com hífen.
  */
 export function stripMarkdown(input: string): string {
-  if (!input) return input;
-  let out = input;
-  // Remove **bold**, __bold__, *italic*, _italic_, `code`
-  out = out.replace(/\*+/g, "");
-  out = out.replace(/`+/g, "");
-  // Underscores usados como marcação (rodeados por espaço/limite). Preserva no meio de palavras.
-  out = out.replace(/(^|[\s(])_+(?=\S)/g, "$1");
-  out = out.replace(/(?<=\S)_+(?=[\s).,;:!?]|$)/g, "");
-  // Headings no início da linha
-  out = out.replace(/^\s{0,3}#{1,6}\s+/gm, "");
-  return out;
+  // A IA agora gera negritos no padrão WhatsApp (*texto*) e listas (•).
+  // Não removemos mais os asteriscos, pois o WhatsApp os interpreta.
+  return input;
 }
 
 /**
@@ -26,11 +18,14 @@ export function stripServiceDuration(input: string): string {
   let out = input;
   out = out.replace(/\s*[([]\s*(?:dura[cç][aã]o|tempo)\s*(?:aprox\.?|aproximad[ao])?[^)\]]*\d+\s*(?:min(?:utos?)?|h|hora?s?)\s*[)\]]/gi, "");
   out = out.replace(/\s*(?:[-–—,;:]\s*)?(?:dura[cç][aã]o|tempo)\s*(?:aprox\.?|aproximad[ao])?\s*(?:de\s*)?\d+\s*(?:min(?:utos?)?|h|hora?s?)\b/gi, "");
-  out = out.replace(/\s{2,}/g, " ");
-  out = out.replace(/[ \t]+\n/g, "\n");
-  return out.trim();
+  // Removidas as transformações que colapsavam espaços e quebras de linha:
+  // out = out.replace(/\s{2,}/g, " ");
+  // out = out.replace(/[ \t]+\n/g, "\n");
+  // return out.trim();
+  return out;
 }
 
 export function sanitizeCustomerText(input: string): string {
-  return stripServiceDuration(stripMarkdown(input));
+  // Agora preservamos quebras de linha e formatação Markdown/WhatsApp.
+  return stripServiceDuration(input);
 }
