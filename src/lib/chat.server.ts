@@ -366,6 +366,8 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
             unitId: effectiveUnitId,
             service: { id: service.id, name: service.name },
             professionals,
+            singleProfessional: professionals.length === 1,
+            autoSelectedProfessional: professionals.length === 1 ? professionals[0] : null,
           };
         }),
     }),
@@ -519,12 +521,21 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
               created_at: new Date().toISOString(),
             };
           }
-          const payload = withProfessionalPreferenceNote(fullInput);
+          // Se o serviço tem apenas um profissional atribuído, não houve escolha real:
+          // não registrar a observação "com preferência".
+          const { getProfessionalsForService } = await import("@/lib/bemp/assignments.server");
+          const assignedPros = await getProfessionalsForService(effectiveUnitId, svc.id);
+          const isSoleProfessional = assignedPros.length <= 1;
+          const shouldMarkPreference = input.professional_id != null && !isSoleProfessional;
+
+          const payload = shouldMarkPreference
+            ? withProfessionalPreferenceNote(fullInput)
+            : { ...fullInput };
           const result = await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule`, {
             method: "POST",
             body: JSON.stringify(payload),
           });
-          if (input.professional_id != null) {
+          if (shouldMarkPreference) {
             await tryUpdateBempScheduleNote(result, PROFESSIONAL_PREFERENCE_NOTE);
           }
           // Registra e envia confirmação por WhatsApp (best-effort, não bloqueia o fluxo).
@@ -1438,6 +1449,8 @@ export function mandatoryOperationalRules(opts: {
     "- Use \"a partir de R$ XX,XX\" SOMENTE quando o serviço tiver variação real de preço (comprimento, quantidade, técnica etc.).",
     "- Ao informar o preço de um serviço escolhido, responda EXATAMENTE neste formato:\n\"Ótima escolha! 💅 O serviço de <Serviço> custa R$ XX,XX.\n\nVocê tem preferência por alguma profissional?\n\n• <Profissional 1>\n• <Profissional 2>\n• Sem preferência\"",
     "- Cada profissional deve ficar em UMA LINHA separada, iniciada por \"• \". NUNCA coloque os nomes na mesma linha, nem separados por vírgula. Sempre inclua \"• Sem preferência\" na última linha.",
+    "- EXCEÇÃO OBRIGATÓRIA: se list_professionals retornar apenas UM profissional (singleProfessional = true), é PROIBIDO perguntar se o cliente tem preferência e é PROIBIDO exibir a opção \"Sem preferência\" ou lista com marcadores. Nesse caso, selecione automaticamente esse profissional e apenas informe: \"O serviço de <Serviço> custa R$ XX,XX e é realizado pela <Profissional>. 💜\n\nPara qual dia você gostaria de agendar? 😊\"",
+    "- Quando houver apenas um profissional, siga direto para data/horário usando esse profissional, sem citar preferência em nenhum momento nem no resumo.",
     "- Ao apresentar horários disponíveis, use EXATAMENTE este formato:\n\"Temos os seguintes horários disponíveis para <data> com o(a) profissional <nome>:\n\n🕒 15:20\n🕒 16:00\n🕒 16:40\n\nQual desses horários é o melhor para você? 😊\"",
     "- Um horário por linha, sempre precedido de \"🕒 \". NUNCA coloque vários horários na mesma linha e NUNCA use \"•\" ou hífen para horários.",
     "- Mantenha uma linha em branco entre a frase introdutória, a lista de horários e a pergunta final. A pergunta final deve ser sempre: \"Qual desses horários é o melhor para você? 😊\".",
