@@ -380,21 +380,27 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
       }),
       execute: async ({ service_name }) =>
         safeTool("list_professionals", async () => {
-          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: fallbackAgentUnitId });
+          const { effectiveUnitId, effectiveUnitName } = await resolveEffectiveUnit({ conversationKey, agentUnitId: fallbackAgentUnitId });
           if (!effectiveUnitId) return { success: false, code: "unit_not_resolved", message: "Não foi possível identificar a unidade correta." };
           console.log(`[chat] effective_unit_for_assignments: ${effectiveUnitId}`);
+          
           const { resolveServiceAssignment, getProfessionalsForService, computeProfessionalSelection } =
             await import("@/lib/bemp/assignments.server");
-          const service = await resolveServiceAssignment(effectiveUnitId, service_name);
-          if (!service) {
+          
+          const resolution = await resolveServiceAssignment(effectiveUnitId, service_name);
+          if (!resolution.success) {
             return {
-              success: false,
-              code: "service_not_available_in_unit",
-              message: `O serviço "${service_name}" não está disponível com profissionais atribuídos nesta unidade.`,
+               success: false,
+               code: resolution.code,
+               message: resolution.code === "service_ambiguous" 
+                 ? `Encontrei mais de um serviço para "${service_name}". Qual destes você prefere?`
+                 : `Não encontrei o serviço "${service_name}" na unidade ${effectiveUnitName || effectiveUnitId}.`,
+               options: (resolution as any).options
             };
           }
+
+          const service = resolution.service!;
           const allPros = await getProfessionalsForService(effectiveUnitId, service.id);
-          // "Sem preferência" NUNCA é um profissional: filtramos qualquer entrada inválida.
           const selection = computeProfessionalSelection(allPros);
           const {
             professionals,
@@ -408,7 +414,7 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
 
           if (professionalsCount === 0) {
             return {
-              success: false,
+              success: true, // success true pois a busca ocorreu, mas retornamos erro estruturado
               code: "no_assigned_professionals",
               professionals: [],
               professionalsCount: 0,
@@ -428,6 +434,7 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
               professionalId: selectedProfessional.id,
               professionalName: selectedProfessional.name,
               preferredProfessional: selectedProfessional.name,
+              selectedProfessional: selectedProfessional
             });
             console.log(
               `[chat] single_professional_auto_selected: unit=${effectiveUnitId}, service=${service.id}, professional=${selectedProfessional.id}`,
@@ -436,7 +443,8 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
 
           return {
             success: true,
-            unitId: effectiveUnitId,
+            effectiveUnitId,
+            effectiveUnitName,
             service: { id: service.id, name: service.name },
             professionals,
             professionalsCount,
