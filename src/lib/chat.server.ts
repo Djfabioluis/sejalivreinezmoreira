@@ -521,12 +521,21 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
               created_at: new Date().toISOString(),
             };
           }
-          const payload = withProfessionalPreferenceNote(fullInput);
+          // Se o serviço tem apenas um profissional atribuído, não houve escolha real:
+          // não registrar a observação "com preferência".
+          const { getProfessionalsForService } = await import("@/lib/bemp/assignments.server");
+          const assignedPros = await getProfessionalsForService(effectiveUnitId, svc.id);
+          const isSoleProfessional = assignedPros.length <= 1;
+          const shouldMarkPreference = input.professional_id != null && !isSoleProfessional;
+
+          const payload = shouldMarkPreference
+            ? withProfessionalPreferenceNote(fullInput)
+            : { ...fullInput };
           const result = await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule`, {
             method: "POST",
             body: JSON.stringify(payload),
           });
-          if (input.professional_id != null) {
+          if (shouldMarkPreference) {
             await tryUpdateBempScheduleNote(result, PROFESSIONAL_PREFERENCE_NOTE);
           }
           // Registra e envia confirmação por WhatsApp (best-effort, não bloqueia o fluxo).
