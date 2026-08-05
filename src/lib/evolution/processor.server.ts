@@ -127,6 +127,15 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
         isIAActive
       });
       
+      // 4.1 Se o agente possui unidade, garantir que o status da conversa seja aberto
+      if (agent?.unidade_id) {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        await supabaseAdmin
+          .from("wa_conversas" as never)
+          .update({ status: "aberta" } as never)
+          .eq("key", conversationKey);
+      }
+      
       if (saved) {
         await logEvent({
           instance: msg.instance,
