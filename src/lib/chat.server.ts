@@ -2139,7 +2139,8 @@ export async function runAgentWithLogging(params: {
       contactName: pushName || (historyData?.contact_name as string),
       contactPhone: phone,
       customerContext: historyData?.customer_context || {},
-      conversationKey
+      conversationKey,
+      messageId,
     });
 
     if (!reply || reply.trim().length === 0) {
