@@ -204,7 +204,11 @@ async function resolveServiceForEffectiveUnit(params: { serviceName: string; eff
 }
 
 function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conversationKey?: string) {
+  // Sombreia o helper do módulo injetando o contexto da conversa em todos os logs de tool.
+  const safeTool = <T,>(label: string, fn: () => Promise<T>) =>
+    runTool(label, fn, { conversationKey, effectiveUnitId: fallbackAgentUnitId });
   const base: Record<string, any> = {
+
     transfer_conversation_unit: tool({
       description:
         "Transfere REALMENTE a conversa para outra unidade operacional. Use somente APÓS o cliente confirmar claramente que deseja ser atendido em outra unidade (ex.: após ele dizer 'Sim' para a sua pergunta de confirmação). Não use para simples perguntas informativas.",
