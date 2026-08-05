@@ -68,14 +68,29 @@ function priceOf(service: any): number | null {
  */
 export function computeProfessionalSelection<T extends { id: string | number; name: string }>(
   raw: T[] | null | undefined,
-): { professionals: T[]; professionalsCount: number; autoSelectProfessional: boolean } {
-  const professionals = (raw ?? []).filter(
+): {
+  professionals: T[];
+  professionalsCount: number;
+  autoSelectProfessional: boolean;
+  autoSelect: boolean;
+  askPreference: boolean;
+  includeNoPreference: boolean;
+  selectedProfessional: T | null;
+} {
+  const validProfessionals = (raw ?? []).filter(
     (p) => p?.id != null && !!p?.name && !/^sem\s+prefer/i.test(String(p.name).trim()),
   );
+  const count = validProfessionals.length;
+  const autoSelect = count === 1;
+
   return {
-    professionals,
-    professionalsCount: professionals.length,
-    autoSelectProfessional: professionals.length === 1,
+    professionals: validProfessionals,
+    professionalsCount: count,
+    autoSelectProfessional: autoSelect,
+    autoSelect,
+    askPreference: count >= 2,
+    includeNoPreference: count >= 2,
+    selectedProfessional: autoSelect ? (validProfessionals[0] ?? null) : null,
   };
 }
 

@@ -64,14 +64,21 @@ describe("computeProfessionalSelection", () => {
     const r = computeProfessionalSelection([]);
     expect(r.professionalsCount).toBe(0);
     expect(r.autoSelectProfessional).toBe(false);
+    expect(r.askPreference).toBe(false);
+    expect(r.includeNoPreference).toBe(false);
+    expect(r.selectedProfessional).toBeNull();
   });
 
-  it("1 profissional: auto-seleção", async () => {
+  it("Teste 1 — exatamente 1 profissional: seleciona e avança sem preferência", async () => {
     const { computeProfessionalSelection } = await import("../assignments.server");
     const r = computeProfessionalSelection([{ id: 1, name: "Gleise Cibela" }]);
     expect(r.professionalsCount).toBe(1);
     expect(r.autoSelectProfessional).toBe(true);
-    expect(r.professionals[0]!.name).toBe("Gleise Cibela");
+    expect(r.autoSelect).toBe(true);
+    expect(r.askPreference).toBe(false);
+    expect(r.includeNoPreference).toBe(false);
+    expect(r.selectedProfessional).toEqual({ id: 1, name: "Gleise Cibela" });
+    expect(r.professionals.map((p) => p.name)).not.toContain("Sem preferência");
   });
 
   it("2 profissionais: cliente escolhe", async () => {
@@ -82,6 +89,21 @@ describe("computeProfessionalSelection", () => {
     ]);
     expect(r.professionalsCount).toBe(2);
     expect(r.autoSelectProfessional).toBe(false);
+    expect(r.askPreference).toBe(true);
+    expect(r.includeNoPreference).toBe(true);
+  });
+
+  it("3 profissionais: inclui escolha de preferência", async () => {
+    const { computeProfessionalSelection } = await import("../assignments.server");
+    const r = computeProfessionalSelection([
+      { id: 1, name: "Gleise Cibela" },
+      { id: 2, name: "Juliana" },
+      { id: 3, name: "Mariana" },
+    ]);
+    expect(r.professionalsCount).toBe(3);
+    expect(r.autoSelectProfessional).toBe(false);
+    expect(r.askPreference).toBe(true);
+    expect(r.includeNoPreference).toBe(true);
   });
 
   it("'Sem preferência' nunca conta como profissional", async () => {
@@ -92,5 +114,24 @@ describe("computeProfessionalSelection", () => {
     ]);
     expect(r.professionalsCount).toBe(1);
     expect(r.autoSelectProfessional).toBe(true);
+    expect(r.includeNoPreference).toBe(false);
+  });
+
+  it("transferência de unidade recalcula e auto-seleciona o único profissional novo", async () => {
+    const { computeProfessionalSelection } = await import("../assignments.server");
+    const beforeTransfer = computeProfessionalSelection([
+      { id: 1, name: "Ana" },
+      { id: 2, name: "Carla" },
+    ]);
+    const afterTransfer = computeProfessionalSelection([{ id: 9, name: "Gleise Cibela" }]);
+
+    expect(beforeTransfer.askPreference).toBe(true);
+    expect(afterTransfer).toMatchObject({
+      professionalsCount: 1,
+      autoSelectProfessional: true,
+      askPreference: false,
+      includeNoPreference: false,
+      selectedProfessional: { id: 9, name: "Gleise Cibela" },
+    });
   });
 });

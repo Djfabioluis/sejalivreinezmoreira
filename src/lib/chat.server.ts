@@ -413,27 +413,37 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
           }
           const allPros = await getProfessionalsForService(effectiveUnitId, service.id);
           // "Sem preferência" NUNCA é um profissional: filtramos qualquer entrada inválida.
-          const { professionals, professionalsCount, autoSelectProfessional } =
-            computeProfessionalSelection(allPros);
+          const selection = computeProfessionalSelection(allPros);
+          const {
+            professionals,
+            professionalsCount,
+            autoSelectProfessional,
+            autoSelect,
+            askPreference,
+            includeNoPreference,
+            selectedProfessional,
+          } = selection;
 
           if (professionalsCount === 0) {
             return {
               success: false,
               code: "no_assigned_professionals",
+              professionals: [],
               professionalsCount: 0,
               autoSelectProfessional: false,
+              autoSelect: false,
+              askPreference: false,
+              includeNoPreference: false,
+              selectedProfessional: null,
               message: `Nenhum profissional está atribuído a "${service.name}" nesta unidade.`,
             };
           }
-
-
-          const selectedProfessional = autoSelectProfessional ? professionals[0]! : null;
 
           if (selectedProfessional) {
             await patchCustomerContext(conversationKey, {
               serviceId: service.id,
               requestedService: service.name,
-              professionalId: String(selectedProfessional.id),
+              professionalId: selectedProfessional.id,
               professionalName: selectedProfessional.name,
               preferredProfessional: selectedProfessional.name,
             });
@@ -449,6 +459,9 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
             professionals,
             professionalsCount,
             autoSelectProfessional,
+            autoSelect,
+            askPreference,
+            includeNoPreference,
             selectedProfessional,
             singleProfessional: autoSelectProfessional,
             autoSelectedProfessional: selectedProfessional,
@@ -1533,7 +1546,7 @@ export function mandatoryOperationalRules(opts: {
     "- Use \"a partir de R$ XX,XX\" SOMENTE quando o serviço tiver variação real de preço (comprimento, quantidade, técnica etc.).",
     "- Ao informar o preço de um serviço escolhido QUANDO houver 2 ou mais profissionais, responda EXATAMENTE neste formato:\n\"Ótima escolha! 💅 O serviço de <Serviço> custa R$ XX,XX.\n\nVocê tem preferência por alguma profissional?\n\n• <Profissional 1>\n• <Profissional 2>\n• Sem preferência\"",
     "- Cada profissional deve ficar em UMA LINHA separada, iniciada por \"• \". NUNCA coloque os nomes na mesma linha, nem separados por vírgula. A linha \"• Sem preferência\" só pode aparecer quando professionalsCount >= 2.",
-    "- REGRA ABSOLUTA DE PREFERÊNCIA (baseada em professionalsCount de list_professionals):\n  • professionalsCount = 0 → informe que não há profissional disponível para esse serviço nesta unidade. NÃO pergunte preferência e NÃO cite \"Sem preferência\".\n  • professionalsCount = 1 (autoSelectProfessional = true) → é PROIBIDO perguntar \"Você tem preferência?\" e PROIBIDO exibir \"Sem preferência\" ou lista com marcadores. Informe assim:\n\"Para *<Serviço>*, a profissional disponível nesta unidade é:\n\n💜 *<Profissional>*\n\nAgora, para qual dia você gostaria de agendar? 😊\"\n  • professionalsCount >= 2 → liste os profissionais, acrescente \"• *Sem preferência*\" e pergunte \"Você tem preferência por alguma delas? 😊\".",
+    "- REGRA ABSOLUTA DE PREFERÊNCIA (obedeça aos campos server-side de list_professionals):\n  • professionalsCount = 0 / askPreference = false → informe que não há profissional disponível para esse serviço nesta unidade. NÃO pergunte preferência e NÃO cite \"Sem preferência\".\n  • autoSelectProfessional = true / includeNoPreference = false → o profissional já foi salvo automaticamente no contexto. É PROIBIDO perguntar \"Você tem preferência?\", exibir \"Sem preferência\" ou aguardar confirmação. Informe apenas o profissional e avance diretamente para a escolha da data, assim:\n\"Para *<Serviço>*, a profissional disponível nesta unidade é:\n\n💜 *<Profissional>*\n\nAgora, qual dia você prefere para o atendimento? 😊\"\n  • askPreference = true / includeNoPreference = true → liste os profissionais reais, acrescente \"💜 Sem preferência\" e pergunte \"Você tem preferência por alguma delas?\".",
     "- Quando houver apenas um profissional, ele já foi selecionado automaticamente pelo sistema: siga direto para data/horário, sem citar preferência em nenhum momento nem no resumo.",
     "- \"Sem preferência\" NÃO é um profissional: nunca conte essa opção em professionalsCount, nunca a use como nome de profissional e nunca invente profissionais fora do retorno do BEMP.",
     "- Se o cliente escolher \"Sem preferência\" (só possível com 2+ profissionais), não fixe profissional: o sistema buscará qualquer profissional válido atribuído ao serviço.",
