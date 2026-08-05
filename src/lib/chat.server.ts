@@ -1250,6 +1250,7 @@ export type AgentOptions = {
   contactName?: string | null;
   contactPhone?: string | null;
   customerContext?: any;
+  conversationKey?: string | null;
 };
 
 function sanitizeMessagesForModel(messages: UIMessage[]): UIMessage[] {
@@ -1444,7 +1445,8 @@ export async function runAgentWithLogging(params: {
       unitName,
       contactName: pushName || (historyData?.contact_name as string),
       contactPhone: phone,
-      customerContext: historyData?.customer_context || {}
+      customerContext: historyData?.customer_context || {},
+      conversationKey
     });
 
     if (!reply || reply.trim().length === 0) {
