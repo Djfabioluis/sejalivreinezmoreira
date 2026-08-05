@@ -367,9 +367,8 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
           const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: fallbackAgentUnitId });
           if (!effectiveUnitId) return { success: false, code: "unit_not_resolved", message: "Não foi possível identificar a unidade correta." };
           console.log(`[chat] effective_unit_for_assignments: ${effectiveUnitId}`);
-          const { resolveServiceAssignment, getProfessionalsForService } = await import(
-            "@/lib/bemp/assignments.server"
-          );
+          const { resolveServiceAssignment, getProfessionalsForService, computeProfessionalSelection } =
+            await import("@/lib/bemp/assignments.server");
           const service = await resolveServiceAssignment(effectiveUnitId, service_name);
           if (!service) {
             return {
