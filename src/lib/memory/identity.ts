@@ -38,12 +38,16 @@ export function maskSensitive(text: string | null | undefined): string {
 
 const FORBIDDEN_MEMORY_PATTERNS: RegExp[] = [
   /senha/i,
-  /cart[ãa]o de cr[ée]dito/i,
+  /cart[ãa]o/i,
   /c[óo]digo de seguran[çc]a/i,
   /cvv/i,
   /token/i,
   /\bpix copia e cola\b/i,
+  /\bcpf\b/i,
+  /\d{3}\.\d{3}\.\d{3}-\d{2}/,
+  /\b\d{13,19}\b/,
 ];
+
 
 /** Bloqueia conteúdos que nunca devem virar memória (privacidade). */
 export function isForbiddenMemoryValue(value: unknown): boolean {
