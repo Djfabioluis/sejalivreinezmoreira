@@ -24,6 +24,22 @@ export async function replyToUser(params: {
     payload: { traceId }
   });
 
+  // Idempotência de envio: apenas um envio por mensagem de origem
+  if (params.messageId) {
+    const { claimResponseSlot } = await import("./idempotency.server");
+    const allowed = await claimResponseSlot(params.instance, params.messageId);
+    if (!allowed) {
+      await logEvent({
+        instance: params.instance,
+        messageId: params.messageId,
+        event: "duplicate_response_prevented",
+        status: "skipped",
+        payload: { traceId },
+      });
+      return false;
+    }
+  }
+
   // Digitação humanizada
   const typingMs = Math.min(
     TYPING_MAX_MS,
@@ -76,6 +92,11 @@ export async function replyToUser(params: {
       return false;
     }
 
+    if (params.messageId) {
+      const { markResponseSent } = await import("./idempotency.server");
+      await markResponseSent(params.instance, params.messageId);
+    }
+
     return true;
   } else {
     await logEvent({ 
@@ -85,6 +106,10 @@ export async function replyToUser(params: {
       status: "failed",
       payload: { traceId }
     });
+    if (params.messageId) {
+      const { markResponseFailed } = await import("./idempotency.server");
+      await markResponseFailed(params.instance, params.messageId, "evolution_send_failed");
+    }
     return false;
   }
 }

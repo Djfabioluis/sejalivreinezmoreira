@@ -97,6 +97,31 @@ export async function markResponsePending(instance: string, sourceMessageId: str
   return assistantResponseId;
 }
 
+/**
+ * Reserva o slot de envio da resposta (garante 1 envio por mensagem de origem).
+ * Retorna false apenas quando já existe um envio em andamento/concluído.
+ */
+export async function claimResponseSlot(instance: string, sourceMessageId: string): Promise<boolean> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin
+    .from("evo_events" as never)
+    .update({ assistant_response_status: "sending" } as never)
+    .match({ instance, message_id: sourceMessageId } as never)
+    .or("assistant_response_status.is.null,assistant_response_status.eq.pending,assistant_response_status.eq.failed")
+    .select("id");
+
+  if (error) return true; // não bloquear o atendimento por erro de infraestrutura
+  return Array.isArray(data) ? data.length > 0 : true;
+}
+
+export async function markResponseFailed(instance: string, sourceMessageId: string, detail: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  await supabaseAdmin
+    .from("evo_events" as never)
+    .update({ assistant_response_status: "failed", error_detail: String(detail).slice(0, 500) } as never)
+    .match({ instance, message_id: sourceMessageId } as never);
+}
+
 export async function markResponseSent(instance: string, messageId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   await supabaseAdmin
