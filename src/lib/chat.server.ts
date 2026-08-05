@@ -1987,5 +1987,6 @@ export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {})
     stopWhen: stepCountIs(5),
     abortSignal: AbortSignal.timeout(60000),
   });
-
+  return sanitizeCustomerText(result.text?.trim() || "Desculpe, tive um probleminha aqui. Pode repetir?");
+}
 
