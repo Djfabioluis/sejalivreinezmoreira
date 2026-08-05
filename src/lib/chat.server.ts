@@ -508,8 +508,8 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
 
           let resolvedServiceId: string | number | null = null;
           if (service_name) {
-            const svc = await resolveServiceAssignment(effectiveUnitId, service_name);
-            resolvedServiceId = svc?.id ?? null;
+            const resolution = await resolveServiceAssignment(effectiveUnitId, service_name);
+            resolvedServiceId = resolution.success ? resolution.service!.id : null;
           }
           if (!resolvedServiceId && service_id != null) {
             const available = await getAvailableServiceAssignments(effectiveUnitId);
