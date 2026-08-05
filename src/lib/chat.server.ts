@@ -394,10 +394,9 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
           }
 
 
-          let selectedProfessional: { id: string | number; name: string } | null = null;
+          const selectedProfessional = autoSelectProfessional ? professionals[0]! : null;
 
-          if (autoSelectProfessional) {
-            selectedProfessional = professionals[0]!;
+          if (selectedProfessional) {
             await patchCustomerContext(conversationKey, {
               serviceId: service.id,
               requestedService: service.name,
