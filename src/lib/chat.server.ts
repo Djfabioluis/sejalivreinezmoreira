@@ -1425,8 +1425,11 @@ export async function runAgentWithLogging(params: {
       } as any);
     }
 
+    // Determinar a unidade operacional efetiva: unidade da conversa (se transferida) ou do agente.
+    const effectiveUnitId = historyData?.unidade_id || unidadeId;
+
     const reply = await runAgent(historyMessages, {
-      unidadeId,
+      unidadeId: effectiveUnitId,
       unitName,
       contactName: pushName || (historyData?.contact_name as string),
       contactPhone: phone,
