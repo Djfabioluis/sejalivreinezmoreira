@@ -13,7 +13,9 @@ export type WAConversation = {
   status: string;
   messages: any[];
   updated_at: string;
+  unidade_id?: string | null;
 };
+
 
 export function extractConversationMessageText(message: any): string {
   if (!message) return "";
@@ -42,7 +44,7 @@ export const listWAConversations = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let query = supabaseAdmin
       .from("wa_conversas" as never)
-      .select("phone, instance, phone_number, contact_name, unread_count, status, updated_at", { count: "exact" })
+      .select("phone, instance, phone_number, contact_name, unread_count, status, updated_at, unidade_id", { count: "exact" })
       .order("updated_at", { ascending: false });
 
     if (data.instance) query = query.eq("instance", data.instance);
