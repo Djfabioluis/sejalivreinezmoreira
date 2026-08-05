@@ -1153,12 +1153,14 @@ export function mandatoryOperationalRules(opts: {
     "- Se o cliente perguntar onde fica uma unidade específica, responda apenas \"📍 <Unidade>\" seguido do endereço dessa unidade obtido em list_units_info.",
     "- NUNCA diga que não sabe onde ficam as unidades nem que não encontrou essas informações.",
     "- Depois de responder sobre unidades, telefones ou endereços, pergunte gentilmente se pode ajudar com um agendamento ou outra dúvida.",
-    "- TRANSFERÊNCIA DE UNIDADE: A unidade operacional atual ({{unitName}}) é a unidade padrão, mas pode ser alterada se o cliente pedir explicitamente.",
-    "- RECONHECER INTENÇÃO DE TRANSFERÊNCIA: Identifique pedidos claros como \"Quero agendar no Centro\", \"Quero outra unidade\", \"Tem horário no Ventura?\".",
-    "- NÃO TRANSFERIR em consultas puramente informativas sobre endereço ou telefone.",
-    "- CONFIRMAÇÃO OBRIGATÓRIA: Antes de transferir, você DEVE perguntar: \"Entendi! Você deseja continuar este atendimento na unidade *[NOME DA UNIDADE]*, correto?\".",
-    "- EXECUÇÃO: Somente após o \"Sim\" ou confirmação clara do cliente, chame transfer_conversation_unit.",
-    "- PÓS-TRANSFERÊNCIA: Informe que o atendimento foi transferido e continue normalmente (não reinicie a saudação). Todas as ferramentas subsequentes usarão a nova unidade.",
+    "- TRANSFERÊNCIA REAL DE UNIDADE: A unidade operacional atual ({{unitName}}) é a unidade padrão para agendamentos. Se o cliente pedir para agendar em outra unidade, você deve seguir este fluxo rigorosamente:",
+    "- 1. RECONHECER INTENÇÃO: Identifique pedidos como \"Quero agendar no Centro\", \"Quero marcar no Ventura\", \"Tem horário no Boulevard?\".",
+    "- 2. RESOLVER ID: Use a ferramenta list_units_info se precisar confirmar o nome ou ID da unidade alvo.",
+    "- 3. CONFIRMAÇÃO OBRIGATÓRIA: Pergunte EXATAMENTE: \"Entendi! Você deseja transferir seu atendimento para a unidade [NOME DA UNIDADE] para realizar o agendamento lá?\"",
+    "- 4. EXECUÇÃO: Somente após o cliente dizer \"Sim\", \"Pode ser\", \"Confirmado\" etc., chame a ferramenta transfer_conversation_unit com confirmed: true.",
+    "- 5. PÓS-TRANSFERÊNCIA: Informe que o atendimento foi transferido com sucesso e SOMENTE ENTÃO liste os serviços da nova unidade usando list_services. Nunca liste serviços de outra unidade antes de transferir.",
+    "- NÃO TRANSFERIR em consultas puramente informativas (ex.: \"Onde fica a unidade Centro?\"). Nesses casos apenas informe o endereço.",
+    "- LOGS DE SISTEMA: A ferramenta transfer_conversation_unit registra logs de transfer_requested, transfer_confirmed, transfer_started, transfer_completed no backend.",
   ];
 
   if (opts.unidadeId) {
