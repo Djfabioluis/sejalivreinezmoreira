@@ -4,6 +4,8 @@ import { z } from "zod";
 import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
 import { sanitizeCustomerText } from "@/lib/text-sanitize";
 import { logEvent } from "./evolution/logger.server";
+import { classifyFailure, describeError, sanitizeErrorText } from "./evolution/failure";
+
 import {
   bempFetch,
   getBempConfig,
@@ -51,13 +53,41 @@ MODO SANDBOX ATIVO:
 - Ao chamar create_appointment, o sistema devolverá um comprovante SIMULADO.
 - Ao final, deixe claro para o cliente que se trata de uma simulação de teste.`;
 
-function safeTool<T>(label: string, fn: () => Promise<T>) {
-  return fn().catch((err) => {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error(`[chat] tool ${label} falhou:`, message);
-    return { error: message } as const;
-  });
+type ToolCtx = { conversationKey?: string; effectiveUnitId?: string | null };
+
+/**
+ * Executa uma tool com logs estruturados (tool_started / tool_completed / tool_failed).
+ * Nunca propaga exceção: devolve retorno estruturado { success:false, code, message }.
+ */
+function runTool<T>(label: string, fn: () => Promise<T>, ctx: ToolCtx = {}) {
+  const startedAt = Date.now();
+  const base = `tool=${label}, conversationKey=${ctx.conversationKey ?? "n/a"}, effectiveUnitId=${ctx.effectiveUnitId ?? "n/a"}`;
+  console.log(`[chat] tool_started: ${base}`);
+  return fn()
+    .then((result) => {
+      console.log(`[chat] tool_completed: ${base}, executionTimeMs=${Date.now() - startedAt}`);
+      return result;
+    })
+    .catch((err) => {
+      const info = describeError(err);
+      const failure = classifyFailure(err);
+      console.error(
+        `[chat] tool_failed: ${base}, executionTimeMs=${Date.now() - startedAt}, code=${failure.code}, name=${info.name}, message=${info.message}, details=${sanitizeErrorText((err as any)?.details ?? "", 300)}`,
+      );
+      if (info.stack) console.error(`[chat] tool_failed_stack: tool=${label}\n${info.stack}`);
+      return {
+        success: false,
+        code: failure.code,
+        message: failure.userMessage,
+        error: info.message,
+      } as const;
+    });
 }
+
+function safeTool<T>(label: string, fn: () => Promise<T>, ctx: ToolCtx = {}) {
+  return runTool(label, fn, ctx);
+}
+
 
 async function resolveEffectiveUnit(params: { conversationKey?: string; agentUnitId?: string | null }) {
   const { conversationKey, agentUnitId } = params;
@@ -174,7 +204,11 @@ async function resolveServiceForEffectiveUnit(params: { serviceName: string; eff
 }
 
 function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conversationKey?: string) {
+  // Sombreia o helper do módulo injetando o contexto da conversa em todos os logs de tool.
+  const safeTool = <T,>(label: string, fn: () => Promise<T>) =>
+    runTool(label, fn, { conversationKey, effectiveUnitId: fallbackAgentUnitId });
   const base: Record<string, any> = {
+
     transfer_conversation_unit: tool({
       description:
         "Transfere REALMENTE a conversa para outra unidade operacional. Use somente APÓS o cliente confirmar claramente que deseja ser atendido em outra unidade (ex.: após ele dizer 'Sim' para a sua pergunta de confirmação). Não use para simples perguntas informativas.",
@@ -1857,13 +1891,26 @@ export async function runAgentWithLogging(params: {
     });
 
   } catch (error) {
-    console.error("[chat] Erro em runAgentWithLogging:", error);
+    const info = describeError(error);
+    const failure = classifyFailure(error);
+    console.error(
+      `[chat] ai_request_failed: conversationKey=${conversationKey}, unitId=${unidadeId}, code=${failure.code}, name=${info.name}, message=${info.message}`,
+    );
+    if (info.stack) console.error(`[chat] ai_request_failed_stack:\n${info.stack}`);
     await logEvent({
       instance,
       messageId,
       event: "ai_request_failed",
       status: "error",
-      errorDetail: error instanceof Error ? error.message : String(error)
+      errorDetail: info.message,
+      payload: {
+        failureCode: failure.code,
+        expected: failure.expected,
+        errorName: info.name,
+        errorStatus: info.status ?? null,
+        errorCode: info.code ?? null,
+        stack: info.stack,
+      },
     });
 
     const { handleAIFallback } = await import("./evolution/fallback.server");
@@ -1873,8 +1920,10 @@ export async function runAgentWithLogging(params: {
       conversationKey,
       messageId,
       contactName: pushName || null,
-      reason: error instanceof Error ? error.message : String(error),
+      reason: info.message,
+      error,
     });
+
   }
 }
 

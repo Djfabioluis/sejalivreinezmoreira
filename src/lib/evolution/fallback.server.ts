@@ -1,12 +1,11 @@
 import { sendEvolutionText } from "@/lib/evolution.server";
 import { logEvent } from "./logger.server";
-
-const FALLBACK_TEXT =
-  "Estou com uma instabilidade momentânea aqui no atendimento automático 😔\n\nNossa equipe já foi avisada e vai te responder por aqui em instantes 💛";
+import { GENERIC_FALLBACK_TEXT, classifyFailure, sanitizeErrorText } from "./failure";
 
 /**
- * Acionado quando a IA falha (ex.: gateway indisponível / créditos esgotados).
- * Avisa o cliente uma única vez e move a conversa para triagem humana.
+ * Acionado quando a IA falha. A mensagem enviada depende da causa:
+ * erros conhecidos recebem texto específico; a mensagem genérica de
+ * "instabilidade" fica reservada a falhas inesperadas.
  */
 export async function handleAIFallback(params: {
   instance: string;
@@ -15,7 +14,13 @@ export async function handleAIFallback(params: {
   messageId?: string;
   contactName?: string | null;
   reason?: string;
+  /** Erro original (preferido) — permite classificar corretamente a causa. */
+  error?: unknown;
 }) {
+  const failure = classifyFailure(params.error ?? params.reason ?? "");
+  const text = failure.userMessage || GENERIC_FALLBACK_TEXT;
+  const reason = sanitizeErrorText(params.reason ?? failure.code, 240);
+
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
@@ -25,47 +30,56 @@ export async function handleAIFallback(params: {
       .eq("phone", params.conversationKey)
       .maybeSingle();
 
-    const alreadyEscalated = (conv as any)?.status === "aguardando_humano";
+    const alreadyEscalated = (conv as { status?: string } | null)?.status === "aguardando_humano";
 
-    // Move para triagem humana
-    await supabaseAdmin
-      .from("wa_conversas" as never)
-      .update({ status: "aguardando_humano" } as never)
-      .eq("phone", params.conversationKey);
+    if (failure.escalate) {
+      await supabaseAdmin
+        .from("wa_conversas" as never)
+        .update({ status: "aguardando_humano" } as never)
+        .eq("phone", params.conversationKey);
+    }
 
-    if (alreadyEscalated) {
+    if (failure.escalate && alreadyEscalated) {
       await logEvent({
         instance: params.instance,
         messageId: params.messageId,
         event: "ai_fallback",
         status: "already_escalated",
+        payload: { failureCode: failure.code },
       });
       return;
     }
 
-    // Registra na fila de atendimento humano
-    await supabaseAdmin.from("atendimentos_humanos" as never).insert({
-      nome: params.contactName ?? (conv as any)?.contact_name ?? null,
-      phone: params.phone,
-      motivo: `IA indisponível: ${params.reason || "erro desconhecido"}`.slice(0, 300),
-      canal: "whatsapp",
-      status: "aguardando",
-    } as never);
+    if (failure.escalate) {
+      await supabaseAdmin.from("atendimentos_humanos" as never).insert({
+        nome:
+          params.contactName ?? (conv as { contact_name?: string } | null)?.contact_name ?? null,
+        phone: params.phone,
+        motivo: `IA indisponível (${failure.code}): ${reason || "erro desconhecido"}`.slice(0, 300),
+        canal: "whatsapp",
+        status: "aguardando",
+      } as never);
+    }
 
-    const sent = await sendEvolutionText(params.instance, params.phone, FALLBACK_TEXT);
+    const sent = await sendEvolutionText(params.instance, params.phone, text);
 
     if (sent) {
-      await supabaseAdmin.rpc("append_wa_message" as any, {
+      await (
+        supabaseAdmin.rpc as unknown as (
+          fn: string,
+          args: Record<string, unknown>,
+        ) => Promise<unknown>
+      )("append_wa_message", {
         p_phone: params.conversationKey,
         p_message: {
           id: `fallback-${Date.now()}`,
           role: "assistant",
-          parts: [{ type: "text", text: FALLBACK_TEXT }],
+          parts: [{ type: "text", text }],
         },
         p_instance: params.instance,
         p_phone_number: params.phone,
         p_increment_unread: false,
-        p_new_status: "aguardando_humano",
+        p_new_status: failure.escalate ? "aguardando_humano" : "aberta",
         p_customer_context: null,
       });
     }
@@ -74,8 +88,15 @@ export async function handleAIFallback(params: {
       instance: params.instance,
       messageId: params.messageId,
       event: "ai_fallback",
-      status: sent ? "escalated_to_human" : "escalated_send_failed",
-      errorDetail: params.reason ?? null,
+      status: failure.escalate
+        ? sent
+          ? "escalated_to_human"
+          : "escalated_send_failed"
+        : sent
+          ? "known_error_replied"
+          : "known_error_send_failed",
+      errorDetail: reason || null,
+      payload: { failureCode: failure.code, expected: failure.expected },
     });
   } catch (err) {
     await logEvent({
@@ -83,7 +104,7 @@ export async function handleAIFallback(params: {
       messageId: params.messageId,
       event: "ai_fallback",
       status: "error",
-      errorDetail: err instanceof Error ? err.message : String(err),
+      errorDetail: sanitizeErrorText(err instanceof Error ? err.message : String(err), 300),
     });
   }
 }
