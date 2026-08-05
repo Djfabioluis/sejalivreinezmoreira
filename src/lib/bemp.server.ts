@@ -192,12 +192,47 @@ export async function getBempSettingsSafe(): Promise<{ dominio: string; hasToken
   return { dominio: envDom ?? "", hasToken: !!envTok, source: "none" };
 }
 
+export class BempHttpError extends Error {
+  readonly code = "bemp_http_error";
+  constructor(
+    readonly status: number,
+    readonly endpoint: string,
+    message: string,
+    readonly details?: unknown,
+  ) {
+    super(message);
+    this.name = "BempHttpError";
+  }
+}
+
+function endpointPath(url: string): string {
+  try {
+    return new URL(url).pathname;
+  } catch {
+    return url.split("?")[0] ?? url;
+  }
+}
+
 export async function bempFetch(url: string, init?: RequestInit): Promise<JsonValue> {
   const cfg = await getBempConfig();
-  const res = await fetch(url, {
-    ...init,
-    headers: { ...cfg.headers, ...(init?.headers as Record<string, string> | undefined) },
-  });
+  const endpoint = endpointPath(url);
+  const method = (init?.method || "GET").toUpperCase();
+  const startedAt = Date.now();
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      ...init,
+      headers: { ...cfg.headers, ...(init?.headers as Record<string, string> | undefined) },
+    });
+  } catch (networkErr) {
+    console.error(
+      `[bemp] bemp_request_failed: method=${method}, endpoint=${endpoint}, durationMs=${Date.now() - startedAt}, error=${
+        networkErr instanceof Error ? networkErr.message : String(networkErr)
+      }`,
+    );
+    throw networkErr;
+  }
+  const durationMs = Date.now() - startedAt;
   const text = await res.text();
   let body: JsonValue = text as JsonValue;
   try {
@@ -212,7 +247,18 @@ export async function bempFetch(url: string, init?: RequestInit): Promise<JsonVa
         : typeof body === "string" && body.length > 0
           ? body
           : `Bemp respondeu ${res.status}`;
-    throw new Error(`Bemp ${res.status}: ${msg}`);
+    // body sanitizado (sem tokens) e truncado para diagnóstico
+    const safeBody = (typeof text === "string" ? text : "")
+      .replace(/(Bearer\s+)[A-Za-z0-9._~+/=-]{8,}/gi, "$1***")
+      .slice(0, 400);
+    console.error(
+      `[bemp] bemp_response_error: method=${method}, endpoint=${endpoint}, status=${res.status}, durationMs=${durationMs}, body=${safeBody}`,
+    );
+    throw new BempHttpError(res.status, endpoint, `Bemp ${res.status}: ${msg}`, safeBody);
   }
+  console.log(
+    `[bemp] bemp_response_ok: method=${method}, endpoint=${endpoint}, status=${res.status}, durationMs=${durationMs}`,
+  );
   return body;
 }
+
