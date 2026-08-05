@@ -1631,16 +1631,6 @@ export function assembleSystemPrompt(
 }
 
 
-export type AgentOptions = { 
-  sandbox?: boolean; 
-  persona?: string; 
-  unidadeId?: string | null;
-  unitName?: string | null;
-  contactName?: string | null;
-  contactPhone?: string | null;
-  customerContext?: any;
-  conversationKey?: string | null;
-};
 
 function sanitizeMessagesForModel(messages: UIMessage[]): UIMessage[] {
   return messages.map((message) => ({
