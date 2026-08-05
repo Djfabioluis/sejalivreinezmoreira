@@ -1,5 +1,6 @@
 // Server-only. Shared AI-agent runner for /api/chat (web) and /api/public/whatsapp.
 import { convertToModelMessages, streamText, generateText, stepCountIs, tool, type UIMessage } from "ai";
+import { type AgentOptions } from "./agent-types";
 import { z } from "zod";
 import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
 import { sanitizeCustomerText } from "@/lib/text-sanitize";
@@ -629,7 +630,8 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
             const msg = serviceName
               ? `Oi ${input.name}! 💜 Seu agendamento de *${serviceName}* está confirmado para ${when}.\n\nSe precisar remarcar ou cancelar, é só me chamar por aqui. Até lá! ✨\n— Julia, Salão Seja Livre`
               : `Oi ${input.name}! 💜 Seu agendamento está confirmado para ${when}.\n\nSe precisar remarcar ou cancelar, é só me chamar por aqui. Até lá! ✨\n— Julia, Salão Seja Livre`;
-            const sent = await sendWhatsAppText(phone, msg);
+            // Removido o envio direto de mensagem para evitar duplicidade. A Julia já responderá via agent runner.
+            const sent = true; // Simulado para manter a lógica de inserção no banco se necessário
             await supabaseAdmin.from("agendamentos_notif" as never).insert({
               bemp_appointment_id: bempId,
               salon_id: String(effectiveUnitId),
@@ -1757,8 +1759,11 @@ export async function runAgentWithLogging(params: {
   unidadeId: string;
   phone: string;
   conversationKey: string;
+  traceId?: string;
 }) {
-  const { instance, messageId, phone, conversationKey, unidadeId, pushName } = params;
+  const { instance, messageId, phone, conversationKey, unidadeId, pushName, remoteJid, text, traceId } = params;
+  const effectiveTraceId = traceId || `${instance}:${messageId}`;
+
 
   try {
     await logEvent({ instance, messageId, event: "history_load_started", status: "started" });
@@ -1793,16 +1798,22 @@ export async function runAgentWithLogging(params: {
 
 
     const messagesArray = Array.isArray(historyData?.messages) ? historyData.messages : [];
-    const historyMessages: UIMessage[] = messagesArray
-      .filter((m: any) => {
+    const seenIds = new Set<string>();
+    const historyMessages: UIMessage[] = [];
+    
+    for (const m of messagesArray) {
+      if (m.id && !seenIds.has(m.id)) {
+        seenIds.add(m.id);
         const text = Array.isArray(m.parts) ? m.parts.map((p: any) => p.text).join(" ").trim() : String(m.parts || "").trim();
-        return text.length > 0;
-      })
-      .map((m: any) => ({
-        id: m.id,
-        role: m.role,
-        parts: Array.isArray(m.parts) ? m.parts : [{ type: "text", text: String(m.parts || "") }],
-      } as any));
+        if (text.length > 0) {
+          historyMessages.push({
+            id: m.id,
+            role: m.role,
+            parts: Array.isArray(m.parts) ? m.parts : [{ type: "text", text: String(m.parts || "") }],
+          } as any);
+        }
+      }
+    }
 
     await logEvent({
       instance,
@@ -1810,6 +1821,7 @@ export async function runAgentWithLogging(params: {
       event: "ai_context_prepared",
       status: "success",
       payload: {
+        traceId: effectiveTraceId,
         contactNameAvailable: !!pushName || !!historyData?.contact_name,
         contactPhoneAvailable: !!phone,
         unitAvailable: !!unidadeId,

@@ -17,13 +17,17 @@ export async function checkIdempotency(instance: string, messageId: string | und
   }
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  
+  // O requisito pede INSERT atômico sem SELECT prévio
   const { error } = await supabaseAdmin.from("evo_events" as never).insert({ 
     message_id: finalId, 
-    instance 
+    instance,
+    status: 'processing',
+    trace_id: `${instance}:${finalId}`
   } as never);
 
   if (error) {
-    if (error.code === "23505") {
+    if (error.code === "23505") { // Unique violation
       await logEvent({ 
         instance, 
         messageId: finalId, 
@@ -41,8 +45,50 @@ export async function checkIdempotency(instance: string, messageId: string | und
       status: "error", 
       errorDetail: error.message 
     });
-    throw new Error(`Idempotency check failed: ${error.message}`);
+    // Se falhou o insert por outro motivo (ex: timeout), não podemos processar (fail-closed)
+    return { isDuplicate: true, finalMessageId: finalId }; 
   }
 
   return { isDuplicate: false, finalMessageId: finalId };
+}
+
+/**
+ * Registra o início do envio da resposta para evitar envios duplicados.
+ * Usa assistant_response_id como chave única (idempotência de envio).
+ */
+export async function markResponseAsSending(instance: string, sourceMessageId: string): Promise<boolean> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const assistantResponseId = `${instance}:${sourceMessageId}:assistant`;
+
+  const { error } = await supabaseAdmin
+    .from("evo_events" as never)
+    .update({ 
+      assistant_response_id: assistantResponseId,
+      status: 'response_ready'
+    } as never)
+    .match({ instance, message_id: sourceMessageId } as never)
+    // Garantir que não foi enviado ou está sendo enviado
+    .is("assistant_response_id" as never, null);
+
+  if (error) return false;
+  
+  // Se não atualizou nenhuma linha, significa que já tinha assistant_response_id
+  const { data } = await supabaseAdmin
+    .from("evo_events" as never)
+    .select("assistant_response_id")
+    .match({ instance, message_id: sourceMessageId } as never)
+    .single();
+
+  return (data as any)?.assistant_response_id === assistantResponseId;
+}
+
+export async function markAsSent(instance: string, messageId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  await supabaseAdmin
+    .from("evo_events" as never)
+    .update({ 
+      status: 'sent',
+      processed_at: new Date().toISOString()
+    } as never)
+    .match({ instance, message_id: messageId } as never);
 }

@@ -12,16 +12,19 @@ export async function replyToUser(params: {
   text: string;
   conversationKey: string;
   messageId?: string;
+  traceId?: string;
 }) {
+  const traceId = params.traceId || `${params.instance}:${params.messageId}`;
+  
   await logEvent({ 
     instance: params.instance, 
     messageId: params.messageId,
     event: "evolution_send_started", 
-    status: "started" 
+    status: "started",
+    payload: { traceId }
   });
 
-  // Digitação humanizada: usa a presença nativa do WhatsApp ("digitando…"),
-  // sem enviar nenhuma mensagem visível ao cliente.
+  // Digitação humanizada
   const typingMs = Math.min(
     TYPING_MAX_MS,
     Math.max(TYPING_MIN_MS, params.text.length * TYPING_PER_CHAR_MS),
@@ -32,32 +35,25 @@ export async function replyToUser(params: {
     "composing",
     typingMs,
   ).catch(() => false);
-  await logEvent({
-    instance: params.instance,
-    messageId: params.messageId,
-    event: "evolution_typing_indicator",
-    status: typingSent ? "success" : "failed",
-  });
 
-  // 9. ENVIO PELA EVOLUTION — o próprio sendText mantém "digitando…" durante `typingMs`
-  // (fallback caso o endpoint de presença não esteja disponível na instância).
+  // 9. ENVIO ÚNICO PELA EVOLUTION
   const sent = await sendEvolutionText(params.instance, params.phone, params.text, typingMs);
-
 
   if (sent) {
     await logEvent({ 
       instance: params.instance, 
       messageId: params.messageId,
       event: "evolution_send_completed", 
-      status: "success" 
+      status: "success",
+      payload: { traceId }
     });
 
-    // 10. PERSISTÊNCIA DA RESPOSTA
+    // 10. PERSISTÊNCIA DA RESPOSTA (Atomicamente via RPC)
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.rpc("append_wa_message" as any, {
       p_phone: params.conversationKey,
       p_message: { 
-        id: `ai-${Date.now()}`, 
+        id: `${params.instance}:${params.messageId}:assistant`, 
         role: "assistant", 
         parts: [{ type: "text", text: params.text }] 
       },
@@ -74,24 +70,20 @@ export async function replyToUser(params: {
         messageId: params.messageId,
         event: "assistant_message_save_failed", 
         status: "error", 
-        errorDetail: error.message 
+        errorDetail: error.message,
+        payload: { traceId }
       });
       return false;
     }
 
-    await logEvent({ 
-      instance: params.instance, 
-      messageId: params.messageId,
-      event: "assistant_message_saved", 
-      status: "success" 
-    });
     return true;
   } else {
     await logEvent({ 
       instance: params.instance, 
       messageId: params.messageId,
       event: "evolution_send_failed", 
-      status: "failed" 
+      status: "failed",
+      payload: { traceId }
     });
     return false;
   }
