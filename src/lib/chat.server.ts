@@ -353,21 +353,50 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
               message: `O serviço "${service_name}" não está disponível com profissionais atribuídos nesta unidade.`,
             };
           }
-          const professionals = await getProfessionalsForService(effectiveUnitId, service.id);
-          if (professionals.length === 0) {
+          const allPros = await getProfessionalsForService(effectiveUnitId, service.id);
+          // "Sem preferência" NUNCA é um profissional: filtramos qualquer entrada inválida.
+          const professionals = allPros.filter(
+            (p) => p?.id != null && !!p?.name && !/^sem\s+prefer/i.test(String(p.name).trim()),
+          );
+          const professionalsCount = professionals.length;
+
+          if (professionalsCount === 0) {
             return {
               success: false,
               code: "no_assigned_professionals",
+              professionalsCount: 0,
+              autoSelectProfessional: false,
               message: `Nenhum profissional está atribuído a "${service.name}" nesta unidade.`,
             };
           }
+
+          const autoSelectProfessional = professionalsCount === 1;
+          let selectedProfessional: { id: string | number; name: string } | null = null;
+
+          if (autoSelectProfessional) {
+            selectedProfessional = professionals[0]!;
+            await patchCustomerContext(conversationKey, {
+              serviceId: service.id,
+              requestedService: service.name,
+              professionalId: String(selectedProfessional.id),
+              professionalName: selectedProfessional.name,
+              preferredProfessional: selectedProfessional.name,
+            });
+            console.log(
+              `[chat] single_professional_auto_selected: unit=${effectiveUnitId}, service=${service.id}, professional=${selectedProfessional.id}`,
+            );
+          }
+
           return {
             success: true,
             unitId: effectiveUnitId,
             service: { id: service.id, name: service.name },
             professionals,
-            singleProfessional: professionals.length === 1,
-            autoSelectedProfessional: professionals.length === 1 ? professionals[0] : null,
+            professionalsCount,
+            autoSelectProfessional,
+            selectedProfessional,
+            singleProfessional: autoSelectProfessional,
+            autoSelectedProfessional: selectedProfessional,
           };
         }),
     }),
