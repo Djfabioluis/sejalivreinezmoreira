@@ -30,7 +30,7 @@ export async function handleAIFallback(params: {
       .eq("phone", params.conversationKey)
       .maybeSingle();
 
-    const alreadyEscalated = (conv as any)?.status === "aguardando_humano";
+    const alreadyEscalated = (conv as { status?: string } | null)?.status === "aguardando_humano";
 
     if (failure.escalate) {
       await supabaseAdmin
@@ -52,7 +52,8 @@ export async function handleAIFallback(params: {
 
     if (failure.escalate) {
       await supabaseAdmin.from("atendimentos_humanos" as never).insert({
-        nome: params.contactName ?? (conv as any)?.contact_name ?? null,
+        nome:
+          params.contactName ?? (conv as { contact_name?: string } | null)?.contact_name ?? null,
         phone: params.phone,
         motivo: `IA indisponível (${failure.code}): ${reason || "erro desconhecido"}`.slice(0, 300),
         canal: "whatsapp",
@@ -63,7 +64,7 @@ export async function handleAIFallback(params: {
     const sent = await sendEvolutionText(params.instance, params.phone, text);
 
     if (sent) {
-      await supabaseAdmin.rpc("append_wa_message" as any, {
+      await supabaseAdmin.rpc("append_wa_message" as never, {
         p_phone: params.conversationKey,
         p_message: {
           id: `fallback-${Date.now()}`,

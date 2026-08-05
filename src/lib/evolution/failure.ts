@@ -36,13 +36,13 @@ export function describeError(err: unknown): {
   code?: string;
   status?: number;
 } {
-  const anyErr = err as any;
+  const anyErr = err as Record<string, unknown>;
   return {
     name: err instanceof Error ? err.name : typeof err,
     message: sanitizeErrorText(err instanceof Error ? err.message : err, 500),
     stack: err instanceof Error && err.stack ? sanitizeErrorText(err.stack, 1500) : null,
-    ...(anyErr?.code !== undefined ? { code: sanitizeErrorText(anyErr.code, 80) } : {}),
-    ...(typeof anyErr?.status === "number" ? { status: anyErr.status } : {}),
+    ...(anyErr?.["code"] !== undefined ? { code: sanitizeErrorText(anyErr["code"], 80) } : {}),
+    ...(typeof anyErr?.["status"] === "number" ? { status: anyErr["status"] as number } : {}),
   };
 }
 
@@ -51,11 +51,13 @@ export function describeError(err: unknown): {
  * A mensagem genérica de "instabilidade" fica reservada a erros INESPERADOS.
  */
 export function classifyFailure(err: unknown): FailureClass {
-  const anyErr = err as any;
+  const anyErr = err as Record<string, unknown>;
   const raw = err instanceof Error ? err.message : String(err ?? "");
   const msg = raw.toLowerCase();
-  const status: number | undefined = typeof anyErr?.status === "number" ? anyErr.status : undefined;
-  const code: string | undefined = typeof anyErr?.code === "string" ? anyErr.code : undefined;
+  const status: number | undefined =
+    typeof anyErr?.["status"] === "number" ? (anyErr["status"] as number) : undefined;
+  const code: string | undefined =
+    typeof anyErr?.["code"] === "string" ? (anyErr["code"] as string) : undefined;
 
   // --- IA / gateway ---
   if (status === 402 || /payment required|insufficient credit|credits? exhausted/.test(msg)) {
