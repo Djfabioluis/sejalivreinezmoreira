@@ -1525,7 +1525,10 @@ export async function runAgentWithLogging(params: {
     }
 
     // Determinar a unidade operacional efetiva: unidade da conversa (se transferida) ou do agente.
-    const effectiveUnitId = historyData?.unidade_id || unidadeId;
+    const { effectiveUnitId, source, agentUnitId, conversationUnitId } = await resolveEffectiveUnit({ 
+      conversationKey, 
+      agentUnitId: unidadeId 
+    });
 
     const reply = await runAgent(historyMessages, {
       unidadeId: effectiveUnitId,
@@ -1609,11 +1612,16 @@ export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {})
 
   const basePrompt = await loadSystemPrompt();
 
+  const { effectiveUnitId, source, agentUnitId, conversationUnitId } = await resolveEffectiveUnit({ 
+    conversationKey: opts.conversationKey || undefined, 
+    agentUnitId: opts.unidadeId 
+  });
+
   let fullSystem = assembleSystemPrompt(basePrompt, {
     contactName: opts.contactName,
     contactPhone: opts.contactPhone,
     unitName: opts.unitName,
-    unidadeId: opts.unidadeId,
+    unidadeId: effectiveUnitId,
     contextSummary,
   });
 
@@ -1626,18 +1634,19 @@ export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {})
                (sandbox ? SANDBOX_NOTE : "") + 
                (opts.persona ? `\n\n${opts.persona}` : "") +
                mandatoryOperationalRules({
-                 unidadeId: opts.unidadeId,
+                 unidadeId: effectiveUnitId,
                  unitName: opts.unitName,
                  contactName: opts.contactName,
                  contactPhone: opts.contactPhone,
                  hasHistory: uiMessages.length > 1,
-               });
+               }) +
+               `\n\nUNIDADE ATUAL DA CONVERSA (PRIORIDADE ABSOLUTA):\n- Unidade operacional: ${opts.unitName || "não definida"}\n- ID: ${effectiveUnitId}\n- Origem: ${source === "conversation" ? "Transferência ativa" : "Padrão do canal"}\n- NUNCA pergunte a unidade se ela já estiver definida acima.`;
 
   const result = await generateText({
     model: getModel(),
     system: fullSystem,
     messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
-    tools: buildTools(sandbox, opts.unidadeId, opts.contactPhone || undefined),
+    tools: buildTools(sandbox, effectiveUnitId, opts.contactPhone || undefined),
 
     stopWhen: stepCountIs(5),
     abortSignal: AbortSignal.timeout(60000),
