@@ -229,6 +229,14 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
           } else {
             console.log(`[transfer] transfer_completed and context_reset for ${conversationKey}`);
           }
+
+          // Descartar atribuições em cache da unidade anterior e da nova unidade.
+          try {
+            const { invalidateAssignmentsCache } = await import("@/lib/bemp/assignments.server");
+            if ((conv as any).unidade_id) invalidateAssignmentsCache((conv as any).unidade_id);
+            invalidateAssignmentsCache(target_unit_id);
+          } catch { }
+
           
           // Buscar nome da nova unidade
           let newUnitName = `Unidade ${target_unit_id}`;
@@ -300,73 +308,155 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
 
 
     list_services: tool({
-      description: "Lista serviços de uma unidade, com preço e duração.",
+      description:
+        "Lista SOMENTE os serviços que possuem ao menos um profissional atribuído na unidade efetiva (fonte: BEMP). Nunca apresente serviços fora deste retorno.",
       inputSchema: z.object({ salon_id: z.number().optional() }),
-      execute: async ({ salon_id }) =>
+      execute: async () =>
         safeTool("list_services", async () => {
-          const cfg = await getBempConfig();
           const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: fallbackAgentUnitId });
           if (!effectiveUnitId) throw new Error("ID da unidade não resolvido.");
-          return await bempFetch(`${cfg.apiBase}/salons/${effectiveUnitId}/services`);
+          console.log(`[chat] effective_unit_for_assignments: ${effectiveUnitId}`);
+          const { getAvailableServiceAssignments } = await import("@/lib/bemp/assignments.server");
+          const services = await getAvailableServiceAssignments(effectiveUnitId);
+          if (services.length === 0) {
+            console.warn(`[chat] no_assigned_services: unit=${effectiveUnitId}`);
+            return {
+              success: false,
+              code: "no_assigned_services",
+              message: "Não há serviços com profissionais atribuídos nessa unidade.",
+            };
+          }
+          return { success: true, unitId: effectiveUnitId, services };
         }),
     }),
     list_professionals: tool({
-      description: "Lista profissionais disponíveis para um serviço em uma unidade.",
-      inputSchema: z.object({ 
+      description:
+        "Lista SOMENTE os profissionais realmente atribuídos ao serviço na unidade efetiva (fonte: BEMP). Informe o nome do serviço.",
+      inputSchema: z.object({
         service_name: z.string().describe("Nome do serviço para o qual deseja listar profissionais"),
-        service_id: z.number().optional().describe("ID do serviço (opcional, será resolvido dinamicamente)"),
-        salon_id: z.number().optional().describe("ID do salão (opcional, será resolvido dinamicamente)")
+        service_id: z.number().optional().describe("Ignorado — resolvido dinamicamente"),
+        salon_id: z.number().optional().describe("Ignorado — resolvido dinamicamente"),
       }),
-      execute: async ({ service_name, service_id }) =>
+      execute: async ({ service_name }) =>
         safeTool("list_professionals", async () => {
-          const cfg = await getBempConfig();
           const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: fallbackAgentUnitId });
-          if (!effectiveUnitId) return { error: "unit_not_resolved", message: "Não foi possível identificar a unidade correta." };
-          
-          // Ignoramos service_id vindo do modelo e resolvemos na unidade ATUAL pelo NOME
-          const service = await resolveServiceForEffectiveUnit({ serviceName: service_name, effectiveUnitId });
-          
+          if (!effectiveUnitId) return { success: false, code: "unit_not_resolved", message: "Não foi possível identificar a unidade correta." };
+          console.log(`[chat] effective_unit_for_assignments: ${effectiveUnitId}`);
+          const { resolveServiceAssignment, getProfessionalsForService } = await import(
+            "@/lib/bemp/assignments.server"
+          );
+          const service = await resolveServiceAssignment(effectiveUnitId, service_name);
           if (!service) {
-            return { 
-              success: false, 
-              code: "service_not_available_in_unit", 
-              message: `O serviço "${service_name}" não foi localizado na unidade atual. Por favor, verifique se o serviço está disponível nesta unidade.` 
+            return {
+              success: false,
+              code: "service_not_available_in_unit",
+              message: `O serviço "${service_name}" não está disponível com profissionais atribuídos nesta unidade.`,
             };
           }
-
-          const effectiveServiceId = Number(service.id);
-          console.log(`[professionals] professionals_query_started: unitId=${effectiveUnitId}, serviceId=${effectiveServiceId}, serviceName="${service_name}"`);
-          
-          const result = await bempFetch(
-            `${cfg.apiBase}/salons/${effectiveUnitId}/services/${effectiveServiceId}/professionals`,
+          const professionals = await getProfessionalsForService(effectiveUnitId, service.id);
+          if (professionals.length === 0) {
+            return {
+              success: false,
+              code: "no_assigned_professionals",
+              message: `Nenhum profissional está atribuído a "${service.name}" nesta unidade.`,
+            };
+          }
+          return {
+            success: true,
+            unitId: effectiveUnitId,
+            service: { id: service.id, name: service.name },
+            professionals,
+          };
+        }),
+    }),
+    list_services_for_professional: tool({
+      description:
+        "Quando o cliente escolher primeiro um profissional, lista SOMENTE os serviços atribuídos a esse profissional na unidade efetiva (fonte: BEMP).",
+      inputSchema: z.object({ professional_name: z.string() }),
+      execute: async ({ professional_name }) =>
+        safeTool("list_services_for_professional", async () => {
+          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: fallbackAgentUnitId });
+          if (!effectiveUnitId) return { success: false, code: "unit_not_resolved", message: "Não foi possível identificar a unidade correta." };
+          const { resolveProfessionalByName, getServicesForProfessional } = await import(
+            "@/lib/bemp/assignments.server"
           );
-          
-          const professionalsCount = Array.isArray(result) ? result.length : (Array.isArray((result as any)?.data) ? (result as any).data.length : 0);
-          console.log(`[professionals] professionals_query_completed: count=${professionalsCount}`);
-          
-          return result;
+          const pro = await resolveProfessionalByName(effectiveUnitId, professional_name);
+          if (!pro) {
+            return {
+              success: false,
+              code: "professional_not_found_in_unit",
+              message: `Não encontrei "${professional_name}" entre os profissionais desta unidade.`,
+            };
+          }
+          const services = await getServicesForProfessional(effectiveUnitId, pro.id);
+          if (services.length === 0) {
+            return {
+              success: false,
+              code: "no_assigned_services",
+              message: `${pro.name} não possui serviços atribuídos nesta unidade.`,
+            };
+          }
+          return { success: true, unitId: effectiveUnitId, professional: { id: pro.id, name: pro.name }, services };
         }),
     }),
     list_slots: tool({
       description:
-        "Lista horários disponíveis. Passe professional_id apenas se o cliente escolheu um profissional específico.",
+        "Lista horários disponíveis. Passe professional_id apenas se o cliente escolheu um profissional específico. A combinação unidade+serviço+profissional é validada no BEMP.",
       inputSchema: z.object({
         salon_id: z.number().optional(),
-        service_id: z.number(),
+        service_id: z.number().optional(),
+        service_name: z.string().optional().describe("Nome do serviço (preferencial)"),
         professional_id: z.number().optional(),
         date: z.string().describe("Data no formato YYYY-MM-DD"),
       }),
-      execute: async ({ salon_id, service_id, professional_id, date }) =>
+      execute: async ({ service_id, service_name, professional_id, date }) =>
         safeTool("list_slots", async () => {
           const cfg = await getBempConfig();
           const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: fallbackAgentUnitId });
           if (!effectiveUnitId) throw new Error("ID da unidade não resolvido.");
+          const { resolveServiceAssignment, getAvailableServiceAssignments, validateProfessionalServiceAssignment } =
+            await import("@/lib/bemp/assignments.server");
+
+          let resolvedServiceId: string | number | null = null;
+          if (service_name) {
+            const svc = await resolveServiceAssignment(effectiveUnitId, service_name);
+            resolvedServiceId = svc?.id ?? null;
+          }
+          if (!resolvedServiceId && service_id != null) {
+            const available = await getAvailableServiceAssignments(effectiveUnitId);
+            const match = available.find((s) => String(s.id) === String(service_id));
+            resolvedServiceId = match?.id ?? null;
+          }
+          if (!resolvedServiceId) {
+            return {
+              success: false,
+              code: "service_not_available_in_unit",
+              message: "Esse serviço não está disponível com profissionais atribuídos nesta unidade.",
+            };
+          }
+
+          if (professional_id != null) {
+            const check = await validateProfessionalServiceAssignment({
+              unitId: effectiveUnitId,
+              professionalId: professional_id,
+              serviceId: resolvedServiceId,
+            });
+            if (!check.valid) {
+              return {
+                success: false,
+                code: "professional_not_assigned_to_service",
+                message: "Esse profissional não realiza esse serviço nesta unidade.",
+              };
+            }
+          }
+
           const url = professional_id
-            ? `${cfg.apiBase}/salons/${effectiveUnitId}/services/${service_id}/professionals/${professional_id}/slots/${date}`
-            : `${cfg.apiBase}/salons/${effectiveUnitId}/services/${service_id}/slots/${date}`;
+            ? `${cfg.apiBase}/salons/${effectiveUnitId}/services/${resolvedServiceId}/professionals/${professional_id}/slots/${date}`
+            : `${cfg.apiBase}/salons/${effectiveUnitId}/services/${resolvedServiceId}/slots/${date}`;
           return await bempFetch(url);
         }),
     }),
+
     create_appointment: tool({
       description:
         "Cria o agendamento na Bemp. Só chame após confirmação explícita do cliente. O 'end' deve ser o 'start' + duração do serviço em minutos.",
@@ -385,7 +475,37 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
         safeTool("create_appointment", async () => {
           const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: fallbackAgentUnitId });
           if (!effectiveUnitId) throw new Error("ID da unidade não resolvido.");
-          const fullInput = { ...input, salon_id: Number(effectiveUnitId) };
+
+          // Validação obrigatória das atribuições reais no BEMP (unidade + serviço + profissional).
+          const { getAvailableServiceAssignments, validateProfessionalServiceAssignment } = await import(
+            "@/lib/bemp/assignments.server"
+          );
+          const availableServices = await getAvailableServiceAssignments(effectiveUnitId);
+          const svc = availableServices.find((s) => String(s.id) === String(input.service_id));
+          if (!svc) {
+            return {
+              success: false,
+              code: "service_not_available_in_unit",
+              message: "Esse serviço não está disponível com profissionais atribuídos nesta unidade.",
+            };
+          }
+          if (input.professional_id != null) {
+            const check = await validateProfessionalServiceAssignment({
+              unitId: effectiveUnitId,
+              professionalId: input.professional_id,
+              serviceId: svc.id,
+            });
+            if (!check.valid) {
+              return {
+                success: false,
+                code: "professional_not_assigned_to_service",
+                message: "Esse profissional não realiza esse serviço nesta unidade.",
+              };
+            }
+          }
+
+          const fullInput = { ...input, salon_id: Number(effectiveUnitId), service_id: Number(svc.id) };
+
 
           if (sandbox) {
             return {
@@ -1348,7 +1468,16 @@ export function mandatoryOperationalRules(opts: {
     "- 5. PÓS-TRANSFERÊNCIA: Informe que o atendimento foi transferido com sucesso e SOMENTE ENTÃO liste os serviços da nova unidade usando list_services. Nunca liste serviços de outra unidade antes de transferir.",
     "- NÃO TRANSFERIR em consultas puramente informativas (ex.: \"Onde fica a unidade Centro?\"). Nesses casos apenas informe o endereço.",
     "- LOGS DE SISTEMA: A ferramenta transfer_conversation_unit registra logs de transfer_requested, transfer_confirmed, transfer_started, transfer_completed no backend.",
+    "- ATRIBUIÇÕES REAIS (BEMP): Só apresente serviços retornados por list_services (que já filtra por profissionais atribuídos). Nunca cite serviço fora desse retorno.",
+    "- Só apresente profissionais retornados por list_professionals para o serviço escolhido. Nunca acrescente nomes por conta própria.",
+    "- Se o cliente escolher primeiro um profissional, use list_services_for_professional e mostre APENAS os serviços atribuídos a ele.",
+    "- Se o cliente escolher primeiro o serviço, use list_professionals e mostre APENAS os profissionais atribuídos a esse serviço.",
+    "- NUNCA afirme que um profissional realiza um serviço sem validação pelas ferramentas. Não invente nomes, serviços, preços, duração ou disponibilidade.",
+    "- Após uma transferência de unidade, descarte serviços/profissionais da unidade anterior e consulte novamente as ferramentas.",
+    "- Nunca crie agendamento sem que a combinação unidade + serviço + profissional tenha sido validada; se retornar professional_not_assigned_to_service, ofereça profissionais válidos ou serviços atribuídos ao profissional.",
+    "- Nunca exiba IDs técnicos ao cliente. Liste profissionais com 💜 *Nome* e serviços com • *Nome*.",
   ];
+
 
   if (opts.unidadeId) {
     lines.push(
