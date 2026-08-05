@@ -115,7 +115,7 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="bg-green-600 text-white p-2 text-center text-xs font-medium">
-        Bloqueadores no webhook da Evolution corrigidos: extração robusta de instância, idempotência atômica e logs detalhados ativos.
+        Sistema otimizado: cache de permissões e credenciais ativado para maior velocidade.
       </div>
       <PaymentTestModeBanner />
 

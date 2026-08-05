@@ -1,6 +1,8 @@
-// Server-only helpers for role/admin checks that used to be reached through
-// SECURITY DEFINER functions callable by the authenticated role. Now executed
-// via the admin client so the underlying functions can be locked down.
+// Server-only helpers for role/admin checks.
+// Cache results to improve performance and avoid redundant RPC calls.
+
+const ROLE_CACHE = new Map<string, { role: string; expires: number }>();
+const CACHE_TTL = 10_000; // 10 seconds
 
 export async function hasAnyAdmin(): Promise<boolean> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -14,11 +16,24 @@ export async function hasRole(
   role: "admin" | "operador" = "admin",
 ): Promise<boolean> {
   if (!userId) return false;
+
+  const cacheKey = `${userId}:${role}`;
+  const cached = ROLE_CACHE.get(cacheKey);
+  if (cached && cached.expires > Date.now()) {
+    return true;
+  }
+
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin.rpc("has_role", {
     _user_id: userId,
     _role: role,
   });
   if (error) throw new Error(error.message);
-  return Boolean(data);
+
+  const result = Boolean(data);
+  if (result) {
+    ROLE_CACHE.set(cacheKey, { role, expires: Date.now() + CACHE_TTL });
+  }
+
+  return result;
 }
