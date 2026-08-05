@@ -366,6 +366,8 @@ function buildTools(sandbox: boolean, fallbackAgentUnitId?: string | null, conve
             unitId: effectiveUnitId,
             service: { id: service.id, name: service.name },
             professionals,
+            singleProfessional: professionals.length === 1,
+            autoSelectedProfessional: professionals.length === 1 ? professionals[0] : null,
           };
         }),
     }),
