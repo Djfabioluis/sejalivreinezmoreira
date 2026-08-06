@@ -2642,7 +2642,7 @@ export async function runAgentWithLogging(params: {
     // CRM: Update stage after successfully replying
     await updateCustomerPipeline({
       phone,
-      stage: currentCustomerContext.subscriptionIntent ? 'QUALIFYING_SUBSCRIPTION' : 'IDENTIFYING_SERVICE',
+      stage: 'IDENTIFYING_SERVICE',
       customerName: pushName || (historyData?.contact_name as string) || undefined
     }).catch(e => console.error("[crm] Post-reply update failed:", e));
 
