@@ -115,706 +115,184 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* 
-        Execute esta instrucao no projeto: CORREÇÃO CRÍTICA — CONSULTA DE CLIENTE E PLANO POR CPF NO BEMP
+        Execute esta instrucao no projeto: DIAGNÓSTICO E CORREÇÃO DO MOTOR DE FOLLOW-UP
 
 PROBLEMA
 
-A IA solicita o CPF, mas não encontra clientes que possuem plano de assinatura no BEMP.
+A IA não está enviando follow-ups automaticamente.
 
 OBJETIVO
 
-Corrigir o fluxo completo:
-
-CPF informado
-→ validação
-→ normalização
-→ busca do cliente no BEMP
-→ identificação inequívoca do cliente
-→ consulta dos planos/assinaturas
-→ validação do status e saldo
-→ resolução do serviço do plano
-→ continuação do agendamento.
-
-Não alterar regras de agendamento.
-
-Não usar dados simulados.
+Descobrir exatamente em qual etapa o fluxo está parando e corrigir sem alterar as regras de negócio.
 
 Não publicar automaticamente.
 
 ==================================================
-1. RASTREAR O FLUXO ATUAL
+FASE 1 — RASTREAR O FLUXO
 ==================================================
 
-Localizar todas as funções relacionadas a:
+Mapear todo o fluxo:
 
-getCustomerByCPF
-get_customer_by_cpf
-getCustomerActivePlans
-get_customer_active_plans
-lookupCustomer
-searchCustomer
-subscription
-plan
-assinatura
-cpf
+1. detecção de abandono;
+2. criação do follow-up;
+3. gravação no banco;
+4. agendamento;
+5. job responsável;
+6. geração da mensagem;
+7. envio pela Evolution;
+8. atualização do status.
 
-Mapear:
-
-- onde a IA chama a tool;
-- schema de entrada;
-- normalização;
-- função BempService;
-- endpoint real;
-- formato da resposta;
-- filtro de plano;
-- retorno para a IA.
-
-Não criar outra implementação paralela antes de localizar a existente.
+Mostrar onde a execução interrompe.
 
 ==================================================
-2. CPF SEMPRE COMO STRING
+FASE 2 — BANCO
 ==================================================
 
-CPF nunca pode ser tratado como number.
+Verificar:
 
-Proibido:
+- crm_followups;
+- status;
+- scheduled_at;
+- attempts;
+- last_attempt_at;
+- canceled_at;
+- completed_at.
 
-Number(cpf)
-parseInt(cpf)
-+cpf
+Informar:
 
-Usar exclusivamente string.
-
-Motivo:
-
-- preservar zeros à esquerda;
-- evitar transformação;
-- impedir perda de precisão ou formatação.
-
-Criar tipo:
-
-type NormalizedCPF = string;
+- existem follow-ups pendentes?
+- existem follow-ups expirados?
+- existem follow-ups presos?
 
 ==================================================
-3. NORMALIZAÇÃO
+FASE 3 — JOBS
 ==================================================
 
-Criar função única:
-
-normalizeCPF(input: string): string
-
-Ela deve:
-
-- remover tudo que não seja dígito;
-- preservar exatamente 11 dígitos;
-- aplicar trim antes da limpeza;
-- não retornar CPF formatado;
-- não registrar o valor completo.
-
-Exemplo:
-
-"123.456.789-09"
-→
-"12345678909"
-
-Aceitar CPF recebido como:
-
-- texto simples;
-- mensagem com pontuação;
-- frase como “meu CPF é 123...”;
-- espaços e quebras de linha.
-
-Extrair somente quando existir exatamente um candidato válido de 11 dígitos.
-
-==================================================
-4. VALIDAR CPF
-==================================================
-
-Criar ou reutilizar:
-
-isValidCPF(cpf)
-
-Validar:
-
-- 11 dígitos;
-- dígitos verificadores;
-- bloquear sequências repetidas:
-  00000000000
-  11111111111
-  etc.
-
-Se inválido:
-
-retornar:
-
-{
-  success: false,
-  code: "INVALID_CPF"
-}
-
-Não chamar o BEMP.
-
-==================================================
-5. TOOL E SCHEMA
-==================================================
-
-A tool deve receber:
-
-{
-  cpf: z.string()
-}
-
-Não aceitar CPF opcional quando o fluxo exige validação.
-
-A tool deve retornar formato estruturado:
-
-{
-  success: true,
-  customer: {
-    id,
-    name
-  },
-  plans: [...]
-}
-
-ou:
-
-{
-  success: false,
-  code:
-    | "INVALID_CPF"
-    | "CUSTOMER_NOT_FOUND"
-    | "MULTIPLE_CUSTOMERS_FOUND"
-    | "NO_ACTIVE_PLAN"
-    | "PLAN_NO_BALANCE"
-    | "BEMP_UNAUTHORIZED"
-    | "BEMP_RATE_LIMITED"
-    | "BEMP_UNAVAILABLE"
-    | "BEMP_INVALID_RESPONSE",
-  message
-}
-
-Não retornar array vazio como resposta genérica para qualquer falha.
-
-==================================================
-6. ENDPOINT REAL DO BEMP
-==================================================
-
-Verificar na integração atual qual endpoint realmente aceita CPF.
-
-Não presumir o caminho.
-
-Inspecionar chamadas já existentes e documentação/configuração do projeto.
+Verificar se existe job responsável pelo envio.
 
 Confirmar:
 
-- método HTTP;
-- nome do parâmetro:
-  cpf
-  document
-  document_number
-  tax_id
-  query
-  search
-  ou equivalente;
-- CPF com ou sem pontuação;
-- header de autenticação;
-- salon/unit necessário;
-- estrutura da resposta.
+- está executando;
+- última execução;
+- frequência;
+- quantidade processada;
+- erros.
 
-Registrar durante o teste, de forma sanitizada:
+Se não existir:
 
-- URL sem token;
-- método;
-- nome do parâmetro;
-- status HTTP;
-- chaves do primeiro nível;
-- quantidade de resultados.
-
-Não registrar CPF completo.
+implementar um worker dedicado.
 
 ==================================================
-7. NÃO LIMITAR BUSCA À UNIDADE ERRADA
+FASE 4 — CONDIÇÕES
 ==================================================
 
-O cadastro ou o plano pode estar associado a outra unidade ou existir globalmente no BEMP.
-
-Separar:
-
-BUSCA DE IDENTIDADE DO CLIENTE
-→ buscar pelo CPF no escopo exigido pelo BEMP.
-
-BUSCA DO PLANO
-→ consultar planos do cliente identificado.
-
-UNIDADE DO AGENDAMENTO
-→ validar depois se o benefício pode ser usado na unidade atual.
-
-Não concluir “cliente não encontrado” apenas porque ele não apareceu na unidade atual.
-
-Caso a API exija unidade para busca, tentar somente os escopos permitidos e documentados, sem consultas indiscriminadas.
-
-==================================================
-8. CLIENTE E PLANO PODEM ESTAR EM ENDPOINTS DIFERENTES
-==================================================
-
-Não presumir que a busca do cliente já retorna as assinaturas.
-
-Fluxo correto:
-
-const customer = await bemp.findCustomerByCPF(cpf);
-
-const plans = await bemp.getCustomerSubscriptions(
-  customer.id
-);
-
-Se a resposta do cliente já incluir planos, normalizar pelo mesmo contrato.
-
-Não procurar apenas:
-
-customer.plans
-
-Verificar estruturas como:
-
-subscriptions
-memberships
-benefits
-contracts
-customer_plans
-data.subscriptions
-data.customer.subscriptions
-
-==================================================
-9. DESEMPACOTAR RESPOSTAS ANINHADAS
-==================================================
-
-Criar parser validado por Zod para os formatos reais.
-
-Suportar somente formatos confirmados, por exemplo:
-
-{
-  data: [...]
-}
-
-{
-  data: {
-    customers: [...]
-  }
-}
-
-{
-  customer: {...}
-}
-
-{
-  results: [...]
-}
-
-Não usar `asArray()` genérico que silenciosamente retorna [] em resposta desconhecida.
-
-Se o formato não for reconhecido:
-
-{
-  success: false,
-  code: "BEMP_INVALID_RESPONSE"
-}
-
-Registrar as chaves recebidas, sem dados pessoais.
-
-==================================================
-10. IDENTIFICAÇÃO INEQUÍVOCA
-==================================================
-
-Comparar o CPF normalizado retornado pelo BEMP com o informado.
-
-Não aceitar o primeiro resultado arbitrariamente.
-
-Se nenhum resultado corresponder:
-
-CUSTOMER_NOT_FOUND
-
-Se mais de um cadastro corresponder ao mesmo CPF:
-
-MULTIPLE_CUSTOMERS_FOUND
-
-Nesse caso:
-
-- não escolher sozinho;
-- encaminhar para atendimento humano;
-- registrar inconsistência cadastral.
-
-==================================================
-11. CONSULTAR PLANOS PELO CUSTOMER ID
-==================================================
-
-Depois de identificar o cliente, usar o ID oficial do BEMP.
-
-Não consultar plano somente pelo CPF novamente quando a API espera customerId.
-
-Retorno normalizado:
-
-{
-  id,
-  name,
-  status,
-  validFrom,
-  validUntil,
-  availableUses,
-  totalUses,
-  unitIds,
-  benefits
-}
-
-Validar cada campo conforme a resposta real.
-
-==================================================
-12. NORMALIZAR STATUS DOS PLANOS
-==================================================
-
-Mapear status reais do BEMP para valores internos:
-
-ACTIVE
-INACTIVE
-CANCELED
-EXPIRED
-SUSPENDED
-NO_BALANCE
-UNKNOWN
-
-Reconhecer, após confirmar os valores reais:
-
-ativo
-active
-vigente
-enabled
-cancelado
-canceled
-cancelled
-vencido
-expired
-suspenso
-suspended
-
-Não depender de igualdade com uma única palavra.
-
-Quando status desconhecido:
-
-- não assumir ativo;
-- registrar UNKNOWN;
-- encaminhar para validação humana quando necessário.
-
-==================================================
-13. VALIDADE E SALDO
-==================================================
-
-Um plano só é utilizável quando:
-
-- status normalizado = ACTIVE;
-- data atual dentro da validade;
-- saldo/utilizações disponíveis > 0, quando essa regra existir;
-- benefício aplicável;
-- não houver bloqueio retornado pelo BEMP.
-
-Não tratar `availableUses = null` como zero sem confirmar o contrato.
-
-Diferenciar:
-
-- plano ilimitado;
-- saldo não informado;
-- saldo zero.
-
-==================================================
-14. MAPEAMENTO DO SERVIÇO
-==================================================
-
-Após encontrar plano válido:
-
-Plano de manicure
-→ Manicure Plano Beauty
-
-Plano de escova
-→ Escova Plano Beauty
-
-Plano de hidratação e escova
-→ Hidratação e Escova
-
-Normalizar nome do plano:
-
-- lowercase;
-- sem acentos;
-- espaços normalizados;
-- correspondência exata primeiro;
-- aliases centralizados.
-
-Não mapear pelo texto livre da IA.
-
-Criar configuração central:
-
-SUBSCRIPTION_SERVICE_MAP
-
-==================================================
-15. RESOLVER SERVIÇO NA UNIDADE ATUAL
-==================================================
-
-Depois de identificar o benefício:
-
-1. resolver unidade efetiva da conversa;
-2. buscar serviços reais dessa unidade;
-3. localizar o serviço mapeado;
-4. obter o ID específico da unidade;
-5. listar profissionais;
-6. listar horários.
-
-Não reutilizar serviceId de outra unidade.
-
-Se o serviço de plano não existir na unidade:
-
-SERVICE_NOT_AVAILABLE_IN_UNIT
-
-Não substituir silenciosamente pelo serviço comum.
-
-==================================================
-16. NÃO CONFIAR NA MEMÓRIA PARA VALIDAR PLANO
-==================================================
-
-Memória pode informar que a cliente já teve plano, mas a decisão atual deve vir do BEMP.
-
-Ordem:
-
-BEMP atual
-→ informação confirmada atual
-
-Memória
-→ apenas contexto auxiliar
-
-Não informar plano ativo sem consulta bem-sucedida.
-
-==================================================
-17. NÃO SALVAR CPF COMPLETO EM CONTEXTO OU LOG
-==================================================
-
-No customer_context, preferir:
-
-cpfValidated: true
-bempCustomerId
-cpfLast4
-planCheckedAt
-
-Não salvar CPF completo em texto aberto.
-
-Se o sistema realmente precisar persistir o CPF:
-
-- usar mecanismo seguro definido pelo projeto;
-- limitar acesso;
-- não incluir em logs;
-- mascarar no frontend.
-
-==================================================
-18. ERROS DO BEMP
-==================================================
-
-No BempService, diferenciar:
-
-HTTP 401/403
-→ BEMP_UNAUTHORIZED
-
-HTTP 404
-→ CUSTOMER_NOT_FOUND somente se o endpoint usar 404 para isso.
-
-HTTP 429
-→ BEMP_RATE_LIMITED
-
-HTTP 500/502/503/504
-→ BEMP_UNAVAILABLE
-
-timeout
-→ BEMP_UNAVAILABLE com retryable true
-
-JSON inválido ou schema inesperado
-→ BEMP_INVALID_RESPONSE
-
-Não converter todos esses casos em CUSTOMER_NOT_FOUND.
-
-==================================================
-19. RETRY
-==================================================
-
-Retry somente para falhas transitórias:
-
+Verificar se o follow-up está sendo cancelado por:
+
+- atendimento humano;
+- conversa encerrada;
+- cliente respondeu;
+- IA desativada;
+- agente desconectado;
 - timeout;
-- 429, respeitando limite;
-- 502;
-- 503;
-- 504.
+- erro de validação;
+- lock.
 
-Não repetir automaticamente:
-
-- CPF inválido;
-- 401;
-- 403;
-- cliente inexistente;
-- plano inexistente.
-
-Limitar tentativas e usar backoff.
+Registrar exatamente qual condição bloqueou.
 
 ==================================================
-20. RESPOSTA PARA A IA
+FASE 5 — EVOLUTION
 ==================================================
 
-A tool deve retornar apenas dados estruturados e seguros.
+Testar envio utilizando EvolutionService.
 
-Exemplo de sucesso:
+Confirmar:
 
-{
-  "success": true,
-  "customer": {
-    "id": "abc",
-    "name": "Maria"
-  },
-  "activePlans": [
-    {
-      "id": "plan-1",
-      "name": "Plano de Manicure",
-      "serviceName": "Manicure Plano Beauty",
-      "availableUses": 2
-    }
-  ]
-}
-
-A IA responde with linguagem natural.
-
-A tool não envia WhatsApp diretamente.
+- mensagem gerada;
+- payload enviado;
+- resposta da API;
+- messageId retornado.
 
 ==================================================
-21. RESPOSTAS AO CLIENTE
+FASE 6 — IA
 ==================================================
 
-CPF inválido:
+Confirmar que a IA realmente gera a mensagem.
 
-“Não consegui validar esse CPF. Pode conferir e enviar novamente, por favor?”
+Se não gerar:
 
-Cliente não encontrado:
-
-“Não encontrei um cadastro com esse CPF. Pode conferir o número ou prefere que eu encaminhe para nossa equipe?”
-
-Cliente encontrado sem plano ativo:
-
-“Encontrei seu cadastro, mas não localizei um plano ativo no momento. Posso ajudar com um agendamento convencional?”
-
-BEMP indisponível:
-
-“Não consegui consultar seu plano agora. Vou encaminhar essa validação para nossa equipe para você não ficar sem atendimento.”
-
-Não dizer “não possui plano” quando o BEMP estiver indisponível.
+registrar motivo.
 
 ==================================================
-22. LOGS DE DIAGNÓSTICO
+FASE 7 — LOGS
 ==================================================
 
-Registrar:
+Criar logs obrigatórios:
 
-cpf_received
-cpf_normalized
-cpf_validation_failed
-bemp_customer_lookup_started
-bemp_customer_lookup_completed
-bemp_customer_not_found
-bemp_multiple_customers
-bemp_subscription_lookup_started
-bemp_subscription_lookup_completed
-bemp_subscription_not_found
-bemp_subscription_active
-bemp_subscription_no_balance
-bemp_invalid_response
-subscription_service_resolved
-subscription_lookup_failed
+followup_detected
 
-Nos logs usar apenas:
+followup_created
 
-cpfLast4
-traceId
-conversationId
-unitId
-customerId mascarado
-status HTTP
-responseShape
+followup_scheduled
+
+followup_validation_started
+
+followup_validation_failed
+
+followup_send_started
+
+followup_send_completed
+
+followup_send_failed
 
 ==================================================
-23. TESTE COM DADO REAL CONTROLADO
+FASE 8 — TESTE REAL
 ==================================================
 
-Usar um CPF de teste previamente confirmado no BEMP com plano ativo.
+Criar uma conversa de teste.
 
-Não exibir o CPF no relatório.
+Simular:
 
-Comprovar:
+cliente abandona o agendamento.
 
-1. CPF normalizado;
-2. endpoint chamado;
-3. cliente localizado;
-4. customerId retornado;
-5. endpoint de assinaturas chamado;
-6. plano encontrado;
-7. status normalizado;
-8. saldo validado;
-9. serviço mapeado;
-10. serviço resolvido na unidade.
+Confirmar:
 
-==================================================
-24. TESTES AUTOMATIZADOS
-==================================================
+✓ follow-up criado
 
-Criar testes:
+✓ horário agendado
 
-1. CPF formatado válido.
-2. CPF somente números.
-3. CPF com zero inicial.
-4. CPF inválido.
-5. cliente não encontrado.
-6. múltiplos clientes.
-7. cliente encontrado sem plano.
-8. plano ativo.
-9. plano vencido.
-10. plano cancelado.
-11. plano suspenso.
-12. plano sem saldo.
-13. plano ilimitado.
-14. resposta aninhada.
-15. resposta inválida.
-16. BEMP 401.
-17. BEMP 429.
-18. BEMP 500.
-19. timeout.
-20. plano ativo em outra unidade.
-21. serviço do plano inexistente na unidade.
-22. mapeamentos Manicure, Escova e Hidratação e Escova.
+✓ job executado
+
+✓ mensagem enviada
+
+✓ Evolution confirmou envio
+
+✓ status atualizado
 
 ==================================================
-25. ENTREGA
+ENTREGA
 ==================================================
 
-Ao concluir informar:
+Informar:
 
-1. causa raiz exata;
-2. endpoint real usado para localizar cliente;
-3. nome real do parâmetro do CPF;
-4. endpoint usado para assinaturas;
-5. formato real das respostas;
-6. status reais encontrados;
-7. arquivos alterados;
-8. schemas criados;
-9. logs do teste mascarados;
-10. testes;
-11. build;
-12. typecheck;
-13. lint;
-14. não publicar automaticamente.
+1. causa raiz;
 
-CRITÉRIO DE CONCLUSÃO
+2. arquivo responsável;
 
-Não declarar corrigido apenas porque a função retorna sem erro.
+3. função responsável;
 
-É obrigatório comprovar, com um CPF de teste conhecido no BEMP, que o cliente e o plano ativo foram encontrados e que o serviço correto foi resolvido.
+4. correção realizada;
+
+5. logs do teste;
+
+6. build;
+
+7. typecheck;
+
+8. lint;
+
+9. testes.
+
+Não considerar concluído até um follow-up real ser enviado com sucesso para uma conversa de teste.
       */}
 
       <div className="bg-green-600 text-white p-2 text-center text-xs font-medium">
