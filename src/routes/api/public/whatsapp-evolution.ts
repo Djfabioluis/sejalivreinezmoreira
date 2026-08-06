@@ -3,6 +3,7 @@ import { authenticateWebhook } from "@/lib/evolution/auth.server";
 import { normalizeEvolutionEvent } from "@/lib/evolution/event-normalizer";
 import { processConnectionUpdate, processMessagesUpsert } from "@/lib/evolution/processor.server";
 import { logEvent } from "@/lib/evolution/logger.server";
+import { logger } from "@/lib/observability/logger.server";
 
 export const Route = createFileRoute("/api/public/whatsapp-evolution")({
   server: {
