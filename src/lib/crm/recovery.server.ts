@@ -13,11 +13,14 @@ export async function processAutomatedRecoveries() {
   // 1. Find abandoned customers with specific reasons
   const { data: abandoned, error } = await supabaseAdmin
     .from("crm_customer_pipeline")
-    .select("phone, abandonment_reason, last_interaction_at, current_unit_id")
+    .select("phone, abandonment_reason, last_interaction_at")
     .eq("current_stage", "ABANDONADO")
     .in("abandonment_reason", ["PROFESSIONAL_UNAVAILABLE", "SATURDAY_FULL"]);
 
-  if (error || !abandoned) return;
+  if (error || !abandoned) {
+    if (error) console.error("[crm-recovery] Error fetching abandoned:", error.message);
+    return;
+  }
 
   for (const customer of abandoned) {
     try {
@@ -53,14 +56,14 @@ async function handleProfessionalRecovery(customer: any) {
   // We check Bemp for slots for the preferred professional (stored in context usually)
   const { data: conv } = await supabaseAdmin
     .from("wa_conversas")
-    .select("customer_context, instance, phone_number, contact_name")
+    .select("customer_context, instance, phone_number, contact_name, unidade_id")
     .eq("phone", customer.phone)
     .single();
 
   const ctx = (conv?.customer_context as any) || {};
   const profId = ctx.preferred_professional_id || ctx.professional_id;
   const svcId = ctx.service_id;
-  const unitId = customer.current_unit_id || ctx.unidade_id;
+  const unitId = conv?.unidade_id || ctx.unidade_id;
 
   if (!profId || !svcId || !unitId) return;
 
@@ -74,7 +77,7 @@ async function handleProfessionalRecovery(customer: any) {
   
   try {
     const slots: any = await bempFetch(slotsUrl);
-    const available = Array.isArray(slots) ? slots : (slots?.data || []);
+    const available = Array.isArray(slots) ? slots : ((slots as any)?.data || []);
     
     if (available.length > 0) {
       const bestSlot = available[0];
@@ -94,13 +97,13 @@ async function handleSaturdayRecovery(customer: any) {
   // Logic: "Se abrir sábado ↓ avisar"
   const { data: conv } = await supabaseAdmin
     .from("wa_conversas")
-    .select("customer_context, instance, phone_number, contact_name")
+    .select("customer_context, instance, phone_number, contact_name, unidade_id")
     .eq("phone", customer.phone)
     .single();
 
   const ctx = (conv?.customer_context as any) || {};
   const svcId = ctx.service_id;
-  const unitId = customer.current_unit_id || ctx.unidade_id;
+  const unitId = conv?.unidade_id || ctx.unidade_id;
 
   if (!svcId || !unitId) return;
 
@@ -116,7 +119,7 @@ async function handleSaturdayRecovery(customer: any) {
 
   try {
     const slots: any = await bempFetch(slotsUrl);
-    const available = Array.isArray(slots) ? slots : (slots?.data || []);
+    const available = Array.isArray(slots) ? slots : ((slots as any)?.data || []);
     
     if (available.length > 0) {
       const message = `Olá ${conv?.contact_name || 'cliente'}! Passando para avisar que abriram horários para este sábado. ✨\n\nGostaria de aproveitar e garantir o seu atendimento?`;
