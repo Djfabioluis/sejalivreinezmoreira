@@ -9,6 +9,7 @@ import { runRevenueEngine } from '@/lib/crm/revenue-engine.server';
 import { generateManagementBriefing } from '@/lib/crm/management-report.server';
 import { analyzeAgenda } from '@/lib/crm/agenda-analyzer.server';
 import { processWaitingList } from '@/lib/crm/waiting-list.server';
+import { runDailyAnalysis } from '@/lib/crm/daily-analyst.server';
 
 
 export const Route = createFileRoute('/api/public/crm-cron')({
@@ -59,6 +60,11 @@ export const Route = createFileRoute('/api/public/crm-cron')({
           const hour = new Date().getUTCHours() - 3; // GMT-3 (Brasília)
           if (hour === 7) {
             await generateManagementBriefing();
+          }
+
+          // 9. Daily Analysis (Nightly - 22h)
+          if (hour === 22) {
+            await runDailyAnalysis();
           }
 
           
