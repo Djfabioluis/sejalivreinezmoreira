@@ -55,7 +55,16 @@ export async function replyToUser(params: {
     const { containsCpfSolicitation, PHONE_REQUEST_MESSAGE } = await import("@/lib/subscription-policy.server");
     if (containsCpfSolicitation(params.text)) {
       params.text = PHONE_REQUEST_MESSAGE;
+      
       logger.error("SUBSCRIPTION_PROTECTION_FAILED_FAIL_CLOSED", error.message, { traceId });
+      
+      await logEvent({
+        instance: params.instance,
+        messageId: params.messageId,
+        event: "subscription_policy_check_failed",
+        status: "warning",
+        payload: { traceId }
+      });
     }
   }
   

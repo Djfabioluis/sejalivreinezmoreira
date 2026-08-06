@@ -65,28 +65,21 @@ export interface SubscriptionFlowContext {
   subscriptionPhoneAttempts?: number;
 }
 
+const CPF_SOLICITATION_PATTERNS = [
+  /\binforme(?:\s+o)?\s+seu\s+cpf\b/i,
+  /\bpreciso(?:\s+realmente)?(?:\s+do)?\s+seu\s+cpf\b/i,
+  /\bqual(?:\s+é)?\s+o\s+seu\s+cpf\b/i,
+  /\bme\s+(?:passe|informe)\s+(?:o\s+)?seu\s+cpf\b/i,
+  /\bn[uú]mero\s+(?:do|de)\s+cpf\b/i,
+  /000\.000\.000-00/i,
+  /somente números ou no formato.*cpf/i,
+  /localizar.*(?:plano|assinatura).*cpf/i,
+  /verificar.*plano.*cpf/i
+];
+
 export function containsCpfSolicitation(text: string): boolean {
   if (!text) return false;
-  
-  // Padrões explícitos de solicitação de CPF
-  const patterns = [
-    /informe.*CPF/i,
-    /informar.*CPF/i,
-    /preciso.*CPF/i,
-    /me informe.*CPF/i,
-    /qual.*seu.*CPF/i,
-    /número.*CPF/i,
-    /seu número.*CPF/i,
-    /000\.000\.000-00/,
-    /somente números ou no formato/i,
-    /localizar seu plano.*CPF/i,
-    /localizar sua assinatura.*CPF/i,
-    /verificar seu plano.*CPF/i,
-    /me passe.*CPF/i,
-    /validar plano.*CPF/i,
-  ];
-
-  return patterns.some(p => p.test(text));
+  return CPF_SOLICITATION_PATTERNS.some(regex => regex.test(text));
 }
 
 /**
@@ -98,29 +91,25 @@ export function enforceNoCpfInSubscriptionFlow(
   context: SubscriptionFlowContext | null | undefined,
 ): { text: string; blocked: boolean } {
   if (!text) return { text, blocked: false };
-  const ctx = context || {};
   
-  const cpfRequested = containsCpfSolicitation(text);
-  
-  // Se detectou solicitação de CPF, BLOQUEIA SEMPRE, independentemente de ALLOW_SUBSCRIPTION_CPF_FALLBACK
-  // ou de subscriptionIntent, para garantir FAIL-CLOSED.
-  if (!cpfRequested) {
-    // Se não solicitou CPF explicitamente, verificamos se há menções genéricas que devem ser bloqueadas no fluxo de assinatura
-    if (ctx.subscriptionIntent !== true) return { text, blocked: false };
-    if (ctx.subscriptionPhoneValidated === true) return { text, blocked: false };
-    
-    const forbiddenPattern = /\bcpf\b|documento de identifica|\bdocumento\b|\d{3}\.\d{3}\.\d{3}-\d{2}|000\.000\.000-00/i;
-    if (!forbiddenPattern.test(text)) return { text, blocked: false };
+  if (!containsCpfSolicitation(text)) {
+    return { text, blocked: false };
   }
 
+  // Se chegou aqui, contém solicitação de CPF.
+  // Como ALLOW_SUBSCRIPTION_CPF_FALLBACK é falso, bloqueamos SEMPRE.
+  
+  const ctx = context || {};
   const stage = ctx.subscriptionLookupStage;
   const attempts = ctx.subscriptionPhoneAttempts || 0;
 
   if (stage === "HUMAN_HANDOFF" || attempts >= SUBSCRIPTION_MAX_PHONE_ATTEMPTS) {
     return { text: SUBSCRIPTION_MESSAGES.HUMAN_HANDOFF, blocked: true };
   }
+  
   if (stage === "AWAITING_REGISTERED_PHONE_RETRY" || attempts >= 1) {
     return { text: SUBSCRIPTION_MESSAGES.RETRY_PHONE, blocked: true };
   }
+
   return { text: SUBSCRIPTION_MESSAGES.ASK_PHONE, blocked: true };
 }
