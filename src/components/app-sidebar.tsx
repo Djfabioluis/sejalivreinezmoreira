@@ -55,6 +55,7 @@ const items = [
   { title: "Analytics", url: "/crm", icon: TrendingUp, group: "Inteligência", key: "crm" },
   { title: "Relatórios", url: "/auditoria-sugestoes", icon: ClipboardList, group: "Inteligência", key: "auditoria-sugestoes" },
   { title: "Central IA", url: "/aprendizado-ia", icon: Brain, group: "Inteligência", key: "aprendizado-ia" },
+  { title: "Agentes WhatsApp", url: "/agentes-whatsapp", icon: QrCode, group: "Configuração", key: "config-whatsapp" },
   { title: "Configurações", url: "/configuracao-whatsapp", icon: UserCog, group: "Configuração", key: "config-whatsapp" },
   { title: "Perfil", url: "/perfil", icon: UserCircle, group: "Conta", key: "__always" },
   { title: "Ajuda", url: "/perfil", icon: UserCircle, group: "Conta", key: "__always" },

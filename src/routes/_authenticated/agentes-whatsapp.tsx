@@ -49,6 +49,8 @@ import {
   desconectarAgente,
   removerAgente,
   selecionarUnidadeAgente,
+  toggleIAAgente,
+  syncEvolutionInstances,
   type AgenteWa,
 } from "@/lib/agentes-whatsapp.functions";
 import { listSalons } from "@/lib/bemp.functions";
@@ -73,16 +75,25 @@ function formatSaved(digits: string) {
   return maskPhone(d);
 }
 
-function StatusBadge({ status }: { status: AgenteWa["status"] }) {
+function StatusBadge({ status, statusConexao }: { status: AgenteWa["status"]; statusConexao?: AgenteWa["status_conexao"] }) {
+  // Priorizar status_conexao para exibição de conectividade em tempo real
+  if (statusConexao === "conectando") return <Badge className="bg-blue-400 text-white">Conectando...</Badge>;
+  if (statusConexao === "desconectado") return <Badge className="bg-slate-400 text-white">Desconectado</Badge>;
+  if (statusConexao === "conectado" && status === "conectado_sem_unidade") return <Badge className="bg-amber-500 text-white">Sem Unidade</Badge>;
+  if (statusConexao === "conectado" && status === "ativo") return <Badge className="bg-emerald-600 text-white">Conectado</Badge>;
+
   const config: Record<string, { label: string; className: string }> = {
     ativo: { label: "Ativo", className: "bg-emerald-600 text-white" },
-    conectado_sem_unidade: { label: "Escolha a unidade", className: "bg-amber-500 text-white" }, // Item 10
+    conectado_sem_unidade: { label: "Escolha a unidade", className: "bg-amber-500 text-white" },
     aguardando_conexao: { label: "Aguardando Conexão", className: "bg-blue-500 text-white" },
     aguardando_qr: { label: "Aguardando QR", className: "bg-blue-400 text-white" },
     inativo: { label: "Inativo", className: "bg-slate-400 text-white" },
-    erro_conexao: { label: "Erro", className: "bg-red-500 text-white" }, // Item 10
+    erro_conexao: { label: "Erro", className: "bg-red-500 text-white" },
     conectado: { label: "Conectado", className: "bg-emerald-600 text-white" },
-    desconectado: { label: "Aguardando conexão", className: "bg-slate-400 text-white" }, // Item 10
+    desconectado: { label: "Desconectado", className: "bg-slate-400 text-white" },
+    CONNECTED: { label: "Conectado", className: "bg-emerald-600 text-white" },
+    QR_PENDING: { label: "Aguardando QR", className: "bg-amber-400 text-white" },
+    DISCONNECTED: { label: "Desconectado", className: "bg-slate-400 text-white" },
   };
   const c = config[status] || config.inativo;
   return <Badge className={c.className}>{c.label}</Badge>;
@@ -137,20 +148,23 @@ function AgentesWhatsAppPage() {
   // Realtime updates for agent status (Item 9)
   useEffect(() => {
     const channel = supabase
-      .channel("wa_agentes_status_changes")
+      .channel("wa_agentes_all_changes")
       .on(
         "postgres_changes",
         {
-          event: "UPDATE",
+          event: "*",
           schema: "public",
           table: "wa_agentes",
-          filter: "status=eq.conectado_sem_unidade",
         },
         (payload) => {
-          const updatedAgent = payload.new as AgenteWa;
+          const updated = payload.new as AgenteWa;
+          setItems(current => 
+            current.map(item => item.id === updated.id ? { ...item, ...updated } : item)
+          );
+          
           // Abre modal de unidade se o agente foi recém-conectado e não tem unidade (Item 1)
-          if (updatedAgent.status === "conectado_sem_unidade" && !updatedAgent.unidade_id) {
-            handleOpenUnit(updatedAgent, "auto");
+          if (updated.status === "conectado_sem_unidade" && !updated.unidade_id && payload.eventType === "UPDATE") {
+            handleOpenUnit(updated, "auto");
           }
         },
       )
@@ -270,13 +284,18 @@ function AgentesWhatsAppPage() {
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6 p-4 sm:p-6">
       <header className="space-y-1">
-        <h1 className="font-display text-2xl tracking-tight">Agentes WhatsApp</h1>
-        <p className="text-sm text-muted-foreground">Escolha a unidade após conectar o número</p>
+        <h1 className="font-display text-2xl tracking-tight">Gerenciador de Agentes</h1>
+        <p className="text-sm text-muted-foreground">Gerencie instâncias da Evolution API e vincule a unidades do salão</p>
       </header>
 
-      <Button className="w-full" size="lg" onClick={() => setAddOpen(true)}>
-        <Plus className="mr-2 h-4 w-4" /> Adicionar agente
-      </Button>
+      <div className="flex gap-2">
+        <Button className="flex-1" size="lg" onClick={() => setAddOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" /> Adicionar agente
+        </Button>
+        <Button variant="outline" size="lg" onClick={() => void syncEvolutionInstances().then(() => reload())}>
+          <RefreshCw className="mr-2 h-4 w-4" /> Sincronizar
+        </Button>
+      </div>
 
       <div className="space-y-3">
         {loading ? <Loader2 className="mx-auto h-8 w-8 animate-spin opacity-20" /> : items.map((a) => (
@@ -287,20 +306,33 @@ function AgentesWhatsAppPage() {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="font-medium">{a.nome} <span className="text-xs font-normal text-muted-foreground">· {a.tipo}</span></p>
-                <p className="text-sm text-muted-foreground">{formatSaved(a.telefone)}</p>
+                <p className="text-sm text-muted-foreground">{formatSaved(a.telefone || "")}</p>
                 {a.unidade_id && <p className="text-[10px] text-primary flex items-center mt-1"><Building2 className="h-3 w-3 mr-1" /> Unidade: {a.unidade_id}</p>}
               </div>
               <div className="flex flex-col items-end gap-2">
-                <StatusBadge status={a.status} />
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className={a.ia_ativa ? "border-primary text-primary" : "text-muted-foreground"}>
+                    {a.ia_ativa ? "IA Ativa" : "IA Inativa"}
+                  </Badge>
+                  <StatusBadge status={a.status} statusConexao={a.status_conexao} />
+                </div>
                 <div className="flex gap-2">
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    className="h-7 text-[10px]" 
+                    onClick={() => void toggleIAAgente({ data: { id: a.id, enabled: !a.ia_ativa } }).then(() => reload())}
+                  >
+                    {a.ia_ativa ? "Pausar IA" : "Ativar IA"}
+                  </Button>
                   {a.status === "conectado_sem_unidade" && (
                     <Button size="sm" variant="default" className="h-7 text-[10px]" onClick={() => handleOpenUnit(a, "manual")}>Escolher Unidade</Button>
                   )}
-                  {a.status === "ativo" && (
+                  {a.unidade_id && (
                     <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => handleOpenUnit(a, "manual")}>Alterar Unidade</Button>
                   )}
-                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => openQr(a)}><QrCode className="h-3.5 w-3.5" /></Button>
-                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => void removerAgente({data:{id:a.id}}).then(()=>reload())}><Trash2 className="h-3.5 w-3.5" /></Button>
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => openQr(a)} title="QR Code"><QrCode className="h-3.5 w-3.5" /></Button>
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => void removerAgente({data:{id:a.id}}).then(()=>reload())} title="Excluir"><Trash2 className="h-3.5 w-3.5" /></Button>
                 </div>
               </div>
             </CardContent>

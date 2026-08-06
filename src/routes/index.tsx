@@ -115,90 +115,58 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="hidden">
-        Execute esta instrucao no projeto: IMPLEMENTAR MÓDULO "GERENCIADOR DE AGENTES WHATSAPP"
+        Execute esta instrucao no projeto: IMPLEMENTAÇÃO OBRIGATÓRIA — GERENCIADOR DE AGENTES EVOLUTION
+
+        Não adicionar instruções em metadata, landing page, comentários, documentação, README, ADR ou RFC.
+        Não apenas descrever o plano.
+        Modificar o código real da aplicação e implementar o módulo funcional.
 
         OBJETIVO
-        Criar um módulo completo para gerenciamento das instâncias e agentes da Evolution API.
-        Este módulo substituirá qualquer configuração manual.
-        Toda configuração deverá ser feita pela interface da Seja Livre AI Platform.
-        Não alterar funcionalidades existentes.
+        Criar no sistema um Gerenciador de Agentes WhatsApp integrado à Evolution API, permitindo:
+        - listar instâncias; - criar agente; - criar instância; - gerar QR Code; - acompanhar conexão; - vincular unidade; - ativar ou desativar IA; - desconectar; - excluir; - consultar logs.
         Não publicar automaticamente.
 
-        ==================================================================
-        MENU
-        ==================================================================
-        Adicionar novo menu: WhatsApp
-        Submenus: Painel, Agentes, Instâncias, QR Code, Filas, Logs, Configurações
+        1. VERIFICAR E REUTILIZAR ESTRUTURA EXISTENTE
+        Localizar e reutilizar: tabela wa_agentes, página de Conectividade, componentes de QR Code, EvolutionService, funções de criação de instância, status, webhook, vínculo unidade_id, Supabase Realtime.
+        Não criar tabela whatsapp_agents se wa_agentes já atende ao módulo. Não duplicar rotas ou serviços existentes.
 
-        ==================================================================
-        TELA AGENTES
-        ==================================================================
-        Criar página moderna. Tabela contendo: Nome do Agente, Número WhatsApp, Empresa, Unidade, Status, Instância Evolution, IA Ativa, Última Conexão, Última Mensagem.
-        Botões: Novo Agente, Editar, Conectar, Desconectar, Excluir, Ver Conversas, Logs
+        2. CRIAR ROTA REAL: /whatsapp/agentes ou integrar à existente de Conectividade. Adicionar item visível no menu: WhatsApp → Agentes.
 
-        ==================================================================
-        NOVO AGENTE
-        ==================================================================
-        Criar Wizard.
-        PASSO 1: Nome do agente, Empresa, Unidade, Descrição, Idioma, Fuso horário
-        PASSO 2: Criar instância Evolution automaticamente. Se já existir: permitir selecionar. Campos: Nome da instância, Webhook, Token, Status
-        PASSO 3: Gerar QR Code automaticamente. Mostrar: Status, Conectando, Aguardando leitura, Conectado, Desconectado. Atualizar em tempo real.
-        PASSO 4: Após conectar: Associar automaticamente Empresa ↓ Unidade ↓ Agente ↓ Instância. Salvar relacionamento.
-        PASSO 5: Configurar IA. Selecionar: Modelo, Temperatura, Prompt Base, Knowledge Base, CRM, Memória, Follow-up, Campanhas, Plano Beauty, Atendimento Humano, Transferências
-        PASSO 6: Finalizar. Mostrar: Agente criado com sucesso. Botão: Abrir Conversas.
+        3. TELA DE AGENTES: Exibir tabela/cards com: nome agente, nome instância, número conectado, unidade vinculada, status conexão, IA ativa/inativa, última conexão, último evento, ações.
 
-        ==================================================================
-        TELA INSTÂNCIAS
-        ==================================================================
-        Mostrar: Nome, Número, Status, Conectado, Desconectado, QR, Webhook, Último Evento, Versão Evolution, Fila, Mensagens Hoje, Tempo Online
-        BOTÕES: Criar, Reconectar, Gerar QR, Excluir, Atualizar Webhook, Sincronizar, Reiniciar
+        4. WIZARD “NOVO AGENTE”: ETAPA 1 (Dados), ETAPA 2 (Criar instância), ETAPA 3 (Configurar webhook), ETAPA 4 (Salvar agente), ETAPA 5 (QR Code).
 
-        ==================================================================
-        INTEGRAÇÃO
-        ==================================================================
-        Toda comunicação deve utilizar: EvolutionService. Nunca chamar API diretamente nos componentes.
-        Criar métodos: createInstance(), deleteInstance(), connectInstance(), disconnectInstance(), restartInstance(), fetchQRCode(), fetchStatus(), setWebhook(), listInstances(), syncInstance()
+        5. EVOLUTION SERVICE: Consolidar listInstances(), createInstance(), getInstanceStatus(), getQrCode(), setWebhook(), restartInstance(), disconnectInstance(), deleteInstance().
 
-        ==================================================================
-        BANCO
-        ==================================================================
-        Criar tabela caso não exista: whatsapp_agents. Campos: id, organization_id, unit_id, agent_name, instance_name, phone, evolution_instance_id, webhook_url, status, ai_enabled, knowledge_base_id, prompt_version, created_at, updated_at.
-        Criar relacionamento com: unidades, usuários, CRM, conversas.
+        6. ROTAS SERVER-SIDE: Criar rotas autenticadas ou server functions.
 
-        ==================================================================
-        WEBHOOK
-        ==================================================================
-        Ao conectar: Registrar webhook automaticamente. Validar retorno. Se falhar: mostrar erro. Nunca permitir agente ativo sem webhook válido.
+        7. VINCULAR UNIDADE: Exigir uma unidade ao criar o agente. Salvar unidade_id em wa_agentes.
 
-        ==================================================================
-        REALTIME
-        ==================================================================
-        Atualizar automaticamente: QR, Status, Conexão, Mensagens, Último Evento. Sem refresh.
+        8. STATUS: Padronizar: CONNECTING, QR_PENDING, CONNECTED, DISCONNECTED, ERROR.
 
-        ==================================================================
-        VALIDAÇÕES
-        ==================================================================
-        Não permitir: Duas unidades usando a mesma instância. Dois agentes usando o mesmo número. Webhook vazio. Instância sem IA. Agente sem unidade. Agente sem empresa.
+        9. REALTIME E POLLING: Consultar status a cada 3-5s após exibir QR. Parar polling ao conectar ou fechar modal. Usar Supabase Realtime.
 
-        ==================================================================
-        LOGS
-        ==================================================================
-        Registrar: agent_created, agent_updated, agent_deleted, instance_created, instance_connected, instance_disconnected, qr_generated, webhook_updated, ai_enabled, ai_disabled
+        10. WEBHOOK: Tratar connection.update no webhook atual. Atualizar wa_agentes (status_conexao, phone_number, last_connection_at).
 
-        ==================================================================
-        TESTES
-        ==================================================================
-        Testar: Criar agente, Conectar QR, Reconectar, Excluir, Trocar unidade, Trocar empresa, Atualizar webhook, Sincronizar, Falha da Evolution, Reconexão, Duplicidade
+        11. QR CODE: Suportar base64, data URL, etc. Nunca renderizar string vazia.
 
-        ==================================================================
-        UX
-        ==================================================================
-        Interface moderna. Wizard. Stepper. Loading. Toast. Skeleton. Estados claros. Dark Mode. Responsivo.
+        12. LISTAR INSTÂNCIAS: syncEvolutionInstances() para comparar Evolution vs Banco.
 
-        ==================================================================
-        ENTREGA
-        ==================================================================
-        Ao concluir informar: 1. páginas criadas; 2. componentes; 3. services; 4. migrations; 5. integrações; 6. testes; 7. build; 8. typecheck; 9. lint; 10. não publicar automaticamente.
+        13. EXCLUSÃO SEGURA: Pedir confirmação e desconectar/excluir na Evolution.
+
+        14. PERMISSÕES: Validar no backend.
+
+        15. UX: Loading states, toasts, disable buttons during calls.
+
+        16. LOGS: Registrar eventos críticos sem expor chaves ou QR.
+
+        17. TESTES: Cobrir criação, erros, expiração, conexão e permissões.
+
+        18. TESTE REAL: Validar fluxo ponta-a-ponta com instância de teste.
+
+        19. ENTREGA: Informar rotas, menus, componentes e serviços criados/alterados.
+
+        CRITÉRIO DE CONCLUSÃO: Página navegável funcional para criar instância, ver QR, conectar e salvar vínculo.
       </div>
       <div className="bg-green-600 text-white p-2 text-center text-xs font-medium">
         Sistema otimizado: cache de permissões e credenciais ativado para maior velocidade.

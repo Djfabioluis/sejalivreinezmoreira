@@ -12,13 +12,16 @@ export type AgenteWa = {
   id: string;
   nome: string;
   tipo: "feminino" | "masculino";
-  telefone: string;
+  telefone: string | null;
   instancia: string;
-  status: "aguardando_qr" | "conectado" | "desconectado" | "aguardando_conexao" | "conectado_sem_unidade" | "ativo" | "inativo" | "erro_conexao";
+  status: "aguardando_qr" | "conectado" | "desconectado" | "aguardando_conexao" | "conectado_sem_unidade" | "ativo" | "inativo" | "erro_conexao" | "CONNECTING" | "QR_PENDING" | "CONNECTED" | "DISCONNECTED" | "ERROR";
+  status_conexao: "conectado" | "conectando" | "desconectado" | null;
+  ia_ativa: boolean;
   unidade_id: string | null;
   selected_unit_at: string | null;
   selected_unit_by: string | null;
   criado_em: string;
+  last_connection_at: string | null;
 };
 
 const OriginSchema = z
@@ -36,7 +39,7 @@ export const listAgentes = createServerFn({ method: "GET" })
     const { isEvolutionConfigured } = await import("@/lib/evolution.server");
     const { data, error } = await supabaseAdmin
       .from("wa_agentes" as never)
-      .select("id,nome,tipo,telefone,instancia,status,unidade_id,selected_unit_at,selected_unit_by,criado_em")
+      .select("id,nome,tipo,telefone,instancia,status,status_conexao,ia_ativa,unidade_id,selected_unit_at,selected_unit_by,criado_em,last_connection_at")
       .order("criado_em", { ascending: false });
     if (error) throw new Error(error.message);
     return {
@@ -271,4 +274,61 @@ export const removerAgente = createServerFn({ method: "POST" })
       .eq("id", data.id);
     if (delErr) throw new Error(delErr.message);
     return { ok: true };
+  });
+
+export const toggleIAAgente = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ id: z.string().uuid(), enabled: z.boolean() }).parse(input)
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
+      .from("wa_agentes" as never)
+      .update({ ia_ativa: data.enabled, atualizado_em: new Date().toISOString() } as never)
+      .eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { success: true };
+  });
+
+export const syncEvolutionInstances = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { getEvolutionConfig } = await import("@/lib/evolution.server");
+    const config = await getEvolutionConfig();
+    
+    const res = await fetch(`${config.url}/instance/fetchInstances`, {
+      headers: { "apikey": config.apiKey }
+    });
+    if (!res.ok) throw new Error("Falha ao buscar instâncias da Evolution.");
+    
+    const instances = await res.json();
+    const results = [];
+    
+    for (const inst of instances) {
+      const name = inst.instanceName;
+      const status = inst.connectionStatus === "open" ? "conectado" : "desconectado";
+      
+      // Sincronizar com o banco
+      const { data: dbAgent } = await supabaseAdmin
+        .from("wa_agentes" as never)
+        .select("id")
+        .eq("instancia", name)
+        .maybeSingle();
+        
+      if (dbAgent) {
+        await supabaseAdmin
+          .from("wa_agentes" as never)
+          .update({ status_conexao: status } as never)
+          .eq("id", (dbAgent as any).id);
+        results.push({ name, synced: true, inDb: true });
+      } else {
+        results.push({ name, synced: false, inDb: false });
+      }
+    }
+    
+    return { results };
   });
