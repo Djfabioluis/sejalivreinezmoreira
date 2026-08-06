@@ -2463,7 +2463,7 @@ export async function runAgentWithLogging(params: {
         messageId,
         event: "subscription_phone_requested",
         status: "success",
-        payload: { traceId: effectiveTraceId }
+        payload: { }
       });
       return;
     }
@@ -2474,8 +2474,8 @@ export async function runAgentWithLogging(params: {
        const normalizedPhone = normalizeBrazilianPhone(params.text);
 
        if (normalizedPhone) {
-         console.log(`[chat] subscription_phone_received: traceId=${effectiveTraceId}, phoneLast4=${normalizedPhone.full.slice(-4)}`);
-         console.log(`[chat] subscription_phone_lookup_started: traceId=${effectiveTraceId}, lookupStage=LOOKING_UP_PHONE`);
+          logger.info("SUBSCRIPTION_PHONE_RECEIVED", `Telefone recebido para validação`, { phoneLast4: normalizedPhone.full.slice(-4) });
+          logger.info("SUBSCRIPTION_PHONE_LOOKUP_STARTED", `Iniciando consulta de telefone no BEMP`);
          
          await patchCustomerContext(conversationKey, {
            subscriptionLookupStage: "LOOKING_UP_PHONE"
