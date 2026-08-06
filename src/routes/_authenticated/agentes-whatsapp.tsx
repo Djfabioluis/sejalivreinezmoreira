@@ -75,16 +75,25 @@ function formatSaved(digits: string) {
   return maskPhone(d);
 }
 
-function StatusBadge({ status }: { status: AgenteWa["status"] }) {
+function StatusBadge({ status, statusConexao }: { status: AgenteWa["status"]; statusConexao?: AgenteWa["status_conexao"] }) {
+  // Priorizar status_conexao para exibição de conectividade em tempo real
+  if (statusConexao === "conectando") return <Badge className="bg-blue-400 text-white">Conectando...</Badge>;
+  if (statusConexao === "desconectado") return <Badge className="bg-slate-400 text-white">Desconectado</Badge>;
+  if (statusConexao === "conectado" && status === "conectado_sem_unidade") return <Badge className="bg-amber-500 text-white">Sem Unidade</Badge>;
+  if (statusConexao === "conectado" && status === "ativo") return <Badge className="bg-emerald-600 text-white">Conectado</Badge>;
+
   const config: Record<string, { label: string; className: string }> = {
     ativo: { label: "Ativo", className: "bg-emerald-600 text-white" },
-    conectado_sem_unidade: { label: "Escolha a unidade", className: "bg-amber-500 text-white" }, // Item 10
+    conectado_sem_unidade: { label: "Escolha a unidade", className: "bg-amber-500 text-white" },
     aguardando_conexao: { label: "Aguardando Conexão", className: "bg-blue-500 text-white" },
     aguardando_qr: { label: "Aguardando QR", className: "bg-blue-400 text-white" },
     inativo: { label: "Inativo", className: "bg-slate-400 text-white" },
-    erro_conexao: { label: "Erro", className: "bg-red-500 text-white" }, // Item 10
+    erro_conexao: { label: "Erro", className: "bg-red-500 text-white" },
     conectado: { label: "Conectado", className: "bg-emerald-600 text-white" },
-    desconectado: { label: "Aguardando conexão", className: "bg-slate-400 text-white" }, // Item 10
+    desconectado: { label: "Desconectado", className: "bg-slate-400 text-white" },
+    CONNECTED: { label: "Conectado", className: "bg-emerald-600 text-white" },
+    QR_PENDING: { label: "Aguardando QR", className: "bg-amber-400 text-white" },
+    DISCONNECTED: { label: "Desconectado", className: "bg-slate-400 text-white" },
   };
   const c = config[status] || config.inativo;
   return <Badge className={c.className}>{c.label}</Badge>;
