@@ -191,6 +191,15 @@ export async function sendEvolutionText(
     text: body
   });
 
+  if (safeText.blocked) {
+    logger.audit("CPF_RESPONSE_GENERATED", "Uma resposta contendo CPF foi bloqueada no transporte final.", {
+      instance,
+      to: number,
+      originalText: body,
+      blockedText: safeText.text
+    });
+  }
+
   const text = sanitizeCustomerText(safeText.text).slice(0, 3500);
 
   const payload: Record<string, unknown> = { number, text };
