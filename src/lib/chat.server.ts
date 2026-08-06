@@ -7,6 +7,8 @@ import { sanitizeCustomerText } from "@/lib/text-sanitize";
 import { logEvent } from "./evolution/logger.server";
 import { classifyFailure, describeError, sanitizeErrorText } from "./evolution/failure";
 import { updateCustomerPipeline, inferStageFromTool } from "@/lib/crm.server";
+import { normalizeServiceSearchText, SERVICE_CATEGORY_ALIASES, type ServiceCategory } from "./service-utils";
+
 
 import {
   bempFetch,
@@ -410,7 +412,62 @@ function buildTools(
     }),
 
 
+    search_services: tool({
+      description:
+        "Busca serviços disponíveis na unidade por nome ou categoria (ex: MECHAS). Retorna uma lista de opções reais do BEMP. Use quando o cliente perguntar genericamente por um tipo de serviço ou serviço específico.",
+      inputSchema: z.object({
+        query: z.string().describe("Termo de busca (ex: 'mechas', 'corte', 'pacote mechas')"),
+        category: z.enum(["MECHAS"]).optional().describe("Categoria técnica de serviço (ex: MECHAS)"),
+      }),
+      execute: async ({ query, category }) =>
+        safeTool("search_services", async () => {
+          const { effectiveUnitId, effectiveUnitName } = await resolveEffectiveUnit({ conversationKey, agentUnitId: fallbackAgentUnitId });
+          if (!effectiveUnitId) throw new Error("ID da unidade não resolvido.");
+
+          const { BempService } = await import("@/lib/bemp-service.server");
+          
+          // Se for mechas, força a categoria conforme requisito 9
+          let searchCategory = category;
+          const normalized = normalizeServiceSearchText(query);
+          if (SERVICE_CATEGORY_ALIASES.MECHAS.some(alias => normalized.includes(normalizeServiceSearchText(alias)))) {
+            searchCategory = "MECHAS";
+          }
+
+          if (searchCategory) {
+            const result = await BempService.searchServicesByCategory({
+              effectiveUnitId,
+              category: searchCategory,
+              query
+            });
+
+            if (result.success && result.data) {
+              // Contexto da conversa conforme requisito 16
+              await patchCustomerContext(conversationKey, {
+                requestedServiceCategory: searchCategory,
+                serviceSearchQuery: query,
+                matchingServices: result.data.slice(0, 10).map(s => ({ id: s.id, name: s.name, unitId: effectiveUnitId }))
+              });
+
+              return {
+                success: true,
+                unitName: effectiveUnitName || String(effectiveUnitId),
+                category: searchCategory,
+                services: result.data
+              };
+            }
+            return result;
+          }
+
+          // Fallback para busca genérica se não for categoria específica
+          const { getAvailableServiceAssignments } = await import("@/lib/bemp/assignments.server");
+          const allServices = await getAvailableServiceAssignments(effectiveUnitId);
+          const filtered = allServices.filter(s => normalizeServiceSearchText(s.name).includes(normalized));
+          
+          return { success: true, unitId: effectiveUnitId, services: filtered };
+        }),
+    }),
     list_services: tool({
+
       description:
         "Lista SOMENTE os serviços que possuem ao menos um profissional atribuído na unidade efetiva (fonte: BEMP). Nunca apresente serviços fora deste retorno.",
       inputSchema: z.object({ salon_id: z.number().optional() }),
