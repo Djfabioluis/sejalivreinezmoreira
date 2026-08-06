@@ -287,7 +287,7 @@ function AgentesWhatsAppPage() {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="font-medium">{a.nome} <span className="text-xs font-normal text-muted-foreground">· {a.tipo}</span></p>
-                <p className="text-sm text-muted-foreground">{formatSaved(a.telefone)}</p>
+                <p className="text-sm text-muted-foreground">{formatSaved(a.telefone || "")}</p>
                 {a.unidade_id && <p className="text-[10px] text-primary flex items-center mt-1"><Building2 className="h-3 w-3 mr-1" /> Unidade: {a.unidade_id}</p>}
               </div>
               <div className="flex flex-col items-end gap-2">

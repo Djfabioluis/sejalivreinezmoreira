@@ -298,9 +298,8 @@ export const syncEvolutionInstances = createServerFn({ method: "POST" })
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { getEvolutionConfig } = await import("@/lib/evolution.server");
-    const config = getEvolutionConfig();
+    const config = await getEvolutionConfig();
     
-    // Listar instâncias da Evolution via fetch direto (já que evoFetch não está exportado)
     const res = await fetch(`${config.url}/instance/fetchInstances`, {
       headers: { "apikey": config.apiKey }
     });
