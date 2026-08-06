@@ -45,7 +45,7 @@ export class PromotionService {
     const now = new Date().toISOString();
     
     logger.info("PROMOTION_LOOKUP_STARTED", "Iniciando consulta de promoções", { 
-      ...params, 
+      params, 
       traceId, 
       now 
     });
@@ -79,7 +79,7 @@ export class PromotionService {
       const { data, error, count } = await query;
 
       if (error) {
-        logger.error("PromotionService", "promotion_query_failed", error.message, { error, ...params, traceId });
+        logger.error("PromotionService", "promotion_query_failed", error.message, { error, params, traceId });
         return {
           success: false,
           code: error.code === "42P01" ? "PROMOTIONS_TABLE_NOT_FOUND" : "PROMOTION_QUERY_FAILED",
@@ -88,7 +88,7 @@ export class PromotionService {
       }
 
       logger.info("PROMOTION_LOOKUP_RESULT", `Consulta retornou ${data?.length || 0} promoções`, { 
-        count: data?.length || 0,
+        data_count: data?.length || 0,
         traceId 
       });
 
@@ -111,7 +111,7 @@ export class PromotionService {
       }
 
       logger.info("PROMOTION_SELECTED", `Promoções válidas selecionadas: ${parsedPromotions.length}`, { 
-        codes: parsedPromotions.map(p => p.code),
+        promotion_codes: parsedPromotions.map(p => p.code),
         traceId 
       });
 
@@ -121,7 +121,7 @@ export class PromotionService {
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : "Erro desconhecido";
-      logger.error("PromotionService", "promotion_lookup_exception", message, { error, ...params, traceId });
+      logger.error("PromotionService", "promotion_lookup_exception", message, { error, params, traceId });
       return {
         success: false,
         code: "PROMOTION_QUERY_FAILED",
