@@ -76,21 +76,31 @@ export async function processPendingFollowups() {
       // 4. Enviar via Evolution API
       const { data: instanceData } = await supabaseAdmin
         .from("wa_conversas")
-        .select("instance")
+        .select("instance, phone_number")
         .eq("phone", followup.phone)
         .single();
       
-      if (instanceData?.instance) {
-        const { sendText } = await import("@/lib/evolution.server");
-        await sendText(instanceData.instance, followup.phone, text);
+      const conv = instanceData as any;
+      if (conv?.instance && conv?.phone_number) {
+        const { sendEvolutionText } = await import("@/lib/evolution.server");
+        await sendEvolutionText(conv.instance, conv.phone_number, text);
         
         // Registrar na conversa
-        const { appendWaMessage } = await import("@/lib/evolution/conversation.server");
-        await appendWaMessage({
-          phone: followup.phone,
-          role: 'assistant',
-          content: text,
-          type: 'text'
+        const { appendIncomingMessage } = await import("@/lib/evolution/conversation.server");
+        // We use a simplified helper or raw RPC to avoid circular deps if needed, 
+        // but append_wa_message RPC is the source of truth.
+        await supabaseAdmin.rpc("append_wa_message" as any, {
+            p_phone: followup.phone,
+            p_message: {
+                id: `fup-${Date.now()}`,
+                role: 'assistant',
+                parts: [{ type: 'text', text }],
+                createdAt: new Date().toISOString()
+            },
+            p_instance: conv.instance,
+            p_phone_number: conv.phone_number,
+            p_increment_unread: false,
+            p_new_status: "aguardando"
         });
       }
 
