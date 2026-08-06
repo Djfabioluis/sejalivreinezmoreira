@@ -6,6 +6,7 @@ import { updateCustomerScores } from '@/lib/crm/score.server';
 import { runOpportunityEngine } from '@/lib/crm/opportunity.server';
 import { runReturnPredictionEngine } from '@/lib/crm/prediction.server';
 import { runRevenueEngine } from '@/lib/crm/revenue-engine.server';
+import { generateManagementBriefing } from '@/lib/crm/management-report.server';
 
 
 export const Route = createFileRoute('/api/public/crm-cron')({
