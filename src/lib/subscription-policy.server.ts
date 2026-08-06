@@ -7,6 +7,15 @@ export const SUBSCRIPTION_PRIMARY_LOOKUP = "PHONE" as const;
 export const ALLOW_SUBSCRIPTION_CPF_FALLBACK = false as const;
 export const SUBSCRIPTION_MAX_PHONE_ATTEMPTS = 2;
 
+export const PHONE_REQUEST_MESSAGE =
+  "Perfeito! 💜\n\nQual é o número de telefone cadastrado na assinatura?\n\nPode enviar com DDD.";
+
+export const PHONE_RETRY_MESSAGE =
+  "Não encontrei uma assinatura ativa com esse telefone. 💜\n\nPode conferir e me enviar novamente o número cadastrado no plano, com DDD?";
+
+export const HUMAN_HANDOFF_MESSAGE =
+  "Não consegui localizar sua assinatura pelos telefones informados. 💜\n\nVou encaminhar seu atendimento para nossa equipe verificar o cadastro e continuar com você por aqui.";
+
 export const SUBSCRIPTION_STAGES = [
   "AWAITING_REGISTERED_PHONE",
   "LOOKING_UP_PHONE",
@@ -18,12 +27,9 @@ export const SUBSCRIPTION_STAGES = [
 export type SubscriptionStage = (typeof SUBSCRIPTION_STAGES)[number];
 
 export const SUBSCRIPTION_MESSAGES = {
-  ASK_PHONE:
-    "Perfeito! 💜\n\nQual é o número de telefone cadastrado na assinatura?\n\nPode enviar com DDD.",
-  RETRY_PHONE:
-    "Não encontrei uma assinatura ativa com esse telefone. 💜\n\nPode conferir e me enviar novamente o número cadastrado no plano, com DDD?",
-  HUMAN_HANDOFF:
-    "Não consegui localizar sua assinatura pelos telefones informados. 💜\n\nVou encaminhar seu atendimento para nossa equipe verificar o cadastro e continuar com você por aqui.",
+  ASK_PHONE: PHONE_REQUEST_MESSAGE,
+  RETRY_PHONE: PHONE_RETRY_MESSAGE,
+  HUMAN_HANDOFF: HUMAN_HANDOFF_MESSAGE,
   TECHNICAL_HANDOFF:
     "Não consegui consultar seu plano agora por uma falha técnica. 💜\n\nVou encaminhar seu atendimento para nossa equipe verificar o que houve e continuar com você.",
   INVALID_PHONE:
@@ -72,9 +78,13 @@ export function enforceNoCpfInSubscriptionFlow(
 ): { text: string; blocked: boolean } {
   if (!text) return { text, blocked: false };
   const ctx = context || {};
+  
+  // Se não houver intenção de assinatura, não aplicamos o bloqueio agressivo de termos como "documento" 
+  // (pois pode ser usado em outros contextos), mas se houver intenção e CPF for bloqueado, barramos tudo.
   if (ALLOW_SUBSCRIPTION_CPF_FALLBACK) return { text, blocked: false };
   if (ctx.subscriptionIntent !== true) return { text, blocked: false };
   if (ctx.subscriptionPhoneValidated === true) return { text, blocked: false };
+  
   if (!FORBIDDEN_OUTPUT_PATTERN.test(text)) return { text, blocked: false };
 
   const stage = ctx.subscriptionLookupStage;
