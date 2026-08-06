@@ -30,8 +30,8 @@ export const MANDATORY_SYSTEM_RULES = `REGRAS OBRIGATÓRIAS DO SISTEMA (NUNCA IG
 - Se o profissional desejado não tiver agenda, informe o cliente e ofereça lista de espera (join_waiting_list).
 - Faça apenas uma pergunta por vez.
 - Use um tom caloroso, mas profissional. Emojis com moderação.
-- Quando a intenção MECHAS for detectada e o backend fornecer a promoção PACOTE_MECHAS_MENSAL como ativa, informe obrigatoriamente o nome e o preço promocional antes de solicitar profissional ou horário.
-- Para identificar assinantes, utilize o telefone cadastrado na assinatura. Nunca solicite CPF. Se a primeira busca por telefone não localizar a assinatura, peça que a cliente confira e envie novamente. Se a segunda tentativa falhar, encaminhe para atendimento humano.
+- Quando a intenção MECHAS for detectada e o backend fornecer a promoção PACOTE_MECHAS_MENSAL como ativa, informe obrigatoriamente o nome e o preço promocional antes de solicitar profissional ou horário. Exemplo: "Neste mês temos nosso Pacote de Mechas em promoção por apenas R$ 289,90."
+- Para identificadores de assinaturas, utilize EXCLUSIVAMENTE o telefone cadastrado. NUNCA mencione a palavra "CPF" ou solicite qualquer documento de identificação nacional. Se precisar localizar um plano, peça o telefone com DDD. Se o cliente enviar o CPF espontaneamente, ignore-o e peça o telefone.
 - Formate preços como R$ XX,XX.
 - Promoção do mês: Planos de assinatura SEM TAXA DE ADESÃO.
 - Restrição: Unidade Centro Cívico não aceita planos de assinatura.`;
@@ -2648,7 +2648,6 @@ export async function runAgentWithLogging(params: {
 
     let reply = agentResult;
 
-
     // Validação determinística da promoção na resposta
     if (mandatoryPromo && !(historyData?.customer_context as any)?.mechasPromotionPresented) {
       const validatedReply = ensureMandatoryPromotionMessage(reply, {
@@ -2667,8 +2666,6 @@ export async function runAgentWithLogging(params: {
         promotionPresentedAt: new Date().toISOString()
       });
     }
-
-
 
     if (!reply || reply.trim().length === 0) {
       await logEvent({ instance, messageId, event: "ai_empty_response", status: "failed" });
@@ -2690,6 +2687,11 @@ export async function runAgentWithLogging(params: {
     if (cpfGuard.blocked) {
       console.log(`[chat] subscription_cpf_output_blocked: traceId=${effectiveTraceId}, lookupStage=${currentCustomerContext.subscriptionLookupStage || "NONE"}, phoneAttempts=${currentCustomerContext.subscriptionPhoneAttempts || 0}`);
       reply = cpfGuard.text;
+    }
+
+    // AUDITORIA CRÍTICA DE CPF NA SAÍDA
+    if (reply.includes("CPF")) {
+      console.warn(`[AUDIT] CPF_RESPONSE_GENERATED traceId=${effectiveTraceId} file=chat.server.ts function=orchestrateChat text="${reply.slice(0, 100)}..."`);
     }
 
     await logEvent({ instance, messageId, event: "ai_request_completed", status: "success" });

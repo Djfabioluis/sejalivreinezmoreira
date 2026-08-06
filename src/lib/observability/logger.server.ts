@@ -43,6 +43,14 @@ export const logger = {
       ...options
     };
 
+    // Auditoria CRÍTICA de CPF
+    if (message?.includes("CPF") || JSON.stringify(metadata || {}).includes("CPF")) {
+      const stack = new Error().stack;
+      console.warn(`[AUDIT] CPF_DETECTED in log: event=${event}, message=${message}, stack=${stack}`);
+      // Não redigimos o evento de auditoria para fins de depuração interna no console de erro seguro
+      entry.metadata = { ...entry.metadata, audit_stack: stack };
+    }
+
     const logFn = level === 'error' || level === 'critical' ? console.error : level === 'warn' ? console.warn : console.log;
     logFn(`[${entry.timestamp}] [${level.toUpperCase()}] [${event}] ${message || ''}`, JSON.stringify(entry.metadata || {}));
   },
@@ -65,5 +73,10 @@ export const logger = {
 
   critical(event: string, message?: string, metadata?: Record<string, any>) {
     this.log('critical', event, message, metadata);
+  },
+
+  audit(event: string, message: string, metadata?: Record<string, any>) {
+    const stack = new Error().stack;
+    this.log('warn', event, message, { ...metadata, full_stack: stack });
   }
 };
