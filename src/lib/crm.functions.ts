@@ -16,7 +16,7 @@ export const listCustomerPipeline = createServerFn({ method: "GET" })
     const { data, error } = await supabaseAdmin
       .from("crm_customer_pipeline")
       .select("*")
-      .order("conversion_score", { ascending: false });
+      .order("health_score", { ascending: false });
 
     if (error) throw new Error(error.message);
     return data || [];
