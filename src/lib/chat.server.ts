@@ -2407,17 +2407,24 @@ export async function runAgentWithLogging(params: {
       normalizedText.includes("usar meu plano") ||
       normalizedText.includes("usar meu beneficio");
 
-    if (isSubscriptionIntent) {
+    const subscriptionIntent = detectSubscriptionIntent(params.text);
+    if (subscriptionIntent && !historyData?.customer_context?.subscriptionPhoneValidated && historyData?.customer_context?.subscriptionLookupStage !== "LOOKING_UP_PHONE") {
+      console.log(`[chat] subscription_intent_detected_deterministic: traceId=${effectiveTraceId}`);
       await patchCustomerContext(conversationKey, {
         subscriptionIntent: true,
         subscriptionLookupMethod: "PHONE",
         subscriptionLookupStage: "AWAITING_REGISTERED_PHONE",
-        // Limpeza de estados antigos
         awaitingCpf: false,
         cpfRequested: false,
         cpfValidationPending: false
       });
+
+      return {
+        text: "Perfeito! 💜\n\nQual é o número de telefone cadastrado na assinatura?\n\nPode enviar com DDD.",
+        skipModel: true
+      };
     }
+
 
     const intent = detectServiceCategory(params.text);
     let mandatoryPromo: any = null;
