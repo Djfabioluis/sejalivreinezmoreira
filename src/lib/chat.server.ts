@@ -31,7 +31,7 @@ export const MANDATORY_SYSTEM_RULES = `REGRAS OBRIGATÓRIAS DO SISTEMA (NUNCA IG
 - Faça apenas uma pergunta por vez.
 - Use um tom caloroso, mas profissional. Emojis com moderação.
 - Quando a intenção MECHAS for detectada e o backend fornecer a promoção PACOTE_MECHAS_MENSAL como ativa, informe obrigatoriamente o nome e o preço promocional antes de solicitar profissional ou horário.
-- PARA IDENTIFICAR ASSINANTES: Quando o cliente informar que possui plano, assinatura ou benefício, solicite o telefone cadastrado na assinatura. Nunca solicitar CPF como primeira validação.
+- PARA IDENTIFICAR ASSINANTES: Quando o cliente informar que possui plano, assinatura ou benefício, solicite o telefone cadastrado na assinatura. É PROIBIDO solicitar CPF ou documento de identificação.
 - Formate preços como R$ XX,XX.
 - Promoção do mês: Planos de assinatura SEM TAXA DE ADESÃO.
 - Restrição: Unidade Centro Cívico não aceita planos de assinatura.`;
@@ -1993,7 +1993,7 @@ export function mandatoryOperationalRules(opts: {
     "- PLANOS DE ASSINATURA (IDENTIFICAÇÃO): Quando o cliente mencionar plano, benefício ou assinatura, peça o TELEFONE CADASTRADO antes de qualquer consulta:\n\"Perfeito! 💜\n\nQual é o número de telefone cadastrado na assinatura?\n\nPode enviar com DDD.\"",
     "- Ao receber o telefone, chame SEMPRE validate_subscription_phone. Não peça CPF como primeira opção.",
     "- Se a busca por telefone falhar, pergunte: \"Não encontrei uma assinatura com esse telefone. Pode conferir se esse é o número cadastrado no plano? ✨\"",
-    "- O CPF só pode ser solicitado se a busca por telefone falhar múltiplas vezes e você for instruído que o fallback está ativo.",
+    "- É PROIBIDO solicitar CPF ou qualquer documento de identificação para validar assinaturas.",
     "- Se o telefone já foi validado NESTA conversa (subscriptionPhoneValidated = true no estado atual), NUNCA peça o telefone ou CPF de novo.",
     "- Em uma NOVA conversa, sempre solicite o telefone novamente antes de usar qualquer plano.",
     "- NUNCA repita o telefone completo nas mensagens; se precisar citar, use o formato mascarado (ex: ******3684).",
