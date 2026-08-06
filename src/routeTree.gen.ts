@@ -41,6 +41,7 @@ import { Route as ApiPublicWhatsappEvolutionRouteImport } from './routes/api/pub
 import { Route as ApiPublicWhatsappRouteImport } from './routes/api/public/whatsapp'
 import { Route as ApiPublicTestIaRouteImport } from './routes/api/public/test-ia'
 import { Route as ApiPublicCrmCronRouteImport } from './routes/api/public/crm-cron'
+import { Route as ApiPublicBempWebhookRouteImport } from './routes/api/public/bemp-webhook'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as ApiPublicWhatsappEvolutionTestRouteImport } from './routes/api/public/whatsapp-evolution/test'
@@ -218,6 +219,11 @@ const ApiPublicCrmCronRoute = ApiPublicCrmCronRouteImport.update({
   path: '/api/public/crm-cron',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicBempWebhookRoute = ApiPublicBempWebhookRouteImport.update({
+  id: '/api/public/bemp-webhook',
+  path: '/api/public/bemp-webhook',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const Char91DotmcpChar93InvokeToolToolRoute =
   Char91DotmcpChar93InvokeToolToolRouteImport.update({
     id: '/.mcp/invoke-tool/$tool',
@@ -295,6 +301,7 @@ export interface FileRoutesByFullPath {
   '/checkout/return': typeof CheckoutReturnRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/api/public/bemp-webhook': typeof ApiPublicBempWebhookRoute
   '/api/public/crm-cron': typeof ApiPublicCrmCronRoute
   '/api/public/test-ia': typeof ApiPublicTestIaRoute
   '/api/public/whatsapp': typeof ApiPublicWhatsappRoute
@@ -336,6 +343,7 @@ export interface FileRoutesByTo {
   '/checkout/return': typeof CheckoutReturnRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/api/public/bemp-webhook': typeof ApiPublicBempWebhookRoute
   '/api/public/crm-cron': typeof ApiPublicCrmCronRoute
   '/api/public/test-ia': typeof ApiPublicTestIaRoute
   '/api/public/whatsapp': typeof ApiPublicWhatsappRoute
@@ -379,6 +387,7 @@ export interface FileRoutesById {
   '/checkout/return': typeof CheckoutReturnRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
+  '/api/public/bemp-webhook': typeof ApiPublicBempWebhookRoute
   '/api/public/crm-cron': typeof ApiPublicCrmCronRoute
   '/api/public/test-ia': typeof ApiPublicTestIaRoute
   '/api/public/whatsapp': typeof ApiPublicWhatsappRoute
@@ -422,6 +431,7 @@ export interface FileRouteTypes {
     | '/checkout/return'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/api/public/bemp-webhook'
     | '/api/public/crm-cron'
     | '/api/public/test-ia'
     | '/api/public/whatsapp'
@@ -463,6 +473,7 @@ export interface FileRouteTypes {
     | '/checkout/return'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/api/public/bemp-webhook'
     | '/api/public/crm-cron'
     | '/api/public/test-ia'
     | '/api/public/whatsapp'
@@ -505,6 +516,7 @@ export interface FileRouteTypes {
     | '/checkout/return'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
+    | '/api/public/bemp-webhook'
     | '/api/public/crm-cron'
     | '/api/public/test-ia'
     | '/api/public/whatsapp'
@@ -530,6 +542,7 @@ export interface RootRouteChildren {
   CheckoutReturnRoute: typeof CheckoutReturnRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
+  ApiPublicBempWebhookRoute: typeof ApiPublicBempWebhookRoute
   ApiPublicCrmCronRoute: typeof ApiPublicCrmCronRoute
   ApiPublicTestIaRoute: typeof ApiPublicTestIaRoute
   ApiPublicWhatsappRoute: typeof ApiPublicWhatsappRoute
@@ -766,6 +779,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicCrmCronRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/bemp-webhook': {
+      id: '/api/public/bemp-webhook'
+      path: '/api/public/bemp-webhook'
+      fullPath: '/api/public/bemp-webhook'
+      preLoaderRoute: typeof ApiPublicBempWebhookRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/.mcp/invoke-tool/$tool': {
       id: '/.mcp/invoke-tool/$tool'
       path: '/.mcp/invoke-tool/$tool'
@@ -902,6 +922,7 @@ const rootRouteChildren: RootRouteChildren = {
   CheckoutReturnRoute: CheckoutReturnRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
+  ApiPublicBempWebhookRoute: ApiPublicBempWebhookRoute,
   ApiPublicCrmCronRoute: ApiPublicCrmCronRoute,
   ApiPublicTestIaRoute: ApiPublicTestIaRoute,
   ApiPublicWhatsappRoute: ApiPublicWhatsappRoute,
