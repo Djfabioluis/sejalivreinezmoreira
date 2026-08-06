@@ -1,6 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { listCustomerPipeline, getCRMDashboardStats, listOpportunities, listRecommendations } from "@/lib/crm.functions";
+import { useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
+import { 
+  listCustomerPipeline, 
+  getCRMDashboardStats, 
+  listOpportunities, 
+  listRecommendations,
+  triggerCampaignGeneration 
+} from "@/lib/crm.functions";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -9,6 +15,9 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { toast } from "sonner";
+import { useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { 
   Plus, 
   Search, 
@@ -23,8 +32,10 @@ import {
   ChevronRight,
   Filter,
   ArrowRight,
-  Zap
+  Zap,
+  Loader2
 } from "lucide-react";
+
 
 export const Route = createFileRoute("/_authenticated/crm")({
   head: () => ({
@@ -55,6 +66,10 @@ export const Route = createFileRoute("/_authenticated/crm")({
 });
 
 function CRMPage() {
+  const queryClient = useQueryClient();
+  const generateCampaignFn = useServerFn(triggerCampaignGeneration);
+  const [isGenerating, setIsGenerating] = useState(false);
+
   const { data: customers } = useSuspenseQuery({
     queryKey: ["crm-pipeline"],
     queryFn: () => listCustomerPipeline(),
@@ -74,6 +89,36 @@ function CRMPage() {
     queryKey: ["crm-recommendations"],
     queryFn: () => listRecommendations(),
   });
+
+  const handleGenerateCampaign = async () => {
+    if (isGenerating) return;
+    
+    setIsGenerating(true);
+    console.log("[crm] generate_campaign_click");
+    
+    try {
+      console.log("[crm] generate_campaign_request_started");
+      const result = await generateCampaignFn();
+      
+      if (result.success) {
+        console.log("[crm] generate_campaign_request_completed");
+        toast.success("Campanha gerada com sucesso!");
+        
+        // Invalidate queries to refresh the UI
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["crm-recommendations"] }),
+          queryClient.invalidateQueries({ queryKey: ["crm-opportunities"] }),
+          queryClient.invalidateQueries({ queryKey: ["crm-stats"] })
+        ]);
+        console.log("[crm] generate_campaign_ui_updated");
+      }
+    } catch (error: any) {
+      console.error("[crm] generate_campaign_failed", error);
+      toast.error(error.message || "Erro ao gerar campanha. Tente novamente.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
 
   const getScoreColor = (score: number) => {
@@ -106,11 +151,25 @@ function CRMPage() {
             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Base Ativa</p>
             <p className="text-2xl font-bold">{customers.length}</p>
           </div>
-          <Button className="shadow-lg shadow-primary/20 gap-2">
-            <Plus className="h-4 w-4" /> Gerar Campanha
+          <Button 
+            className="shadow-lg shadow-primary/20 gap-2 min-w-[160px]" 
+            onClick={handleGenerateCampaign}
+            disabled={isGenerating}
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Gerando...
+              </>
+            ) : (
+              <>
+                <Plus className="h-4 w-4" /> Gerar Campanha
+              </>
+            )}
           </Button>
         </div>
       </div>
+
 
       {/* Dashboard Stats Grid */}
       {/* Dashboard Stats Grid Premium */}
