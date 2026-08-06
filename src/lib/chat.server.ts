@@ -590,10 +590,10 @@ function buildTools(
           const list = Array.isArray(slots) ? slots : (slots?.data ?? slots?.slots ?? []);
           
           if (list.length === 0) {
-            const isSaturday = new Date(input.date).getDay() === 6;
+            const isSaturday = new Date(date).getDay() === 6;
             return { 
               success: false, 
-              abandon_trigger: isSaturday ? "SATURDAY_FULL" : (input.professional_id ? "PROFESSIONAL_UNAVAILABLE" : undefined),
+              abandon_trigger: isSaturday ? "SATURDAY_FULL" : (professional_id ? "PROFESSIONAL_UNAVAILABLE" : undefined),
               message: "Não encontrei horários disponíveis para esta data. Gostaria de tentar outro dia?" 
             };
           }
