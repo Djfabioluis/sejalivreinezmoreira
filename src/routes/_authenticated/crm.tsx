@@ -188,7 +188,12 @@ function CRMPage() {
                              RECUPERAÇÃO DE SLOT
                            </Badge>
                         )}
-                        <Badge variant="secondary" className="text-[9px] uppercase ml-auto">{opp.status}</Badge>
+                        <div className="flex gap-2 items-center ml-auto">
+                          {opp.metadata?.is_premium_decision && opp.status === 'PENDENTE' && (
+                            <Badge className="bg-amber-600 text-[9px] cursor-pointer hover:bg-amber-700">APROVAR CAMPANHA</Badge>
+                          )}
+                          <Badge variant="secondary" className="text-[9px] uppercase">{opp.status}</Badge>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
