@@ -87,12 +87,13 @@ function runTool<T>(label: string, fn: () => Promise<T>, ctx: ToolCtx = {}) {
           
           // Lógica de Reagendamento Inteligente para métricas
           let rebookingStatus: string | undefined = undefined;
-          if (label === 'cancel_appointment' && result?.success !== false) {
+          if (label === 'cancel_appointment' && (result as any)?.success !== false) {
              rebookingStatus = 'rebooking_attempt';
           } else if (label === 'create_appointment' || label === 'reschedule_appointment') {
+             const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
              const { data: conv } = await (supabaseAdmin.from("wa_conversas") as any).select("customer_context").eq("phone", ctx.conversationKey).maybeSingle();
              if ((conv as any)?.customer_context?.rebooking_attempt) {
-                rebookingStatus = result?.success !== false ? 'rebooking_success' : 'rebooking_failed';
+                rebookingStatus = (result as any)?.success !== false ? 'rebooking_success' : 'rebooking_failed';
                 // Limpa flag após conclusão
                 await patchCustomerContext(ctx.conversationKey, { rebooking_attempt: false });
              }
@@ -795,7 +796,7 @@ function buildTools(
           });
           
           return {
-             ...result,
+             ...(result as object),
              message: "Agendamento cancelado com sucesso. Posso procurar outro horário para você? 😊"
           };
         }),
