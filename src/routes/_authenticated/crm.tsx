@@ -109,25 +109,32 @@ function CRMPage() {
             <div className="space-y-4">
               {opportunities.length > 0 ? (
                 opportunities.map((opp: any) => (
-                  <Card key={opp.id} className="border-l-4 border-l-blue-500">
+                  <Card key={opp.id} className={`border-l-4 ${opp.opportunity_type === 'WAITING_LIST' ? 'border-l-purple-500 bg-purple-50/20' : 'border-l-blue-500'}`}>
                     <CardHeader className="pb-2">
                       <div className="flex justify-between items-start">
                         <div>
-                          <Badge variant="outline" className="mb-1">{opp.opportunity_type.replace(/_/g, ' ')}</Badge>
+                          <Badge variant={opp.opportunity_type === 'WAITING_LIST' ? 'secondary' : 'outline'} className="mb-1">
+                            {opp.opportunity_type === 'WAITING_LIST' ? 'LISTA DE ESPERA 💜' : opp.opportunity_type.replace(/_/g, ' ')}
+                          </Badge>
                           <CardTitle className="text-sm">{opp.customer_id}</CardTitle>
                         </div>
-                        <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-none">
+                        <Badge className={`${opp.opportunity_type === 'WAITING_LIST' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'} hover:opacity-80 border-none`}>
                           Score: {opp.score}
                         </Badge>
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-2">
                       <p className="text-xs text-muted-foreground italic">"{opp.trigger}"</p>
-                      <div className="bg-blue-50/50 p-2 rounded text-[11px] border border-blue-100">
+                      <div className={`${opp.opportunity_type === 'WAITING_LIST' ? 'bg-purple-50 border-purple-100' : 'bg-blue-50/50 border-blue-100'} p-2 rounded text-[11px] border`}>
                         <strong>Ação Recomendada:</strong> {opp.recommended_action}
                       </div>
-                      <div className="flex justify-end pt-2">
-                        <Badge variant="secondary" className="text-[9px] uppercase">{opp.status}</Badge>
+                      <div className="flex justify-between items-center pt-2">
+                        {opp.opportunity_type === 'WAITING_LIST' && (
+                           <Badge variant="outline" className="text-[8px] bg-green-50 text-green-700 border-green-200">
+                             RECUPERAÇÃO DE SLOT
+                           </Badge>
+                        )}
+                        <Badge variant="secondary" className="text-[9px] uppercase ml-auto">{opp.status}</Badge>
                       </div>
                     </CardContent>
                   </Card>
