@@ -114,10 +114,10 @@ function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="hidden">
+      {/* 
         Execute esta instrucao no projeto: IMPLEMENTAÇÃO COMPLETA — FOLLOW-UP AUTÔNOMO PELA IA
 
-OBJETIVO
+        OBJETIVO
 
 Fazer a Julia AI executar integralmente as tarefas de follow-up das clientes que não concluíram o agendamento.
 
