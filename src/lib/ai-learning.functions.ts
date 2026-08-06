@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertPermission } from "@/lib/permissions.functions";
 import { MEMORY_FIELDS } from "@/lib/memory/types";
+import { safeIlikePattern } from "@/lib/postgrest-safe";
 
 const PERM = "aprendizado-ia" as const;
 
