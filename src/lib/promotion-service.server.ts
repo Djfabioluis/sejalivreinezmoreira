@@ -78,6 +78,14 @@ export class PromotionService {
 
       const { data, error, count } = await query;
 
+      logger.audit("PROMOTION_SQL_EXECUTED", "SQL de consulta de promoções executado", {
+        traceId,
+        params,
+        query_table: 'promotions',
+        query_filters: { status: 'ACTIVE', channel: params.channel, now },
+        result_count: data?.length || 0
+      });
+
       if (error) {
         logger.error("PromotionService", "promotion_query_failed", error.message, { error, params, traceId });
         return {
