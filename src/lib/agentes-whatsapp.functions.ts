@@ -297,13 +297,16 @@ export const syncEvolutionInstances = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { evoFetch } = await import("@/lib/evolution.server");
+    const { getEvolutionConfig } = await import("@/lib/evolution.server");
+    const config = getEvolutionConfig();
     
-    // Listar instâncias da Evolution
-    const res = await evoFetch("/instance/fetchInstances");
+    // Listar instâncias da Evolution via fetch direto (já que evoFetch não está exportado)
+    const res = await fetch(`${config.url}/instance/fetchInstances`, {
+      headers: { "apikey": config.apiKey }
+    });
     if (!res.ok) throw new Error("Falha ao buscar instâncias da Evolution.");
     
-    const instances = res.data ?? [];
+    const instances = await res.json();
     const results = [];
     
     for (const inst of instances) {
