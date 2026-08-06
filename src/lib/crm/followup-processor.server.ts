@@ -69,7 +69,7 @@ export async function processPendingFollowups() {
       `;
 
       const { text } = await generateText({
-        model: createLovableAiGatewayProvider(),
+        model: createLovableAiGatewayProvider()("gemini-1.5-flash") as any,
         prompt,
       });
 
