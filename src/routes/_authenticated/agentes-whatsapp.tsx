@@ -49,6 +49,8 @@ import {
   desconectarAgente,
   removerAgente,
   selecionarUnidadeAgente,
+  toggleIAAgente,
+  syncEvolutionInstances,
   type AgenteWa,
 } from "@/lib/agentes-whatsapp.functions";
 import { listSalons } from "@/lib/bemp.functions";
@@ -291,7 +293,7 @@ function AgentesWhatsAppPage() {
                 {a.unidade_id && <p className="text-[10px] text-primary flex items-center mt-1"><Building2 className="h-3 w-3 mr-1" /> Unidade: {a.unidade_id}</p>}
               </div>
               <div className="flex flex-col items-end gap-2">
-                <StatusBadge status={a.status} />
+                <StatusBadge status={a.status} statusConexao={a.status_conexao} />
                 <div className="flex gap-2">
                   {a.status === "conectado_sem_unidade" && (
                     <Button size="sm" variant="default" className="h-7 text-[10px]" onClick={() => handleOpenUnit(a, "manual")}>Escolher Unidade</Button>
