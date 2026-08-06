@@ -73,9 +73,9 @@ export async function runOpportunityEngine() {
       const opportunity = JSON.parse(cleanText.replace(/```json|```/g, ''));
       
       if (opportunity && opportunity.type) {
-        // Verificar se já existe oportunidade pendente do mesmo tipo para este cliente
-        const { data: existing } = await supabaseAdmin
-          .from("crm_opportunities")
+        // Usando asArray para contornar problemas de tipos no Supabase Client auto-gerado se a tabela for nova
+        const { data: existing } = await (supabaseAdmin
+          .from("crm_opportunities" as any) as any)
           .select("id")
           .eq("customer_id", customer.phone)
           .eq("opportunity_type", opportunity.type)
@@ -83,8 +83,8 @@ export async function runOpportunityEngine() {
           .maybeSingle();
 
         if (!existing) {
-          await supabaseAdmin
-            .from("crm_opportunities")
+          await (supabaseAdmin
+            .from("crm_opportunities" as any) as any)
             .insert({
               customer_id: customer.phone,
               conversation_id: customer.conversation_id,
