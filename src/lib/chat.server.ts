@@ -2677,7 +2677,13 @@ ${subscriptionContextLine(ctx as Record<string, any>)}
     model: getModel(),
     system: fullSystem,
     messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
-    tools: buildTools(sandbox, effectiveUnitId, opts.conversationKey || undefined, opts.messageId ?? null),
+    tools: (() => {
+      const tools = buildTools(sandbox, effectiveUnitId, opts.conversationKey || undefined, opts.messageId ?? null);
+      if (!ALLOW_SUBSCRIPTION_CPF_FALLBACK || opts.customerContext?.subscriptionLookupStage !== "AWAITING_CPF_FALLBACK") {
+        delete tools.validate_subscription_cpf;
+      }
+      return tools;
+    })(),
 
     stopWhen: stepCountIs(5),
     abortSignal: AbortSignal.timeout(60000),
