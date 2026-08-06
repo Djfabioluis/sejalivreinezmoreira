@@ -100,9 +100,19 @@ function CRMPage() {
       console.log("[crm] generate_campaign_request_started");
       const result = await generateCampaignFn();
       
-      if (result.success) {
-        console.log("[crm] generate_campaign_request_completed");
-        toast.success("Campanha gerada com sucesso!");
+      // result is structured as { success, generatedCount, skippedReason, errors }
+      if (result && result.success) {
+        console.log("[crm] generate_campaign_request_completed", result);
+        
+        if (result.generatedCount > 0) {
+          toast.success(`${result.generatedCount} campanha(s) gerada(s) com sucesso!`);
+        } else if (result.skippedReason === 'NO_PENDING_SLOTS') {
+          toast.info("Nenhuma campanha foi gerada porque não há horários vagos pendentes.");
+        } else if (result.skippedReason === 'INSUFFICIENT_IDLE_SLOTS') {
+          toast.info("Nenhuma campanha foi gerada porque não há oportunidades de ociosidade crítica (mínimo 3 slots) no momento.");
+        } else {
+          toast.info("Processamento concluído, mas nenhuma campanha nova foi gerada.");
+        }
         
         // Invalidate queries to refresh the UI
         await Promise.all([
@@ -111,14 +121,19 @@ function CRMPage() {
           queryClient.invalidateQueries({ queryKey: ["crm-stats"] })
         ]);
         console.log("[crm] generate_campaign_ui_updated");
+      } else {
+        const errorMsg = result?.errors?.[0]?.message || "Erro ao gerar campanha.";
+        console.error("[crm] generate_campaign_failed", result);
+        toast.error(errorMsg);
       }
     } catch (error: any) {
-      console.error("[crm] generate_campaign_failed", error);
-      toast.error(error.message || "Erro ao gerar campanha. Tente novamente.");
+      console.error("[crm] generate_campaign_unhandled_error", error);
+      toast.error(error.message || "Erro inesperado. Tente novamente.");
     } finally {
       setIsGenerating(false);
     }
   };
+
 
 
   const getScoreColor = (score: number) => {

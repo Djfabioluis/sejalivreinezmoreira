@@ -165,11 +165,17 @@ export const triggerCampaignGeneration = createServerFn({ method: "POST" })
     const { runPredictiveCampaignEngine } = await import("./crm/predictive-campaign.server");
     
     try {
-      await runPredictiveCampaignEngine();
-      return { success: true };
+      const result = await runPredictiveCampaignEngine();
+      return result;
     } catch (error: any) {
       console.error("[crm.functions] triggerCampaignGeneration failed:", error);
-      throw new Error(error.message || "Falha ao gerar campanha");
+      // Return structured error to the client instead of throwing a raw error
+      return { 
+        success: false, 
+        generatedCount: 0, 
+        errors: [{ message: error.message || "Erro desconhecido na geração" }] 
+      };
     }
+
   });
 
