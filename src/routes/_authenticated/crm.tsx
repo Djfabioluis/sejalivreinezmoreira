@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { listCustomerPipeline, getCRMDashboardStats } from "@/lib/crm.functions";
+import { listCustomerPipeline, getCRMDashboardStats, listOpportunities } from "@/lib/crm.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -13,7 +13,7 @@ export const Route = createFileRoute("/_authenticated/crm")({
     meta: [{ title: "CRM Inteligente — Julia" }],
   }),
   loader: async ({ context }) => {
-    const [pipeline, stats] = await Promise.all([
+    const [pipeline, stats, opportunities] = await Promise.all([
       context.queryClient.ensureQueryData({
         queryKey: ["crm-pipeline"],
         queryFn: () => listCustomerPipeline(),
@@ -22,8 +22,12 @@ export const Route = createFileRoute("/_authenticated/crm")({
         queryKey: ["crm-stats"],
         queryFn: () => getCRMDashboardStats(),
       }),
+      context.queryClient.ensureQueryData({
+        queryKey: ["crm-opportunities"],
+        queryFn: () => listOpportunities(),
+      }),
     ]);
-    return { pipeline, stats };
+    return { pipeline, stats, opportunities };
   },
   component: CRMPage,
 });
@@ -37,6 +41,11 @@ function CRMPage() {
   const { data: stats } = useSuspenseQuery({
     queryKey: ["crm-stats"],
     queryFn: () => getCRMDashboardStats(),
+  });
+
+  const { data: opportunities } = useSuspenseQuery({
+    queryKey: ["crm-opportunities"],
+    queryFn: () => listOpportunities(),
   });
 
   const getScoreColor = (score: number) => {
@@ -93,10 +102,48 @@ function CRMPage() {
         </Card>
       </div>
 
-      <div className="space-y-4">
-        <h2 className="text-xl font-semibold">Lista de Clientes no Pipeline</h2>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {customers.map((customer: any) => (
+      <div className="grid gap-8 lg:grid-cols-2">
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold">Oportunidades Identificadas (IA)</h2>
+          <ScrollArea className="h-[600px] rounded-md border p-4">
+            <div className="space-y-4">
+              {opportunities.length > 0 ? (
+                opportunities.map((opp: any) => (
+                  <Card key={opp.id} className="border-l-4 border-l-blue-500">
+                    <CardHeader className="pb-2">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <Badge variant="outline" className="mb-1">{opp.opportunity_type.replace(/_/g, ' ')}</Badge>
+                          <CardTitle className="text-sm">{opp.customer_id}</CardTitle>
+                        </div>
+                        <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-none">
+                          Score: {opp.score}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <p className="text-xs text-muted-foreground italic">"{opp.trigger}"</p>
+                      <div className="bg-blue-50/50 p-2 rounded text-[11px] border border-blue-100">
+                        <strong>Ação Recomendada:</strong> {opp.recommended_action}
+                      </div>
+                      <div className="flex justify-end pt-2">
+                        <Badge variant="secondary" className="text-[9px] uppercase">{opp.status}</Badge>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              ) : (
+                <div className="text-center py-10 text-muted-foreground italic">Nenhuma oportunidade pendente.</div>
+              )}
+            </div>
+          </ScrollArea>
+        </div>
+
+        <div className="space-y-4">
+          <h2 className="text-xl font-semibold">Funil de Vendas (Pipeline)</h2>
+          <ScrollArea className="h-[600px] rounded-md border p-4">
+            <div className="grid gap-4">
+              {customers.map((customer: any) => (
             <Card key={customer.phone} className="overflow-hidden">
               <CardHeader className="pb-2">
                 <div className="flex justify-between items-start">
@@ -136,6 +183,8 @@ function CRMPage() {
               </CardContent>
             </Card>
           ))}
+            </div>
+          </ScrollArea>
         </div>
       </div>
       
