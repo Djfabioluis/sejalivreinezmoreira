@@ -2048,7 +2048,13 @@ export function mandatoryOperationalRules(opts: {
       "- É PROIBIDO perguntar a unidade no início se já houver uma unidade atual definida.",
     );
   }
-  if (opts.contactPhone) lines.push("- É PROIBIDO pedir telefone, DDD ou código de país: já são conhecidos.");
+  if (opts.contactPhone) {
+    lines.push(
+      "- O telefone do WhatsApp atual já é conhecido e não deve ser solicitado novamente para contatos comuns.",
+      "- EXCEÇÃO OBRIGATÓRIA: quando a cliente mencionar plano, assinatura ou benefício e ainda não houver subscriptionPhoneValidated, pergunte qual é o telefone cadastrado na assinatura, pois ele pode ser diferente do número atual do WhatsApp.",
+      "- Durante AWAITING_REGISTERED_PHONE, é permitido e obrigatório pedir o telefone cadastrado com DDD."
+    );
+  }
   if (opts.contactName) lines.push("- É PROIBIDO perguntar o nome do cliente: já é conhecido.");
   return lines.join("\n");
 }
