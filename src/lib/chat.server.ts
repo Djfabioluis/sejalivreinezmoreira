@@ -84,10 +84,25 @@ function runTool<T>(label: string, fn: () => Promise<T>, ctx: ToolCtx = {}) {
         const stage = inferStageFromTool(label, result);
         if (stage) {
           const abandonTrigger = (result as any)?.abandon_trigger;
+          
+          // Lógica de Reagendamento Inteligente para métricas
+          let rebookingStatus: string | undefined = undefined;
+          if (label === 'cancel_appointment' && (result as any)?.success !== false) {
+             rebookingStatus = 'rebooking_attempt';
+          } else if (label === 'create_appointment' || label === 'reschedule_appointment') {
+             const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+             const { data: conv } = await (supabaseAdmin.from("wa_conversas") as any).select("customer_context").eq("phone", ctx.conversationKey).maybeSingle();
+             if ((conv as any)?.customer_context?.rebooking_attempt) {
+                rebookingStatus = (result as any)?.success !== false ? 'rebooking_success' : 'rebooking_failed';
+                // Limpa flag após conclusão
+                await patchCustomerContext(ctx.conversationKey, { rebooking_attempt: false });
+             }
+          }
+
           await updateCustomerPipeline({
             phone: ctx.conversationKey,
             stage,
-            abandonmentReason: abandonTrigger
+            abandonmentReason: abandonTrigger || rebookingStatus
           });
 
           if (abandonTrigger) {
@@ -749,7 +764,7 @@ function buildTools(
     }),
     cancel_appointment: tool({
       description:
-        "Cancela um agendamento existente na Bemp. Só chame após confirmação explícita do cliente sobre qual agendamento cancelar.",
+        "Cancela um agendamento existente na Bemp. Só chame após confirmação explícita do cliente sobre qual agendamento cancelar. O sistema registrará a tentativa de reagendamento em seguida.",
       inputSchema: z.object({
         appointment_id: z.union([z.string(), z.number()]),
         phone_country_code: z.string(),
@@ -758,13 +773,15 @@ function buildTools(
       }),
       execute: async ({ appointment_id, phone_country_code, phone_area_code, phone_number }) =>
         safeTool("cancel_appointment", async () => {
+          await patchCustomerContext(conversationKey, { rebooking_attempt: true, rebooking_last_cancelled_id: appointment_id });
+          
           if (sandbox) {
             return {
               sandbox: true,
               simulated: true,
               id: String(appointment_id),
               status: "simulated_cancelled",
-              message: "Cancelamento SIMULADO (modo sandbox). Nada foi alterado na Bemp.",
+              message: "Cancelamento SIMULADO. Posso procurar outro horário para você? 😊",
               cancelled_at: new Date().toISOString(),
             };
           }
@@ -774,9 +791,14 @@ function buildTools(
             phone_number,
             id: String(appointment_id),
           });
-          return await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule?${qs.toString()}`, {
+          const result = await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule?${qs.toString()}`, {
             method: "DELETE",
           });
+          
+          return {
+             ...(result as object),
+             message: "Agendamento cancelado com sucesso. Posso procurar outro horário para você? 😊"
+          };
         }),
     }),
     reschedule_appointment: tool({
