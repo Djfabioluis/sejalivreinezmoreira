@@ -1,13 +1,29 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { listCustomerPipeline, getCRMDashboardStats, listOpportunities, listRecommendations } from "@/lib/crm.functions";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Sparkles, Check } from "lucide-react";
+import { 
+  Plus, 
+  Search, 
+  TrendingUp, 
+  Users, 
+  Clock, 
+  DollarSign, 
+  Target, 
+  AlertTriangle, 
+  Sparkles,
+  Check,
+  ChevronRight,
+  Filter,
+  ArrowRightRight,
+  Zap
+} from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/crm")({
   head: () => ({
