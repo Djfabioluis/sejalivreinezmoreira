@@ -7,6 +7,8 @@ import { runOpportunityEngine } from '@/lib/crm/opportunity.server';
 import { runReturnPredictionEngine } from '@/lib/crm/prediction.server';
 import { runRevenueEngine } from '@/lib/crm/revenue-engine.server';
 import { generateManagementBriefing } from '@/lib/crm/management-report.server';
+import { analyzeAgenda } from '@/lib/crm/agenda-analyzer.server';
+import { processWaitingList } from '@/lib/crm/waiting-list.server';
 
 
 export const Route = createFileRoute('/api/public/crm-cron')({
@@ -26,6 +28,9 @@ export const Route = createFileRoute('/api/public/crm-cron')({
         }
 
         try {
+          // 0. Agenda Analysis (identifies slots and idle pros)
+          await analyzeAgenda();
+
           // 1. Detect Abandonment (updates stages)
           await detectConversationAbandonment();
           
@@ -44,7 +49,10 @@ export const Route = createFileRoute('/api/public/crm-cron')({
           // 6. Run Return Prediction Engine
           await runReturnPredictionEngine();
           
-          // 7. Run Revenue Engine (Slot opportunities)
+          // 7. Waiting List Matcher
+          await processWaitingList();
+
+          // 8. Run Revenue Engine (Slot opportunities)
           await runRevenueEngine();
 
           // 8. Generate Morning Briefing for Management (usually runs at 7 AM)
