@@ -31,8 +31,9 @@ export const MANDATORY_SYSTEM_RULES = `REGRAS OBRIGATÓRIAS DO SISTEMA (NUNCA IG
 - Faça apenas uma pergunta por vez.
 - Use um tom caloroso, mas profissional. Emojis com moderação.
 - Quando a intenção MECHAS for detectada e o backend fornecer a promoção PACOTE_MECHAS_MENSAL como ativa, informe obrigatoriamente o nome e o preço promocional antes de solicitar profissional ou horário.
-- PARA IDENTIFICAR ASSINANTES: Use primeiro o telefone cadastrado na assinatura. Nunca solicite CPF como primeira opção. Quando a cliente mencionar plano/assinatura/benefício, pergunte: "Qual é o número de telefone cadastrado na assinatura? Pode enviar com DDD."
-- CPF como Fallback: O CPF só pode ser solicitado como fallback quando a busca por telefone falhar explicitamente e você receber autorização técnica para isso (subscription_lookup_stage = FALLBACK_ALLOWED).
+- PARA IDENTIFICAR ASSINANTES: Quando a cliente informar que possui plano, assinatura ou benefício, solicite o telefone cadastrado na assinatura, com DDD. Nunca solicite CPF como primeira opção.
+- Mensagem obrigatória para assinantes: "Perfeito! 💜 Qual é o número de telefone cadastrado na assinatura? Pode enviar com DDD."
+- CPF como Fallback: O CPF NUNCA deve ser solicitado como primeira opção. Somente em casos extremos onde o telefone falhar repetidamente e o cliente sugerir o documento.
 - Formate preços como R$ XX,XX.
 - Promoção do mês: Planos de assinatura SEM TAXA DE ADESÃO.
 - Restrição: Unidade Centro Cívico não aceita planos de assinatura.`;
@@ -54,53 +55,6 @@ export const DEFAULT_SYSTEM_PROMPT = `${MANDATORY_SYSTEM_RULES}
 
 ${DEFAULT_KNOWLEDGE_PROMPT}`;
 
-const IGNORED_DEFAULT_SYSTEM_PROMPT = `Você é a Julia, a secretária virtual humanizada do Salão Seja Livre.
-Sua missão é realizar agendamentos e vender planos de assinatura de forma acolhedora, eficiente e natural.
-
-DADOS CONFIÁVEIS DO ATENDIMENTO:
-Nome do cliente: {{contactName}}
-Telefone do WhatsApp: {{contactPhone}}
-Unidade operacional: {{unitName}}
-
-REGRAS OBRIGATÓRIAS:
-- Se "Nome do cliente" estiver preenchido, NUNCA pergunte o nome.
-- Se "Unidade operacional" estiver preenchida, NUNCA pergunte qual unidade o cliente deseja. A unidade é fixa para esta instância.
-- NUNCA ofereça troca de unidade nem interprete menção a outras unidades como mudança operacional.
-- NÃO reinicie o atendimento a cada mensagem. Se o cliente disser "Olá", responda com uma saudação breve e prossiga de onde pararam.
-- NÃO repita perguntas já respondidas. Consulte o "ESTADO ATUAL" e o "HISTÓRICO".
-- Se o profissional desejado não tiver agenda, informe o cliente e pergunte se ele gostaria de entrar na lista de espera através da ferramenta join_waiting_list.
-- Se o cliente desistir pelo PREÇO, respeite a decisão e não insista.
-- Faça apenas uma pergunta por vez, focando no próximo passo necessário para o agendamento.
-- Use um tom caloroso, mas profissional. Emojis com moderação.
-
-FLUXO DE SERVIÇOS (MECHAS):
-- Quando a cliente demonstrar interesse em mechas e existir uma promoção ativa e confirmada da categoria MECHAS para a unidade efetiva, informe primeiro a promoção do Pacote de Mechas com o preço confirmado. Depois pergunte se deseja essa opção ou ver outros serviços de mechas.
-  1. Se uma promoção ativa for fornecida no contexto (PROMOÇÕES ATIVAS E CONFIRMADAS), use os dados exatos (nome e preço) para informar a cliente amigavelmente.
-  2. NÃO escolha um serviço sozinha nem selecione o primeiro da lista.
-
-  2. Use a ferramenta search_services informando a categoria "MECHAS".
-  3. Apresente todas as opções encontradas na unidade de forma estruturada.
-  4. Informe que os valores podem variar conforme o comprimento e volume do cabelo, ou que podem exigir avaliação prévia se indicado na descrição.
-  5. Aguarde a cliente escolher uma opção específica antes de consultar profissionais e horários.
-
-FLUXO DE ASSINANTES (PLANO BEAUTY):
-- Quando o cliente mencionar que tem plano ou quer usar benefício:
-  1. Primeiro, verifique se o telefone atual do WhatsApp já possui plano usando validate_subscription_phone (passe o telefone atual).
-  2. Se NÃO encontrar, pergunte gentilmente: "Perfeito! 💜 Para localizar seu plano, qual é o número de telefone cadastrado na assinatura? Pode enviar com DDD."
-  3. NUNCA peça o CPF como primeira opção. O telefone é o identificador principal.
-  4. Se o cliente informar um telefone, use validate_subscription_phone com o número fornecido.
-  5. Se encontrar mais de um plano ativo, pergunte qual ele deseja usar.
-  6. Se o plano estiver sem saldo ou inativo, explique o motivo de forma empática.
-
-
-ESTADO ATUAL DO ATENDIMENTO (CONTEXTO):
-{{customer_context_summary}}
-
-REGRAS TÉCNICAS:
-- Formate preços como R$ XX,XX.
-- Antes de confirmar o agendamento, SEMPRE apresente um resumo (Serviço, Profissional, Data, Horário) e peça confirmação explícita.
-- Promoção do mês: Planos de assinatura SEM TAXA DE ADESÃO.
-- Restrição: Unidade Centro Cívico não aceita planos de assinatura.`;
 
 
 const SANDBOX_NOTE = `
@@ -1210,15 +1164,14 @@ function buildTools(
     }),
     validate_subscription_cpf: tool({
       description:
-        "Valida o CPF cadastrado no plano de assinatura no BEMP. Use APENAS como fallback se a busca por telefone falhar e o cliente autorizar.",
+        "Valida o CPF cadastrado no plano de assinatura no BEMP. Use APENAS como fallback se a busca por telefone falhar explicitamente e o cliente autorizar.",
       inputSchema: z.object({
         cpf: z.string().describe("CPF no formato 000.000.000-00 ou apenas números"),
       }),
       execute: async ({ cpf }) =>
         safeTool("validate_subscription_cpf", async () => {
+          // Bloqueio determinístico: esta tool só deve ser executada em estágio de FALLBACK
           const { getCustomerByCPF } = await import("@/lib/bemp/subscriptions.server");
-          const { maskCPF } = await import("@/lib/cpf");
-          
           const result = await getCustomerByCPF(cpf);
           
           if (result.success && result.found) {
@@ -2448,7 +2401,11 @@ export async function runAgentWithLogging(params: {
       await patchCustomerContext(conversationKey, {
         subscriptionIntent: true,
         subscriptionLookupMethod: "PHONE",
-        subscriptionLookupStage: "AWAITING_REGISTERED_PHONE"
+        subscriptionLookupStage: "AWAITING_REGISTERED_PHONE",
+        // Limpeza de estados antigos
+        awaitingCpf: false,
+        cpfRequested: false,
+        cpfValidationPending: false
       });
     }
 
@@ -2497,6 +2454,16 @@ export async function runAgentWithLogging(params: {
     });
 
     let reply = agentResult;
+
+    // Bloqueio Determinístico de CPF no fluxo de Assinatura
+    const context = historyData?.customer_context as any;
+    if (context?.subscriptionIntent && context?.subscriptionLookupStage === "AWAITING_REGISTERED_PHONE") {
+      const containsCPFPattern = /cpf|documento|\d{3}\.\d{3}\.\d{3}-\d{2}|somente números do cpf/i.test(reply);
+      if (containsCPFPattern) {
+         console.log(`[chat] cpf_request_blocked: traceId=${effectiveTraceId}, replacing with phone request`);
+         reply = "Perfeito! 💜\n\nQual é o número de telefone cadastrado na assinatura?\n\nPode enviar com DDD.";
+      }
+    }
 
     // Validação determinística da promoção na resposta
     if (mandatoryPromo && !(historyData?.customer_context as any)?.mechasPromotionPresented) {
