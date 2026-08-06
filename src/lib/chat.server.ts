@@ -1234,6 +1234,7 @@ function buildTools(
           
           return result;
         }),
+    }),
     resolve_subscription_service: tool({
 
       description:
