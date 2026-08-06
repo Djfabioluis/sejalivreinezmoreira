@@ -2403,6 +2403,23 @@ export async function runAgentWithLogging(params: {
     const currentUnitName = effectiveUnitName || unitName;
 
     // Detecção de Intenção e Promoção (Determinística)
+    const normalizedText = (params.text || "").toLowerCase();
+    const isSubscriptionIntent = 
+      normalizedText.includes("tenho plano") || 
+      normalizedText.includes("tenho assinante") || 
+      normalizedText.includes("sou assinante") ||
+      normalizedText.includes("plano beauty") ||
+      normalizedText.includes("usar meu plano") ||
+      normalizedText.includes("usar meu beneficio");
+
+    if (isSubscriptionIntent) {
+      await patchCustomerContext(conversationKey, {
+        subscriptionIntent: true,
+        subscriptionLookupMethod: "PHONE",
+        subscriptionLookupStage: "AWAITING_REGISTERED_PHONE"
+      });
+    }
+
     const intent = detectServiceCategory(params.text);
     let mandatoryPromo: any = null;
     let activePromotions: any[] = [];
