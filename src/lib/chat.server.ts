@@ -31,9 +31,7 @@ export const MANDATORY_SYSTEM_RULES = `REGRAS OBRIGATÓRIAS DO SISTEMA (NUNCA IG
 - Faça apenas uma pergunta por vez.
 - Use um tom caloroso, mas profissional. Emojis com moderação.
 - Quando a intenção MECHAS for detectada e o backend fornecer a promoção PACOTE_MECHAS_MENSAL como ativa, informe obrigatoriamente o nome e o preço promocional antes de solicitar profissional ou horário.
-- PARA IDENTIFICAR ASSINANTES: Quando a cliente informar que possui plano, assinatura ou benefício, solicite o telefone cadastrado na assinatura, com DDD. Nunca solicite CPF como primeira opção.
-- Mensagem obrigatória para assinantes: "Perfeito! 💜 Qual é o número de telefone cadastrado na assinatura? Pode enviar com DDD."
-- CPF como Fallback: O CPF NUNCA deve ser solicitado como primeira opção. Somente em casos extremos onde o telefone falhar repetidamente e o cliente sugerir o documento.
+- PARA IDENTIFICAR ASSINANTES: Quando o cliente informar que possui plano, assinatura ou benefício, solicite o telefone cadastrado na assinatura. Nunca solicitar CPF como primeira validação.
 - Formate preços como R$ XX,XX.
 - Promoção do mês: Planos de assinatura SEM TAXA DE ADESÃO.
 - Restrição: Unidade Centro Cívico não aceita planos de assinatura.`;
