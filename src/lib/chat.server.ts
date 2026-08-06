@@ -2398,7 +2398,7 @@ export async function runAgentWithLogging(params: {
       "tenho plano", "tenho plano beauty", "sou assinante", "quero usar meu plano",
       "quero usar meu beneficio", "tenho assinatura", "plano de manicure",
       "plano de escova", "plano de hidratacao", "quero usar minha assinatura",
-      "sou cliente do plano"
+      "sou cliente do plano", "assinatura", "plano de manicure", "plano de escova", "plano de hidratacao", "plano de beleza", "beneficio"
     ];
 
     const isSubscriptionIntent = subscriptionKeywords.some(kw => normalizedText.includes(kw));
