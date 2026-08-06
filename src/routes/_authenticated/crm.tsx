@@ -174,8 +174,13 @@ function CRMPage() {
                     </CardHeader>
                     <CardContent className="space-y-2">
                       <p className="text-xs text-muted-foreground italic">"{opp.trigger}"</p>
-                      <div className={`${opp.opportunity_type === 'WAITING_LIST' ? 'bg-purple-50 border-purple-100' : 'bg-blue-50/50 border-blue-100'} p-2 rounded text-[11px] border`}>
-                        <strong>Ação Recomendada:</strong> {opp.recommended_action}
+                      {opp.metadata?.is_premium_decision && (
+                        <div className="text-[10px] font-bold text-amber-700 bg-amber-100/50 px-2 py-1 rounded mb-1">
+                          Público: {opp.metadata.target_audience}
+                        </div>
+                      )}
+                      <div className={`${opp.opportunity_type === 'WAITING_LIST' ? 'bg-purple-50 border-purple-100' : opp.metadata?.is_premium_decision ? 'bg-amber-50 border-amber-100' : 'bg-blue-50/50 border-blue-100'} p-2 rounded text-[11px] border`}>
+                        <strong>{opp.metadata?.is_premium_decision ? 'Sugestão de Mensagem:' : 'Ação Recomendada:'}</strong> {opp.recommended_action}
                       </div>
                       <div className="flex justify-between items-center pt-2">
                         {opp.opportunity_type === 'WAITING_LIST' && (
