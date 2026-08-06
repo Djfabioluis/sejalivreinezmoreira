@@ -229,7 +229,10 @@ function CRMPage() {
           <ScrollArea className="h-[600px] rounded-md border p-4">
             <div className="grid gap-4">
               {customers.map((customer: any) => (
-            <Card key={customer.phone} className="overflow-hidden">
+            <Card key={customer.phone} className="overflow-hidden border-t-4 border-t-transparent relative">
+              <div className={`absolute top-0 right-0 px-2 py-0.5 text-[8px] font-bold rounded-bl ${getHealthColorClass(customer.health_status || 'AMARELO')}`}>
+                HEALTH: {customer.health_status || 'AMARELO'}
+              </div>
               <CardHeader className="pb-2">
                 <div className="flex justify-between items-start">
                   <div>
@@ -242,28 +245,46 @@ function CRMPage() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs font-medium">
-                    <span>Score de Conversão</span>
-                    <span>{customer.conversion_score || 0}%</span>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[10px] font-medium">
+                      <span>Conversão</span>
+                      <span>{customer.conversion_score || 0}%</span>
+                    </div>
+                    <Progress value={customer.conversion_score || 0} className="h-1.5" />
                   </div>
-                  <Progress value={customer.conversion_score || 0} className="h-2" />
-                  <div className={`h-1 w-full rounded-full ${getScoreColor(customer.conversion_score || 0)} opacity-20`} />
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[10px] font-medium">
+                      <span>Health Score</span>
+                      <span>{customer.health_score || 0}%</span>
+                    </div>
+                    <Progress value={customer.health_score || 0} className="h-1.5" />
+                  </div>
                 </div>
 
-                {customer.abandonment_reason && (
-                  <div className="p-2 bg-muted/50 rounded text-[10px] text-muted-foreground">
-                    <strong>Motivo do abandono:</strong> {customer.abandonment_reason}
+                {customer.health_recommendations && customer.health_recommendations.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-tighter">Recomendações da Julia:</p>
+                    <div className="flex flex-wrap gap-1">
+                      {customer.health_recommendations.map((rec: string, i: number) => (
+                        <Badge key={i} variant="outline" className="text-[8px] py-0 leading-tight border-dashed">
+                          {rec}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
                 )}
 
                 <div className="flex justify-between items-center text-[10px] text-muted-foreground pt-2 border-t">
-                  <span>Última interação</span>
-                  <span>
-                    {customer.last_interaction_at 
+                  <div className="flex flex-col">
+                    <span>Última visita: {customer.last_visit_at ? new Date(customer.last_visit_at).toLocaleDateString('pt-BR') : 'Sem dados'}</span>
+                    <span>Cancelamentos: {customer.total_cancellations || 0}</span>
+                  </div>
+                  <div className="text-right">
+                    <span>Interação: {customer.last_interaction_at 
                       ? formatDistanceToNow(new Date(customer.last_interaction_at), { addSuffix: true, locale: ptBR })
-                      : "Nunca"}
-                  </span>
+                      : "Nunca"}</span>
+                  </div>
                 </div>
               </CardContent>
             </Card>

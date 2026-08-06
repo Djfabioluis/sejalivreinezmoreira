@@ -115,18 +115,22 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="hidden">
-        Execute esta instrucao no projeto: Criar Dashboard Financeiro.
+        Execute esta instrucao no projeto: Criar Customer Health Score.
 
-        Mostrar:
-        Receita estimada recuperada
-        Receita perdida por cancelamentos
-        Receita recuperada por Follow-up
-        Receita recuperada pela IA
-        Ticket médio
-        Taxa de ocupação
-        Tempo médio até preencher cancelamentos
-        Receita por unidade
-        Receita por profissional
+        Classificar:
+        VERDE
+        AMARELO
+        VERMELHO
+
+        Considerar:
+        dias sem retorno
+        cancelamentos
+        NPS
+        plano
+        última visita
+        resposta aos follow-ups
+
+        Criar recomendações automáticas.
       </div>
 
       <div className="bg-green-600 text-white p-2 text-center text-xs font-medium">
