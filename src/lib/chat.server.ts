@@ -2438,8 +2438,8 @@ export async function runAgentWithLogging(params: {
        const { normalizeBrazilianPhone } = await import("@/lib/phone");
        const normalizedPhone = normalizeBrazilianPhone(params.text);
 
-       if (normalizedPhone.success) {
-         console.log(`[chat] subscription_phone_received: traceId=${effectiveTraceId}, phone=${normalizedPhone.fullNumber}`);
+       if (normalizedPhone) {
+         console.log(`[chat] subscription_phone_received: traceId=${effectiveTraceId}, phone=${normalizedPhone.full}`);
          
          await patchCustomerContext(conversationKey, {
            subscriptionLookupStage: "LOOKING_UP_PHONE"
@@ -2447,7 +2447,7 @@ export async function runAgentWithLogging(params: {
          currentCustomerContext.subscriptionLookupStage = "LOOKING_UP_PHONE";
 
          const { validateSubscriptionByPhone } = await import("@/lib/bemp/phone-validation.server");
-         const result = await validateSubscriptionByPhone(normalizedPhone.fullNumber);
+         const result = await validateSubscriptionByPhone(normalizedPhone.full);
          const { replyToUser } = await import("./evolution/reply.server");
 
          if (result.success && result.customer) {
