@@ -2377,7 +2377,7 @@ export async function runAgentWithLogging(params: {
       event: "ai_context_prepared",
       status: "success",
       payload: {
-        traceId: effectiveTraceId,
+        traceId: "",
         contactNameAvailable: !!pushName || !!historyData?.contact_name,
         contactPhoneAvailable: !!phone,
         unitAvailable: !!unidadeId,
