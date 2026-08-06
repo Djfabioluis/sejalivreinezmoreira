@@ -407,6 +407,57 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_slot_opportunities: {
+        Row: {
+          created_at: string | null
+          end_at: string
+          expires_at: string | null
+          id: string
+          metadata: Json | null
+          offer_sent_at: string | null
+          offered_to_phone: string | null
+          professional_id: string | null
+          ranking_data: Json | null
+          service_id: string | null
+          start_at: string
+          status: string
+          unidade_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          end_at: string
+          expires_at?: string | null
+          id?: string
+          metadata?: Json | null
+          offer_sent_at?: string | null
+          offered_to_phone?: string | null
+          professional_id?: string | null
+          ranking_data?: Json | null
+          service_id?: string | null
+          start_at: string
+          status: string
+          unidade_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          end_at?: string
+          expires_at?: string | null
+          id?: string
+          metadata?: Json | null
+          offer_sent_at?: string | null
+          offered_to_phone?: string | null
+          professional_id?: string | null
+          ranking_data?: Json | null
+          service_id?: string | null
+          start_at?: string
+          status?: string
+          unidade_id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       customer_ai_memory: {
         Row: {
           anonymized_at: string | null
