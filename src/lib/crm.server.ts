@@ -51,7 +51,9 @@ export function inferStageFromTool(toolName: string, result: any): PipelineStage
     case 'list_professionals':
       return 'ESCOLHENDO_PROFISSIONAL';
     case 'list_slots':
-      return 'ESCOLHENDO_DATA'; // Date is usually chosen here
+      return 'ESCOLHENDO_HORARIO'; // Usually called after date is narrowed
+    case 'validate_subscription_cpf':
+      return 'IDENTIFICANDO_SERVICO';
     case 'create_appointment':
       if (result?.id || result?.success) return 'AGENDADO';
       return null;
