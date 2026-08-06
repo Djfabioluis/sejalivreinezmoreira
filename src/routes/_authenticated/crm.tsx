@@ -21,7 +21,7 @@ import {
   Check,
   ChevronRight,
   Filter,
-  ArrowRightRight,
+  ArrowRight,
   Zap
 } from "lucide-react";
 
