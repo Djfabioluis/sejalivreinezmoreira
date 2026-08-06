@@ -163,6 +163,7 @@ export const transferConversationUnit = createServerFn({ method: "POST" })
     reason: z.string().optional()
   }))
   .handler(async ({ data, context }) => {
+    await assertPermission(context, "agendar");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const userId = (context as any).userId;
 

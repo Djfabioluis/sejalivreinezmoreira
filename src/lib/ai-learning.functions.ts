@@ -54,7 +54,7 @@ export const listCustomerMemories = createServerFn({ method: "GET" })
       .limit(data.limit);
 
     if (data.search) {
-      const term = `%${data.search}%`;
+      const term = safeIlikePattern(data.search);
       query = query.or(
         `phone_normalized.ilike.${term},contact_name.ilike.${term},preferred_name.ilike.${term},bemp_customer_id.ilike.${term}`,
       );
