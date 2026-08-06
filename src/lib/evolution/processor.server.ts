@@ -125,7 +125,21 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
       }
 
       try {
-        await logEvent({ instance: msg.instance, messageId: finalMessageId, event: "processing_started", status: "started", payload: { traceId, reason } });
+        await logEvent({ 
+          instance: msg.instance, 
+          messageId: finalMessageId, 
+          event: "processing_started", 
+          status: "started", 
+          payload: { 
+            traceId, 
+            reason,
+            chat_orchestrator_loaded: {
+              modulePath: "@/lib/chat.server",
+              promptVersion: "1.3.0-phone-priority",
+              subscriptionLookupMethod: "PHONE_ONLY"
+            }
+          } 
+        });
 
         // 5. Agente e Unidade
         const agent = await findAgentByInstance(msg.instance);
