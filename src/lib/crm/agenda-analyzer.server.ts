@@ -71,7 +71,7 @@ async function createSlotOpportunity(salonId: number, serviceId: number, slot: a
   const { data: existing } = await supabaseAdmin
     .from("crm_slot_opportunities")
     .select("id")
-    .eq("salon_id", salonId)
+    .eq("unidade_id", String(salonId))
     .eq("start_at", startAt)
     .maybeSingle();
 
@@ -79,11 +79,11 @@ async function createSlotOpportunity(salonId: number, serviceId: number, slot: a
     await supabaseAdmin
       .from("crm_slot_opportunities")
       .insert({
-        salon_id: salonId,
-        service_id: serviceId,
-        professional_id: slot.professional_id || null,
+        unidade_id: String(salonId),
+        service_id: String(serviceId),
+        professional_id: slot.professional_id ? String(slot.professional_id) : null,
         start_at: startAt,
-        end_at: slot.end_at || slot.end || null,
+        end_at: slot.end_at || slot.end || startAt,
         status: 'pending',
         price_estimated: slot.price || 0,
         source: 'agenda_analyzer'
