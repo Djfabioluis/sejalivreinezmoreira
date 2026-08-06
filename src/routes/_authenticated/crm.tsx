@@ -349,89 +349,111 @@ function CRMPage() {
             </div>
           </ScrollArea>
 
-          <h2 className="text-xl font-semibold pt-4">Funil de Vendas (Pipeline)</h2>
-          <ScrollArea className="h-[600px] rounded-md border p-4">
-            <div className="grid gap-4">
+          <ScrollArea className="h-[600px] rounded-2xl border-none shadow-inner bg-secondary/20 p-4">
+            <div className="grid gap-6">
               {customers.map((customer: any) => (
-            <Card key={customer.phone} className="overflow-hidden border-t-4 border-t-transparent relative">
-              <div className={`absolute top-0 right-0 px-2 py-0.5 text-[8px] font-bold rounded-bl ${getHealthColorClass(customer.health_status || 'AMARELO')}`}>
-                HEALTH: {customer.health_status || 'AMARELO'}
-              </div>
-              <CardHeader className="pb-2">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="text-lg">{customer.customer_name || customer.phone}</CardTitle>
-                    <p className="text-xs text-muted-foreground">{customer.phone}</p>
-                  </div>
-                  <Badge variant="secondary" className="text-[10px] uppercase">
-                    {customer.current_stage.replace(/_/g, " ")}
-                  </Badge>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1 text-[10px]">
-                    <p className="font-bold text-muted-foreground uppercase">Perfil Cliente</p>
-                    <p>Frequência: {customer.frequency_days || 28} dias</p>
-                    <p>Último atendimento: {customer.last_visit_at ? formatDistanceToNow(new Date(customer.last_visit_at), { locale: ptBR }) : '15 dias'}</p>
-                    <p className="text-emerald-600 font-bold">Receita: R$ {customer.total_revenue || '12.480'}</p>
-                  </div>
-                  <div className="space-y-1 text-[10px]">
-                    <p className="font-bold text-muted-foreground uppercase">Preferências</p>
-                    <p>Profissional: {customer.favorite_professional || 'Juliana'}</p>
-                    <p>Serviços: {customer.last_services?.join(', ') || 'Escova, Manicure'}</p>
-                    <p className="text-indigo-600 font-bold">Plano: {customer.plan_name || 'Beauty'}</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-[10px] font-medium">
-                      <span>Conversão</span>
-                      <span>{customer.conversion_score || 0}%</span>
+                <Card key={customer.phone} className="overflow-hidden border-none shadow-md group hover:shadow-xl transition-all duration-300 bg-card/80 backdrop-blur-sm">
+                  <div className={`h-1.5 w-full ${getScoreColor(customer.health_score || 50)}`} />
+                  <CardHeader className="pb-4">
+                    <div className="flex justify-between items-start">
+                      <div className="flex gap-4">
+                        <Avatar className="h-12 w-12 border-2 border-primary/10 group-hover:border-primary/30 transition-colors">
+                          <AvatarFallback className="bg-primary/5 text-primary font-bold">
+                            {(customer.customer_name || 'C').substring(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <CardTitle className="text-lg font-bold group-hover:text-primary transition-colors">{customer.customer_name || formatPhoneDisplay(customer.phone)}</CardTitle>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="outline" className="text-[9px] font-bold py-0 h-4 border-primary/20 text-primary">
+                              {customer.current_stage.replace(/_/g, " ")}
+                            </Badge>
+                            <Badge className={`text-[9px] font-bold py-0 h-4 border-none ${getHealthColorClass(customer.health_status || 'AMARELO')}`}>
+                              SAÚDE {customer.health_status || 'AMARELO'}
+                            </Badge>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Valor Acumulado</p>
+                        <p className="text-xl font-display font-bold text-emerald-600">R$ {customer.total_revenue || '0'}</p>
+                      </div>
                     </div>
-                    <Progress value={customer.conversion_score || 0} className="h-1.5" />
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex justify-between text-[10px] font-medium">
-                      <span>Health Score</span>
-                      <span>{customer.health_score || 0}%</span>
+                  </CardHeader>
+                  <CardContent className="space-y-6 pt-0">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-6 p-4 rounded-xl bg-secondary/30">
+                      <div className="space-y-1">
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase">Frequência</p>
+                        <p className="text-xs font-bold">{customer.frequency_days || 28} dias</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase">Última Visita</p>
+                        <p className="text-xs font-bold">{customer.last_visit_at ? formatDistanceToNow(new Date(customer.last_visit_at), { locale: ptBR }) : '15 dias'}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase">Profissional</p>
+                        <p className="text-xs font-bold">{customer.favorite_professional || 'Qualquer'}</p>
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-[9px] font-bold text-muted-foreground uppercase">Plano</p>
+                        <Badge variant="secondary" className="text-[9px] font-bold bg-primary/10 text-primary border-none">
+                          {customer.plan_name || 'Sem Plano'}
+                        </Badge>
+                      </div>
                     </div>
-                    <Progress value={customer.health_score || 0} className="h-1.5" />
-                  </div>
-                </div>
 
-                {customer.health_recommendations && customer.health_recommendations.length > 0 && (
-                  <div className="space-y-1 bg-muted/30 p-2 rounded border border-dashed">
-                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-tighter flex items-center gap-1">
-                      <Sparkles className="h-2 w-2 text-indigo-500" /> IA Recomenda:
-                    </p>
-                    <ul className="text-[9px] space-y-0.5 list-none">
-                      {customer.health_recommendations.map((rec: string, i: number) => (
-                        <li key={i} className="flex items-start gap-1">
-                          <Check className="h-2 w-2 mt-0.5 text-green-600" />
-                          {rec}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                          <span>Conversão</span>
+                          <span className="text-primary">{customer.conversion_score || 0}%</span>
+                        </div>
+                        <Progress value={customer.conversion_score || 0} className="h-2 bg-secondary" />
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                          <span>Health Score</span>
+                          <span className="text-emerald-500">{customer.health_score || 0}%</span>
+                        </div>
+                        <Progress value={customer.health_score || 0} className="h-2 bg-secondary" />
+                      </div>
+                    </div>
 
-                <div className="flex justify-between items-center text-[10px] text-muted-foreground pt-2 border-t">
-                  <div className="flex flex-col">
-                    <span>Próxima Previsão: {customer.next_visit_prediction ? new Date(customer.next_visit_prediction).toLocaleDateString('pt-BR') : '13 dias'}</span>
-                  </div>
-                  <div className="text-right">
-                    <span>Interação: {customer.last_interaction_at 
-                      ? formatDistanceToNow(new Date(customer.last_interaction_at), { addSuffix: true, locale: ptBR })
-                      : "Nunca"}</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                    {customer.health_recommendations && customer.health_recommendations.length > 0 && (
+                      <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 relative overflow-hidden group/rec">
+                        <div className="absolute top-0 right-0 p-2 opacity-10">
+                          <Sparkles className="h-8 w-8 text-primary" />
+                        </div>
+                        <p className="text-[10px] font-bold text-primary uppercase tracking-widest flex items-center gap-2 mb-3">
+                          <Zap className="h-3 w-3 fill-primary" /> IA Recomenda
+                        </p>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          {customer.health_recommendations.map((rec: string, i: number) => (
+                            <div key={i} className="flex items-start gap-2 text-[11px] font-medium leading-tight text-slate-700">
+                              <Check className="h-3 w-3 mt-0.5 text-emerald-500 shrink-0" />
+                              {rec}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex justify-between items-center text-[10px] font-bold text-muted-foreground pt-4 border-t border-border/40">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-3 w-3" />
+                        <span>PREVISÃO: {customer.next_visit_prediction ? new Date(customer.next_visit_prediction).toLocaleDateString('pt-BR') : '13 dias'}</span>
+                      </div>
+                      <Button variant="ghost" size="sm" className="h-7 text-[10px] gap-2 font-bold group-hover:bg-primary group-hover:text-primary-foreground transition-all">
+                        ABRIR PERFIL <ArrowRight className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           </ScrollArea>
+        </div>
+      </div>
         </div>
       </div>
       
