@@ -49,7 +49,14 @@ export const getCRMDashboardStats = createServerFn({ method: "GET" })
       hotCustomers: pipeline.filter(c => (c.conversion_score || 0) >= 70).length,
       coldCustomers: pipeline.filter(c => (c.conversion_score || 0) < 30).length,
       vipCustomers: pipeline.filter(c => (c.conversion_score || 0) >= 90).length,
-      beautyPlanCustomers: 0, // Mocked for now as we don't have a plan column in pipeline yet
+      beautyPlanCustomers: pipeline.filter(c => {
+        const context = (c as any).customer_context?.customer_context || {};
+        const plans = context.activePlans || [];
+        return plans.some((p: any) => 
+          String(p.name).toLowerCase().includes('beauty') || 
+          String(p.name).toLowerCase().includes('plano')
+        );
+      }).length,
       noReturn30: pipeline.filter(c => c.last_interaction_at && new Date(c.last_interaction_at) <= thirtyDaysAgo).length,
       noReturn60: pipeline.filter(c => c.last_interaction_at && new Date(c.last_interaction_at) <= sixtyDaysAgo).length,
       noReturn90: pipeline.filter(c => c.last_interaction_at && new Date(c.last_interaction_at) <= ninetyDaysAgo).length,
