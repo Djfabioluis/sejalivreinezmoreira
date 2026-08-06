@@ -31,7 +31,7 @@ export const MANDATORY_SYSTEM_RULES = `REGRAS OBRIGATÓRIAS DO SISTEMA (NUNCA IG
 - Faça apenas uma pergunta por vez.
 - Use um tom caloroso, mas profissional. Emojis com moderação.
 - Quando a intenção MECHAS for detectada e o backend fornecer a promoção PACOTE_MECHAS_MENSAL como ativa, informe obrigatoriamente o nome e o preço promocional antes de solicitar profissional ou horário.
-- PARA IDENTIFICAR ASSINANTES: Quando o cliente informar que possui plano, assinatura ou benefício, solicite o telefone cadastrado na assinatura. É PROIBIDO solicitar CPF ou documento de identificação.
+- Para identificar assinantes, utilize o telefone cadastrado na assinatura. Nunca solicite CPF. Se a primeira busca por telefone não localizar a assinatura, peça que a cliente confira e envie novamente. Se a segunda tentativa falhar, encaminhe para atendimento humano.
 - Formate preços como R$ XX,XX.
 - Promoção do mês: Planos de assinatura SEM TAXA DE ADESÃO.
 - Restrição: Unidade Centro Cívico não aceita planos de assinatura.`;
@@ -1888,9 +1888,18 @@ function buildTools(
   return base;
 }
 
-const ALLOW_SUBSCRIPTION_CPF_FALLBACK = false;
-const SUBSCRIPTION_PRIMARY_LOOKUP = "PHONE";
-const SUBSCRIPTION_MAX_PHONE_ATTEMPTS = 2;
+import {
+  ALLOW_SUBSCRIPTION_CPF_FALLBACK,
+  SUBSCRIPTION_PRIMARY_LOOKUP,
+  SUBSCRIPTION_MAX_PHONE_ATTEMPTS,
+  SUBSCRIPTION_MESSAGES,
+  LEGACY_CPF_CONTEXT_RESET,
+  isBempTechnicalError,
+  enforceNoCpfInSubscriptionFlow,
+} from "@/lib/subscription-policy.server";
+
+void ALLOW_SUBSCRIPTION_CPF_FALLBACK;
+void SUBSCRIPTION_PRIMARY_LOOKUP;
 
 
 
@@ -2404,17 +2413,14 @@ export async function runAgentWithLogging(params: {
         subscriptionLookupStage: "AWAITING_REGISTERED_PHONE",
         subscriptionPhoneValidated: false,
         subscriptionPhoneAttempts: 0,
-        awaitingCpf: false,
-        cpfRequested: false,
-        cpfValidationPending: false,
-        subscriptionLookupFallbackActive: false,
+        ...LEGACY_CPF_CONTEXT_RESET,
       };
       
       await patchCustomerContext(conversationKey, patch);
       // Atualiza contexto local
       Object.assign(currentCustomerContext, patch);
 
-      const phoneRequest = "Perfeito! 💜\n\nQual é o número de telefone cadastrado na assinatura?\n\nPode enviar com DDD.";
+      const phoneRequest = SUBSCRIPTION_MESSAGES.ASK_PHONE;
       console.log(`[chat] subscription_phone_requested: traceId=${effectiveTraceId}`);
       
       const { replyToUser } = await import("./evolution/reply.server");
@@ -2442,7 +2448,8 @@ export async function runAgentWithLogging(params: {
        const normalizedPhone = normalizeBrazilianPhone(params.text);
 
        if (normalizedPhone) {
-         console.log(`[chat] subscription_phone_received: traceId=${effectiveTraceId}, phone=${normalizedPhone.full}`);
+         console.log(`[chat] subscription_phone_received: traceId=${effectiveTraceId}, phoneLast4=${normalizedPhone.full.slice(-4)}`);
+         console.log(`[chat] subscription_phone_lookup_started: traceId=${effectiveTraceId}, lookupStage=LOOKING_UP_PHONE`);
          
          await patchCustomerContext(conversationKey, {
            subscriptionLookupStage: "LOOKING_UP_PHONE"
@@ -2470,20 +2477,31 @@ export async function runAgentWithLogging(params: {
             let errorText = "";
             let stage = "";
 
-            if (result.code === "BEMP_UNAVAILABLE" || result.code === "BEMP_UNAUTHORIZED") {
-              errorText = "Não consegui consultar seu plano agora por uma falha técnica. 💜\n\nVou encaminhar seu atendimento para nossa equipe verificar o que houve e continuar com você.";
+            const technicalFailure = isBempTechnicalError(result.code);
+            if (technicalFailure) {
+              // Falha técnica NUNCA vira "plano não encontrado" e não consome tentativa.
+              errorText = SUBSCRIPTION_MESSAGES.TECHNICAL_HANDOFF;
               stage = "HUMAN_HANDOFF";
             } else if (attempts >= SUBSCRIPTION_MAX_PHONE_ATTEMPTS) {
-              errorText = "Não consegui localizar sua assinatura pelos telefones informados. 💜\n\nVou encaminhar seu atendimento para nossa equipe verificar o cadastro e continuar com você por aqui.";
+              errorText = SUBSCRIPTION_MESSAGES.HUMAN_HANDOFF;
               stage = "HUMAN_HANDOFF";
             } else {
-              errorText = "Não encontrei uma assinatura ativa com esse telefone. 💜\n\nPode conferir e me enviar novamente o número cadastrado no plano, com DDD?";
+              errorText = SUBSCRIPTION_MESSAGES.RETRY_PHONE;
               stage = "AWAITING_REGISTERED_PHONE_RETRY";
             }
 
+            console.log(`[chat] subscription_phone_lookup_completed: traceId=${effectiveTraceId}, code=${result.code}, stage=${stage}, phoneAttempts=${attempts}, phoneLast4=${normalizedPhone.full.slice(-4)}`);
+            await logEvent({
+              instance,
+              messageId,
+              event: technicalFailure ? "subscription_phone_lookup_completed" : "subscription_phone_not_found",
+              status: technicalFailure ? "failed" : "not_found",
+              payload: { traceId: effectiveTraceId, lookupStage: stage, phoneAttempts: attempts, phoneLast4: normalizedPhone.full.slice(-4) },
+            });
+
             const patch = {
               subscriptionLookupStage: stage,
-              subscriptionPhoneAttempts: attempts,
+              subscriptionPhoneAttempts: technicalFailure ? (currentCustomerContext.subscriptionPhoneAttempts || 0) : attempts,
               subscriptionCheckedAt: new Date().toISOString()
             };
 
@@ -2513,7 +2531,7 @@ export async function runAgentWithLogging(params: {
           await replyToUser({
             instance,
             phone,
-            text: "Não consegui validar esse número. Pode enviar novamente com o DDD, por favor?",
+            text: SUBSCRIPTION_MESSAGES.INVALID_PHONE,
             conversationKey,
             messageId
           });
@@ -2607,18 +2625,11 @@ export async function runAgentWithLogging(params: {
 
     let reply = agentResult;
 
-    // 11. BLOQUEIO FINAL OBRIGATÓRIO (Requisito 8 e 11) - Desativa CPF globalmente no fluxo de assinatura
-    const isSubscriptionIncomplete = currentCustomerContext.subscriptionIntent === true && !currentCustomerContext.subscriptionPhoneValidated;
-    const containsForbiddenPattern = /cpf|documento|\d{3}\.\d{3}\.\d{3}-\d{2}|000\.000\.000-00|somente números do cpf/i.test(reply);
-    
-    if (isSubscriptionIncomplete && containsForbiddenPattern) {
-       console.log(`[chat] forbidden_content_blocked: traceId=${effectiveTraceId}, applying enforcement for subscription flow`);
-       const attempts = currentCustomerContext.subscriptionPhoneAttempts || 0;
-       if (attempts >= SUBSCRIPTION_MAX_PHONE_ATTEMPTS) {
-         reply = "Não consegui localizar sua assinatura pelos telefones informados. 💜\n\nVou encaminhar seu atendimento para nossa equipe verificar o cadastro e continuar com você por aqui.";
-       } else {
-         reply = "Não encontrei uma assinatura ativa com esse telefone. 💜\n\nPode conferir e me enviar novamente o número cadastrado no plano, com DDD?";
-       }
+    // PROTEÇÃO DE SAÍDA #1 (pós-orquestrador): nunca mencionar CPF no fluxo de assinatura.
+    const cpfGuard = enforceNoCpfInSubscriptionFlow(reply, currentCustomerContext as never);
+    if (cpfGuard.blocked) {
+      console.log(`[chat] subscription_cpf_output_blocked: traceId=${effectiveTraceId}, lookupStage=${currentCustomerContext.subscriptionLookupStage || "NONE"}, phoneAttempts=${currentCustomerContext.subscriptionPhoneAttempts || 0}`);
+      reply = cpfGuard.text;
     }
 
     // Validação determinística da promoção na resposta
@@ -2812,11 +2823,8 @@ ${subscriptionContextLine(ctx as Record<string, any>)}
     model: getModel(),
     system: fullSystem,
     messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
-    tools: (() => {
-      const tools = buildTools(sandbox, effectiveUnitId, opts.conversationKey || undefined, opts.messageId ?? null);
-      delete tools.validate_subscription_cpf;
-      return tools;
-    })(),
+    // A tool de CPF não é instanciada nem registrada em buildTools (política: somente telefone).
+    tools: buildTools(sandbox, effectiveUnitId, opts.conversationKey || undefined, opts.messageId ?? null),
 
     stopWhen: stepCountIs(5),
     abortSignal: AbortSignal.timeout(60000),

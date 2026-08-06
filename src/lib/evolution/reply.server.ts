@@ -15,6 +15,34 @@ export async function replyToUser(params: {
   traceId?: string;
 }) {
   const traceId = params.traceId || `${params.instance}:${params.messageId}`;
+
+  // PROTEÇÃO FINAL DE SAÍDA: nenhuma mensagem do fluxo de assinatura pode mencionar CPF.
+  try {
+    const { enforceNoCpfInSubscriptionFlow } = await import("@/lib/subscription-policy.server");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: conv } = await supabaseAdmin
+      .from("wa_conversas")
+      .select("customer_context")
+      .eq("phone", params.conversationKey)
+      .maybeSingle();
+    const ctx = (conv?.customer_context as Record<string, unknown> | null) || null;
+    const enforced = enforceNoCpfInSubscriptionFlow(params.text, ctx as never);
+    if (enforced.blocked) {
+      params = { ...params, text: enforced.text };
+      await logEvent({
+        instance: params.instance,
+        messageId: params.messageId,
+        event: "subscription_cpf_output_blocked",
+        status: "blocked",
+        payload: {
+          traceId,
+          lookupStage: (ctx as { subscriptionLookupStage?: string } | null)?.subscriptionLookupStage ?? null,
+        },
+      });
+    }
+  } catch {
+    // Falha na checagem não pode impedir o envio da resposta.
+  }
   
   await logEvent({ 
     instance: params.instance, 
