@@ -12,7 +12,7 @@ export async function processPendingFollowups() {
   // 1. Buscar follow-ups pendentes e agendados para agora ou passado
   const { data: pending, error } = await supabaseAdmin
     .from("crm_followups")
-    .select("*")
+    .select("*, crm_customer_pipeline(conversion_score)")
     .eq("status", "PENDENTE")
     .lte("scheduled_at", now)
     .lt("attempts", 3);
@@ -28,6 +28,19 @@ export async function processPendingFollowups() {
 
   for (const followup of pending) {
     try {
+      // 1.5. Verificar Score antes de processar
+      const customerPipeline = (followup as any).crm_customer_pipeline;
+      const score = customerPipeline?.conversion_score ?? 50; // Default 50 se não houver
+      
+      if (score < 30) {
+        console.log(`[followup-processor] Skipping followup for ${followup.phone} due to low score (${score})`);
+        await supabaseAdmin
+          .from("crm_followups")
+          .update({ status: 'CANCELADO', cancelled_at: new Date().toISOString() })
+          .eq("id", followup.id);
+        continue;
+      }
+
       if (followup.reason === 'PRICE') {
         await supabaseAdmin
           .from("crm_followups")

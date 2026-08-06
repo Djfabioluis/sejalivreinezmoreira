@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { detectConversationAbandonment } from '@/lib/crm/abandonment.server';
 import { processPendingFollowups } from '@/lib/crm/followup-processor.server';
 import { processAutomatedRecoveries } from '@/lib/crm/recovery.server';
+import { updateCustomerScores } from '@/lib/crm/score.server';
 
 export const Route = createFileRoute('/api/public/crm-cron')({
   server: {
@@ -22,8 +23,11 @@ export const Route = createFileRoute('/api/public/crm-cron')({
           // 2. Process Followups (sends messages)
           await processPendingFollowups();
 
-          // 3. Process Recoveries (new rule-based system)
+          // 3. Process Recoveries
           await processAutomatedRecoveries();
+
+          // 4. Update AI Scores (Daily calculation)
+          await updateCustomerScores();
           
           return new Response(JSON.stringify({ ok: true, timestamp: new Date().toISOString() }), {
             headers: { 'Content-Type': 'application/json' }
