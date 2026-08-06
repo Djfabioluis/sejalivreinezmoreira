@@ -275,6 +275,63 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_followups: {
+        Row: {
+          attempts: number | null
+          cancelled_at: string | null
+          completed_at: string | null
+          created_at: string | null
+          customer_id: string | null
+          id: string
+          message_template: string | null
+          metadata: Json | null
+          phone: string
+          priority: number | null
+          reason: string | null
+          scheduled_at: string
+          sent_at: string | null
+          stage: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          attempts?: number | null
+          cancelled_at?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          id?: string
+          message_template?: string | null
+          metadata?: Json | null
+          phone: string
+          priority?: number | null
+          reason?: string | null
+          scheduled_at: string
+          sent_at?: string | null
+          stage: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          attempts?: number | null
+          cancelled_at?: string | null
+          completed_at?: string | null
+          created_at?: string | null
+          customer_id?: string | null
+          id?: string
+          message_template?: string | null
+          metadata?: Json | null
+          phone?: string
+          priority?: number | null
+          reason?: string | null
+          scheduled_at?: string
+          sent_at?: string | null
+          stage?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       customer_ai_memory: {
         Row: {
           anonymized_at: string | null
@@ -1133,6 +1190,16 @@ export type Database = {
       release_conversation_lock: {
         Args: { p_conversation_key: string; p_trace_id: string }
         Returns: undefined
+      }
+      schedule_customer_followup: {
+        Args: {
+          p_metadata?: Json
+          p_phone: string
+          p_reason: string
+          p_scheduled_at: string
+          p_stage: string
+        }
+        Returns: string
       }
       transfer_conversation_unit: {
         Args: {

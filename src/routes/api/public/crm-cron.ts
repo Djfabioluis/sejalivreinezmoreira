@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { detectConversationAbandonment } from '@/lib/crm/abandonment.server';
+import { processPendingFollowups } from '@/lib/crm/followup-processor.server';
 
 export const Route = createFileRoute('/api/public/crm-cron')({
   server: {
@@ -14,11 +15,17 @@ export const Route = createFileRoute('/api/public/crm-cron')({
         }
 
         try {
+          // 1. Detect Abandonment (updates stages)
           await detectConversationAbandonment();
+          
+          // 2. Process Followups (sends messages)
+          await processPendingFollowups();
+          
           return new Response(JSON.stringify({ ok: true, timestamp: new Date().toISOString() }), {
             headers: { 'Content-Type': 'application/json' }
           });
         } catch (err: any) {
+          console.error("[crm-cron] Handler failed:", err);
           return new Response(JSON.stringify({ error: err.message }), { 
             status: 500,
             headers: { 'Content-Type': 'application/json' }
