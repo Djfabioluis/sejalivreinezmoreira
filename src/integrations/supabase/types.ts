@@ -203,6 +203,78 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_customer_pipeline: {
+        Row: {
+          abandonment_reason: string | null
+          assigned_operator: string | null
+          conversation_id: string | null
+          conversion_score: number | null
+          created_at: string | null
+          current_stage:
+            | Database["public"]["Enums"]["crm_pipeline_stage"]
+            | null
+          customer_id: string | null
+          customer_name: string | null
+          followup_attempts: number | null
+          followup_status: string | null
+          id: string
+          last_interaction_at: string | null
+          last_stage: Database["public"]["Enums"]["crm_pipeline_stage"] | null
+          lost_reason: string | null
+          next_action: string | null
+          next_action_at: string | null
+          phone: string
+          stage_started_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          abandonment_reason?: string | null
+          assigned_operator?: string | null
+          conversation_id?: string | null
+          conversion_score?: number | null
+          created_at?: string | null
+          current_stage?:
+            | Database["public"]["Enums"]["crm_pipeline_stage"]
+            | null
+          customer_id?: string | null
+          customer_name?: string | null
+          followup_attempts?: number | null
+          followup_status?: string | null
+          id?: string
+          last_interaction_at?: string | null
+          last_stage?: Database["public"]["Enums"]["crm_pipeline_stage"] | null
+          lost_reason?: string | null
+          next_action?: string | null
+          next_action_at?: string | null
+          phone: string
+          stage_started_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          abandonment_reason?: string | null
+          assigned_operator?: string | null
+          conversation_id?: string | null
+          conversion_score?: number | null
+          created_at?: string | null
+          current_stage?:
+            | Database["public"]["Enums"]["crm_pipeline_stage"]
+            | null
+          customer_id?: string | null
+          customer_name?: string | null
+          followup_attempts?: number | null
+          followup_status?: string | null
+          id?: string
+          last_interaction_at?: string | null
+          last_stage?: Database["public"]["Enums"]["crm_pipeline_stage"] | null
+          lost_reason?: string | null
+          next_action?: string | null
+          next_action_at?: string | null
+          phone?: string
+          stage_started_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       customer_ai_memory: {
         Row: {
           anonymized_at: string | null
@@ -1071,6 +1143,18 @@ export type Database = {
         }
         Returns: Json
       }
+      update_customer_pipeline: {
+        Args: {
+          p_abandonment_reason?: string
+          p_conversation_id?: string
+          p_customer_name?: string
+          p_next_action?: string
+          p_next_action_at?: string
+          p_phone: string
+          p_stage?: Database["public"]["Enums"]["crm_pipeline_stage"]
+        }
+        Returns: undefined
+      }
       update_wa_message_metadata: {
         Args: {
           p_message_id: string
@@ -1087,6 +1171,19 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "operador"
+      crm_pipeline_stage:
+        | "NOVO_CONTATO"
+        | "IDENTIFICANDO_SERVICO"
+        | "ESCOLHENDO_UNIDADE"
+        | "ESCOLHENDO_PROFISSIONAL"
+        | "ESCOLHENDO_DATA"
+        | "ESCOLHENDO_HORARIO"
+        | "AGUARDANDO_CONFIRMACAO"
+        | "AGENDADO"
+        | "ATENDIDO"
+        | "CANCELADO"
+        | "ABANDONADO"
+        | "CONVERTIDO"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1215,6 +1312,20 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "operador"],
+      crm_pipeline_stage: [
+        "NOVO_CONTATO",
+        "IDENTIFICANDO_SERVICO",
+        "ESCOLHENDO_UNIDADE",
+        "ESCOLHENDO_PROFISSIONAL",
+        "ESCOLHENDO_DATA",
+        "ESCOLHENDO_HORARIO",
+        "AGUARDANDO_CONFIRMACAO",
+        "AGENDADO",
+        "ATENDIDO",
+        "CANCELADO",
+        "ABANDONADO",
+        "CONVERTIDO",
+      ],
     },
   },
 } as const
