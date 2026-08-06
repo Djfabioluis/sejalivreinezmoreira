@@ -3,6 +3,14 @@
 import { sanitizeCustomerText } from "@/lib/text-sanitize";
 import { logger } from "./observability/logger.server";
 import { AppError } from "./core/errors";
+import { 
+  enforceNoCpfInSubscriptionFlow, 
+  containsCpfSolicitation,
+  PHONE_REQUEST_MESSAGE,
+  PHONE_RETRY_MESSAGE,
+  HUMAN_HANDOFF_MESSAGE
+} from "./subscription-policy.server";
+
 
 async function getDbConfig(): Promise<{
   url: string;
@@ -175,7 +183,15 @@ export async function sendEvolutionText(
   typingMs = 0,
 ): Promise<boolean> {
   const number = to.replace(/\D/g, "");
-  const text = sanitizeCustomerText(body).slice(0, 3500);
+  
+  // PROTEÇÃO GLOBAL DE SAÍDA - O ÚLTIMO PONTO POSSÍVEL
+  const safeText = await resolveSafeOutboundSubscriptionText({
+    instance,
+    to: number,
+    text: body
+  });
+
+  const text = sanitizeCustomerText(safeText.text).slice(0, 3500);
 
   const payload: Record<string, unknown> = { number, text };
   if (typingMs > 0) {
@@ -183,6 +199,7 @@ export async function sendEvolutionText(
     payload.presence = "composing";
     payload.options = { delay: typingMs, presence: "composing" };
   }
+  
   const res = await evoFetch(`/message/sendText/${encodeURIComponent(instance)}`, {
     method: "POST",
     body: payload,
@@ -193,6 +210,81 @@ export async function sendEvolutionText(
   }
   
   return res.ok;
+}
+
+/**
+ * Proteção fail-closed no nível de transporte.
+ */
+async function resolveSafeOutboundSubscriptionText(params: {
+  instance: string;
+  to: string;
+  text: string;
+}): Promise<{ text: string; blocked: boolean; conversationContextFound: boolean }> {
+  // Detector sem contexto (Rápido/Fail-closed)
+  const cpfRequested = containsCpfSolicitation(params.text);
+  
+  if (!cpfRequested) {
+    return { text: params.text, blocked: false, conversationContextFound: false };
+  }
+
+  // Se detectou solicitação de CPF, precisamos consultar o contexto para a mensagem de substituição correta
+  // Mas o bloqueio já é garantido.
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const normalizedPhone = params.to.replace(/\D/g, "");
+    const conversationKey = `${params.instance}:${normalizedPhone}`;
+
+    // Tentar encontrar a conversa
+    const { data: conv } = await supabaseAdmin
+      .from("wa_conversas" as never)
+      .select("customer_context, status, attendance_mode")
+      .eq("phone", conversationKey)
+      .maybeSingle();
+
+    let context = conv;
+    if (!context) {
+      // Fallback seguro
+      const { data: fallbackConv } = await supabaseAdmin
+        .from("wa_conversas" as never)
+        .select("customer_context, status, attendance_mode")
+        .eq("instance", params.instance)
+        .eq("phone_number", normalizedPhone)
+        .maybeSingle();
+      context = fallbackConv;
+    }
+
+    const ctx = (context?.customer_context as any) || null;
+    const enforced = enforceNoCpfInSubscriptionFlow(params.text, ctx);
+
+    if (enforced.blocked) {
+      logger.warn("SUBSCRIPTION_CPF_BLOCKED_AT_TRANSPORT", {
+        instance: params.instance,
+        phoneLast4: normalizedPhone.slice(-4),
+        source: "sendEvolutionText",
+        contextFound: !!context
+      });
+      return { 
+        text: enforced.text, 
+        blocked: true, 
+        conversationContextFound: !!context 
+      };
+    }
+  } catch (err: any) {
+    logger.error("SUBSCRIPTION_CONTEXT_LOOKUP_FAILED", err.message, { instance: params.instance });
+    // Se falhar a consulta, aplicamos a mensagem padrão (Fail-closed)
+    return { 
+      text: PHONE_REQUEST_MESSAGE, 
+      blocked: true, 
+      conversationContextFound: false 
+    };
+  }
+
+  // Caso o detector tenha disparado mas o enforceNoCpf estranhamente retorne false (não deveria ocorrer com cpfRequested=true)
+  return { 
+    text: PHONE_REQUEST_MESSAGE, 
+    blocked: true, 
+    conversationContextFound: false 
+  };
 }
 
 export async function sendEvolutionPresence(
