@@ -174,41 +174,49 @@ function CRMPage() {
         </Card>
       </div>
 
-        {/* Bloco 4: Breakdown Financeiro por Unidade/Profissional */}
-        <Card>
-          <CardHeader className="p-4 pb-0">
-            <CardTitle className="text-sm font-medium">Receita por Unidade</CardTitle>
+      {/* Breakdown Financeiro Premium */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card className="border-none shadow-xl bg-card/50 backdrop-blur-sm overflow-hidden">
+          <CardHeader className="border-b bg-muted/30 pb-4">
+            <div className="flex items-center gap-2">
+              <Target className="h-4 w-4 text-primary" />
+              <CardTitle className="text-sm font-bold uppercase tracking-wider">Receita por Unidade</CardTitle>
+            </div>
           </CardHeader>
-          <CardContent className="p-4 pt-2">
-            <div className="text-xs space-y-1">
+          <CardContent className="p-0">
+            <div className="divide-y">
               {Object.entries(stats.revenueByUnit).length > 0 ? (
                 Object.entries(stats.revenueByUnit).map(([unit, revenue]) => (
-                  <div key={unit} className="flex justify-between">
-                    <span className="truncate mr-2">{unit}</span>
-                    <span className="font-bold text-emerald-600">R$ {String(revenue)}</span>
+                  <div key={unit} className="flex justify-between items-center p-4 hover:bg-muted/20 transition-colors">
+                    <span className="text-xs font-medium text-slate-600 truncate mr-2">{unit}</span>
+                    <Badge variant="outline" className="border-primary/20 text-primary font-bold">R$ {String(revenue)}</Badge>
                   </div>
                 ))
               ) : (
-                <p className="text-muted-foreground italic text-[10px]">Sem dados financeiros</p>
+                <div className="p-8 text-center text-muted-foreground italic text-xs">Sem dados financeiros por unidade</div>
               )}
             </div>
           </CardContent>
         </Card>
-        <Card>
-          <CardHeader className="p-4 pb-0">
-            <CardTitle className="text-sm font-medium">Receita por Profissional</CardTitle>
+
+        <Card className="border-none shadow-xl bg-card/50 backdrop-blur-sm overflow-hidden">
+          <CardHeader className="border-b bg-muted/30 pb-4">
+            <div className="flex items-center gap-2">
+              <Users className="h-4 w-4 text-primary" />
+              <CardTitle className="text-sm font-bold uppercase tracking-wider">Performance Profissional</CardTitle>
+            </div>
           </CardHeader>
-          <CardContent className="p-4 pt-2">
-            <div className="text-xs space-y-1">
+          <CardContent className="p-0">
+            <div className="divide-y">
               {Object.entries(stats.revenueByProfessional).length > 0 ? (
                 Object.entries(stats.revenueByProfessional).map(([prof, revenue]) => (
-                  <div key={prof} className="flex justify-between">
-                    <span className="truncate mr-2">{prof}</span>
-                    <span className="font-bold text-emerald-600">R$ {String(revenue)}</span>
+                  <div key={prof} className="flex justify-between items-center p-4 hover:bg-muted/20 transition-colors">
+                    <span className="text-xs font-medium text-slate-600 truncate mr-2">{prof}</span>
+                    <Badge variant="outline" className="border-emerald-500/20 text-emerald-600 font-bold">R$ {String(revenue)}</Badge>
                   </div>
                 ))
               ) : (
-                <p className="text-muted-foreground italic text-[10px]">Sem dados financeiros</p>
+                <div className="p-8 text-center text-muted-foreground italic text-xs">Sem dados financeiros por profissional</div>
               )}
             </div>
           </CardContent>
