@@ -7,6 +7,8 @@ import { sanitizeCustomerText } from "@/lib/text-sanitize";
 import { logEvent } from "./evolution/logger.server";
 import { classifyFailure, describeError, sanitizeErrorText } from "./evolution/failure";
 import { updateCustomerPipeline, inferStageFromTool } from "@/lib/crm.server";
+import { normalizeServiceSearchText, SERVICE_CATEGORY_ALIASES, type ServiceCategory } from "./service-utils";
+
 
 import {
   bempFetch,
@@ -37,6 +39,14 @@ REGRAS OBRIGATÓRIAS:
 - Faça apenas uma pergunta por vez, focando no próximo passo necessário para o agendamento.
 - Use um tom caloroso, mas profissional. Emojis com moderação.
 
+FLUXO DE SERVIÇOS (MECHAS):
+- Quando a cliente perguntar genericamente por mechas, Pacote de Mechas, luzes, morena iluminada ou serviços relacionados:
+  1. NÃO escolha um serviço sozinha nem selecione o primeiro da lista.
+  2. Use a ferramenta search_services informando a categoria "MECHAS".
+  3. Apresente todas as opções encontradas na unidade de forma estruturada.
+  4. Informe que os valores podem variar conforme o comprimento e volume do cabelo, ou que podem exigir avaliação prévia se indicado na descrição.
+  5. Aguarde a cliente escolher uma opção específica antes de consultar profissionais e horários.
+
 FLUXO DE ASSINANTES (PLANO BEAUTY):
 - Quando o cliente mencionar que tem plano ou quer usar benefício:
   1. Primeiro, verifique se o telefone atual do WhatsApp já possui plano usando validate_subscription_phone (passe o telefone atual).
@@ -45,6 +55,7 @@ FLUXO DE ASSINANTES (PLANO BEAUTY):
   4. Se o cliente informar um telefone, use validate_subscription_phone com o número fornecido.
   5. Se encontrar mais de um plano ativo, pergunte qual ele deseja usar.
   6. Se o plano estiver sem saldo ou inativo, explique o motivo de forma empática.
+
 
 ESTADO ATUAL DO ATENDIMENTO (CONTEXTO):
 {{customer_context_summary}}
@@ -410,7 +421,62 @@ function buildTools(
     }),
 
 
+    search_services: tool({
+      description:
+        "Busca serviços disponíveis na unidade por nome ou categoria (ex: MECHAS). Retorna uma lista de opções reais do BEMP. Use quando o cliente perguntar genericamente por um tipo de serviço ou serviço específico.",
+      inputSchema: z.object({
+        query: z.string().describe("Termo de busca (ex: 'mechas', 'corte', 'pacote mechas')"),
+        category: z.enum(["MECHAS"]).optional().describe("Categoria técnica de serviço (ex: MECHAS)"),
+      }),
+      execute: async ({ query, category }) =>
+        safeTool("search_services", async () => {
+          const { effectiveUnitId, effectiveUnitName } = await resolveEffectiveUnit({ conversationKey, agentUnitId: fallbackAgentUnitId });
+          if (!effectiveUnitId) throw new Error("ID da unidade não resolvido.");
+
+          const { BempService } = await import("@/lib/bemp-service.server");
+          
+          // Se for mechas, força a categoria conforme requisito 9
+          let searchCategory = category;
+          const normalized = normalizeServiceSearchText(query);
+          if (SERVICE_CATEGORY_ALIASES.MECHAS.some(alias => normalized.includes(normalizeServiceSearchText(alias)))) {
+            searchCategory = "MECHAS";
+          }
+
+          if (searchCategory) {
+            const result = await BempService.searchServicesByCategory({
+              effectiveUnitId,
+              category: searchCategory,
+              query
+            });
+
+            if (result.success && result.data) {
+              // Contexto da conversa conforme requisito 16
+              await patchCustomerContext(conversationKey, {
+                requestedServiceCategory: searchCategory,
+                serviceSearchQuery: query,
+                matchingServices: result.data.slice(0, 10).map(s => ({ id: s.id, name: s.name, unitId: effectiveUnitId }))
+              });
+
+              return {
+                success: true,
+                unitName: effectiveUnitName || String(effectiveUnitId),
+                category: searchCategory,
+                services: result.data
+              };
+            }
+            return result;
+          }
+
+          // Fallback para busca genérica se não for categoria específica
+          const { getAvailableServiceAssignments } = await import("@/lib/bemp/assignments.server");
+          const allServices = await getAvailableServiceAssignments(effectiveUnitId);
+          const filtered = allServices.filter(s => normalizeServiceSearchText(s.name).includes(normalized));
+          
+          return { success: true, unitId: effectiveUnitId, services: filtered };
+        }),
+    }),
     list_services: tool({
+
       description:
         "Lista SOMENTE os serviços que possuem ao menos um profissional atribuído na unidade efetiva (fonte: BEMP). Nunca apresente serviços fora deste retorno.",
       inputSchema: z.object({ salon_id: z.number().optional() }),
