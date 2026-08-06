@@ -18,6 +18,8 @@ import {
   QrCode,
   Brain,
   TrendingUp,
+  CalendarClock,
+  Bot,
 } from "lucide-react";
 
 import {
