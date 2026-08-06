@@ -371,7 +371,7 @@ function AgendarPage() {
                 <div>
                   <h3 className="text-sm font-bold leading-none">{selectedConversation?.contact_name || formatPhoneDisplay(selectedPhone)}</h3>
                   <p className="text-[10px] text-muted-foreground mt-1">
-                    {selectedConversation?.status === 'aguardando_humano' ? '🟠 Aguardando Humano' : '🟢 Atendimento IA'}
+                    {selectedConversation?.status === 'aguardando_humano' ? '🟠 Aguardando Humano' : '🟢 Julia AI Ativa'}
                   </p>
                 </div>
               </div>
