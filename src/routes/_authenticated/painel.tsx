@@ -474,8 +474,8 @@ function Dashboard() {
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="flex flex-col gap-1">
-        <h2 className="text-3xl font-display tracking-tight">Bom dia, Gestor ☀️</h2>
-        <p className="text-muted-foreground">Aqui está o que está acontecendo na sua clínica hoje.</p>
+        <h2 className="text-4xl font-display tracking-tight">Bom dia, Gestor</h2>
+        <p className="text-muted-foreground text-lg">Aqui está o resumo da operação da sua clínica hoje.</p>
       </div>
       
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
