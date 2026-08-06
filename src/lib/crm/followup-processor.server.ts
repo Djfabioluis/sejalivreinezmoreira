@@ -68,8 +68,9 @@ export async function processPendingFollowups() {
         - Use emojis moderadamente.
       `;
 
+      const provider = createLovableAiGatewayProvider();
       const { text } = await generateText({
-        model: createLovableAiGatewayProvider()("gemini-1.5-flash") as any,
+        model: provider("gemini-1.5-flash") as any,
         prompt,
       });
 
