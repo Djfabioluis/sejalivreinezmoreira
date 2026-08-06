@@ -58,6 +58,13 @@ export const LEGACY_CPF_CONTEXT_RESET = {
   subscriptionLookupFallbackActive: false,
 } as const;
 
+export interface SubscriptionFlowContext {
+  subscriptionIntent?: boolean;
+  subscriptionPhoneValidated?: boolean;
+  subscriptionLookupStage?: string;
+  subscriptionPhoneAttempts?: number;
+}
+
 export function containsCpfSolicitation(text: string): boolean {
   if (!text) return false;
   
