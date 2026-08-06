@@ -49,9 +49,10 @@ export async function appendIncomingMessage(params: {
     await updateCustomerPipeline({
       phone: params.phone,
       conversationId: data.id,
-      stage: 'NOVO_CONTATO', // Base stage on message, IA/Tools will refine it
+      stage: 'NEW_LEAD', // Base stage on message, IA/Tools will refine it
       customerName: params.contactName
     });
+
   }
 
   await logEvent({ 
