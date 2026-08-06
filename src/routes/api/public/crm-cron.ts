@@ -9,11 +9,15 @@ export const Route = createFileRoute('/api/public/crm-cron')({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        // Simple security check via secret header or query param
+        // Fail-closed: sem segredo configurado, o endpoint não executa nada.
+        const cronSecret = process.env['CRON_SECRET'];
+        if (!cronSecret) {
+          console.error("[crm-cron] CRON_SECRET não configurado — requisição rejeitada.");
+          return new Response('Service unavailable', { status: 503 });
+        }
+
         const auth = request.headers.get('Authorization');
-        const expected = `Bearer ${process.env['CRON_SECRET']}`;
-        
-        if (process.env['CRON_SECRET'] && auth !== expected) {
+        if (auth !== `Bearer ${cronSecret}`) {
           return new Response('Unauthorized', { status: 401 });
         }
 

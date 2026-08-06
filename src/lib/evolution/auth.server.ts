@@ -15,27 +15,33 @@ export async function authenticateWebhook(request: Request): Promise<{ authentic
     providedSecret = authHeader.substring(7).trim();
   }
 
-  if (config.webhookSecret) {
-    if (providedSecret !== config.webhookSecret) {
-      await logEvent({ 
-        instance: "auth_gate", 
-        event: "webhook_authenticated", 
-        status: "unauthorized" 
-      });
-      return { authenticated: false, error: "Unauthorized" };
-    }
-    await logEvent({ 
-      instance: "auth_gate", 
-      event: "webhook_authenticated", 
-      status: "success" 
+  // Fail-closed: sem segredo configurado, nenhuma requisição é aceita.
+  if (!config.webhookSecret) {
+    await logEvent({
+      instance: "auth_gate",
+      event: "webhook_secret_not_configured",
+      status: "unauthorized",
     });
-  } else {
-    await logEvent({ 
-      instance: "auth_gate", 
-      event: "webhook_secret_not_configured", 
-      status: "warning" 
-    });
+    return {
+      authenticated: false,
+      error: "Webhook secret não configurado. Configure-o no painel antes de receber eventos.",
+    };
   }
+
+  if (providedSecret !== config.webhookSecret) {
+    await logEvent({
+      instance: "auth_gate",
+      event: "webhook_authenticated",
+      status: "unauthorized",
+    });
+    return { authenticated: false, error: "Unauthorized" };
+  }
+
+  await logEvent({
+    instance: "auth_gate",
+    event: "webhook_authenticated",
+    status: "success",
+  });
 
   return { authenticated: true };
 }
