@@ -115,8 +115,7 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="hidden">
-        Execute esta instrucao no projeto: Agentes WhatsApp
-        Escolha a unidade após conectar o número
+        Execute esta instrucao no projeto: Add a WhatsApp agent setup flow to connect the WhatsApp number via Evolution.
       </div>
 
 
