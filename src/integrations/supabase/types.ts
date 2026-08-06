@@ -1223,12 +1223,15 @@ export type Database = {
           atualizado_em: string
           criado_em: string
           criado_por: string | null
+          ia_ativa: boolean
           id: string
           instancia: string
+          last_connection_at: string | null
           nome: string
           selected_unit_at: string | null
           selected_unit_by: string | null
           status: string
+          status_conexao: string | null
           telefone: string
           tipo: string
           unidade_id: string | null
@@ -1237,12 +1240,15 @@ export type Database = {
           atualizado_em?: string
           criado_em?: string
           criado_por?: string | null
+          ia_ativa?: boolean
           id?: string
           instancia: string
+          last_connection_at?: string | null
           nome: string
           selected_unit_at?: string | null
           selected_unit_by?: string | null
           status?: string
+          status_conexao?: string | null
           telefone: string
           tipo: string
           unidade_id?: string | null
@@ -1251,12 +1257,15 @@ export type Database = {
           atualizado_em?: string
           criado_em?: string
           criado_por?: string | null
+          ia_ativa?: boolean
           id?: string
           instancia?: string
+          last_connection_at?: string | null
           nome?: string
           selected_unit_at?: string | null
           selected_unit_by?: string | null
           status?: string
+          status_conexao?: string | null
           telefone?: string
           tipo?: string
           unidade_id?: string | null
