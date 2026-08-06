@@ -3,6 +3,8 @@
 import { bempFetch, BEMP_WEBHOOK_BASE } from "@/lib/bemp.server";
 import { resolveServiceAssignment } from "@/lib/bemp/assignments.server";
 import { normalizeCPF, maskCPF } from "@/lib/cpf";
+import { SUBSCRIPTION_PRIMARY_LOOKUP } from "@/lib/subscription-policy.server";
+
 
 export type SubscriptionPlanType = "manicure" | "escova" | "hidratacao_escova";
 
@@ -251,8 +253,18 @@ export type CustomerByCPFResult =
  * O CPF nunca é logado em texto completo.
  */
 export async function getCustomerByCPF(cpfInput: string): Promise<CustomerByCPFResult> {
+  if (SUBSCRIPTION_PRIMARY_LOOKUP === "PHONE") {
+    log("cpf_lookup_blocked_by_policy");
+    return {
+      success: true,
+      found: false,
+      reason: "customer_not_found",
+      message: "A busca por CPF está desativada. Por favor, utilize o telefone cadastrado.",
+    };
+  }
   const cpf = normalizeCPF(cpfInput);
   log("cpf_lookup_started", { cpf: maskCPF(cpf) });
+
 
   const attempts = [
     `${BEMP_WEBHOOK_BASE}/whatsapp_customer?document=${encodeURIComponent(cpf)}`,

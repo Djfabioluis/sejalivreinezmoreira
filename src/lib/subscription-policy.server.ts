@@ -58,14 +58,35 @@ export const LEGACY_CPF_CONTEXT_RESET = {
   subscriptionLookupFallbackActive: false,
 } as const;
 
-const FORBIDDEN_OUTPUT_PATTERN =
-  /\bcpf\b|documento de identifica|\bdocumento\b|\d{3}\.\d{3}\.\d{3}-\d{2}|000\.000\.000-00/i;
-
 export interface SubscriptionFlowContext {
   subscriptionIntent?: boolean;
   subscriptionPhoneValidated?: boolean;
   subscriptionLookupStage?: string;
   subscriptionPhoneAttempts?: number;
+}
+
+export function containsCpfSolicitation(text: string): boolean {
+  if (!text) return false;
+  
+  // Padrões explícitos de solicitação de CPF
+  const patterns = [
+    /informe.*CPF/i,
+    /informar.*CPF/i,
+    /preciso.*CPF/i,
+    /me informe.*CPF/i,
+    /qual.*seu.*CPF/i,
+    /número.*CPF/i,
+    /seu número.*CPF/i,
+    /000\.000\.000-00/,
+    /somente números ou no formato/i,
+    /localizar seu plano.*CPF/i,
+    /localizar sua assinatura.*CPF/i,
+    /verificar seu plano.*CPF/i,
+    /me passe.*CPF/i,
+    /validar plano.*CPF/i,
+  ];
+
+  return patterns.some(p => p.test(text));
 }
 
 /**
@@ -79,13 +100,18 @@ export function enforceNoCpfInSubscriptionFlow(
   if (!text) return { text, blocked: false };
   const ctx = context || {};
   
-  // Se não houver intenção de assinatura, não aplicamos o bloqueio agressivo de termos como "documento" 
-  // (pois pode ser usado em outros contextos), mas se houver intenção e CPF for bloqueado, barramos tudo.
-  if (ALLOW_SUBSCRIPTION_CPF_FALLBACK) return { text, blocked: false };
-  if (ctx.subscriptionIntent !== true) return { text, blocked: false };
-  if (ctx.subscriptionPhoneValidated === true) return { text, blocked: false };
+  const cpfRequested = containsCpfSolicitation(text);
   
-  if (!FORBIDDEN_OUTPUT_PATTERN.test(text)) return { text, blocked: false };
+  // Se detectou solicitação de CPF, BLOQUEIA SEMPRE, independentemente de ALLOW_SUBSCRIPTION_CPF_FALLBACK
+  // ou de subscriptionIntent, para garantir FAIL-CLOSED.
+  if (!cpfRequested) {
+    // Se não solicitou CPF explicitamente, verificamos se há menções genéricas que devem ser bloqueadas no fluxo de assinatura
+    if (ctx.subscriptionIntent !== true) return { text, blocked: false };
+    if (ctx.subscriptionPhoneValidated === true) return { text, blocked: false };
+    
+    const forbiddenPattern = /\bcpf\b|documento de identifica|\bdocumento\b|\d{3}\.\d{3}\.\d{3}-\d{2}|000\.000\.000-00/i;
+    if (!forbiddenPattern.test(text)) return { text, blocked: false };
+  }
 
   const stage = ctx.subscriptionLookupStage;
   const attempts = ctx.subscriptionPhoneAttempts || 0;
