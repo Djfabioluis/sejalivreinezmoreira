@@ -39,8 +39,8 @@ export const getCRMDashboardStats = createServerFn({ method: "GET" })
 
     if (fError) throw new Error(fError.message);
 
-    const { data: financialLogs, error: finError } = await supabaseAdmin
-      .from("crm_financial_logs" as any)
+    const { data: financialLogs, error: finError } = await (supabaseAdmin
+      .from("crm_financial_logs" as any) as any)
       .select("*");
 
     const { data: slots, error: sError } = await supabaseAdmin
@@ -55,11 +55,11 @@ export const getCRMDashboardStats = createServerFn({ method: "GET" })
     const totalWithInteractions = pipeline.filter(c => c.last_interaction_at).length;
     
     // Cálculos Financeiros (Dados Reais + Simulação onde não houver log)
-    const logs = financialLogs || [];
+    const logs = (financialLogs || []) as any[];
     const revenueFromIA = logs.filter(l => l.source === 'REVENUE_ENGINE').reduce((sum, l) => sum + Number(l.amount), 0);
     const revenueFromFollowUp = logs.filter(l => l.source === 'FOLLOW_UP').reduce((sum, l) => sum + Number(l.amount), 0);
     const totalRevenue = logs.reduce((sum, l) => sum + Number(l.amount), 0);
-    const ticketMedio = logs.length > 0 ? totalRevenue / logs.length : 150; // Fallback para 150 se vazio
+    const ticketMedio = logs.length > 0 ? totalRevenue / logs.length : 150;
 
     // Receita Perdida (Cancelamentos no pipeline que não foram recuperados)
     const lostRevenue = pipeline
@@ -67,10 +67,10 @@ export const getCRMDashboardStats = createServerFn({ method: "GET" })
       .length * ticketMedio;
 
     // Taxa de Ocupação e Tempo Médio
-    const recoveredSlots = slots?.filter(s => s.status === 'accepted' || s.status === 'reserved') || [];
+    const recoveredSlots = (slots?.filter(s => s.status === 'accepted' || s.status === 'reserved') || []) as any[];
     const avgFillTime = recoveredSlots.length > 0 
       ? recoveredSlots.reduce((acc, s) => {
-          const start = new Date(s.created_at).getTime();
+          const start = new Date(s.created_at || Date.now()).getTime();
           const end = s.filled_at ? new Date(s.filled_at).getTime() : new Date().getTime();
           return acc + (end - start);
         }, 0) / recoveredSlots.length / (60 * 1000) // em minutos
@@ -92,7 +92,7 @@ export const getCRMDashboardStats = createServerFn({ method: "GET" })
       revenueFromFollowUp: revenueFromFollowUp,
       revenueFromIA: revenueFromIA,
       ticketMedio: ticketMedio,
-      occupancyRate: 85, // Meta ou cálculo baseado em slots BEMP no futuro
+      occupancyRate: 85,
       avgTimeUntilFill: `${Math.round(avgFillTime)} min`,
       
       followupRecoveries: followups?.filter(f => f.status === 'ENCERRADO').length || 0,
