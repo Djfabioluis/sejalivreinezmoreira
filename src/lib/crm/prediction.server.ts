@@ -69,3 +69,30 @@ export const calculateReturnPrediction = createServerFn({ method: "POST" })
 
     return { averageDays, predictionDate, reminderDate };
   });
+
+/**
+ * Motor de previsão de retorno que processa todos os clientes ativos no CRM.
+ */
+export async function runReturnPredictionEngine() {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  
+  // Busca clientes que tiveram interações recentes ou estão no pipeline
+  const { data: customers } = await supabaseAdmin
+    .from("crm_customer_pipeline" as any)
+    .select("customer_id")
+    .not("customer_id", "is", null);
+
+  if (!customers) return;
+
+  // Processa em lotes para evitar sobrecarga
+  for (const customer of customers) {
+    try {
+      if (customer.customer_id) {
+        await calculateReturnPrediction({ customerId: customer.customer_id });
+      }
+    } catch (err) {
+      console.error(`[prediction-engine] Failed for customer ${customer.customer_id}:`, err);
+    }
+  }
+}
+
