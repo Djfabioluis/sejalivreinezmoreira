@@ -2648,7 +2648,6 @@ export async function runAgentWithLogging(params: {
 
     let reply = agentResult;
 
-
     // Validação determinística da promoção na resposta
     if (mandatoryPromo && !(historyData?.customer_context as any)?.mechasPromotionPresented) {
       const validatedReply = ensureMandatoryPromotionMessage(reply, {
@@ -2660,17 +2659,6 @@ export async function runAgentWithLogging(params: {
         console.log(`[chat] promotion_injected_into_response: traceId=${effectiveTraceId}, promo=${mandatoryPromo.code}`);
         reply = validatedReply;
       }
-    }
-
-    // AUDITORIA CRÍTICA DE CPF NA SAÍDA
-    if (reply.includes("CPF")) {
-      console.warn(`[AUDIT] CPF_RESPONSE_GENERATED traceId=${effectiveTraceId} file=chat.server.ts function=orchestrateChat text="${reply.slice(0, 100)}..."`);
-    }
-
-    return reply;
-  } catch (error: any) {
-        reply = validatedReply;
-      }
 
       await patchCustomerContext(conversationKey, {
         mechasPromotionPresented: true,
@@ -2678,8 +2666,6 @@ export async function runAgentWithLogging(params: {
         promotionPresentedAt: new Date().toISOString()
       });
     }
-
-
 
     if (!reply || reply.trim().length === 0) {
       await logEvent({ instance, messageId, event: "ai_empty_response", status: "failed" });
@@ -2701,6 +2687,11 @@ export async function runAgentWithLogging(params: {
     if (cpfGuard.blocked) {
       console.log(`[chat] subscription_cpf_output_blocked: traceId=${effectiveTraceId}, lookupStage=${currentCustomerContext.subscriptionLookupStage || "NONE"}, phoneAttempts=${currentCustomerContext.subscriptionPhoneAttempts || 0}`);
       reply = cpfGuard.text;
+    }
+
+    // AUDITORIA CRÍTICA DE CPF NA SAÍDA
+    if (reply.includes("CPF")) {
+      console.warn(`[AUDIT] CPF_RESPONSE_GENERATED traceId=${effectiveTraceId} file=chat.server.ts function=orchestrateChat text="${reply.slice(0, 100)}..."`);
     }
 
     await logEvent({ instance, messageId, event: "ai_request_completed", status: "success" });
