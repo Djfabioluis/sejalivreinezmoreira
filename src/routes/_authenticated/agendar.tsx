@@ -14,8 +14,12 @@ import {
   Send, 
   RefreshCcw, 
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Zap,
+  TrendingUp,
+  CheckCircle2
 } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AiSimulator } from "@/components/ai-simulator";
 import { useServerFn } from "@tanstack/react-start";
 import { 
@@ -273,23 +277,26 @@ function AgendarPage() {
   };
 
   return (
-    <div className="container mx-auto p-4 max-w-7xl h-[calc(100vh-100px)] flex flex-col gap-4">
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold tracking-tight">Secretária Virtual</h1>
-          <Badge variant="outline" className={`text-[10px] ${realtimeStatus === 'SUBSCRIBED' ? 'text-green-600 border-green-200 bg-green-50' : 'text-amber-600 border-amber-200 bg-amber-50'}`}>
-            {realtimeStatus === 'SUBSCRIBED' ? '● Tempo Real Ativo' : '○ Conectando...'}
-          </Badge>
+    <div className="flex h-[calc(100vh-140px)] gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* Esquerda: Lista de Conversas */}
+      <Card className={`w-full lg:w-[380px] flex flex-col overflow-hidden border-none shadow-xl bg-card/50 backdrop-blur-sm ${selectedPhone ? 'hidden lg:flex' : 'flex'}`}>
+        <div className="p-5 border-b space-y-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-xl font-display font-bold">Conversas</h1>
+            <Badge variant="outline" className={`text-[9px] px-2 py-0.5 rounded-full ${realtimeStatus === 'SUBSCRIBED' ? 'text-emerald-500 border-emerald-500/20 bg-emerald-500/5' : 'text-amber-500 border-amber-500/20 bg-amber-500/5'}`}>
+              {realtimeStatus === 'SUBSCRIBED' ? 'LIVE' : 'CONECTANDO'}
+            </Badge>
+          </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input 
+              placeholder="Buscar por nome ou número..." 
+              className="pl-10 h-10 bg-secondary/50 border-none focus-visible:ring-1 focus-visible:ring-primary/20" 
+              value={search} 
+              onChange={(e) => setSearch(e.target.value)} 
+            />
+          </div>
         </div>
-        <Button variant="outline" size="sm" onClick={() => loadList()}><RefreshCcw className="h-4 w-4 mr-2" /> Atualizar</Button>
-      </div>
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
-        <TabsList className="grid w-[400px] grid-cols-2">
-          <TabsTrigger value="inbox">Caixa de entrada</TabsTrigger>
-          <TabsTrigger value="simulator">Simulador da IA</TabsTrigger>
-        </TabsList>
-        <TabsContent value="inbox" className="flex-1 flex gap-4 overflow-hidden mt-4">
-          <Card className={`w-full md:w-1/3 flex flex-col overflow-hidden ${selectedPhone ? 'hidden md:flex' : 'flex'}`}>
             <div className="p-4 border-b space-y-3 bg-muted/20">
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -342,98 +349,171 @@ function AgendarPage() {
               </div>
             )}
           </Card>
-          <Card className={`flex-1 flex flex-col overflow-hidden ${!selectedPhone ? 'hidden md:flex items-center justify-center bg-muted/10' : 'flex'}`}>
-            {!selectedPhone ? (
-              <div className="text-center space-y-2 opacity-60"><MessageSquare className="h-12 w-12 mx-auto" /><p>Selecione uma conversa</p></div>
-            ) : (
-              <>
-                <div className="p-3 border-b flex items-center justify-between bg-card">
-                  <div className="flex items-center gap-3">
-                    <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setSelectedPhone(null)}><ChevronLeft className="h-5 w-5" /></Button>
-                    <div>
-                      <h3 className="text-sm font-bold">{selectedConversation?.contact_name || formatPhoneDisplay(selectedPhone)}</h3>
-                      <p className="text-[10px] text-muted-foreground">{selectedConversation?.instance}</p>
-                    </div>
-                  </div>
-                  <Select value={selectedConversation?.status} onValueChange={handleStatusChange}>
-                    <SelectTrigger className="h-8 text-xs w-[130px]"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="aberta">Aberta</SelectItem>
-                      <SelectItem value="waiting_for_unit_selection">Aguardando Unidade</SelectItem>
-                      <SelectItem value="aguardando_unidade">Escolha a unidade</SelectItem>
-                      <SelectItem value="aguardando_cliente">Aguardando Cliente</SelectItem>
-                      <SelectItem value="aguardando_humano">Triagem</SelectItem>
-                      <SelectItem value="resolvida">Resolvida</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select onValueChange={handleTransfer} disabled={transferring}>
-                    <SelectTrigger className="h-8 text-xs w-[160px]">
-                      <SelectValue placeholder="Transferir Unidade" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {agentes.map(a => (
-                        <SelectItem 
-                          key={a.unidade_id} 
-                          value={a.unidade_id} 
-                          disabled={a.unidade_id === selectedConversation?.unidade_id}
-                        >
-                          {a.nome}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+      {/* Centro: Chat */}
+      <Card className={`flex-1 flex flex-col overflow-hidden border-none shadow-xl bg-card/80 backdrop-blur-sm ${!selectedPhone ? 'hidden lg:flex items-center justify-center' : 'flex'}`}>
+        {!selectedPhone ? (
+          <div className="text-center space-y-4 opacity-40 animate-pulse">
+            <MessageSquare className="h-16 w-16 mx-auto text-primary" />
+            <p className="font-display text-lg">Selecione uma conversa para começar</p>
+          </div>
+        ) : (
+          <>
+            <div className="p-4 border-b flex items-center justify-between bg-card/50 backdrop-blur-sm">
+              <div className="flex items-center gap-4">
+                <Button variant="ghost" size="icon" className="lg:hidden" onClick={() => setSelectedPhone(null)}>
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+                <Avatar className="h-10 w-10 border-2 border-primary/20">
+                  <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
+                    {selectedConversation?.contact_name?.substring(0, 2).toUpperCase() || "WA"}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <h3 className="text-sm font-bold leading-none">{selectedConversation?.contact_name || formatPhoneDisplay(selectedPhone)}</h3>
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    {selectedConversation?.status === 'aguardando_humano' ? '🟠 Aguardando Humano' : '🟢 Atendimento IA'}
+                  </p>
                 </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Select value={selectedConversation?.status} onValueChange={handleStatusChange}>
+                  <SelectTrigger className="h-8 text-xs w-[130px] border-none bg-secondary/50 focus:ring-0">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="aberta">Aberta</SelectItem>
+                    <SelectItem value="aguardando_humano">Triagem</SelectItem>
+                    <SelectItem value="resolvida">Resolvida</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
-                {selectedConversation?.status === "waiting_for_unit_selection" && (
-                  <div className="bg-amber-50 border-b border-amber-200 p-2 flex items-center justify-between px-4">
-                    <span className="text-xs text-amber-800 font-medium">Aguardando escolha da unidade</span>
-                    <Button 
-                      size="sm" 
-                      variant="outline" 
-                      className="h-7 text-[10px] border-amber-300 hover:bg-amber-100"
-                      onClick={() => window.location.href = "/agentes-whatsapp"}
-                    >
-                      Escolher Unidade
-                    </Button>
+            <ScrollArea className="flex-1 p-6 bg-secondary/5">
+              <div className="space-y-6">
+                {loadingConv && (
+                  <div className="flex justify-center p-8 animate-spin">
+                    <RefreshCcw className="h-8 w-8 text-primary opacity-20" />
                   </div>
                 )}
-                <ScrollArea className="flex-1 p-4 bg-muted/5">
-                  <div className="space-y-4">
-                    {loadingConv && <div className="flex justify-center p-4"><RefreshCcw className="h-6 w-6 animate-spin opacity-20" /></div>}
-                    {selectedConversation?.messages.map((m: any, idx: number) => (
-                      <div key={m.id || idx} className={`flex gap-2 ${m.role === 'system' ? 'justify-center w-full' : m.role === 'user' ? 'justify-start' : 'justify-end'}`}>
-                        {m.role === 'system' ? (
-                          <div className="bg-muted px-3 py-1 rounded-full text-[10px] text-muted-foreground border italic">
-                            {extractConversationMessageText(m)}
-                          </div>
-                        ) : (
-                          <div className={`max-w-[75%] px-4 py-2 rounded-2xl text-sm ${m.role === 'user' ? 'bg-card border rounded-tl-none' : 'bg-primary text-primary-foreground rounded-tr-none'}`}>
-                            {m.metadata?.sourceType && m.metadata.sourceType !== 'text' ? (
-                              <MediaMessageBody metadata={m.metadata} />
-                            ) : (
-                              extractConversationMessageText(m)
-                            )}
-                          </div>
-                        )}
+                {selectedConversation?.messages.map((m: any, idx: number) => (
+                  <div key={m.id || idx} className={`flex ${m.role === 'system' ? 'justify-center w-full' : m.role === 'user' ? 'justify-start' : 'justify-end'}`}>
+                    {m.role === 'system' ? (
+                      <div className="bg-secondary/50 px-3 py-1 rounded-full text-[10px] text-muted-foreground border border-border/40 font-medium">
+                        {extractConversationMessageText(m)}
                       </div>
-                    ))}
-
-
-                    <div ref={bottomRef} />
+                    ) : (
+                      <div className={`max-w-[75%] px-4 py-3 rounded-2xl text-sm shadow-sm transition-all hover:shadow-md ${
+                        m.role === 'user' 
+                          ? 'bg-white text-slate-900 rounded-tl-none border border-border/40' 
+                          : 'bg-primary text-primary-foreground rounded-tr-none'
+                      }`}>
+                        {m.metadata?.sourceType && m.metadata.sourceType !== 'text' ? (
+                          <MediaMessageBody metadata={m.metadata} />
+                        ) : (
+                          extractConversationMessageText(m)
+                        )}
+                        <p className={`text-[9px] mt-1 opacity-50 ${m.role === 'user' ? 'text-right' : 'text-left'}`}>
+                          {m.timestamp ? new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                        </p>
+                      </div>
+                    )}
                   </div>
-                </ScrollArea>
-                <div className="p-4 border-t bg-card">
-                  <form onSubmit={handleSend} className="flex gap-2 items-end">
-                    <Textarea placeholder="Responda..." className="min-h-[44px] max-h-32 resize-none" value={inputText} onChange={(e) => setInputText(e.target.value)} disabled={sending} />
-                    <Button type="submit" size="icon" disabled={sending || !inputText.trim()}>{sending ? <RefreshCcw className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}</Button>
-                  </form>
+                ))}
+                <div ref={bottomRef} />
+              </div>
+            </ScrollArea>
+
+            <div className="p-5 border-t bg-card/50 backdrop-blur-sm">
+              <form onSubmit={handleSend} className="flex gap-3 items-end">
+                <Textarea 
+                  placeholder="Escreva uma mensagem..." 
+                  className="min-h-[44px] max-h-32 resize-none bg-secondary/50 border-none focus-visible:ring-1 focus-visible:ring-primary/20 rounded-xl" 
+                  value={inputText} 
+                  onChange={(e) => setInputText(e.target.value)} 
+                  disabled={sending} 
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSend();
+                    }
+                  }}
+                />
+                <Button 
+                  type="submit" 
+                  size="icon" 
+                  className="h-11 w-11 rounded-xl shadow-lg shadow-primary/20" 
+                  disabled={sending || !inputText.trim()}
+                >
+                  {sending ? <RefreshCcw className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+                </Button>
+              </form>
+            </div>
+          </>
+        )}
+      </Card>
+
+      {/* Direita: Painel Inteligente (Visível apenas se houver seleção) */}
+      {selectedConversation && (
+        <Card className="hidden xl:flex w-[320px] flex-col border-none shadow-xl bg-card/50 backdrop-blur-sm animate-in fade-in slide-in-from-right-4 duration-500 overflow-y-auto">
+          <div className="p-6 space-y-8">
+            <div className="text-center space-y-3">
+              <Avatar className="h-20 w-20 mx-auto border-4 border-primary/10 shadow-lg">
+                <AvatarFallback className="bg-primary/10 text-primary text-xl font-bold">
+                  {selectedConversation.contact_name?.substring(0, 2).toUpperCase() || "SL"}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <h3 className="text-lg font-bold">{selectedConversation.contact_name || formatPhoneDisplay(selectedPhone!)}</h3>
+                <Badge variant="secondary" className="mt-1 bg-indigo-500/10 text-indigo-600 border-indigo-500/20">Plano VIP Platinum</Badge>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                <Zap className="h-3 w-3 text-amber-500" /> Insights da Julia
+              </h4>
+              <div className="space-y-2">
+                <div className="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/10 space-y-1">
+                  <p className="text-[11px] font-bold text-emerald-600">Alta Probabilidade</p>
+                  <p className="text-[10px] text-emerald-700/80 leading-relaxed">Cliente tende a agendar nas sextas-feiras à tarde com a profissional Juliana.</p>
                 </div>
-              </>
-            )}
-          </Card>
-        </TabsContent>
-        <TabsContent value="simulator" className="flex-1 mt-4"><AiSimulator /></TabsContent>
-      </Tabs>
+                <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 space-y-1">
+                  <p className="text-[11px] font-bold text-primary">Sugestão Cross-sell</p>
+                  <p className="text-[10px] text-primary/80 leading-relaxed">Oferecer Hidratação Premium, último serviço realizado há 45 dias.</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                <TrendingUp className="h-3 w-3" /> Métricas de Valor
+              </h4>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-xl bg-secondary/50 space-y-1">
+                  <p className="text-[9px] text-muted-foreground uppercase">Receita</p>
+                  <p className="text-sm font-bold">R$ 4.280</p>
+                </div>
+                <div className="p-3 rounded-xl bg-secondary/50 space-y-1">
+                  <p className="text-[9px] text-muted-foreground uppercase">Score</p>
+                  <p className="text-sm font-bold text-emerald-500">98/100</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Últimos Serviços</h4>
+              <div className="space-y-2">
+                {['Escova Modelada', 'Manicure Express'].map(s => (
+                  <div key={s} className="flex items-center gap-2 text-[11px] text-slate-600">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-primary/40" /> {s}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Card>
+      )}
     </div>
   );
 }
