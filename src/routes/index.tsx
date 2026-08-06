@@ -115,91 +115,38 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* 
-        Execute esta instrucao no projeto: IMPLEMENTAR AI CONTROL CENTER — SEJA LIVRE AI PLATFORM
+        Execute esta instrucao no projeto: VALIDAÇÃO DO AI CONTROL CENTER — VERSÃO 1
 
 OBJETIVO
 
-Criar uma central única para acompanhar, auditar e controlar todas as ações da IA dentro da plataforma.
+Validar tecnicamente e funcionalmente a implementação das abas:
 
-O AI Control Center deve mostrar:
+- Atendimento
+- Ferramentas
+- Saúde
+- Logs
 
-- atendimentos em andamento;
-- decisões da IA;
-- ferramentas executadas;
-- memórias criadas;
-- insights sugeridos;
-- erros;
-- consumo;
-- saúde das integrações;
-- ações pendentes de aprovação.
-
-Não alterar regras atuais de atendimento.
-
-Não criar autonomia irrestrita.
-
+Não criar novas funcionalidades.
 Não publicar automaticamente.
+Não avançar para Memória, Aprendizado, Decisões ou Configurações antes desta validação.
 
 ==================================================
-1. CRIAR ROTA E MENU
+1. ROTA E MENU
 ==================================================
 
-Criar rota autenticada:
+Confirmar:
 
-/ai-control-center
-
-Adicionar item no menu principal:
-
-Central IA
-
-ou:
-
-AI Control Center
-
-A página deve ser acessível apenas a usuários autorizados.
+- rota /ai-control-center existe;
+- item Central IA aparece no menu;
+- acesso exige autenticação;
+- usuários sem permissão recebem bloqueio real no backend;
+- rota não depende apenas de ocultação visual.
 
 ==================================================
-2. VISÃO GERAL
+2. ABA ATENDIMENTO
 ==================================================
 
-Criar dashboard com cards:
-
-- Conversas atendidas hoje
-- Conversas ativas
-- Respostas enviadas
-- Tempo médio de resposta
-- Falhas da IA
-- Tools executadas
-- Memórias criadas
-- Insights pendentes
-- Follow-ups gerados
-- Campanhas sugeridas
-- Transferências para humano
-- Taxa de resolução automática
-
-Todos os dados devem vir de fontes reais.
-
-Não usar mocks em produção.
-
-==================================================
-3. ABAS PRINCIPAIS
-==================================================
-
-Criar abas:
-
-1. Atendimento
-2. Decisões
-3. Ferramentas
-4. Memória
-5. Aprendizado
-6. Saúde
-7. Logs
-8. Configurações
-
-==================================================
-4. ABA ATENDIMENTO
-==================================================
-
-Mostrar tabela com:
+Validar que mostra dados reais:
 
 - cliente;
 - conversa;
@@ -210,520 +157,260 @@ Mostrar tabela com:
 - última resposta da IA;
 - tempo de resposta;
 - status;
-- humano assumiu;
-- follow-up ativo;
-- agendamento em andamento.
+- atendimento humano;
+- follow-up;
+- agendamento.
 
-Filtros:
+Testar filtros:
 
 - unidade;
 - agente;
-- status;
 - período;
-- com erro;
-- com intervenção humana;
-- com follow-up.
-
-Ao clicar em uma linha, abrir painel lateral com:
-
-- histórico resumido;
-- contexto atual;
-- memória carregada;
-- tools utilizadas;
-- unidade efetiva;
-- estágio do funil;
-- última decisão da IA.
-
-==================================================
-5. ABA DECISÕES
-==================================================
-
-Criar registro de decisões da IA.
-
-Cada decisão deve exibir:
-
-- data e hora;
-- conversa;
-- cliente;
-- unidade;
-- tipo de decisão;
-- ação escolhida;
-- confiança;
-- evidências usadas;
-- resultado;
-- se houve intervenção humana.
-
-Tipos de decisão:
-
-- identificar intenção;
-- escolher próxima pergunta;
-- consultar BEMP;
-- transferir unidade;
-- solicitar CPF;
-- validar plano;
-- listar profissionais;
-- listar horários;
-- criar agendamento;
-- gerar follow-up;
-- encaminhar para humano;
-- cancelar automação.
-
-Não armazenar raciocínio privado do modelo.
-
-Salvar apenas resumo operacional estruturado:
-
-{
-  decisionType,
-  selectedAction,
-  confidence,
-  evidenceCodes,
-  result
-}
-
-==================================================
-6. ABA FERRAMENTAS
-==================================================
-
-Mostrar todas as tool calls executadas.
-
-Campos:
-
-- tool;
-- conversa;
-- unidade;
-- duração;
 - status;
+- com erro;
+- com atendimento humano.
+
+Confirmar que clicar em uma conversa abre os detalhes corretos.
+
+Não usar dados mockados em produção.
+
+==================================================
+3. ABA FERRAMENTAS
+==================================================
+
+Validar registros reais de tool calls.
+
+Testar pelo menos:
+
+- list_services;
+- list_professionals;
+- list_slots;
+- create_appointment;
+- transfer_conversation_unit;
+- get_customer_active_plans.
+
+Confirmar:
+
+- status;
+- duração;
+- unidade;
+- conversa;
 - código de erro;
-- tentativa;
 - data;
 - resultado resumido.
 
-Tools principais:
+Não exibir:
 
-- list_services
-- list_professionals
-- list_slots
-- create_appointment
-- reschedule_appointment
-- cancel_appointment
-- get_customer_active_plans
-- resolve_subscription_service
-- transfer_conversation_unit
-- send_followup
-- get_customer_appointments
-
-Filtros:
-
-- sucesso;
-- erro;
-- lenta;
-- integração;
-- unidade;
-- período.
-
-Não exibir payload completo sensível.
-
-Mascarar:
-
-- CPF;
-- telefone;
+- CPF completo;
+- telefone completo;
 - tokens;
-- URLs assinadas;
-- dados pessoais desnecessários.
+- API keys;
+- payloads sensíveis.
 
 ==================================================
-7. ABA MEMÓRIA
+4. ABA SAÚDE
 ==================================================
 
-Mostrar memórias de clientes.
+Validar health checks reais para:
 
-Campos:
+- IA;
+- Evolution;
+- BEMP;
+- Supabase;
+- Realtime;
+- jobs;
+- filas;
+- follow-up;
+- campanhas.
 
-- cliente;
-- tipo;
-- valor resumido;
-- origem;
-- confiança;
-- criada em;
-- atualizada em;
-- status.
+Cada integração deve mostrar:
 
-Status:
-
-CONFIRMED
-SUGGESTED
-REJECTED
-DELETED
-
-Ações administrativas:
-
-- confirmar;
-- corrigir;
-- rejeitar;
-- excluir;
-- visualizar histórico de versões.
-
-Tipos:
-
-- nome preferido;
-- serviço preferido;
-- profissional preferida;
-- unidade preferida;
-- dia preferido;
-- horário preferido;
-- plano;
-- restrição;
-- observação;
-- pendência.
-
-Não mostrar CPF completo.
-
-==================================================
-8. ABA APRENDIZADO
-==================================================
-
-Criar painel de sugestões de conhecimento.
-
-Mostrar:
-
-- título;
-- categoria;
-- evidência;
-- quantidade de ocorrências;
-- confiança;
-- impacto estimado;
-- status;
-- data.
-
-Status:
-
-PENDING
-APPROVED
-REJECTED
-PUBLISHED
-
-Ações:
-
-- aprovar;
-- editar;
-- rejeitar;
-- publicar;
-- visualizar evidências.
-
-A IA nunca deve publicar automaticamente na base global.
-
-Somente usuários autorizados podem aprovar e publicar.
-
-==================================================
-9. ABA SAÚDE
-==================================================
-
-Criar painel de saúde das integrações:
-
-- IA
-- Evolution
-- BEMP
-- Supabase
-- Realtime
-- Jobs
-- Filas
-- Storage
-- Follow-up
-- Campanhas
-
-Para cada item mostrar:
-
-- status;
+- OK;
+- DEGRADED;
+- DOWN;
 - última verificação;
 - latência;
-- erros recentes;
-- taxa de sucesso;
-- último evento;
-- tendência.
+- erro recente;
+- taxa de sucesso.
 
-Status:
-
-OK
-DEGRADED
-DOWN
-
-Adicionar histórico das últimas 24 horas e 7 dias.
+Não marcar OK apenas porque a página carregou.
 
 ==================================================
-10. ABA LOGS
+5. ABA LOGS
 ==================================================
 
-Criar visualizador de logs estruturados.
+Validar:
 
-Filtros:
+- paginação;
+- filtros server-side;
+- busca por traceId;
+- filtro por conversa;
+- filtro por unidade;
+- filtro por nível;
+- filtro por integração;
+- período.
 
-- traceId;
-- conversationKey;
-- customerId;
-- unitId;
-- agentId;
-- jobId;
-- event;
-- nível;
-- período;
-- integração.
-
-Níveis:
-
-DEBUG
-INFO
-WARNING
-ERROR
-CRITICAL
-
-Não carregar todos os logs de uma vez.
-
-Usar paginação e filtros server-side.
+Confirmar que a tela não carrega todos os logs de uma vez.
 
 ==================================================
-11. ABA CONFIGURAÇÕES
+6. TRACE COMPLETO
 ==================================================
 
-Criar configurações de governança da IA:
+Executar uma conversa real controlada.
 
-- IA ativa/inativa;
-- modelo principal;
-- timeout;
-- limite de histórico;
-- limite de tokens;
-- modo de follow-up;
-- limite de tentativas;
-- horário permitido;
-- memória automática;
-- aprovação de aprendizado;
-- fallback humano;
-- nível de logs.
+Fluxo:
 
-Não expor API keys.
+mensagem recebida
+→ webhook
+→ persistência
+→ IA
+→ tool
+→ envio
+→ resposta salva
 
-Alterações sensíveis devem:
+Confirmar que o mesmo traceId aparece em todas as etapas.
 
-- exigir permissão;
-- registrar auditoria;
-- mostrar confirmação;
-- validar no backend.
+O painel deve permitir rastrear a conversa do início ao fim.
 
 ==================================================
-12. BANCO E REUTILIZAÇÃO
+7. MASCARAMENTO
 ==================================================
 
-Antes de criar novas tabelas, verificar estruturas existentes.
+Testar dados sensíveis.
 
-Reutilizar quando possível:
+Confirmar que aparecem mascarados:
 
-- ai_response_feedback;
-- customer_ai_memory;
-- knowledge_suggestions;
-- evo_events;
-- crm_followups;
-- crm_recommendations;
-- logs existentes;
-- wa_conversas;
-- wa_agentes.
+CPF:
+***.***.***-12
 
-Criar apenas o que estiver faltando.
+Telefone:
+******9999
 
-Estruturas possíveis:
+Tokens:
+nunca exibidos
 
-ai_decision_logs
-ai_tool_execution_logs
-ai_health_checks
-ai_configuration_audit
-
-Não duplicar tabelas equivalentes.
+URLs assinadas:
+não exibidas integralmente
 
 ==================================================
-13. LOGGER E TRACE
+8. PERMISSÕES
 ==================================================
 
-Todas as ações devem usar o logger central.
+Testar três perfis:
 
-Propagar:
+Administrador:
+acesso completo.
 
-- traceId;
-- conversationKey;
-- customerId;
-- unitId;
-- agentId;
-- jobId;
-- toolName;
-- eventName.
+Gestor:
+acesso conforme unidade ou organização.
 
-Uma conversa deve poder ser rastreada do webhook até a resposta final.
-
-==================================================
-14. MÉTRICAS
-==================================================
-
-Criar consultas agregadas para o painel.
-
-Não carregar dados brutos e calcular tudo no frontend.
-
-Métricas:
-
-- respostas por hora;
-- tempo médio;
-- taxa de erro;
-- tools por conversa;
-- falhas por integração;
-- conversões;
-- handoffs;
-- follow-ups;
-- memórias;
-- insights;
-- consumo por modelo;
-- custo estimado, quando houver dados confiáveis.
-
-Diferenciar custo estimado de custo real.
-
-==================================================
-15. ALERTAS
-==================================================
-
-Criar alertas internos para:
-
-- IA sem responder;
-- Evolution desconectada;
-- BEMP indisponível;
-- taxa de erro alta;
-- tempo médio acima do limite;
-- jobs presos;
-- fila acumulada;
-- follow-up falhando;
-- campanha falhando;
-- excesso de handoffs;
-- tool com falha recorrente.
-
-Não criar notificações externas nesta primeira etapa.
-
-Mostrar os alertas no painel.
-
-==================================================
-16. PERMISSÕES
-==================================================
-
-Criar ou reutilizar permissões:
-
-ai_control_view
-ai_logs_view
-ai_memory_manage
-ai_learning_approve
-ai_settings_manage
-ai_health_view
+Usuário comum:
+sem acesso a logs técnicos e configurações sensíveis.
 
 Validar no backend.
 
-Ocultar botões no frontend não é suficiente.
-
 ==================================================
-17. PERFORMANCE
+9. PERFORMANCE
 ==================================================
 
-A página deve usar:
+Medir:
 
-- lazy loading;
-- paginação;
-- filtros server-side;
-- queries agregadas;
-- tabs carregadas sob demanda;
-- virtualização para logs extensos;
-- cache apropriado;
-- sem subscriptions duplicadas.
+- tempo para abrir a Central IA;
+- requests iniciais;
+- tamanho dos dados;
+- tempo de troca entre abas;
+- uso de memória;
+- tempo de aplicação dos filtros.
 
-Não carregar todas as abas ao abrir.
+Confirmar que:
 
-==================================================
-18. UX
-==================================================
-
-Criar interface moderna e profissional.
-
-Usar:
-
-- cards;
-- tabelas;
-- filtros;
-- drawers;
-- badges;
-- gráficos;
-- estados vazios;
-- skeleton;
-- toasts;
-- tema claro e escuro;
-- responsividade.
-
-Cores de saúde:
-
-OK → verde
-DEGRADED → amarelo
-DOWN → vermelho
-
-Não exagerar em animações.
+- abas são carregadas sob demanda;
+- gráficos não carregam em abas ocultas;
+- logs usam paginação;
+- não existem subscriptions duplicadas.
 
 ==================================================
-19. TESTES
+10. ERROS
 ==================================================
 
-Criar testes para:
+Simular:
 
-- acesso autorizado;
-- acesso negado;
-- métricas carregadas;
-- filtro por unidade;
-- decisão exibida;
-- tool com erro;
-- memória confirmada;
-- memória rejeitada;
-- insight aprovado;
-- insight publicado;
-- health check degradado;
-- log pesquisado por traceId;
-- alteração de configuração;
-- auditoria da configuração;
-- paginação;
-- dados sensíveis mascarados.
+- Evolution desconectada;
+- BEMP indisponível;
+- IA com timeout;
+- job com falha;
+- tool com erro.
+
+Confirmar que:
+
+- Saúde muda corretamente;
+- log é registrado;
+- erro aparece no painel;
+- sistema não mostra sucesso falso;
+- dados antigos não são apresentados como atuais.
 
 ==================================================
-20. ENTREGA
+11. BUILD E TESTES
 ==================================================
 
-Ao concluir informar:
+Executar:
 
-1. rota criada;
-2. menu criado;
-3. páginas e componentes;
-4. tabelas reutilizadas;
-5. migrations criadas;
-6. métricas implementadas;
-7. permissões;
-8. logs;
-9. health checks;
-10. alertas;
-11. arquivos alterados;
-12. build;
-13. typecheck;
-14. lint;
-15. testes.
+build
+typecheck
+lint
+test
+
+Mostrar:
+
+- comando;
+- resultado;
+- duração;
+- erros;
+- warnings;
+- testes não executados.
+
+==================================================
+12. RELATÓRIO
+==================================================
+
+Criar:
+
+docs/ai-control-center-v1-validation.md
+
+Incluir:
+
+1. visão geral;
+2. arquivos alterados;
+3. fontes de dados;
+4. permissões;
+5. mascaramento;
+6. health checks;
+7. tracing;
+8. performance;
+9. testes;
+10. erros encontrados;
+11. pendências;
+12. riscos;
+13. recomendação para a versão 2.
+
+==================================================
+13. CRITÉRIO DE APROVAÇÃO
+==================================================
+
+A versão 1 só pode ser aprovada quando:
+
+- dados são reais;
+- traceId funciona;
+- permissões funcionam no backend;
+- informações sensíveis estão mascaradas;
+- health checks representam o estado real;
+- logs são pesquisáveis;
+- filtros funcionam;
+- não existem mocks em produção;
+- build, typecheck, lint e testes passam.
 
 Não publicar automaticamente.
-
-CRITÉRIO DE CONCLUSÃO
-
-O AI Control Center só estará concluído quando for possível:
-
-- acompanhar conversas;
-- visualizar decisões;
-- inspecionar tools;
-- revisar memórias;
-- aprovar aprendizados;
-- acompanhar saúde;
-- pesquisar logs;
-- alterar configurações autorizadas.
+Não iniciar a versão 2 se houver falha crítica.
       */}
       <div className="bg-green-600 text-white p-2 text-center text-xs font-medium">
         Sistema otimizado: cache de permissões e credenciais ativado para maior velocidade.
