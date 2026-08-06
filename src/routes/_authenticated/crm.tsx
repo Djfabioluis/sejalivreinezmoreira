@@ -78,57 +78,64 @@ function CRMPage() {
 
       {/* Dashboard Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {/* Bloco 1: Operacional Principal */}
         <StatCard title="Taxa de Conversão" value={`${stats.conversionRate.toFixed(1)}%`} description="Lead -> Atendimento" color="text-blue-600" />
         <StatCard title="Agendamentos Concluídos" value={stats.concludedAppointments} description="Total de conversões" color="text-green-600" />
         <StatCard title="Agendamentos Iniciados" value={stats.startedAppointments} description="Interações totais" />
         <StatCard title="Agendamentos Abandonados" value={stats.abandonedAppointments} description="Pararam no fluxo" color="text-red-600" />
 
-        <StatCard title="Recuperações Follow-up" value={stats.followupRecoveries} description="Convertidos pós-retorno" color="text-purple-600" />
-        <StatCard title="Horários Recuperados" value={stats.recoveredSlots} description="Slots de cancelamento reocupados" />
-        <StatCard title="Receita Recuperada" value={`R$ ${stats.estimatedRevenueRecovered}`} description="Estimativa baseada em conversões" color="text-emerald-600" />
-        <StatCard title="Tempo Médio IA" value={stats.avgResponseTime} description="Velocidade de resposta Julia" />
+        {/* Bloco 2: Dashboard Financeiro (NOVO) */}
+        <StatCard title="Receita Recuperada" value={`R$ ${stats.estimatedRevenueRecovered}`} description="Total Julia + Follow-up" color="text-emerald-600" />
+        <StatCard title="Receita Perdida" value={`R$ ${stats.lostRevenue}`} description="Estimativa de cancelamentos" color="text-rose-600" />
+        <StatCard title="Receita Follow-up" value={`R$ ${stats.revenueFromFollowUp}`} description="Recuperado via retorno" />
+        <StatCard title="Receita IA Julia" value={`R$ ${stats.revenueFromIA}`} description="Recuperado via Revenue Engine" color="text-purple-600" />
 
+        <StatCard title="Ticket Médio" value={`R$ ${stats.ticketMedio.toFixed(0)}`} description="Média por atendimento" />
+        <StatCard title="Taxa de Ocupação" value={`${stats.occupancyRate}%`} description="Capacidade da agenda" color="text-blue-500" />
+        <StatCard title="Tempo Recuperação" value={stats.avgTimeUntilFill} description="Média para preencher cancelamento" />
+        <StatCard title="Horários Recuperados" value={stats.recoveredSlotsCount} description="Slots de cancelamento reocupados" color="text-emerald-500" />
+
+        {/* Bloco 3: Saúde da Base */}
         <StatCard title="Clientes VIP" value={stats.vipCustomers} description="Score acima de 90%" color="text-indigo-600" />
         <StatCard title="Clientes Inativos" value={stats.inactiveCustomers} description="Sem contato há 60 dias+" />
         <StatCard title="Clientes em Risco" value={stats.atRiskCustomers} description="Baixo score + Abandono" color="text-orange-600" />
-        <StatCard title="Tempo Conclusão" value={stats.avgCompletionTime} description="Média do primeiro oi ao agendado" />
-
         <StatCard title="Planos Ativos" value={stats.activePlans} description="Assinaturas vigentes" />
-        <StatCard title="Benefícios Disponíveis" value={stats.unusedBenefits} description="Itens de plano não utilizados" color="text-pink-600" />
+
+        {/* Bloco 4: Breakdown Financeiro por Unidade/Profissional */}
         <Card>
           <CardHeader className="p-4 pb-0">
-            <CardTitle className="text-sm font-medium">Conversões por Unidade</CardTitle>
+            <CardTitle className="text-sm font-medium">Receita por Unidade</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-2">
             <div className="text-xs space-y-1">
-              {Object.entries(stats.conversionsByUnit).length > 0 ? (
-                Object.entries(stats.conversionsByUnit).map(([unit, count]) => (
+              {Object.entries(stats.revenueByUnit).length > 0 ? (
+                Object.entries(stats.revenueByUnit).map(([unit, revenue]) => (
                   <div key={unit} className="flex justify-between">
                     <span className="truncate mr-2">{unit}</span>
-                    <span className="font-bold">{String(count)}</span>
+                    <span className="font-bold text-emerald-600">R$ {String(revenue)}</span>
                   </div>
                 ))
               ) : (
-                <p className="text-muted-foreground italic text-[10px]">Sem dados</p>
+                <p className="text-muted-foreground italic text-[10px]">Sem dados financeiros</p>
               )}
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="p-4 pb-0">
-            <CardTitle className="text-sm font-medium">Conversões por Profissional</CardTitle>
+            <CardTitle className="text-sm font-medium">Receita por Profissional</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-2">
             <div className="text-xs space-y-1">
-              {Object.entries(stats.conversionsByProfessional).length > 0 ? (
-                Object.entries(stats.conversionsByProfessional).map(([prof, count]) => (
+              {Object.entries(stats.revenueByProfessional).length > 0 ? (
+                Object.entries(stats.revenueByProfessional).map(([prof, revenue]) => (
                   <div key={prof} className="flex justify-between">
                     <span className="truncate mr-2">{prof}</span>
-                    <span className="font-bold">{String(count)}</span>
+                    <span className="font-bold text-emerald-600">R$ {String(revenue)}</span>
                   </div>
                 ))
               ) : (
-                <p className="text-muted-foreground italic text-[10px]">Sem dados</p>
+                <p className="text-muted-foreground italic text-[10px]">Sem dados financeiros</p>
               )}
             </div>
           </CardContent>
