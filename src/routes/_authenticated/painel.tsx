@@ -538,6 +538,33 @@ function Dashboard() {
         </Card>
       </div>
 
+      <div className="grid gap-6 md:grid-cols-3 lg:grid-cols-3 mb-12">
+        <Card className="border-none shadow-lg bg-emerald-500/5 border-l-4 border-l-emerald-500">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-bold uppercase tracking-widest text-emerald-600">Ações sugeridas pela IA</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm font-medium">Julia AI identificou 4 clientes VIP com alto risco de churn. Recomenda-se envio de campanha Beauty Club.</p>
+          </CardContent>
+        </Card>
+        <Card className="border-none shadow-lg bg-primary/5 border-l-4 border-l-primary">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-bold uppercase tracking-widest text-primary">Insight da Operação</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm font-medium">Taxa de ocupação nas quintas-feiras à tarde está 15% abaixo da média. Sugerimos cross-sell de Hidratação.</p>
+          </CardContent>
+        </Card>
+        <Card className="border-none shadow-lg bg-amber-500/5 border-l-4 border-l-amber-500">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-bold uppercase tracking-widest text-amber-600">Oportunidade</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm font-medium">Há 6 slots livres amanhã. Julia AI pode iniciar campanha de reativação para preenchimento imediato.</p>
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="space-y-6">
         {evoError && (
           <Alert variant="destructive" className="mb-6">
