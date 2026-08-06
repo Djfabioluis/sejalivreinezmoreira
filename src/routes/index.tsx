@@ -115,265 +115,415 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* 
-        Execute esta instrucao no projeto: GERAR RELATÓRIO OBRIGATÓRIO DA OTIMIZAÇÃO DA SECRETÁRIA VIRTUAL
-
-CONTEXTO
-
-A tarefa de otimização da Secretária Virtual foi executada, mas o relatório técnico não foi entregue.
-
-Não realizar novas alterações nesta etapa.
-
-Não publicar automaticamente.
+        Execute esta instrucao no projeto: AUDITORIA COMPLETA DE PERFORMANCE — SEJA LIVRE AI PLATFORM
 
 OBJETIVO
 
-Inspecionar o estado atual do código e gerar um relatório completo, com evidências reais do que foi alterado.
+Executar uma auditoria completa de performance da aplicação.
+
+Não criar novas funcionalidades.
+
+Não alterar regras de negócio.
+
+Não publicar automaticamente.
+
+Apenas medir, localizar gargalos, classificar problemas e gerar um plano de otimização baseado em evidências.
 
 ==================================================
-1. LISTAR ARQUIVOS ALTERADOS
+FASE 1 — FRONTEND
 ==================================================
 
-Informar todos os arquivos modificados na tarefa de performance.
+Analisar todas as páginas.
 
-Para cada arquivo, explicar:
+Para cada página informar:
 
-- problema anterior;
-- alteração realizada;
-- impacto esperado;
-- risco de regressão.
+- tempo de carregamento;
+- tamanho do bundle;
+- quantidade de componentes;
+- quantidade de renders;
+- quantidade de hooks;
+- quantidade de requests;
+- quantidade de queries;
+- tempo médio até interação.
 
-Não usar descrições genéricas.
+Classificar:
+
+CRÍTICO
+ALTO
+MÉDIO
+BAIXO
 
 ==================================================
-2. COMPARAR QUERIES
+FASE 2 — COMPONENTES
 ==================================================
+
+Localizar componentes:
+
+- maiores que 500 linhas;
+- com muitos estados;
+- com muitos useEffect;
+- muitos useMemo;
+- muitos useCallback;
+- muitas props;
+- renders excessivos.
 
 Informar:
 
-- quantidade aproximada de queries ao abrir a Secretária Virtual antes;
-- quantidade atual;
-- quais queries foram removidas;
-- quais foram consolidadas;
-- quais continuam sendo executadas;
-- se ainda existe SELECT *.
+arquivo
 
-Mostrar os arquivos e funções responsáveis.
+linhas
 
-==================================================
-3. REALTIME
-==================================================
+complexidade
 
-Informar:
-
-- quantas subscriptions existiam;
-- quantas existem agora;
-- filtros utilizados;
-- onde ocorre unsubscribe;
-- como uma nova mensagem atualiza somente a conversa afetada;
-- se ainda existe refetch completo da caixa de entrada.
-
-Mostrar os componentes ou hooks envolvidos.
+risco
 
 ==================================================
-4. PAGINAÇÃO
+FASE 3 — REACT QUERY
 ==================================================
 
-Confirmar se foi implementada paginação real.
-
-Informar:
-
-- tamanho da página;
-- método utilizado;
-- cursor ou offset;
-- query Supabase;
-- comportamento ao carregar mais;
-- como duplicidades são evitadas.
-
-Se não foi implementada, declarar claramente:
-
-“Paginação ainda não implementada.”
-
-==================================================
-5. HISTÓRICO DE MENSAGENS
-==================================================
-
-Confirmar:
-
-- quantidade inicial de mensagens carregadas;
-- método para carregar mensagens anteriores;
-- ordenação;
-- deduplicação;
-- comportamento em conversas longas;
-- se existe virtualização.
-
-Se não existir virtualização, declarar isso claramente.
-
-==================================================
-6. RENDERIZAÇÕES
-==================================================
-
-Informar quais componentes foram analisados.
+Inventariar todas as queries.
 
 Mostrar:
 
-- componentes memoizados;
-- hooks corrigidos;
-- dependências de useEffect ajustadas;
-- listeners recriados anteriormente;
-- renders desnecessários eliminados.
+query key
 
-Não afirmar ganho sem evidência.
+staleTime
 
-==================================================
-7. REACT QUERY
-==================================================
+cacheTime
 
-Informar:
+refetch
 
-- query keys utilizadas;
-- staleTime;
-- refetchOnWindowFocus;
-- invalidações;
-- atualizações otimistas;
-- queries duplicadas removidas.
+invalidate
+
+requests duplicadas
+
+queries sem cache
+
+queries pesadas
 
 ==================================================
-8. BANCO
+FASE 4 — REALTIME
 ==================================================
 
-Listar:
+Analisar:
 
-- índices usados pela Secretária Virtual;
-- índices criados;
-- índices ainda recomendados;
-- queries críticas;
-- resultado de EXPLAIN ANALYZE, se disponível.
+subscriptions
 
-Se EXPLAIN ANALYZE não foi executado, informar isso.
+listeners
 
-==================================================
-9. MÉTRICAS ANTES E DEPOIS
-==================================================
+unsubscribe
 
-Medir agora:
+duplicidade
 
-- tempo de abertura da página;
-- tempo para listar conversas;
-- tempo para abrir uma conversa;
-- quantidade de requests;
-- tamanho dos dados transferidos;
-- uso aproximado de memória;
-- tempo para uma mensagem nova aparecer.
+re-render
 
-Se não existirem medições anteriores, não inventar números.
+refetch global
 
-Nesse caso, apresentar:
+atualização parcial
 
-“Não há baseline anterior disponível.”
+Detectar:
 
-E criar uma medição atual como referência.
+subscriptions duplicadas
+
+listeners esquecidos
+
+memory leak
 
 ==================================================
-10. BUILD E TESTES
+FASE 5 — BANCO
 ==================================================
+
+Localizar:
+
+SELECT *
+
+queries grandes
+
+N+1
+
+joins
+
+views
+
+RPC
+
+triggers
+
+EXPLAIN ANALYZE
+
+índices ausentes
+
+índices duplicados
+
+==================================================
+FASE 6 — SUPABASE
+==================================================
+
+Analisar:
+
+Auth
+
+Storage
+
+Realtime
+
+RPC
+
+Policies
+
+Edge Functions
+
+==================================================
+FASE 7 — EVOLUTION
+==================================================
+
+Medir:
+
+tempo médio
+
+timeout
+
+retry
+
+duplicidade
+
+webhook
+
+fila
+
+==================================================
+FASE 8 — BEMP
+==================================================
+
+Medir:
+
+tempo médio
+
+consultas
+
+cache
+
+timeout
+
+retry
+
+==================================================
+FASE 9 — IA
+==================================================
+
+Medir:
+
+tempo médio
+
+tokens
+
+histórico
+
+contexto
+
+tamanho do prompt
+
+tool calls
+
+timeout
+
+==================================================
+FASE 10 — MEMÓRIA
+==================================================
+
+Analisar:
+
+objetos grandes
+
+arrays
+
+listas
+
+context
+
+stores
+
+cache
+
+memory leak
+
+==================================================
+FASE 11 — BUNDLE
+==================================================
+
+Gerar Bundle Analyzer.
+
+Mostrar:
+
+20 maiores dependências
+
+20 maiores páginas
+
+20 maiores componentes
+
+==================================================
+FASE 12 — DEPENDÊNCIAS
+==================================================
+
+Localizar:
+
+dependências não utilizadas
+
+duplicadas
+
+pesadas
+
+abandonadas
+
+==================================================
+FASE 13 — LOGS
+==================================================
+
+Localizar:
+
+console.log
+
+console.error
+
+debug
+
+logs temporários
+
+==================================================
+FASE 14 — SEGURANÇA
+==================================================
+
+Verificar:
+
+segredos no frontend
+
+variáveis públicas
+
+tokens
+
+==================================================
+FASE 15 — UX
+==================================================
+
+Detectar:
+
+loading infinito
+
+spinner desnecessário
+
+bloqueios
+
+telas pesadas
+
+scroll ruim
+
+==================================================
+FASE 16 — SCORE
+==================================================
+
+Dar nota:
+
+Frontend
+
+Backend
+
+Banco
+
+Realtime
+
+IA
+
+Evolution
+
+BEMP
+
+UX
+
+Performance
+
+Escalabilidade
+
+==================================================
+FASE 17 — TOP 50 GARGALOS
+==================================================
+
+Gerar ranking.
+
+Para cada gargalo informar:
+
+local
+
+impacto
+
+gravidade
+
+tempo estimado para correção
+
+ganho esperado
+
+==================================================
+FASE 18 — ROADMAP
+==================================================
+
+Criar plano dividido em:
+
+Sprint Performance 1
+
+Sprint Performance 2
+
+Sprint Performance 3
+
+Sprint Performance 4
+
+Ordenar pelo maior impacto com menor esforço.
+
+==================================================
+ENTREGA
+==================================================
+
+Gerar:
+
+docs/performance-audit.md
+
+Incluir:
+
+Resumo executivo
+
+Mapa da aplicação
+
+Mapa das consultas
+
+Mapa das subscriptions
+
+Mapa do bundle
+
+Mapa do banco
+
+Top 50 gargalos
+
+Notas
+
+Plano de otimização
+
+Nenhuma otimização deve ser aplicada nesta etapa.
+
+Somente medir, documentar e classificar.
 
 Executar:
 
 build
+
 typecheck
+
 lint
-test
 
-Mostrar:
+Ao finalizar, informar:
 
-- comando;
-- resultado;
-- duração;
-- erros;
-- warnings;
-- testes não executados.
-
-Não escrever apenas “OK”.
-
-==================================================
-11. TESTE FUNCIONAL
-==================================================
-
-Validar:
-
-- abrir a Secretária Virtual;
-- carregar lista;
-- abrir conversa;
-- carregar mensagens anteriores;
-- receber nova mensagem;
-- atualizar não lidas;
-- trocar de conversa;
-- enviar mensagem manual;
-- manter Realtime;
-- fechar e reabrir a página.
-
-Informar resultados por cenário.
-
-==================================================
-12. ITENS NÃO IMPLEMENTADOS
-==================================================
-
-Criar uma seção obrigatória:
-
-PENDÊNCIAS
-
-Listar tudo o que foi solicitado e ainda não foi feito.
-
-Exemplos:
-
-- virtualização ausente;
-- paginação incompleta;
-- refetch global ainda existente;
-- índices não criados;
-- métricas sem baseline;
-- teste de carga não executado.
-
-Não omitir pendências.
-
-==================================================
-13. GERAR DOCUMENTO
-==================================================
-
-Criar:
-
-docs/performance-secretaria-virtual.md
-
-Estrutura:
-
-1. Resumo executivo
-2. Arquivos alterados
-3. Arquitetura antes/depois
-4. Queries
-5. Realtime
-6. Paginação
-7. Histórico
-8. Renderizações
-9. Banco
-10. Métricas
-11. Testes
-12. Riscos
-13. Pendências
-14. Próximos passos
-
-==================================================
-14. RESPOSTA FINAL
-==================================================
-
-Na resposta, incluir:
-
-- caminho do relatório;
-- resumo das melhorias;
-- números medidos;
-- itens pendentes;
-- resultado dos testes;
-- confirmação de que nenhuma nova alteração foi feita.
-
-Não declarar concluído se não houver evidências.
+- arquivos analisados;
+- principais gargalos;
+- métricas coletadas;
+- score final da plataforma;
+- prioridade da primeira correção.
       */}
       <div className="bg-green-600 text-white p-2 text-center text-xs font-medium">
         Sistema otimizado: cache de permissões e credenciais ativado para maior velocidade.
