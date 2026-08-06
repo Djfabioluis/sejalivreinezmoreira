@@ -23,6 +23,13 @@ export async function updateCustomerPipeline(params: {
   nextActionAt?: string;
   abandonmentReason?: string;
 }) {
+  // Get current stage for comparison before update
+  const { data: current } = await supabaseAdmin
+    .from("crm_customer_pipeline")
+    .select("current_stage")
+    .eq("phone", params.phone)
+    .maybeSingle();
+
   const { error } = await supabaseAdmin.rpc("update_customer_pipeline" as any, {
     p_phone: params.phone,
     p_conversation_id: params.conversationId || null,
@@ -35,6 +42,16 @@ export async function updateCustomerPipeline(params: {
 
   if (error) {
     console.error("[crm] updateCustomerPipeline failed:", error.message);
+  } else {
+    // Handle followup scheduling on stage change
+    if (current?.current_stage !== params.stage) {
+      try {
+        const { handleCrmStageChange } = await import("./crm/followup.server");
+        await handleCrmStageChange(params.phone, (current?.current_stage || 'NOVO_CONTATO') as PipelineStage, params.stage);
+      } catch (e) {
+        console.error("[crm] handleCrmStageChange failed:", e);
+      }
+    }
   }
 }
 
