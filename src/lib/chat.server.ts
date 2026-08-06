@@ -2111,6 +2111,16 @@ export async function loadSystemPrompt(params: {
 
 export function detectServiceCategory(message: string): { category: ServiceCategory; confidence: number } | null {
   const normalized = normalizeServiceSearchText(message);
+  const mechasKeywords = [
+    "mecha", "mechas", "pacote mechas", "pacote de mechas", 
+    "luzes", "balayage", "morena iluminada", "retoque de mechas", 
+    "reflexo", "iluminação"
+  ];
+
+  if (mechasKeywords.some(kw => normalized.includes(normalizeServiceSearchText(kw)))) {
+    return { category: "MECHAS", confidence: 1 };
+  }
+
   for (const [category, aliases] of Object.entries(SERVICE_CATEGORY_ALIASES)) {
     if (aliases.some(alias => normalized.includes(normalizeServiceSearchText(alias)))) {
       return { category: category as ServiceCategory, confidence: 1 };
