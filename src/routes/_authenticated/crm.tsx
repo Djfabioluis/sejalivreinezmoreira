@@ -454,8 +454,6 @@ function CRMPage() {
           </ScrollArea>
         </div>
       </div>
-        </div>
-      </div>
       
       {customers.length === 0 && (
         <div className="text-center py-20 opacity-50">
