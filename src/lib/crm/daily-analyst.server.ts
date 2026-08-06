@@ -26,7 +26,7 @@ export async function runDailyAnalysis() {
       total_customers: pipeline?.length || 0,
       conversions: pipeline?.filter((c: any) => c.current_stage === 'CONVERTIDO' || c.current_stage === 'AGENDADO').length || 0,
       abandonments: pipeline?.filter((c: any) => c.current_stage === 'ABANDONADO').length || 0,
-      financials: logs.map((l: any) => ({ amount: l.amount, source: l.source, unit: l.unit_name })),
+      financials: (financialLogs || []).map((l: any) => ({ amount: l.amount, source: l.source, unit: l.unit_name })),
       slots: slots?.map((s: any) => ({ status: s.status, start: s.start_at, unit: s.unidade_id }))
     };
 
