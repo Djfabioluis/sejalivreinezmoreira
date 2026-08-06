@@ -2610,8 +2610,7 @@ export async function runAgentWithLogging(params: {
     let activePromotions: any[] = [];
 
     if (intent?.category === "MECHAS" || params.text.toLowerCase().includes("mecha")) {
-      logger.info("MECHAS_INTENT_DETECTED", `Intenção de mechas detectada [${effectiveTraceId}]`, { 
-        traceId: effectiveTraceId, 
+      logger.info("MECHAS_INTENT_DETECTED", `Intenção de mechas detectada`, { 
         textSnippet: params.text.slice(0, 50) 
       });
       
@@ -2626,14 +2625,12 @@ export async function runAgentWithLogging(params: {
         const mechasPromo = activePromotions.find(p => p.code === 'PACOTE_MECHAS_MENSAL');
         if (mechasPromo) {
           mandatoryPromo = mechasPromo;
-          logger.info("PROMOTION_SELECTED", `Promoção de mechas selecionada [${effectiveTraceId}]`, { 
-            traceId: effectiveTraceId, 
+          logger.info("PROMOTION_SELECTED", `Promoção de mechas selecionada`, { 
             promo: mechasPromo.code 
           });
         }
       } else {
-        logger.error("PROMOTION_LOOKUP_FAILED", `Falha ao buscar promoções [${effectiveTraceId}]`, { 
-          traceId: effectiveTraceId, 
+        logger.error("PROMOTION_LOOKUP_FAILED", `Falha ao buscar promoções`, { 
           code: promoResult.code 
         });
       }
@@ -2669,7 +2666,7 @@ export async function runAgentWithLogging(params: {
       });
       
       if (validatedReply !== reply) {
-        console.log(`[chat] promotion_injected_into_response: traceId=${effectiveTraceId}, promo=${mandatoryPromo.code}`);
+        logger.info("PROMOTION_INJECTED", `Promoção injetada na resposta final`, { promo: mandatoryPromo.code });
         reply = validatedReply;
       }
 
