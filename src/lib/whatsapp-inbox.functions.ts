@@ -102,7 +102,8 @@ export const markAsRead = createServerFn({ method: "POST" })
 export const updateConversationStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ phone: z.string(), status: z.string() }))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    await assertPermission(context, "painel");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("wa_conversas" as never)
