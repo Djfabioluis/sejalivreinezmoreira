@@ -115,400 +115,615 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* 
-        Execute esta instrucao no projeto: PROJETO
-
-Seja Livre AI Platform
-
-SPRINT PERFORMANCE 1.3
+        Execute esta instrucao no projeto: IMPLEMENTAR AI CONTROL CENTER — SEJA LIVRE AI PLATFORM
 
 OBJETIVO
 
-Transformar a Secretária Virtual em um módulo altamente performático, escalável e preparado para milhares de conversas simultâneas.
+Criar uma central única para acompanhar, auditar e controlar todas as ações da IA dentro da plataforma.
 
-Não alterar regras de negócio.
+O AI Control Center deve mostrar:
 
-Não alterar comportamento funcional.
+- atendimentos em andamento;
+- decisões da IA;
+- ferramentas executadas;
+- memórias criadas;
+- insights sugeridos;
+- erros;
+- consumo;
+- saúde das integrações;
+- ações pendentes de aprovação.
 
-Não remover funcionalidades.
+Não alterar regras atuais de atendimento.
+
+Não criar autonomia irrestrita.
 
 Não publicar automaticamente.
 
 ==================================================
-FASE 1 — ARQUITETURA
+1. CRIAR ROTA E MENU
 ==================================================
 
-Antes de alterar o código:
+Criar rota autenticada:
 
-Mapear completamente a arquitetura atual da Secretária Virtual.
+/ai-control-center
 
-Identificar:
+Adicionar item no menu principal:
 
-- componentes
-- hooks
-- contextos
-- React Query
-- Realtime
-- queries
-- estados
-- providers
+Central IA
 
-Gerar um diagrama da estrutura atual.
+ou:
+
+AI Control Center
+
+A página deve ser acessível apenas a usuários autorizados.
 
 ==================================================
-FASE 2 — DIVISÃO EM MÓDULOS
+2. VISÃO GERAL
 ==================================================
 
-Dividir a Secretária Virtual em módulos independentes.
+Criar dashboard com cards:
 
-Criar, quando necessário:
+- Conversas atendidas hoje
+- Conversas ativas
+- Respostas enviadas
+- Tempo médio de resposta
+- Falhas da IA
+- Tools executadas
+- Memórias criadas
+- Insights pendentes
+- Follow-ups gerados
+- Campanhas sugeridas
+- Transferências para humano
+- Taxa de resolução automática
 
-ConversationList
+Todos os dados devem vir de fontes reais.
 
-ConversationListItem
-
-ConversationFilters
-
-ConversationSearch
-
-ConversationHeader
-
-ConversationTimeline
-
-MessageList
-
-MessageItem
-
-MessageComposer
-
-MediaViewer
-
-CustomerSidebar
-
-CustomerSummary
-
-CRMPanel
-
-AppointmentPanel
-
-FollowupPanel
-
-AISuggestionsPanel
-
-ConversationRealtime
-
-ConversationStore
-
-Cada módulo deve possuir responsabilidade única.
+Não usar mocks em produção.
 
 ==================================================
-FASE 3 — ESTADO
+3. ABAS PRINCIPAIS
 ==================================================
 
-Separar completamente os estados.
+Criar abas:
 
-Não permitir um único estado controlar toda a tela.
-
-Separar:
-
-Lista de conversas
-
-↓
-
-Conversa ativa
-
-↓
-
-Mensagens
-
-↓
-
-CRM
-
-↓
-
-IA
-
-↓
-
-Sidebar
-
-↓
-
-Follow-up
-
-↓
-
-Agendamento
-
-Uma atualização em mensagens não pode renderizar CRM, Dashboard ou Sidebar.
+1. Atendimento
+2. Decisões
+3. Ferramentas
+4. Memória
+5. Aprendizado
+6. Saúde
+7. Logs
+8. Configurações
 
 ==================================================
-FASE 4 — CONVERSAS
+4. ABA ATENDIMENTO
 ==================================================
 
-Implementar:
+Mostrar tabela com:
 
-scroll infinito
+- cliente;
+- conversa;
+- unidade;
+- agente;
+- estágio;
+- última mensagem;
+- última resposta da IA;
+- tempo de resposta;
+- status;
+- humano assumiu;
+- follow-up ativo;
+- agendamento em andamento.
 
-paginação
+Filtros:
 
-virtualização
+- unidade;
+- agente;
+- status;
+- período;
+- com erro;
+- com intervenção humana;
+- com follow-up.
 
-cache
+Ao clicar em uma linha, abrir painel lateral com:
 
-ordenação incremental
-
-Ao abrir:
-
-carregar apenas:
-
-30 conversas
-
-Ao chegar nova conversa:
-
-inserir somente ela.
-
-Nunca recarregar toda a lista.
-
-==================================================
-FASE 5 — HISTÓRICO
-==================================================
-
-Carregar inicialmente:
-
-50 mensagens.
-
-Mensagens antigas:
-
-somente sob demanda.
-
-Criar:
-
-Load Older Messages
-
-Virtualizar mensagens.
-
-Conversas com milhares de mensagens devem continuar fluidas.
+- histórico resumido;
+- contexto atual;
+- memória carregada;
+- tools utilizadas;
+- unidade efetiva;
+- estágio do funil;
+- última decisão da IA.
 
 ==================================================
-FASE 6 — REALTIME
+5. ABA DECISÕES
 ==================================================
 
-Criar um único gerenciador.
+Criar registro de decisões da IA.
 
-ConversationRealtimeManager
+Cada decisão deve exibir:
 
-Ele deve:
+- data e hora;
+- conversa;
+- cliente;
+- unidade;
+- tipo de decisão;
+- ação escolhida;
+- confiança;
+- evidências usadas;
+- resultado;
+- se houve intervenção humana.
 
-abrir apenas uma subscription
+Tipos de decisão:
 
-filtrar por unidade
+- identificar intenção;
+- escolher próxima pergunta;
+- consultar BEMP;
+- transferir unidade;
+- solicitar CPF;
+- validar plano;
+- listar profissionais;
+- listar horários;
+- criar agendamento;
+- gerar follow-up;
+- encaminhar para humano;
+- cancelar automação.
 
-filtrar por organização
+Não armazenar raciocínio privado do modelo.
 
-atualizar apenas:
+Salvar apenas resumo operacional estruturado:
 
-última mensagem
-
-contador
-
-status
-
-Não permitir refetch completo.
-
-==================================================
-FASE 7 — REACT QUERY
-==================================================
-
-Separar queries.
-
-ConversationsQuery
-
-MessagesQuery
-
-CustomerQuery
-
-CRMQuery
-
-AppointmentQuery
-
-AISummaryQuery
-
-Cada uma com cache próprio.
-
-==================================================
-FASE 8 — CACHE
-==================================================
-
-Criar estratégia.
-
-Conversas
-
-5 segundos
-
-Mensagens
-
-infinito até alteração
-
-CRM
-
-2 minutos
-
-Cliente
-
-5 minutos
-
-Configurações
-
-10 minutos
+{
+  decisionType,
+  selectedAction,
+  confidence,
+  evidenceCodes,
+  result
+}
 
 ==================================================
-FASE 9 — RENDERS
+6. ABA FERRAMENTAS
 ==================================================
 
-Medir.
+Mostrar todas as tool calls executadas.
 
-Eliminar:
+Campos:
 
-renders duplicados
+- tool;
+- conversa;
+- unidade;
+- duração;
+- status;
+- código de erro;
+- tentativa;
+- data;
+- resultado resumido.
 
-hooks repetidos
+Tools principais:
 
-effects desnecessários
+- list_services
+- list_professionals
+- list_slots
+- create_appointment
+- reschedule_appointment
+- cancel_appointment
+- get_customer_active_plans
+- resolve_subscription_service
+- transfer_conversation_unit
+- send_followup
+- get_customer_appointments
 
-props enormes
+Filtros:
 
-memoização incorreta
+- sucesso;
+- erro;
+- lenta;
+- integração;
+- unidade;
+- período.
 
-==================================================
-FASE 10 — MÍDIA
-==================================================
+Não exibir payload completo sensível.
 
-Nunca baixar automaticamente:
+Mascarar:
 
-vídeos
-
-áudios
-
-imagens
-
-documentos
-
-Carregar somente quando o usuário clicar.
-
-==================================================
-FASE 11 — PERFORMANCE
-==================================================
-
-Metas:
-
-abrir conversa
-
-<300ms
-
-scroll
-
-60fps
-
-lista
-
-1000 conversas
-
-sem travar
-
-histórico
-
-10000 mensagens
-
-sem travar
+- CPF;
+- telefone;
+- tokens;
+- URLs assinadas;
+- dados pessoais desnecessários.
 
 ==================================================
-FASE 12 — TESTES
+7. ABA MEMÓRIA
 ==================================================
 
-Executar:
+Mostrar memórias de clientes.
 
-build
+Campos:
 
-typecheck
+- cliente;
+- tipo;
+- valor resumido;
+- origem;
+- confiança;
+- criada em;
+- atualizada em;
+- status.
 
-lint
+Status:
 
-test
+CONFIRMED
+SUGGESTED
+REJECTED
+DELETED
 
-Testar:
+Ações administrativas:
 
-nova mensagem
+- confirmar;
+- corrigir;
+- rejeitar;
+- excluir;
+- visualizar histórico de versões.
 
-troca de conversa
+Tipos:
 
-histórico
+- nome preferido;
+- serviço preferido;
+- profissional preferida;
+- unidade preferida;
+- dia preferido;
+- horário preferido;
+- plano;
+- restrição;
+- observação;
+- pendência.
 
-áudio
-
-imagem
-
-vídeo
-
-CRM
-
-follow-up
-
-agendamento
-
-IA
+Não mostrar CPF completo.
 
 ==================================================
-FASE 13 — RELATÓRIO
+8. ABA APRENDIZADO
 ==================================================
 
-Criar:
-
-docs/secretaria-virtual-performance.md
+Criar painel de sugestões de conhecimento.
 
 Mostrar:
 
-Arquitetura antiga
+- título;
+- categoria;
+- evidência;
+- quantidade de ocorrências;
+- confiança;
+- impacto estimado;
+- status;
+- data.
 
-Arquitetura nova
+Status:
 
-Componentes criados
+PENDING
+APPROVED
+REJECTED
+PUBLISHED
 
-Queries reduzidas
+Ações:
 
-Renders reduzidos
+- aprovar;
+- editar;
+- rejeitar;
+- publicar;
+- visualizar evidências.
 
-Subscriptions reduzidas
+A IA nunca deve publicar automaticamente na base global.
 
-Tempo antes
-
-Tempo depois
-
-Uso de memória
-
-Ganho esperado
-
-Pendências
+Somente usuários autorizados podem aprovar e publicar.
 
 ==================================================
-ENTREGA
+9. ABA SAÚDE
 ==================================================
 
-Não considerar concluído até:
+Criar painel de saúde das integrações:
 
-✔ build
+- IA
+- Evolution
+- BEMP
+- Supabase
+- Realtime
+- Jobs
+- Filas
+- Storage
+- Follow-up
+- Campanhas
 
-✔ typecheck
+Para cada item mostrar:
 
-✔ lint
+- status;
+- última verificação;
+- latência;
+- erros recentes;
+- taxa de sucesso;
+- último evento;
+- tendência.
 
-✔ testes
+Status:
 
-✔ relatório
+OK
+DEGRADED
+DOWN
 
-✔ comparação antes/depois
+Adicionar histórico das últimas 24 horas e 7 dias.
+
+==================================================
+10. ABA LOGS
+==================================================
+
+Criar visualizador de logs estruturados.
+
+Filtros:
+
+- traceId;
+- conversationKey;
+- customerId;
+- unitId;
+- agentId;
+- jobId;
+- event;
+- nível;
+- período;
+- integração.
+
+Níveis:
+
+DEBUG
+INFO
+WARNING
+ERROR
+CRITICAL
+
+Não carregar todos os logs de uma vez.
+
+Usar paginação e filtros server-side.
+
+==================================================
+11. ABA CONFIGURAÇÕES
+==================================================
+
+Criar configurações de governança da IA:
+
+- IA ativa/inativa;
+- modelo principal;
+- timeout;
+- limite de histórico;
+- limite de tokens;
+- modo de follow-up;
+- limite de tentativas;
+- horário permitido;
+- memória automática;
+- aprovação de aprendizado;
+- fallback humano;
+- nível de logs.
+
+Não expor API keys.
+
+Alterações sensíveis devem:
+
+- exigir permissão;
+- registrar auditoria;
+- mostrar confirmação;
+- validar no backend.
+
+==================================================
+12. BANCO E REUTILIZAÇÃO
+==================================================
+
+Antes de criar novas tabelas, verificar estruturas existentes.
+
+Reutilizar quando possível:
+
+- ai_response_feedback;
+- customer_ai_memory;
+- knowledge_suggestions;
+- evo_events;
+- crm_followups;
+- crm_recommendations;
+- logs existentes;
+- wa_conversas;
+- wa_agentes.
+
+Criar apenas o que estiver faltando.
+
+Estruturas possíveis:
+
+ai_decision_logs
+ai_tool_execution_logs
+ai_health_checks
+ai_configuration_audit
+
+Não duplicar tabelas equivalentes.
+
+==================================================
+13. LOGGER E TRACE
+==================================================
+
+Todas as ações devem usar o logger central.
+
+Propagar:
+
+- traceId;
+- conversationKey;
+- customerId;
+- unitId;
+- agentId;
+- jobId;
+- toolName;
+- eventName.
+
+Uma conversa deve poder ser rastreada do webhook até a resposta final.
+
+==================================================
+14. MÉTRICAS
+==================================================
+
+Criar consultas agregadas para o painel.
+
+Não carregar dados brutos e calcular tudo no frontend.
+
+Métricas:
+
+- respostas por hora;
+- tempo médio;
+- taxa de erro;
+- tools por conversa;
+- falhas por integração;
+- conversões;
+- handoffs;
+- follow-ups;
+- memórias;
+- insights;
+- consumo por modelo;
+- custo estimado, quando houver dados confiáveis.
+
+Diferenciar custo estimado de custo real.
+
+==================================================
+15. ALERTAS
+==================================================
+
+Criar alertas internos para:
+
+- IA sem responder;
+- Evolution desconectada;
+- BEMP indisponível;
+- taxa de erro alta;
+- tempo médio acima do limite;
+- jobs presos;
+- fila acumulada;
+- follow-up falhando;
+- campanha falhando;
+- excesso de handoffs;
+- tool com falha recorrente.
+
+Não criar notificações externas nesta primeira etapa.
+
+Mostrar os alertas no painel.
+
+==================================================
+16. PERMISSÕES
+==================================================
+
+Criar ou reutilizar permissões:
+
+ai_control_view
+ai_logs_view
+ai_memory_manage
+ai_learning_approve
+ai_settings_manage
+ai_health_view
+
+Validar no backend.
+
+Ocultar botões no frontend não é suficiente.
+
+==================================================
+17. PERFORMANCE
+==================================================
+
+A página deve usar:
+
+- lazy loading;
+- paginação;
+- filtros server-side;
+- queries agregadas;
+- tabs carregadas sob demanda;
+- virtualização para logs extensos;
+- cache apropriado;
+- sem subscriptions duplicadas.
+
+Não carregar todas as abas ao abrir.
+
+==================================================
+18. UX
+==================================================
+
+Criar interface moderna e profissional.
+
+Usar:
+
+- cards;
+- tabelas;
+- filtros;
+- drawers;
+- badges;
+- gráficos;
+- estados vazios;
+- skeleton;
+- toasts;
+- tema claro e escuro;
+- responsividade.
+
+Cores de saúde:
+
+OK → verde
+DEGRADED → amarelo
+DOWN → vermelho
+
+Não exagerar em animações.
+
+==================================================
+19. TESTES
+==================================================
+
+Criar testes para:
+
+- acesso autorizado;
+- acesso negado;
+- métricas carregadas;
+- filtro por unidade;
+- decisão exibida;
+- tool com erro;
+- memória confirmada;
+- memória rejeitada;
+- insight aprovado;
+- insight publicado;
+- health check degradado;
+- log pesquisado por traceId;
+- alteração de configuração;
+- auditoria da configuração;
+- paginação;
+- dados sensíveis mascarados.
+
+==================================================
+20. ENTREGA
+==================================================
+
+Ao concluir informar:
+
+1. rota criada;
+2. menu criado;
+3. páginas e componentes;
+4. tabelas reutilizadas;
+5. migrations criadas;
+6. métricas implementadas;
+7. permissões;
+8. logs;
+9. health checks;
+10. alertas;
+11. arquivos alterados;
+12. build;
+13. typecheck;
+14. lint;
+15. testes.
 
 Não publicar automaticamente.
+
+CRITÉRIO DE CONCLUSÃO
+
+O AI Control Center só estará concluído quando for possível:
+
+- acompanhar conversas;
+- visualizar decisões;
+- inspecionar tools;
+- revisar memórias;
+- aprovar aprendizados;
+- acompanhar saúde;
+- pesquisar logs;
+- alterar configurações autorizadas.
       */}
       <div className="bg-green-600 text-white p-2 text-center text-xs font-medium">
         Sistema otimizado: cache de permissões e credenciais ativado para maior velocidade.
