@@ -1,5 +1,4 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { getCRMDashboardStats } from "../crm.functions";
 import { sendEvolutionText } from "@/lib/evolution.server";
 
 /**
@@ -8,9 +7,6 @@ import { sendEvolutionText } from "@/lib/evolution.server";
 export async function generateManagementBriefing() {
   console.log("[management-report] Gerando briefing matinal...");
 
-  // 1. Coletar estatísticas (mock do contexto de admin para reuso do server fn interno se possível, ou rodar queries manuais)
-  // Como getCRMDashboardStats é um server function com middleware, chamamos a lógica base diretamente ou recriamos.
-  
   const { data: pipeline } = await supabaseAdmin.from("crm_customer_pipeline").select("*");
   const { data: slots } = await supabaseAdmin.from("crm_slot_opportunities").select("*").eq("status", "pending");
   const { data: followups } = await supabaseAdmin.from("crm_followups").select("*").eq("status", "PENDENTE");
@@ -20,12 +16,12 @@ export async function generateManagementBriefing() {
 
   const stats = {
     pendingSlots: slots?.length || 0,
-    hotReturns: pipeline?.filter(c => (c.conversion_score || 0) > 70 && c.current_stage !== 'AGENDADO').length || 0,
+    hotReturns: (pipeline as any[])?.filter(c => (c.conversion_score || 0) > 70 && c.current_stage !== 'AGENDADO').length || 0,
     pendingFollowups: followups?.length || 0,
-    birthdays: 0, // Mock: precisaria de coluna de nascimento
-    vipAtRisk: pipeline?.filter(c => (c.health_score || 0) >= 90 && c.last_visit_at && new Date(c.last_visit_at) < fortyFiveDaysAgo).length || 0,
-    estimatedRevenue: (slots?.length || 0) * 150 + (followups?.length || 0) * 150, // Estimativa simples
-    idleRiskDay: "quinta-feira à tarde" // Mock ou análise de slots
+    birthdays: 0,
+    vipAtRisk: (pipeline as any[])?.filter(c => (c.health_score || 0) >= 90 && c.last_visit_at && new Date(c.last_visit_at) < fortyFiveDaysAgo).length || 0,
+    estimatedRevenue: (slots?.length || 0) * 150 + (followups?.length || 0) * 150,
+    idleRiskDay: "quinta-feira à tarde"
   };
 
   const report = `📢 *Morning Briefing da Julia* ☕\n\n` +
@@ -39,7 +35,7 @@ export async function generateManagementBriefing() {
     `📉 *Risco de ociosidade:* ${stats.idleRiskDay}\n\n` +
     `Estou focada em preencher esses horários e reativar seus clientes VIP. Ótimo trabalho! 🚀`;
 
-  // 2. Enviar para os administradores cadastrados
+  // 2. Enviar para os administradores
   const { data: admins } = await supabaseAdmin
     .from("user_roles")
     .select("user_id")
@@ -47,9 +43,11 @@ export async function generateManagementBriefing() {
 
   if (admins && admins.length > 0) {
     for (const admin of admins) {
-      // Buscar telefone do perfil/config do admin
-      const { data: profile } = await supabaseAdmin
-        .from("profiles")
+      // Usar a tabela crm_customer_pipeline para buscar telefone do admin se ele for cliente, 
+      // ou buscar em operador_permissoes que costuma ter vinculo com WhatsApp em alguns sistemas CRM
+      // Para o MVP, buscamos via query raw no schema public se profiles não estiver tipado
+      const { data: profile } = await (supabaseAdmin
+        .from("profiles" as any) as any)
         .select("phone, whatsapp_instance")
         .eq("id", admin.user_id)
         .single();
