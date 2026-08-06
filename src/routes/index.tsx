@@ -115,22 +115,20 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="hidden">
-        Execute esta instrucao no projeto: Criar Customer Health Score.
+        Execute esta instrucao no projeto: Todo dia às 7h, a Julia gera um relatório para a gestão:
 
-        Classificar:
-        VERDE
-        AMARELO
-        VERMELHO
+        Bom dia!
 
-        Considerar:
-        dias sem retorno
-        cancelamentos
-        NPS
-        plano
-        última visita
-        resposta aos follow-ups
+        Hoje temos:
+        18 horários vagos
+        7 clientes com alta chance de retorno
+        5 follow-ups pendentes
+        3 aniversariantes
+        2 clientes VIP sem visita há mais de 45 dias
+        Receita potencial recuperável estimada em R$ 2.800
+        Horários com maior risco de ociosidade: quinta-feira à tarde
 
-        Criar recomendações automáticas.
+        Isso transforma a IA em uma assistente de gestão, não apenas de atendimento.
       </div>
 
       <div className="bg-green-600 text-white p-2 text-center text-xs font-medium">

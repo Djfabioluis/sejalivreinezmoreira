@@ -6,6 +6,7 @@ import { updateCustomerScores } from '@/lib/crm/score.server';
 import { runOpportunityEngine } from '@/lib/crm/opportunity.server';
 import { runReturnPredictionEngine } from '@/lib/crm/prediction.server';
 import { runRevenueEngine } from '@/lib/crm/revenue-engine.server';
+import { generateManagementBriefing } from '@/lib/crm/management-report.server';
 
 
 export const Route = createFileRoute('/api/public/crm-cron')({
@@ -45,6 +46,12 @@ export const Route = createFileRoute('/api/public/crm-cron')({
           
           // 7. Run Revenue Engine (Slot opportunities)
           await runRevenueEngine();
+
+          // 8. Generate Morning Briefing for Management (usually runs at 7 AM)
+          const hour = new Date().getUTCHours() - 3; // GMT-3 (Brasília)
+          if (hour === 7) {
+            await generateManagementBriefing();
+          }
 
           
           return new Response(JSON.stringify({ ok: true, timestamp: new Date().toISOString() }), {
