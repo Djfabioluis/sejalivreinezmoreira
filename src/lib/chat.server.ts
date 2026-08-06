@@ -21,7 +21,38 @@ import {
   withProfessionalPreferenceNote,
 } from "@/lib/bemp.server";
 
-export const DEFAULT_SYSTEM_PROMPT = `Você é a Julia, a secretária virtual humanizada do Salão Seja Livre.
+export const MANDATORY_SYSTEM_RULES = `REGRAS OBRIGATÓRIAS DO SISTEMA (NUNCA IGNORAR):
+- Se "Nome do cliente" estiver preenchido, NUNCA pergunte o nome.
+- Se "Unidade operacional" estiver preenchida, NUNCA pergunte qual unidade o cliente deseja.
+- NUNCA ofereça troca de unidade nem interprete menção a outras unidades como mudança operacional.
+- NÃO reinicie o atendimento a cada mensagem.
+- NÃO repita perguntas já respondidas.
+- Se o profissional desejado não tiver agenda, informe o cliente e ofereça lista de espera (join_waiting_list).
+- Faça apenas uma pergunta por vez.
+- Use um tom caloroso, mas profissional. Emojis com moderação.
+- Quando a intenção MECHAS for detectada e o backend fornecer a promoção PACOTE_MECHAS_MENSAL como ativa, informe obrigatoriamente o nome e o preço promocional antes de solicitar profissional ou horário.
+- Formate preços como R$ XX,XX.
+- Promoção do mês: Planos de assinatura SEM TAXA DE ADESÃO.
+- Restrição: Unidade Centro Cívico não aceita planos de assinatura.`;
+
+export const DEFAULT_KNOWLEDGE_PROMPT = `Você é a Julia, a secretária virtual humanizada do Salão Seja Livre.
+Sua missão é realizar agendamentos e vender planos de assinatura de forma acolhedora, eficiente e natural.
+
+DADOS DO ATENDIMENTO:
+Nome do cliente: {{contactName}}
+Telefone: {{contactPhone}}
+Unidade: {{unitName}}
+
+{{customer_context_summary}}
+
+PROMOÇÕES ATIVAS E CONFIRMADAS:
+{{active_promotions_block}}`;
+
+export const DEFAULT_SYSTEM_PROMPT = `${MANDATORY_SYSTEM_RULES}
+
+${DEFAULT_KNOWLEDGE_PROMPT}`;
+
+const IGNORED_DEFAULT_SYSTEM_PROMPT = `Você é a Julia, a secretária virtual humanizada do Salão Seja Livre.
 Sua missão é realizar agendamentos e vender planos de assinatura de forma acolhedora, eficiente e natural.
 
 DADOS CONFIÁVEIS DO ATENDIMENTO:
@@ -457,16 +488,17 @@ function buildTools(
               const activePromos = await PromotionService.getActivePromotions({
                 unitId: String(effectiveUnitId),
                 channel: "WHATSAPP",
-                category: searchCategory
               });
+              
+              const activePromotions = activePromos.success ? activePromos.promotions : [];
 
               // Resolver serviços das promoções
-              const promosWithService = await Promise.all(activePromos.map(async p => {
+              const promosWithService = await Promise.all(activePromotions.map(async (p: any) => {
                 const service = await PromotionService.resolvePromotionService(p, String(effectiveUnitId));
                 return service ? { ...p, serviceId: service.id } : null;
               }));
 
-              const validPromos = promosWithService.filter(p => p !== null);
+              const validPromos = promosWithService.filter((p): p is any => p !== null);
 
               // Contexto da conversa
               await patchCustomerContext(conversationKey, {
@@ -2036,33 +2068,62 @@ export function mandatoryOperationalRules(opts: {
 }
 
 
-export async function loadSystemPrompt(): Promise<string> {
-  try {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data } = await supabaseAdmin
-      .from("base_conhecimento" as never)
-      .select("conteudo")
-      .eq("id", 1)
-      .maybeSingle();
-    const conteudo = (data as { conteudo?: string } | null)?.conteudo?.trim();
-    if (conteudo && conteudo.length > 0) {
-      const flags = detectPromptConflicts(conteudo);
-      if (flags.length > 0) {
-        await logEvent({
-          instance: "system",
-          event: "knowledge_prompt_conflict_detected",
-          status: "warning",
-          payload: { flags },
-        }).catch(() => {});
-      }
-      return conteudo;
-    }
-    return DEFAULT_SYSTEM_PROMPT;
-  } catch (err) {
-    console.error("[chat] falha ao carregar base de conhecimento:", err);
-    return DEFAULT_SYSTEM_PROMPT;
+export async function loadSystemPrompt(params: {
+  contactName?: string;
+  contactPhone?: string;
+  unitName?: string;
+  customerContext?: any;
+  activePromotions?: any[];
+} = {}): Promise<string> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: knowledge } = await supabaseAdmin
+    .from("base_conhecimento")
+    .select("conteudo")
+    .eq("id", 1)
+    .maybeSingle();
+
+  let prompt = MANDATORY_SYSTEM_RULES + "\n\n";
+  
+  if (knowledge?.conteudo) {
+    prompt += knowledge.conteudo + "\n\n";
+  } else {
+    prompt += DEFAULT_KNOWLEDGE_PROMPT + "\n\n";
   }
+
+  const summary = params.customerContext ? JSON.stringify(params.customerContext, null, 2) : "Nenhum contexto anterior.";
+  const promoBlock = params.activePromotions?.length 
+    ? JSON.stringify(params.activePromotions, null, 2) 
+    : "Nenhuma promoção ativa no momento.";
+
+  return prompt
+    .replace("{{contactName}}", params.contactName || "não informado")
+    .replace("{{contactPhone}}", params.contactPhone || "não informado")
+    .replace("{{unitName}}", params.unitName || "não informada")
+    .replace("{{customer_context_summary}}", summary)
+    .replace("{{active_promotions_block}}", promoBlock);
 }
+
+export function detectServiceCategory(message: string): { category: ServiceCategory; confidence: number } | null {
+  const normalized = normalizeServiceSearchText(message);
+  for (const [category, aliases] of Object.entries(SERVICE_CATEGORY_ALIASES)) {
+    if (aliases.some(alias => normalized.includes(normalizeServiceSearchText(alias)))) {
+      return { category: category as ServiceCategory, confidence: 1 };
+    }
+  }
+  return null;
+}
+
+export function ensureMandatoryPromotionMessage(text: string, promotion: { title: string; price: number }): string {
+  const priceStr = promotion.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+  const hasTitle = text.toLowerCase().includes(promotion.title.toLowerCase());
+  const hasPrice = text.includes(priceStr);
+
+  if (hasTitle && hasPrice) return text;
+
+  const prefix = `✨ Neste mês, o *${promotion.title}* está em promoção por *R$ ${priceStr}*. 💜\n\n`;
+  return prefix + text;
+}
+
 
 /** Monta o system prompt completo com variáveis substituídas e regras obrigatórias no final. */
 export function assembleSystemPrompt(
@@ -2174,13 +2235,19 @@ ${subscriptionContextLine(ctx as Record<string, any>)}
   // Buscar promoções ativas para o contexto
   let promotionBlock = "";
   try {
-    const activePromos = await PromotionService.getActivePromotions({
+    const activePromosResult = await PromotionService.getActivePromotions({
       unitId: effectiveUnitId ? String(effectiveUnitId) : undefined,
       channel: "WHATSAPP"
     });
 
-    if (activePromos.length > 0) {
-      promotionBlock = `\n\nPROMOÇÕES ATIVAS E CONFIRMADAS:\n${JSON.stringify(activePromos, null, 2)}`;
+    if (activePromosResult.success && activePromosResult.promotions.length > 0) {
+      promotionBlock = `\n\nPROMOÇÕES ATIVAS E CONFIRMADAS:\n${JSON.stringify(activePromosResult.promotions.map((p: any) => ({
+        code: p.code,
+        title: p.title,
+        price: p.promotional_price,
+        category: p.service_category,
+        validUntil: p.end_at
+      })), null, 2)}`;
     }
   } catch (err) {
     console.error("[chat] erro ao carregar promoções para contexto:", err);
@@ -2322,6 +2389,31 @@ export async function runAgentWithLogging(params: {
 
     const currentUnitName = effectiveUnitName || unitName;
 
+    // Detecção de Intenção e Promoção (Determinística)
+    const intent = detectServiceCategory(params.text);
+    let mandatoryPromo: any = null;
+    let activePromotions: any[] = [];
+
+    if (intent?.category === "MECHAS") {
+      console.log(`[chat] mechas_intent_detected: traceId=${effectiveTraceId}`);
+      const promoResult = await PromotionService.getActivePromotions({
+        unitId: effectiveUnitId || undefined,
+        channel: "WHATSAPP",
+        category: "MECHAS"
+      });
+
+      if (promoResult.success) {
+        activePromotions = promoResult.promotions;
+        const mechasPromo = activePromotions.find(p => p.code === 'PACOTE_MECHAS_MENSAL');
+        if (mechasPromo) {
+          mandatoryPromo = mechasPromo;
+          console.log(`[chat] mechas_promotion_active: traceId=${effectiveTraceId}, promo=${mechasPromo.code}`);
+        }
+      } else {
+        console.error(`[chat] promotion_database_lookup_failed: traceId=${effectiveTraceId}, code=${promoResult.code}`);
+      }
+    }
+
     // Memória permanente do cliente (aprendizado contínuo) — nunca bloqueia o atendimento.
     const { loadMemoryForAgent } = await import("./memory/pipeline.server");
     const { promptBlock: memoryBlock } = await loadMemoryForAgent({
@@ -2330,7 +2422,7 @@ export async function runAgentWithLogging(params: {
       contactName: pushName || (historyData?.contact_name as string) || null,
     });
 
-    const reply = await runAgent(historyMessages, {
+    const agentResult = await runAgent(historyMessages, {
       unidadeId: effectiveUnitId || undefined,
       unitName: currentUnitName || undefined,
       contactName: pushName || (historyData?.contact_name as string),
@@ -2339,7 +2431,30 @@ export async function runAgentWithLogging(params: {
       conversationKey,
       messageId,
       memoryBlock,
+      activePromotions: activePromotions,
     });
+
+    let reply = agentResult;
+
+    // Validação determinística da promoção na resposta
+    if (mandatoryPromo && !(historyData?.customer_context as any)?.mechasPromotionPresented) {
+      const validatedReply = ensureMandatoryPromotionMessage(reply, {
+        title: mandatoryPromo.title,
+        price: mandatoryPromo.promotional_price
+      });
+      
+      if (validatedReply !== reply) {
+        console.log(`[chat] promotion_injected_into_response: traceId=${effectiveTraceId}, promo=${mandatoryPromo.code}`);
+        reply = validatedReply;
+      }
+
+      await patchCustomerContext(conversationKey, {
+        mechasPromotionPresented: true,
+        promotionCode: mandatoryPromo.code,
+        promotionPresentedAt: new Date().toISOString()
+      });
+    }
+
 
 
     if (!reply || reply.trim().length === 0) {
@@ -2461,7 +2576,13 @@ ${subscriptionContextLine(ctx as Record<string, any>)}
 `.trim();
   }
 
-  const basePrompt = await loadSystemPrompt();
+  const basePrompt = await loadSystemPrompt({
+    contactName: opts.contactName || undefined,
+    contactPhone: opts.contactPhone || undefined,
+    unitName: opts.unitName || undefined,
+    customerContext: opts.customerContext,
+    activePromotions: opts.activePromotions
+  });
 
   const { effectiveUnitId, effectiveUnitName, source } = await resolveEffectiveUnit({ 
     conversationKey: opts.conversationKey || undefined, 
@@ -2473,13 +2594,13 @@ ${subscriptionContextLine(ctx as Record<string, any>)}
   // Buscar promoções ativas para o contexto
   let promotionBlock = "";
   try {
-    const activePromos = await PromotionService.getActivePromotions({
+    const activePromosResult = await PromotionService.getActivePromotions({
       unitId: effectiveUnitId ? String(effectiveUnitId) : undefined,
       channel: "WHATSAPP"
     });
 
-    if (activePromos.length > 0) {
-      promotionBlock = `\n\nPROMOÇÕES ATIVAS E CONFIRMADAS:\n${JSON.stringify(activePromos.map(p => ({
+    if (activePromosResult.success && activePromosResult.promotions.length > 0) {
+      promotionBlock = `\n\nPROMOÇÕES ATIVAS E CONFIRMADAS:\n${JSON.stringify(activePromosResult.promotions.map((p: any) => ({
         code: p.code,
         title: p.title,
         price: p.promotional_price,
