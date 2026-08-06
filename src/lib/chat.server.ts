@@ -1889,6 +1889,8 @@ function buildTools(
 }
 
 const ALLOW_SUBSCRIPTION_CPF_FALLBACK = false;
+const SUBSCRIPTION_PRIMARY_LOOKUP = "PHONE";
+const SUBSCRIPTION_MAX_PHONE_ATTEMPTS = 2;
 
 
 
@@ -1990,10 +1992,10 @@ export function mandatoryOperationalRules(opts: {
     "- Nunca exiba IDs técnicos ao cliente. Liste profissionais com 💜 *Nome* e serviços com • *Nome*.",
     "- Se houver apenas um profissional disponível para o serviço, NUNCA pergunte preferência nem apresente a opção 'Sem preferência'; informe o profissional selecionado com entusiasmo e avance.",
     "- PLANOS DE ASSINATURA (IDENTIFICAÇÃO): Quando o cliente mencionar plano, benefício ou assinatura, peça o TELEFONE CADASTRADO antes de qualquer consulta:\n\"Perfeito! 💜\n\nQual é o número de telefone cadastrado na assinatura?\n\nPode enviar com DDD.\"",
-    "- Ao receber o telefone, chame SEMPRE validate_subscription_phone. Não peça CPF como primeira opção.",
-    "- Se a busca por telefone falhar, pergunte: \"Não encontrei uma assinatura com esse telefone. Pode conferir se esse é o número cadastrado no plano? ✨\"",
-    "- É PROIBIDO solicitar CPF ou qualquer documento de identificação.",
-    "- Se o telefone já foi validado NESTA conversa (subscriptionPhoneValidated = true no estado atual), NUNCA peça o telefone ou CPF de novo.",
+    "- Ao receber o telefone, chame SEMPRE validate_subscription_phone. É PROIBIDO solicitar CPF ou qualquer documento de identificação.",
+    "- Se a busca por telefone falhar na primeira tentativa, peça para conferir e enviar novamente:\n\"Não encontrei uma assinatura ativa com esse telefone. 💜\n\nPode conferir e me enviar novamente o número cadastrado no plano, com DDD?\"",
+    "- Se falhar na segunda tentativa, informe o encaminhamento humano:\n\"Não consegui localizar sua assinatura pelos telefones informados. 💜\n\nVou encaminhar seu atendimento para nossa equipe verificar o cadastro e continuar com você por aqui.\"",
+    "- NUNCA mencione CPF ou peça documentos.",
     "- Em uma NOVA conversa, sempre solicite o telefone novamente antes de usar qualquer plano.",
     "- NUNCA repita o telefone completo nas mensagens; se precisar citar, use o formato mascarado (ex: ******3684).",
     "- Mapeamento oficial de benefícios (resolvido pelo backend, nunca invente): plano de manicure → *Manicure Plano Beauty*; plano de escova → *Escova Plano Beauty*; plano de hidratação e escova → *Hidratação e Escova*.",
@@ -2401,9 +2403,11 @@ export async function runAgentWithLogging(params: {
         subscriptionLookupMethod: "PHONE",
         subscriptionLookupStage: "AWAITING_REGISTERED_PHONE",
         subscriptionPhoneValidated: false,
+        subscriptionPhoneAttempts: 0,
         awaitingCpf: false,
         cpfRequested: false,
-        cpfValidationPending: false
+        cpfValidationPending: false,
+        subscriptionLookupFallbackActive: false,
       };
       
       await patchCustomerContext(conversationKey, patch);
@@ -2433,7 +2437,7 @@ export async function runAgentWithLogging(params: {
     }
 
     // 4. PROCESSAR O TELEFONE DETERMINISTICAMENTE (Requisito 4 & 5)
-    if (currentCustomerContext.subscriptionLookupStage === "AWAITING_REGISTERED_PHONE") {
+    if (currentCustomerContext.subscriptionLookupStage === "AWAITING_REGISTERED_PHONE" || currentCustomerContext.subscriptionLookupStage === "AWAITING_REGISTERED_PHONE_RETRY") {
        const { normalizeBrazilianPhone } = await import("@/lib/phone");
        const normalizedPhone = normalizeBrazilianPhone(params.text);
 
@@ -2461,28 +2465,48 @@ export async function runAgentWithLogging(params: {
            Object.assign(currentCustomerContext, patch);
            
            // Agora que validou, deixa seguir para a IA para continuar o agendamento (conforme Requisito 5)
-         } else {
-           let errorText = "Não encontrei uma assinatura vinculada a esse telefone. Pode conferir se esse é o número cadastrado no plano?";
-           let stage = "PHONE_NOT_FOUND";
+          } else {
+            const attempts = (currentCustomerContext.subscriptionPhoneAttempts || 0) + 1;
+            let errorText = "";
+            let stage = "";
 
-           if (result.code === "BEMP_UNAVAILABLE" || result.code === "BEMP_UNAUTHORIZED") {
-             errorText = "Não consegui consultar seu plano agora. Vou encaminhar essa validação para nossa equipe.";
-             stage = "BEMP_ERROR";
-           }
+            if (result.code === "BEMP_UNAVAILABLE" || result.code === "BEMP_UNAUTHORIZED") {
+              errorText = "Não consegui consultar seu plano agora por uma falha técnica. 💜\n\nVou encaminhar seu atendimento para nossa equipe verificar o que houve e continuar com você.";
+              stage = "HUMAN_HANDOFF";
+            } else if (attempts >= SUBSCRIPTION_MAX_PHONE_ATTEMPTS) {
+              errorText = "Não consegui localizar sua assinatura pelos telefones informados. 💜\n\nVou encaminhar seu atendimento para nossa equipe verificar o cadastro e continuar com você por aqui.";
+              stage = "HUMAN_HANDOFF";
+            } else {
+              errorText = "Não encontrei uma assinatura ativa com esse telefone. 💜\n\nPode conferir e me enviar novamente o número cadastrado no plano, com DDD?";
+              stage = "AWAITING_REGISTERED_PHONE_RETRY";
+            }
 
-           await patchCustomerContext(conversationKey, {
-             subscriptionLookupStage: stage
-           });
-           
-           await replyToUser({
-             instance,
-             phone,
-             text: errorText,
-             conversationKey,
-             messageId
-           });
-           return;
-         }
+            const patch = {
+              subscriptionLookupStage: stage,
+              subscriptionPhoneAttempts: attempts,
+              subscriptionCheckedAt: new Date().toISOString()
+            };
+
+            if (stage === "HUMAN_HANDOFF") {
+               // Trigger human handoff
+               const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+               await supabaseAdmin.from("wa_conversas").update({
+                 attendance_mode: 'HUMAN',
+                 ai_pause_reason: "SUBSCRIPTION_NOT_FOUND_BY_PHONE"
+               } as any).eq("phone", conversationKey);
+            }
+
+            await patchCustomerContext(conversationKey, patch);
+            
+            await replyToUser({
+              instance,
+              phone,
+              text: errorText,
+              conversationKey,
+              messageId
+            });
+            return;
+          }
        } else if (normalizedText.replace(/\D/g, "").length >= 10) {
           // Se parece um telefone mas falhou na normalização
           const { replyToUser } = await import("./evolution/reply.server");
@@ -2583,11 +2607,18 @@ export async function runAgentWithLogging(params: {
 
     let reply = agentResult;
 
-    // 11. BLOQUEIO FINAL OBRIGATÓRIO (Requisito 8 e 11)
+    // 11. BLOQUEIO FINAL OBRIGATÓRIO (Requisito 8 e 11) - Desativa CPF globalmente no fluxo de assinatura
+    const isSubscriptionIncomplete = currentCustomerContext.subscriptionIntent === true && !currentCustomerContext.subscriptionPhoneValidated;
     const containsForbiddenPattern = /cpf|documento|\d{3}\.\d{3}\.\d{3}-\d{2}|000\.000\.000-00|somente números do cpf/i.test(reply);
-    if (containsForbiddenPattern) {
-       console.log(`[chat] forbidden_content_blocked: traceId=${effectiveTraceId}, replacing with fixed phone request`);
-       reply = "Perfeito! 💜\n\nQual é o número de telefone cadastrado na assinatura?\n\nPode enviar com DDD.";
+    
+    if (isSubscriptionIncomplete && containsForbiddenPattern) {
+       console.log(`[chat] forbidden_content_blocked: traceId=${effectiveTraceId}, applying enforcement for subscription flow`);
+       const attempts = currentCustomerContext.subscriptionPhoneAttempts || 0;
+       if (attempts >= SUBSCRIPTION_MAX_PHONE_ATTEMPTS) {
+         reply = "Não consegui localizar sua assinatura pelos telefones informados. 💜\n\nVou encaminhar seu atendimento para nossa equipe verificar o cadastro e continuar com você por aqui.";
+       } else {
+         reply = "Não encontrei uma assinatura ativa com esse telefone. 💜\n\nPode conferir e me enviar novamente o número cadastrado no plano, com DDD?";
+       }
     }
 
     // Validação determinística da promoção na resposta
