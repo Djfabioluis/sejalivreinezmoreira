@@ -10,7 +10,7 @@ import { ptBR } from "date-fns/locale";
 
 export const Route = createFileRoute("/_authenticated/crm")({
   head: () => ({
-    title: "CRM Inteligente — Julia",
+    meta: [{ title: "CRM Inteligente — Julia" }],
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData({
     queryKey: ["crm-pipeline"],
