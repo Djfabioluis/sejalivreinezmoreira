@@ -217,6 +217,9 @@ export type Database = {
           customer_name: string | null
           followup_attempts: number | null
           followup_status: string | null
+          health_recommendation: string | null
+          health_score: number
+          health_status: string
           id: string
           last_interaction_at: string | null
           last_stage: Database["public"]["Enums"]["crm_pipeline_stage"] | null
@@ -240,6 +243,9 @@ export type Database = {
           customer_name?: string | null
           followup_attempts?: number | null
           followup_status?: string | null
+          health_recommendation?: string | null
+          health_score?: number
+          health_status?: string
           id?: string
           last_interaction_at?: string | null
           last_stage?: Database["public"]["Enums"]["crm_pipeline_stage"] | null
@@ -263,6 +269,9 @@ export type Database = {
           customer_name?: string | null
           followup_attempts?: number | null
           followup_status?: string | null
+          health_recommendation?: string | null
+          health_score?: number
+          health_status?: string
           id?: string
           last_interaction_at?: string | null
           last_stage?: Database["public"]["Enums"]["crm_pipeline_stage"] | null
@@ -272,6 +281,42 @@ export type Database = {
           phone?: string
           stage_started_at?: string | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      crm_financial_logs: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          metadata: Json
+          phone: string | null
+          professional_name: string | null
+          service_name: string | null
+          source: string
+          unit_name: string | null
+        }
+        Insert: {
+          amount?: number
+          created_at?: string
+          id?: string
+          metadata?: Json
+          phone?: string | null
+          professional_name?: string | null
+          service_name?: string | null
+          source: string
+          unit_name?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          metadata?: Json
+          phone?: string | null
+          professional_name?: string | null
+          service_name?: string | null
+          source?: string
+          unit_name?: string | null
         }
         Relationships: []
       }
@@ -329,6 +374,51 @@ export type Database = {
           stage?: string
           status?: string | null
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      crm_opportunities: {
+        Row: {
+          conversation_id: string | null
+          created_at: string
+          customer_id: string
+          id: string
+          metadata: Json
+          opportunity_type: string
+          priority: number
+          recommended_action: string | null
+          score: number
+          status: string
+          trigger: string | null
+          updated_at: string
+        }
+        Insert: {
+          conversation_id?: string | null
+          created_at?: string
+          customer_id: string
+          id?: string
+          metadata?: Json
+          opportunity_type: string
+          priority?: number
+          recommended_action?: string | null
+          score?: number
+          status?: string
+          trigger?: string | null
+          updated_at?: string
+        }
+        Update: {
+          conversation_id?: string | null
+          created_at?: string
+          customer_id?: string
+          id?: string
+          metadata?: Json
+          opportunity_type?: string
+          priority?: number
+          recommended_action?: string | null
+          score?: number
+          status?: string
+          trigger?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
