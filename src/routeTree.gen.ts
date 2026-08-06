@@ -24,6 +24,7 @@ import { Route as AuthenticatedPerfilRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedPainelRouteImport } from './routes/_authenticated/painel'
 import { Route as AuthenticatedOperadoresRouteImport } from './routes/_authenticated/operadores'
 import { Route as AuthenticatedIntegracaoBempRouteImport } from './routes/_authenticated/integracao-bemp'
+import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
 import { Route as AuthenticatedConfiguracaoWhatsappRouteImport } from './routes/_authenticated/configuracao-whatsapp'
 import { Route as AuthenticatedBoasVindasRouteImport } from './routes/_authenticated/boas-vindas'
 import { Route as AuthenticatedBaseConhecimentoRouteImport } from './routes/_authenticated/base-conhecimento'
@@ -124,6 +125,11 @@ const AuthenticatedIntegracaoBempRoute =
     path: '/integracao-bemp',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedCrmRoute = AuthenticatedCrmRouteImport.update({
+  id: '/crm',
+  path: '/crm',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedConfiguracaoWhatsappRoute =
   AuthenticatedConfiguracaoWhatsappRouteImport.update({
     id: '/configuracao-whatsapp',
@@ -275,6 +281,7 @@ export interface FileRoutesByFullPath {
   '/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
   '/boas-vindas': typeof AuthenticatedBoasVindasRoute
   '/configuracao-whatsapp': typeof AuthenticatedConfiguracaoWhatsappRoute
+  '/crm': typeof AuthenticatedCrmRoute
   '/integracao-bemp': typeof AuthenticatedIntegracaoBempRoute
   '/operadores': typeof AuthenticatedOperadoresRoute
   '/painel': typeof AuthenticatedPainelRoute
@@ -315,6 +322,7 @@ export interface FileRoutesByTo {
   '/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
   '/boas-vindas': typeof AuthenticatedBoasVindasRoute
   '/configuracao-whatsapp': typeof AuthenticatedConfiguracaoWhatsappRoute
+  '/crm': typeof AuthenticatedCrmRoute
   '/integracao-bemp': typeof AuthenticatedIntegracaoBempRoute
   '/operadores': typeof AuthenticatedOperadoresRoute
   '/painel': typeof AuthenticatedPainelRoute
@@ -357,6 +365,7 @@ export interface FileRoutesById {
   '/_authenticated/base-conhecimento': typeof AuthenticatedBaseConhecimentoRoute
   '/_authenticated/boas-vindas': typeof AuthenticatedBoasVindasRoute
   '/_authenticated/configuracao-whatsapp': typeof AuthenticatedConfiguracaoWhatsappRoute
+  '/_authenticated/crm': typeof AuthenticatedCrmRoute
   '/_authenticated/integracao-bemp': typeof AuthenticatedIntegracaoBempRoute
   '/_authenticated/operadores': typeof AuthenticatedOperadoresRoute
   '/_authenticated/painel': typeof AuthenticatedPainelRoute
@@ -399,6 +408,7 @@ export interface FileRouteTypes {
     | '/base-conhecimento'
     | '/boas-vindas'
     | '/configuracao-whatsapp'
+    | '/crm'
     | '/integracao-bemp'
     | '/operadores'
     | '/painel'
@@ -439,6 +449,7 @@ export interface FileRouteTypes {
     | '/base-conhecimento'
     | '/boas-vindas'
     | '/configuracao-whatsapp'
+    | '/crm'
     | '/integracao-bemp'
     | '/operadores'
     | '/painel'
@@ -480,6 +491,7 @@ export interface FileRouteTypes {
     | '/_authenticated/base-conhecimento'
     | '/_authenticated/boas-vindas'
     | '/_authenticated/configuracao-whatsapp'
+    | '/_authenticated/crm'
     | '/_authenticated/integracao-bemp'
     | '/_authenticated/operadores'
     | '/_authenticated/painel'
@@ -633,6 +645,13 @@ declare module '@tanstack/react-router' {
       path: '/integracao-bemp'
       fullPath: '/integracao-bemp'
       preLoaderRoute: typeof AuthenticatedIntegracaoBempRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/crm': {
+      id: '/_authenticated/crm'
+      path: '/crm'
+      fullPath: '/crm'
+      preLoaderRoute: typeof AuthenticatedCrmRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/configuracao-whatsapp': {
@@ -817,6 +836,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedBaseConhecimentoRoute: typeof AuthenticatedBaseConhecimentoRoute
   AuthenticatedBoasVindasRoute: typeof AuthenticatedBoasVindasRoute
   AuthenticatedConfiguracaoWhatsappRoute: typeof AuthenticatedConfiguracaoWhatsappRoute
+  AuthenticatedCrmRoute: typeof AuthenticatedCrmRoute
   AuthenticatedIntegracaoBempRoute: typeof AuthenticatedIntegracaoBempRoute
   AuthenticatedOperadoresRoute: typeof AuthenticatedOperadoresRoute
   AuthenticatedPainelRoute: typeof AuthenticatedPainelRoute
@@ -838,6 +858,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedBoasVindasRoute: AuthenticatedBoasVindasRoute,
   AuthenticatedConfiguracaoWhatsappRoute:
     AuthenticatedConfiguracaoWhatsappRoute,
+  AuthenticatedCrmRoute: AuthenticatedCrmRoute,
   AuthenticatedIntegracaoBempRoute: AuthenticatedIntegracaoBempRoute,
   AuthenticatedOperadoresRoute: AuthenticatedOperadoresRoute,
   AuthenticatedPainelRoute: AuthenticatedPainelRoute,
