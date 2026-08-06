@@ -89,6 +89,7 @@ import {
   Filter,
   Sparkles,
   ClipboardList,
+  Zap,
   AlertCircle,
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -472,10 +473,26 @@ function Dashboard() {
 
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col gap-1">
-        <h2 className="text-3xl font-display tracking-tight">Bom dia, Gestor ☀️</h2>
-        <p className="text-muted-foreground">Aqui está o que está acontecendo na sua clínica hoje.</p>
+    <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-border/40">
+        <div className="space-y-2">
+          <Badge className="bg-primary/10 text-primary border-none text-[10px] font-bold uppercase tracking-[0.2em] mb-2 px-3">
+            Gestão Inteligente
+          </Badge>
+          <h2 className="text-5xl font-display tracking-tighter leading-none">Bom dia, Gestor</h2>
+          <p className="text-muted-foreground text-lg font-medium">Aqui está o resumo estratégico da sua operação hoje.</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="text-right hidden sm:block">
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">IA Health Score</p>
+            <div className="flex items-center gap-2 mt-1">
+              <div className="h-2 w-24 bg-secondary rounded-full overflow-hidden">
+                <div className="h-full bg-emerald-500 w-[98%]" />
+              </div>
+              <span className="text-sm font-bold text-emerald-600">98%</span>
+            </div>
+          </div>
+        </div>
       </div>
       
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -488,31 +505,62 @@ function Dashboard() {
             <p className="text-xs opacity-70 mt-1">+4% em relação a ontem</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-none shadow-xl bg-card/50 backdrop-blur-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Receita Estimada</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Receita Prevista</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">R$ 12.480</div>
-            <p className="text-xs text-emerald-500 font-medium mt-1">↑ 12% este mês</p>
+            <p className="text-xs text-emerald-500 font-medium mt-1">↑ 12.5% vs mês anterior</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-none shadow-xl bg-card/50 backdrop-blur-sm group">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">IA Recuperou</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              Recuperado Julia AI <Zap className="h-3 w-3 text-primary fill-primary" />
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">R$ 3.250</div>
-            <p className="text-xs text-muted-foreground mt-1">6 horários preenchidos</p>
+            <div className="text-2xl font-bold text-primary">R$ 3.250</div>
+            <p className="text-xs text-muted-foreground mt-1">6 horários otimizados hoje</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-none shadow-xl bg-card/50 backdrop-blur-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Ocupação</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Taxa de Ocupação</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">18 Vagas</div>
-            <p className="text-xs text-amber-500 font-medium mt-1">Alta ociosidade à tarde</p>
+            <div className="text-2xl font-bold">88%</div>
+            <div className="mt-2 h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+              <div className="h-full bg-primary w-[88%]" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-3 lg:grid-cols-3 mb-12">
+        <Card className="border-none shadow-lg bg-emerald-500/5 border-l-4 border-l-emerald-500">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-bold uppercase tracking-widest text-emerald-600">Ações sugeridas pela IA</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm font-medium">Julia AI identificou 4 clientes VIP com alto risco de churn. Recomenda-se envio de campanha Beauty Club.</p>
+          </CardContent>
+        </Card>
+        <Card className="border-none shadow-lg bg-primary/5 border-l-4 border-l-primary">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-bold uppercase tracking-widest text-primary">Insight da Operação</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm font-medium">Taxa de ocupação nas quintas-feiras à tarde está 15% abaixo da média. Sugerimos cross-sell de Hidratação.</p>
+          </CardContent>
+        </Card>
+        <Card className="border-none shadow-lg bg-amber-500/5 border-l-4 border-l-amber-500">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-bold uppercase tracking-widest text-amber-600">Oportunidade</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm font-medium">Há 6 slots livres amanhã. Julia AI pode iniciar campanha de reativação para preenchimento imediato.</p>
           </CardContent>
         </Card>
       </div>

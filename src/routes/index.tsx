@@ -24,17 +24,17 @@ import {
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Julia — Secretária virtual com IA para salões e clínicas" },
+      { title: "Seja Livre AI Platform — Gestão Inteligente para Salões" },
       {
         name: "description",
         content:
-          "Atenda no WhatsApp, agende, faça cross-sell e nunca perca um cliente. IA humanizada 24h integrada à sua agenda.",
+          "A inteligência que administra, agenda, vende e fideliza clientes. Plataforma Inteligente para Gestão de Salões de Beleza.",
       },
-      { property: "og:title", content: "Julia — Secretária virtual com IA no WhatsApp" },
+      { property: "og:title", content: "Seja Livre AI Platform — Inteligência Artificial no WhatsApp" },
       {
         property: "og:description",
         content:
-          "IA que atende, agenda, confirma e faz cross-sell no WhatsApp da sua clínica ou salão.",
+          "Julia AI atende, agenda, confirma e faz cross-sell no WhatsApp da sua clínica ou salão.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -179,7 +179,7 @@ function LandingPage() {
             <div>
               <p className="font-display text-lg leading-none">Seja Livre</p>
               <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
-                Secretária virtual
+                AI Platform
               </p>
             </div>
           </Link>
@@ -220,14 +220,16 @@ function LandingPage() {
             <Badge variant="secondary" className="mb-4">
               IA humanizada • 24h no WhatsApp
             </Badge>
-            <h1 className="font-display text-4xl leading-tight sm:text-6xl">
-              Uma recepcionista com IA que atende, agenda e vende — direto do seu
-              WhatsApp.
+            <h1 className="font-display text-4xl leading-tight sm:text-7xl">
+              Seja Livre AI Platform
             </h1>
-            <p className="mt-6 text-lg text-muted-foreground">
-              A Julia responde seus clientes 24 horas, marca no sistema Bemp,
-              confirma agendamento, envia lembretes e ainda oferece serviços
-              complementares. Você foca no atendimento presencial.
+            <h2 className="mt-4 text-2xl font-display text-primary italic">
+              "A inteligência que administra, agenda, vende e fideliza clientes."
+            </h2>
+            <p className="mt-6 text-xl text-muted-foreground">
+              Plataforma Inteligente para Gestão de Salões de Beleza. 
+              Julia AI responde seus clientes 24 horas, marca no sistema Bemp,
+              confirma agendamento e faz cross-sell automático.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Button size="lg" asChild>
@@ -437,7 +439,7 @@ function LandingPage() {
       </section>
 
       <footer className="border-t border-border/60 py-8 text-center text-sm text-muted-foreground">
-        © {new Date().getFullYear()} Seja Livre · Julia, secretária virtual
+        © {new Date().getFullYear()} Seja Livre AI Platform · Julia AI
       </footer>
     </div>
   );

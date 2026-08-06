@@ -18,6 +18,8 @@ import {
   QrCode,
   Brain,
   TrendingUp,
+  CalendarClock,
+  Bot,
 } from "lucide-react";
 
 import {
@@ -38,22 +40,22 @@ import { useMyPermissions } from "@/hooks/use-my-permissions";
 
 const items = [
   { title: "Dashboard", url: "/painel", icon: LayoutDashboard, group: "Visão Geral", key: "painel" },
-  { title: "Agenda", url: "/agendar", icon: MessageCircle, group: "Operação", key: "agendar" },
-  { title: "Secretária Virtual", url: "/agendar", icon: MessageCircle, group: "Operação", key: "agendar" },
+  { title: "Agenda Inteligente", url: "/agendar", icon: CalendarClock, group: "Operação", key: "agendar" },
+  { title: "Julia AI", url: "/aprendizado-ia", icon: Bot, group: "Operação", key: "aprendizado-ia" },
   { title: "Conversas", url: "/agendar", icon: MessageCircle, group: "Operação", key: "agendar" },
   { title: "Clientes", url: "/usuarios", icon: Users, group: "Operação", key: "usuarios" },
   { title: "CRM Inteligente", url: "/crm", icon: TrendingUp, group: "Estratégico", key: "crm" },
   { title: "Follow-ups", url: "/auditoria-sugestoes", icon: ClipboardList, group: "Estratégico", key: "auditoria-sugestoes" },
   { title: "Oportunidades", url: "/crm", icon: Sparkles, group: "Estratégico", key: "crm" },
   { title: "Campanhas", url: "/crm", icon: TrendingUp, group: "Estratégico", key: "crm" },
-  { title: "Planos Beauty", url: "/assinatura", icon: CreditCard, group: "Gestão", key: "__always" },
+  { title: "Beauty Club", url: "/assinatura", icon: Flower2, group: "Fidelização", key: "__always" },
   { title: "Profissionais", url: "/operadores", icon: UserCog, group: "Gestão", key: "operadores" },
   { title: "Unidades", url: "/base-conhecimento", icon: BookOpen, group: "Gestão", key: "base-conhecimento" },
   { title: "Financeiro", url: "/crm", icon: CreditCard, group: "Gestão", key: "crm" },
-  { title: "Analytics", url: "/crm", icon: TrendingUp, group: "Estratégico", key: "crm" },
-  { title: "Relatórios", url: "/auditoria-sugestoes", icon: ClipboardList, group: "Estratégico", key: "auditoria-sugestoes" },
-  { title: "Central IA", url: "/aprendizado-ia", icon: Brain, group: "IA & Inteligência", key: "aprendizado-ia" },
-  { title: "Configurações", url: "/configuracao-whatsapp", icon: UserCog, group: "IA & Inteligência", key: "config-whatsapp" },
+  { title: "Analytics", url: "/crm", icon: TrendingUp, group: "Inteligência", key: "crm" },
+  { title: "Relatórios", url: "/auditoria-sugestoes", icon: ClipboardList, group: "Inteligência", key: "auditoria-sugestoes" },
+  { title: "Central IA", url: "/aprendizado-ia", icon: Brain, group: "Inteligência", key: "aprendizado-ia" },
+  { title: "Configurações", url: "/configuracao-whatsapp", icon: UserCog, group: "Configuração", key: "config-whatsapp" },
   { title: "Perfil", url: "/perfil", icon: UserCircle, group: "Conta", key: "__always" },
   { title: "Ajuda", url: "/perfil", icon: UserCircle, group: "Conta", key: "__always" },
 ] as const;
