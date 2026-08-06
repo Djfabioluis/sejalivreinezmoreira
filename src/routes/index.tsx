@@ -115,54 +115,302 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="hidden">
-        Execute esta instrucao no projeto: MARIA GABRIELA
+        Execute esta instrucao no projeto: VALIDAÇÃO DO LOTE A — CONFIABILIDADE
 
-        ★★★★★ Cliente VIP
+OBJETIVO
 
-        Plano Beauty
+Validar as correções já aplicadas no Lote A antes de iniciar o Lote B.
 
-        Cliente há 3 anos
+Não criar novas funcionalidades.
+Não publicar automaticamente.
+Não avançar para segurança enquanto houver falhas de confiabilidade.
 
-        Receita acumulada
+==================================================
+1. ERROS SILENCIOSOS
+==================================================
 
-        R$ 12.480
+Verificar se ainda existem operações críticas com:
 
-        Últimos serviços
+catch que apenas registra console.error;
+success: true após falha;
+Supabase error ignorado;
+Promise.allSettled rejected ignorado;
+return vazio em falha obrigatória.
 
-        ✓ Escova
+Listar todos os casos restantes.
 
-        ✓ Manicure
+Prioridade:
 
-        ✓ Hidratação
+- mensagens;
+- IA;
+- agendamentos;
+- transferências;
+- planos;
+- campanhas;
+- follow-ups;
+- oportunidades;
+- jobs.
 
-        Profissional favorita
+==================================================
+2. OPERAÇÕES SUPABASE
+==================================================
 
-        Juliana
+Auditar novamente:
 
-        Frequência
+.from()
+.rpc()
+.storage()
+.auth()
 
-        28 dias
+Confirmar que operações obrigatórias validam error.
 
-        Último atendimento
+Apresentar quantidade:
 
-        15 dias
+- total auditado;
+- corrigido;
+- ainda pendente.
 
-        Próxima previsão
+==================================================
+3. TRANSAÇÕES
+==================================================
 
-        13 dias
+Testar fluxos atômicos:
 
-        IA recomenda
+- transferência de unidade;
+- limpeza de contexto após transferência;
+- criação de agendamento;
+- consumo de benefício do plano;
+- envio de follow-up;
+- conversão de oportunidade;
+- envio e persistência da resposta da IA.
 
-        ✔ Entrar em contato daqui a 10 dias.
+Simular erro no meio de cada fluxo.
 
-        ✔ Alta chance de aceitar.
+Resultado esperado:
 
-        ✔ Preferência por sexta à tarde.
+- rollback completo;
+- nenhum estado parcial.
 
-        ✔ Melhor horário: 16h.
+==================================================
+4. IDEMPOTÊNCIA
+==================================================
 
-        ✔ Plano ativo.
+Testar:
+
+Mensagem duplicada:
+mesmo instance + messageId duas vezes.
+
+Esperado:
+uma chamada à IA;
+um envio;
+uma mensagem assistant.
+
+Agendamento duplicado:
+mesma confirmação duas vezes.
+
+Esperado:
+um agendamento.
+
+Follow-up duplicado:
+mesma conversa, estágio e tentativa.
+
+Esperado:
+um envio.
+
+Transferência duplicada:
+mesma conversa, destino e messageId.
+
+Esperado:
+um evento.
+
+Transferência duplicada:
+mesma unidade, oportunidade e período.
+
+Esperado:
+uma campanha.
+
+==================================================
+5. LOCKS
+==================================================
+
+Verificar todos os locks.
+
+Testar:
+
+- aquisição;
+- concorrência;
+- liberação em sucesso;
+- liberação em erro;
+- liberação em timeout;
+- recuperação de lock vencido.
+
+Nenhum lock pode permanecer ativo indefinidamente.
+
+Listar registros vencidos encontrados no banco.
+
+==================================================
+6. MENSAGENS DO WHATSAPP
+==================================================
+
+Teste real controlado:
+
+1. enviar mensagem nova;
+2. confirmar recebimento;
+3. confirmar uma resposta;
+4. repetir o mesmo payload;
+5. confirmar nenhuma segunda resposta;
+6. enviar outra mensagem com messageId novo;
+7. confirmar nova resposta.
+
+Logs esperados:
+
+webhook_received
+event_registered
+lock_acquired
+processing_started
+run_agent_started
+run_agent_completed
+send_started
+send_completed
+event_processed
+lock_released
+
+==================================================
+7. FALHA DA IA
+==================================================
+
+Simular erro da IA.
+
+Esperado:
+
+- mensagem do cliente continua salva;
+- evento marcado failed;
+- lock liberado;
+- nenhuma duplicação;
+- próxima mensagem do cliente processada normalmente;
+- fallback enviado no máximo uma vez.
+
+==================================================
+8. FALHA DA EVOLUTION
+==================================================
+
+Simular erro de envio.
+
+Esperado:
+
+- resposta não marcada sent;
+- evento não marcado processed;
+- erro estruturado;
+- lock liberado;
+- retentativa controlada;
+- sem duplicação após sucesso.
+
+==================================================
+9. FALHA DO BEMP
+==================================================
+
+Simular:
+
+401
+404
+429
+500
+timeout
+resposta inválida
+
+Confirmar diferenciação entre:
+
+NOT_FOUND
+UNAUTHORIZED
+RATE_LIMITED
+BEMP_UNAVAILABLE
+INVALID_RESPONSE
+
+Não converter erro em lista vazia.
+
+==================================================
+10. CAMPANHAS
+==================================================
+
+Testar o botão Gerar campanha:
+
+- sem oportunidades;
+- oportunidades insuficientes;
+- campanha gerada;
+- erro da IA;
+- erro do Supabase;
+- duplo clique.
+
+Não pode existir sucesso falso.
+
+==================================================
+11. FOLLOW-UP
+==================================================
+
+Testar:
+
+- cliente respondeu antes do envio;
+- agendamento concluído;
+- humano assumiu;
+- opt-out;
+- limite de tentativas;
+- envio duplicado;
+- horário inadequado.
+
+O follow-up deve ser cancelado quando a condição deixar de existir.
+
+==================================================
+12. RESULTADO DO LOTE A
+==================================================
+
+Gerar documento:
+
+docs/validation-lot-a.md
+
+Incluir:
+
+- itens testados;
+- evidências;
+- comandos;
+- logs;
+- resultados;
+- falhas;
+- itens pendentes;
+- riscos;
+- rollback.
+
+==================================================
+13. COMANDOS
+==================================================
+
+Executar:
+
+build
+typecheck
+lint
+test
+
+Executar também testes SQL/RPC críticos.
+
+==================================================
+14. CRITÉRIO DE APROVAÇÃO
+==================================================
+
+O Lote A só pode ser aprovado quando:
+
+- nenhuma operação crítica retorna sucesso falso;
+- mensagens duplicadas não geram respostas;
+- mensagens novas continuam funcionando;
+- locks são liberados;
+- transações não deixam estado parcial;
+- erros da IA, Evolution e BEMP são rastreáveis;
+- campanhas e follow-ups são idempotentes;
+- testes críticos passam.
+
+Não publicar automaticamente.
+Não iniciar o Lote B se houver falha crítica.
       </div>
+
 
       <div className="bg-green-600 text-white p-2 text-center text-xs font-medium">
         Sistema otimizado: cache de permissões e credenciais ativado para maior velocidade.
