@@ -2329,6 +2329,31 @@ export async function runAgentWithLogging(params: {
 
     const currentUnitName = effectiveUnitName || unitName;
 
+    // Detecção de Intenção e Promoção (Determinística)
+    const intent = detectServiceCategory(params.text);
+    let mandatoryPromo: any = null;
+    let activePromotions: any[] = [];
+
+    if (intent?.category === "MECHAS") {
+      console.log(`[chat] mechas_intent_detected: traceId=${effectiveTraceId}`);
+      const promoResult = await PromotionService.getActivePromotions({
+        unitId: effectiveUnitId || undefined,
+        channel: "WHATSAPP",
+        category: "MECHAS"
+      });
+
+      if (promoResult.success) {
+        activePromotions = promoResult.promotions;
+        const mechasPromo = activePromotions.find(p => p.code === 'PACOTE_MECHAS_MENSAL');
+        if (mechasPromo) {
+          mandatoryPromo = mechasPromo;
+          console.log(`[chat] mechas_promotion_active: traceId=${effectiveTraceId}, promo=${mechasPromo.code}`);
+        }
+      } else {
+        console.error(`[chat] promotion_database_lookup_failed: traceId=${effectiveTraceId}, code=${promoResult.code}`);
+      }
+    }
+
     // Memória permanente do cliente (aprendizado contínuo) — nunca bloqueia o atendimento.
     const { loadMemoryForAgent } = await import("./memory/pipeline.server");
     const { promptBlock: memoryBlock } = await loadMemoryForAgent({
@@ -2337,7 +2362,7 @@ export async function runAgentWithLogging(params: {
       contactName: pushName || (historyData?.contact_name as string) || null,
     });
 
-    const reply = await runAgent(historyMessages, {
+    const agentResult = await runAgent(historyMessages, {
       unidadeId: effectiveUnitId || undefined,
       unitName: currentUnitName || undefined,
       contactName: pushName || (historyData?.contact_name as string),
@@ -2346,7 +2371,30 @@ export async function runAgentWithLogging(params: {
       conversationKey,
       messageId,
       memoryBlock,
+      activePromotions, // Passando promoções ativas para o runAgent
     });
+
+    let reply = typeof agentResult === 'string' ? agentResult : agentResult.text;
+
+    // Validação determinística da promoção na resposta
+    if (mandatoryPromo && !(historyData?.customer_context as any)?.mechasPromotionPresented) {
+      const validatedReply = ensureMandatoryPromotionMessage(reply, {
+        title: mandatoryPromo.title,
+        price: mandatoryPromo.promotional_price
+      });
+      
+      if (validatedReply !== reply) {
+        console.log(`[chat] promotion_injected_into_response: traceId=${effectiveTraceId}, promo=${mandatoryPromo.code}`);
+        reply = validatedReply;
+      }
+
+      await patchCustomerContext(conversationKey, {
+        mechasPromotionPresented: true,
+        promotionCode: mandatoryPromo.code,
+        promotionPresentedAt: new Date().toISOString()
+      });
+    }
+
 
 
     if (!reply || reply.trim().length === 0) {
