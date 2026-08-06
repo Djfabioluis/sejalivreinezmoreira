@@ -8,7 +8,6 @@ import { updateCustomerPipeline } from "../crm.server";
 export async function detectConversationAbandonment() {
   console.log("[crm-abandonment] Starting detection pass...");
 
-  // Use as any to bypass local type strictness since table was just created/updated via migration
   const { data: activePipelines, error } = await supabaseAdmin
     .from("crm_customer_pipeline" as any)
     .select("*")
@@ -21,7 +20,7 @@ export async function detectConversationAbandonment() {
 
   const now = new Date();
 
-  for (const item of (activePipelines || [])) {
+  for (const item of (activePipelines as any[] || [])) {
     const lastInteraction = new Date(item.last_interaction_at);
     const diffMs = now.getTime() - lastInteraction.getTime();
     const diffMinutes = diffMs / (1000 * 60);
@@ -30,12 +29,12 @@ export async function detectConversationAbandonment() {
     let newStage: any = null;
     let reason: string | null = null;
 
-    // RULE: 30 minutes + Service chosen + no response -> AGENDADO_ABANDONADO (mapped to ABANDONADO)
+    // RULE: 30 minutes + Service chosen + no response -> AGUARDANDO_RETORNO (mapped to ABANDONADO)
     if (diffMinutes >= 30 && item.current_stage === 'IDENTIFICANDO_SERVICO') {
       newStage = 'ABANDONADO';
       reason = 'Sem resposta após escolher serviço';
     } 
-    // RULE: 2 hours + Time chosen + no confirmation -> AGUARDANDO_RETORNO (using ABANDONADO variant)
+    // RULE: 2 hours + Time chosen + no confirmation -> AGUARDANDO_RETORNO
     else if (diffHours >= 2 && item.current_stage === 'AGUARDANDO_CONFIRMACAO') {
       newStage = 'ABANDONADO';
       reason = 'Sem confirmação após escolher horário';
