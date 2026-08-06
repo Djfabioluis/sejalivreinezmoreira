@@ -1917,6 +1917,9 @@ function buildTools(
   return base;
 }
 
+const ALLOW_SUBSCRIPTION_CPF_FALLBACK = false;
+
+
 
 
 // Backwards-compat export (used by any older imports).
@@ -2045,7 +2048,13 @@ export function mandatoryOperationalRules(opts: {
       "- É PROIBIDO perguntar a unidade no início se já houver uma unidade atual definida.",
     );
   }
-  if (opts.contactPhone) lines.push("- É PROIBIDO pedir telefone, DDD ou código de país: já são conhecidos.");
+  if (opts.contactPhone) {
+    lines.push(
+      "- O telefone do WhatsApp atual já é conhecido e não deve ser solicitado novamente para contatos comuns.",
+      "- EXCEÇÃO OBRIGATÓRIA: quando a cliente mencionar plano, assinatura ou benefício e ainda não houver subscriptionPhoneValidated, pergunte qual é o telefone cadastrado na assinatura, pois ele pode ser diferente do número atual do WhatsApp.",
+      "- Durante AWAITING_REGISTERED_PHONE, é permitido e obrigatório pedir o telefone cadastrado com DDD."
+    );
+  }
   if (opts.contactName) lines.push("- É PROIBIDO perguntar o nome do cliente: já é conhecido.");
   return lines.join("\n");
 }
@@ -2396,19 +2405,30 @@ export async function runAgentWithLogging(params: {
       normalizedText.includes("sou assinante") ||
       normalizedText.includes("plano beauty") ||
       normalizedText.includes("usar meu plano") ||
-      normalizedText.includes("usar meu beneficio");
+      normalizedText.includes("usar meu beneficio") ||
+      normalizedText.includes("tenho assinatura") ||
+      normalizedText.includes("plano de manicure") ||
+      normalizedText.includes("plano de escova") ||
+      normalizedText.includes("plano de hidratacao");
 
-    if (isSubscriptionIntent) {
+    if (isSubscriptionIntent && !historyData?.customer_context?.subscriptionPhoneValidated && historyData?.customer_context?.subscriptionLookupStage !== "LOOKING_UP_PHONE") {
+      console.log(`[chat] subscription_intent_detected_deterministic: traceId=${effectiveTraceId}`);
       await patchCustomerContext(conversationKey, {
         subscriptionIntent: true,
         subscriptionLookupMethod: "PHONE",
         subscriptionLookupStage: "AWAITING_REGISTERED_PHONE",
-        // Limpeza de estados antigos
         awaitingCpf: false,
         cpfRequested: false,
         cpfValidationPending: false
       });
+
+      return {
+        text: "Perfeito! 💜\n\nQual é o número de telefone cadastrado na assinatura?\n\nPode enviar com DDD.",
+        skipModel: true
+      };
     }
+
+
 
     const intent = detectServiceCategory(params.text);
     let mandatoryPromo: any = null;
@@ -2458,7 +2478,7 @@ export async function runAgentWithLogging(params: {
 
     // Bloqueio Determinístico de CPF no fluxo de Assinatura
     const context = historyData?.customer_context as any;
-    if (context?.subscriptionIntent && context?.subscriptionLookupStage === "AWAITING_REGISTERED_PHONE") {
+    if (context?.subscriptionLookupStage === "AWAITING_REGISTERED_PHONE") {
       const containsCPFPattern = /cpf|documento|\d{3}\.\d{3}\.\d{3}-\d{2}|somente números do cpf/i.test(reply);
       if (containsCPFPattern) {
          console.log(`[chat] cpf_request_blocked: traceId=${effectiveTraceId}, replacing with phone request`);
@@ -2657,7 +2677,13 @@ ${subscriptionContextLine(ctx as Record<string, any>)}
     model: getModel(),
     system: fullSystem,
     messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
-    tools: buildTools(sandbox, effectiveUnitId, opts.conversationKey || undefined, opts.messageId ?? null),
+    tools: (() => {
+      const tools = buildTools(sandbox, effectiveUnitId, opts.conversationKey || undefined, opts.messageId ?? null);
+      if (!ALLOW_SUBSCRIPTION_CPF_FALLBACK || opts.customerContext?.subscriptionLookupStage !== "AWAITING_CPF_FALLBACK") {
+        delete tools.validate_subscription_cpf;
+      }
+      return tools;
+    })(),
 
     stopWhen: stepCountIs(5),
     abortSignal: AbortSignal.timeout(60000),
