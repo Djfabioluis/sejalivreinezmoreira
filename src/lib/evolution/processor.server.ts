@@ -37,7 +37,12 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
   }
 
   for (const msg of messages) {
-    const traceId = `${msg.instance}:${msg.messageId}`;
+    const traceId = (payload as any)._traceId || `${msg.instance}:${msg.messageId}`;
+    logger.info("EvolutionProcessor", "MESSAGE_UPSTREAM", `Processando mensagem do WhatsApp`, { 
+      traceId, 
+      instance: msg.instance, 
+      phone: msg.remoteJid 
+    });
 
     try {
       // 2. fromMe (mensagem enviada pelo próprio número) → ignorar cedo

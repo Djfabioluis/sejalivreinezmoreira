@@ -17,7 +17,28 @@ export async function replyToUser(params: {
   messageId?: string;
   traceId?: string;
 }) {
-  const traceId = params.traceId || `${params.instance}:${params.messageId}`;
+  const traceId = params.traceId || `${params.instance}:${params.messageId || Math.random().toString(36).substring(7)}`;
+
+  // INSTRUMENTAÇÃO DE AUDITORIA: registrar origem da resposta
+  const stack = new Error().stack;
+  logger.audit("OUTBOUND_MESSAGE_SOURCE", `Enviando mensagem para Evolution via replyToUser`, {
+    traceId,
+    conversationKey: params.conversationKey,
+    instance: params.instance,
+    textSnippet: params.text.slice(0, 100),
+    source_file: "src/lib/evolution/reply.server.ts",
+    source_function: "replyToUser",
+    stack
+  });
+
+  if (params.text.includes("CPF")) {
+    logger.audit("CPF_RESPONSE_GENERATED", `Uma resposta contendo CPF foi detectada em replyToUser`, {
+      traceId,
+      conversationKey: params.conversationKey,
+      text: params.text,
+      stack
+    });
+  }
 
   // PROTEÇÃO FINAL DE SAÍDA: nenhuma mensagem do fluxo de assinatura pode mencionar CPF.
   try {

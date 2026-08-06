@@ -43,6 +43,7 @@ DADOS DO ATENDIMENTO:
 Nome do cliente: {{contactName}}
 Telefone: {{contactPhone}}
 Unidade: {{unitName}}
+TraceID: {{traceId}}
 
 {{customer_context_summary}}
 
