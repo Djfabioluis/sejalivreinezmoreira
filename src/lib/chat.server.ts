@@ -46,7 +46,12 @@ REGRAS TÉCNICAS:
 - Formate preços como R$ XX,XX.
 - Antes de confirmar o agendamento, SEMPRE apresente um resumo (Serviço, Profissional, Data, Horário) e peça confirmação explícita.
 - Promoção do mês: Planos de assinatura SEM TAXA DE ADESÃO.
-- Restrição: Unidade Centro Cívico não aceita planos de assinatura.`;
+- Restrição: Unidade Centro Cívico não aceita planos de assinatura.
+
+DIRETRIZES DE ABANDONO E PREÇO:
+- Se o cliente desistir por PREÇO, respeite a decisão e não insista. 
+- Se o profissional desejado não tiver agenda, informe o cliente e pergunte se ele gostaria de entrar na lista de espera (isso ajuda o sistema a monitorar desistências).
+- Se o sábado estiver lotado, peça desculpas e ofereça o dia útil mais próximo.`;
 
 const SANDBOX_NOTE = `
 

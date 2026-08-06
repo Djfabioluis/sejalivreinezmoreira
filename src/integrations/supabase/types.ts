@@ -332,6 +332,45 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_recoveries: {
+        Row: {
+          conversation_id: string | null
+          created_at: string | null
+          id: string
+          metadata: Json | null
+          phone: string
+          reason: string
+          scheduled_at: string | null
+          sent_at: string | null
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          conversation_id?: string | null
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          phone: string
+          reason: string
+          scheduled_at?: string | null
+          sent_at?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          conversation_id?: string | null
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          phone?: string
+          reason?: string
+          scheduled_at?: string | null
+          sent_at?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       customer_ai_memory: {
         Row: {
           anonymized_at: string | null
