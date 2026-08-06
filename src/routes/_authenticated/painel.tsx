@@ -1091,7 +1091,6 @@ function LeadsPanel() {
       const hay = [
         l.nome,
         l.email,
-        l.cpf,
         l.plano_nome,
         l.phone_area_code,
         l.phone_number,
@@ -1144,7 +1143,7 @@ function LeadsPanel() {
               <Input
                 id="lead-search"
                 className="pl-8"
-                placeholder="Nome, email, CPF, plano, telefone…"
+                placeholder="Nome, email, plano, telefone…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -1270,10 +1269,6 @@ function LeadsList({
               <div>
                 <span className="text-muted-foreground">Email: </span>
                 {l.email ?? "—"}
-              </div>
-              <div>
-                <span className="text-muted-foreground">CPF: </span>
-                {l.cpf ?? "—"}
               </div>
             </div>
 
