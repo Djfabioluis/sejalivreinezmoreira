@@ -364,7 +364,7 @@ function CRMPage() {
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <CardTitle className="text-lg font-bold group-hover:text-primary transition-colors">{customer.customer_name || formatPhoneDisplay(customer.phone)}</CardTitle>
+                          <CardTitle className="text-lg font-bold group-hover:text-primary transition-colors">{customer.customer_name || customer.phone}</CardTitle>
                           <div className="flex items-center gap-2 mt-1">
                             <Badge variant="outline" className="text-[9px] font-bold py-0 h-4 border-primary/20 text-primary">
                               {customer.current_stage.replace(/_/g, " ")}
