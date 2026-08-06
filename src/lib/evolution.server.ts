@@ -241,7 +241,7 @@ async function resolveSafeOutboundSubscriptionText(params: {
       .eq("phone", conversationKey)
       .maybeSingle();
 
-    let context = conv;
+    let context = conv as any;
     if (!context) {
       // Fallback seguro
       const { data: fallbackConv } = await supabaseAdmin
@@ -253,7 +253,7 @@ async function resolveSafeOutboundSubscriptionText(params: {
       context = fallbackConv;
     }
 
-    const ctx = (context?.customer_context as any) || null;
+    const ctx = context?.customer_context || null;
     const enforced = enforceNoCpfInSubscriptionFlow(params.text, ctx);
 
     if (enforced.blocked) {
@@ -262,7 +262,7 @@ async function resolveSafeOutboundSubscriptionText(params: {
         phoneLast4: normalizedPhone.slice(-4),
         source: "sendEvolutionText",
         contextFound: !!context
-      });
+      } as any);
       return { 
         text: enforced.text, 
         blocked: true, 

@@ -1,5 +1,6 @@
 import { sendEvolutionText, sendEvolutionPresence } from "@/lib/evolution.server";
-import { logEvent } from "./logger.server";
+import { logEvent, logger } from "./logger.server";
+
 
 // Duração do indicador nativo "digitando…" antes do envio da resposta.
 const TYPING_MIN_MS = 1200;
@@ -30,8 +31,9 @@ export async function replyToUser(params: {
       .eq("phone", params.conversationKey)
       .maybeSingle();
     
-    const ctx = (conv?.customer_context as Record<string, unknown> | null) || null;
-    const enforced = enforceNoCpfInSubscriptionFlow(params.text, ctx as never);
+    const ctx = (conv?.customer_context as any) || null;
+    const enforced = enforceNoCpfInSubscriptionFlow(params.text, ctx);
+
     
     if (enforced.blocked) {
       params = { ...params, text: enforced.text };
