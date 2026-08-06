@@ -38,11 +38,12 @@ export const listWAConversations = createServerFn({ method: "GET" })
     instance: z.string().optional(), 
     status: z.string().optional(), 
     unreadOnly: z.boolean().optional(), 
-    search: z.string().optional(),
+    search: z.string().trim().max(120).optional(),
     page: z.number().default(0),
     pageSize: z.number().default(20)
   }))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    await assertPermission(context, "painel");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let query = supabaseAdmin
       .from("wa_conversas" as never)
@@ -53,7 +54,8 @@ export const listWAConversations = createServerFn({ method: "GET" })
     if (data.status && data.status !== "todos") query = query.eq("status", data.status);
     if (data.unreadOnly) query = query.gt("unread_count", 0);
     if (data.search) {
-      query = query.or(`phone_number.ilike.%${data.search}%,contact_name.ilike.%${data.search}%`);
+      const term = safeIlikePattern(data.search);
+      query = query.or(`phone_number.ilike.${term},contact_name.ilike.${term}`);
     }
 
     const from = data.page * data.pageSize;
