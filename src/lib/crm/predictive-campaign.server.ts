@@ -1,7 +1,9 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { generateText } from "ai";
-import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
 import { z } from "zod";
+import { getAiProvider, getModelFor } from "@/lib/ai/ai-service.server";
+import { logger } from "@/lib/observability/logger.server";
+import { AppError } from "@/lib/core/errors";
 
 const CampaignSchema = z.object({
   campaign_name: z.string().min(3),
@@ -11,30 +13,26 @@ const CampaignSchema = z.object({
   estimated_impact: z.string().optional()
 });
 
-export interface CampaignEngineResult {
+export type CampaignGenerationResult = {
   success: boolean;
   generatedCount: number;
-  skippedReason?: 'NO_PENDING_SLOTS' | 'INSUFFICIENT_IDLE_SLOTS';
+  skippedReason?: "NO_PENDING_SLOTS" | "INSUFFICIENT_IDLE_SLOTS";
   errors?: Array<{
+    code: string;
+    message: string;
     unitId?: string;
     date?: string;
-    message: string;
   }>;
-}
+};
 
 /**
  * Motor de Campanhas Preditivas (Premium Decision Engine)
  * Identifica ociosidade futura e sugere campanhas personalizadas para aprovação.
  */
-export async function runPredictiveCampaignEngine(): Promise<CampaignEngineResult> {
-  console.log("[predictive-campaign] campaign_generation_started");
+export async function runPredictiveCampaignEngine(): Promise<CampaignGenerationResult> {
+  logger.info("PREDICTIVE_CAMPAIGN_STARTED", "Starting campaign generation engine");
 
   try {
-    const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) {
-      throw new Error("LOVABLE_API_KEY não configurada para geração de campanhas");
-    }
-
     // 1. Identificar ociosidade futura (próximos 3 dias)
     const { data: slots, error: slotsError } = await supabaseAdmin
       .from("crm_slot_opportunities")
@@ -43,16 +41,19 @@ export async function runPredictiveCampaignEngine(): Promise<CampaignEngineResul
       .limit(50);
 
     if (slotsError) {
-      throw new Error(`Erro ao buscar slots: ${slotsError.message}`);
+      logger.error("CAMPAIGN_SLOTS_LOAD_FAILED", slotsError.message, { error: slotsError });
+      return {
+        success: false,
+        generatedCount: 0,
+        errors: [{ code: "SLOTS_LOAD_FAILED", message: "Erro ao buscar slots disponíveis." }]
+      };
     }
-
-    console.log(`[predictive-campaign] campaign_slots_loaded: ${slots?.length || 0}`);
 
     if (!slots || slots.length === 0) {
       return { success: true, generatedCount: 0, skippedReason: 'NO_PENDING_SLOTS' };
     }
 
-    // Agrupar slots por dia/unidade para identificar "buracos" na agenda
+    // Agrupar slots por dia/unidade
     const idleSpots = slots.reduce((acc: any, slot: any) => {
       const date = new Date(slot.start_at).toLocaleDateString('pt-BR');
       const key = `${date}_${slot.unidade_id}`;
@@ -62,39 +63,24 @@ export async function runPredictiveCampaignEngine(): Promise<CampaignEngineResul
       return acc;
     }, {});
 
-    // Filtrar períodos com alta ociosidade (mínimo 3 slots)
     const minIdleSlots = Number(process.env.CAMPAIGN_MIN_IDLE_SLOTS) || 3;
     const criticalSpots = Object.values(idleSpots).filter((s: any) => s.count >= minIdleSlots);
 
     if (criticalSpots.length === 0) {
-      console.log("[predictive-campaign] campaign_insufficient_slots");
       return { success: true, generatedCount: 0, skippedReason: 'INSUFFICIENT_IDLE_SLOTS' };
     }
 
-    const provider = createLovableAiGatewayProvider(apiKey);
+    const provider = getAiProvider();
+    const model = getModelFor('campaign');
     let generatedCount = 0;
     const errors: any[] = [];
 
     for (const spot of criticalSpots as any[]) {
       try {
-        console.log(`[predictive-campaign] campaign_ai_started for unit ${spot.unit}`);
-        
         const prompt = `
           Você é a Julia, Gerente Preditiva de Receita do Seja Livre AI Platform.
-          
-          CENÁRIO:
-          Identificamos baixa ocupação na unidade ${spot.unit} para o dia ${spot.date}. 
-          Temos ${spot.count} horários vagos.
-          
-          TAREFA:
+          Identificamos baixa ocupação na unidade ${spot.unit} para o dia ${spot.date} (${spot.count} horários vagos).
           Crie uma sugestão de CAMPANHA PREMIUM para preencher esses horários. 
-          A campanha deve ser específica (ex: Escova Premium, Hidratação, Combo Relax) e direcionada.
-          
-          REGRAS:
-          - Defina o público-alvo (ex: "clientes que não visitam há 30 dias e preferem o serviço X").
-          - Crie um nome para a campanha.
-          - Escreva a mensagem sugerida.
-          
           RESPONDA APENAS JSON:
           {
             "campaign_name": "Nome da Campanha",
@@ -106,25 +92,15 @@ export async function runPredictiveCampaignEngine(): Promise<CampaignEngineResul
         `;
 
         const { text } = await generateText({
-          model: provider("google/gemini-1.5-flash") as any,
+          model: provider(model) as any,
           prompt,
         });
 
         const cleanedText = text.trim().replace(/```json|```/g, '');
-        let campaignData;
-        try {
-          campaignData = JSON.parse(cleanedText);
-        } catch (e) {
-          console.error("[predictive-campaign] campaign_ai_invalid_response", cleanedText);
-          throw new Error("IA retornou JSON inválido");
-        }
-
+        const campaignData = JSON.parse(cleanedText);
         const validatedCampaign = CampaignSchema.parse(campaignData);
-        console.log(`[predictive-campaign] campaign_ai_completed: ${validatedCampaign.campaign_name}`);
 
-        // 3. Salvar como recomendação pendente (unit_id agora suportado e customer_id opcional)
-        console.log("[predictive-campaign] campaign_save_started");
-        const { error: insertError } = await supabaseAdmin
+        const { data: inserted, error: insertError } = await supabaseAdmin
           .from("crm_recommendations")
           .insert({
             recommendation_type: 'PREDICTIVE_CAMPAIGN',
@@ -142,35 +118,43 @@ export async function runPredictiveCampaignEngine(): Promise<CampaignEngineResul
               unit_id: spot.unit,
               is_premium_decision: true
             }
-          });
+          })
+          .select()
+          .single();
 
         if (insertError) {
-          console.error("[predictive-campaign] campaign_save_failed", insertError);
-          throw new Error(`Falha ao salvar no banco: ${insertError.message}`);
+          throw new AppError({
+            code: "CAMPAIGN_SAVE_FAILED",
+            message: "Não foi possível salvar a campanha no banco.",
+            cause: insertError
+          });
         }
 
         generatedCount++;
-        console.log("[predictive-campaign] campaign_save_completed");
-
       } catch (innerError: any) {
+        logger.error("CAMPAIGN_SPOT_PROCESSING_FAILED", innerError.message, { spot, error: innerError });
         errors.push({
+          code: innerError.code || "PROCESSING_ERROR",
+          message: innerError.message,
           unitId: String(spot.unit),
-          date: spot.date,
-          message: innerError.message
+          date: spot.date
         });
       }
     }
 
-    console.log(`[predictive-campaign] campaign_generation_completed. Generated: ${generatedCount}, Errors: ${errors.length}`);
-    
     return {
-      success: errors.length < (criticalSpots as any[]).length,
+      success: generatedCount > 0 || errors.length === 0,
       generatedCount,
       errors: errors.length > 0 ? errors : undefined
     };
 
   } catch (error: any) {
-    console.error("[predictive-campaign] generation_failed", error);
-    throw error;
+    logger.error("CAMPAIGN_ENGINE_CRITICAL_FAILURE", error.message, { error });
+    return {
+      success: false,
+      generatedCount: 0,
+      errors: [{ code: "CRITICAL_ENGINE_FAILURE", message: error.message }]
+    };
   }
 }
+

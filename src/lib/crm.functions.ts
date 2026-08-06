@@ -160,22 +160,10 @@ export const triggerCampaignGeneration = createServerFn({ method: "POST" })
   .handler(async ({ context }) => {
     await assertAdmin(context);
     
-    // Import inside handler to avoid bundling server-only logic into client if possible,
-    // though this is already a .functions.ts file which is server-safe.
     const { runPredictiveCampaignEngine } = await import("./crm/predictive-campaign.server");
     
-    try {
-      const result = await runPredictiveCampaignEngine();
-      return result;
-    } catch (error: any) {
-      console.error("[crm.functions] triggerCampaignGeneration failed:", error);
-      // Return structured error to the client instead of throwing a raw error
-      return { 
-        success: false, 
-        generatedCount: 0, 
-        errors: [{ message: error.message || "Erro desconhecido na geração" }] 
-      };
-    }
-
+    // runPredictiveCampaignEngine now handles its own errors and returns structured result
+    return await runPredictiveCampaignEngine();
   });
+
 
