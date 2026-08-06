@@ -288,9 +288,14 @@ function AgentesWhatsAppPage() {
         <p className="text-sm text-muted-foreground">Gerencie instâncias da Evolution API e vincule a unidades do salão</p>
       </header>
 
-      <Button className="w-full" size="lg" onClick={() => setAddOpen(true)}>
-        <Plus className="mr-2 h-4 w-4" /> Adicionar agente
-      </Button>
+      <div className="flex gap-2">
+        <Button className="flex-1" size="lg" onClick={() => setAddOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" /> Adicionar agente
+        </Button>
+        <Button variant="outline" size="lg" onClick={() => void syncEvolutionInstances().then(() => reload())}>
+          <RefreshCw className="mr-2 h-4 w-4" /> Sincronizar
+        </Button>
+      </div>
 
       <div className="space-y-3">
         {loading ? <Loader2 className="mx-auto h-8 w-8 animate-spin opacity-20" /> : items.map((a) => (
