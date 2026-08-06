@@ -2478,7 +2478,7 @@ export async function runAgentWithLogging(params: {
 
     // Bloqueio Determinístico de CPF no fluxo de Assinatura
     const context = historyData?.customer_context as any;
-    if (context?.subscriptionIntent && context?.subscriptionLookupStage === "AWAITING_REGISTERED_PHONE") {
+    if (context?.subscriptionLookupStage === "AWAITING_REGISTERED_PHONE") {
       const containsCPFPattern = /cpf|documento|\d{3}\.\d{3}\.\d{3}-\d{2}|somente números do cpf/i.test(reply);
       if (containsCPFPattern) {
          console.log(`[chat] cpf_request_blocked: traceId=${effectiveTraceId}, replacing with phone request`);
