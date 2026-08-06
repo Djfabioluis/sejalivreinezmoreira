@@ -2375,6 +2375,13 @@ export async function runAgentWithLogging(params: {
       messageId
     });
 
+    // CRM: Update stage after successfully replying
+    await updateCustomerPipeline({
+      phone,
+      stage: 'IDENTIFICANDO_SERVICO', // Default ongoing stage after interaction if not narrowed by tools
+      customerName: pushName || (historyData?.contact_name as string) || undefined
+    }).catch(e => console.error("[crm] Post-reply update failed:", e));
+
     // Aprendizado contínuo: extrai e mescla a memória depois da resposta enviada.
     try {
       const { learnFromInteraction } = await import("./memory/pipeline.server");
