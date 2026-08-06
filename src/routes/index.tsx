@@ -115,553 +115,619 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* 
-        Execute esta instrucao no projeto: IMPLEMENTAR AI CONTROL CENTER — VERSÃO 2
+        Execute esta instrucao no projeto: IMPLEMENTAR PAUSA AUTOMÁTICA DA IA DURANTE ATENDIMENTO HUMANO
 
-PROJETO
+OBJETIVO
 
-Seja Livre AI Platform
+Quando um atendente humano entrar em uma conversa, a IA deve parar imediatamente de responder.
 
-CONTEXTO
+A IA deve voltar automaticamente somente depois que o humano ficar sem interagir por um período configurável e ainda existir uma nova mensagem da cliente aguardando resposta.
 
-A versão 1 do AI Control Center já foi implementada e validada com as abas:
+Não permitir respostas simultâneas da IA e do humano.
 
-- Atendimento
-- Ferramentas
-- Saúde
-- Logs
-
-Agora implementar somente:
-
-- Memória
-- Aprendizado
-- Decisões
-- Configurações
-
-Não refatorar novamente a versão 1.
-
-Não alterar regras de atendimento.
+Não recomeçar a conversa com nova saudação.
 
 Não publicar automaticamente.
 
 ==================================================
-1. ABA MEMÓRIA
+1. ESTADOS DA CONVERSA
 ==================================================
 
-Reutilizar a estrutura existente de memória do cliente.
+Adicionar ou reutilizar campos em wa_conversas:
 
-Antes de criar tabela nova, verificar:
+attendance_mode
+human_operator_id
+human_assumed_at
+human_last_activity_at
+ai_paused_at
+ai_resume_at
+ai_pause_reason
+pending_customer_reply
+updated_at
 
-customer_ai_memory
-customer_memory_versions
-ai_response_feedback
-ou estruturas equivalentes.
+Valores de attendance_mode:
 
-Exibir:
+AI
+HUMAN
+WAITING_AI_RESUME
 
-- cliente;
-- unidade;
-- tipo de memória;
-- valor resumido;
-- origem;
-- confiança;
-- status;
-- data de criação;
-- última atualização;
-- versão.
+Significados:
 
-Tipos possíveis:
+AI
+→ IA pode responder normalmente.
 
-PREFERRED_NAME
-PREFERRED_SERVICE
-PREFERRED_PROFESSIONAL
-PREFERRED_UNIT
-PREFERRED_DAY
-PREFERRED_TIME
-SUBSCRIPTION
-RESTRICTION
-IMPORTANT_NOTE
-PENDING_TOPIC
+HUMAN
+→ humano assumiu; IA totalmente pausada.
 
-Status:
+WAITING_AI_RESUME
+→ humano está inativo, mas o sistema ainda está validando se a IA deve retomar.
 
-SUGGESTED
-CONFIRMED
-REJECTED
-DELETED
+Não criar campos duplicados quando já existirem equivalentes.
 
 ==================================================
-2. AÇÕES DE MEMÓRIA
+2. HUMANO ASSUME A CONVERSA
 ==================================================
 
-Permitir:
+Considerar que um humano assumiu quando ocorrer qualquer uma destas ações:
 
-- confirmar;
-- editar;
-- rejeitar;
-- excluir;
-- visualizar histórico;
-- restaurar versão anterior.
+- clicar em “Assumir atendimento”;
+- enviar mensagem manual pela Secretária Virtual;
+- selecionar um responsável humano;
+- alterar explicitamente o modo para atendimento humano.
 
-Toda ação deve:
+Ao assumir:
 
-- validar permissão no backend;
-- registrar usuário responsável;
-- registrar data;
-- preservar versão anterior;
-- usar auditoria.
+attendance_mode = HUMAN
+human_operator_id = usuário autenticado
+human_assumed_at = now()
+human_last_activity_at = now()
+ai_paused_at = now()
+ai_pause_reason = HUMAN_ASSUMED
+ai_resume_at = null
+pending_customer_reply = false
 
-Não apagar histórico ao editar.
+Cancelar imediatamente:
 
-==================================================
-3. CONFIANÇA E ORIGEM
-==================================================
+- execução pendente da IA;
+- resposta ainda não enviada;
+- follow-up automático da conversa;
+- timers de resposta automática;
+- jobs de IA ainda não iniciados.
 
-Exibir origem:
-
-EXPLICIT_CUSTOMER_STATEMENT
-BEMP_CONFIRMED
-APPOINTMENT_CONFIRMED
-OPERATOR_CONFIRMED
-INFERRED
-
-Regras:
-
-- INFERRED não pode substituir fato confirmado;
-- BEMP_CONFIRMED prevalece para dados operacionais atuais;
-- correção explícita da cliente deve gerar nova versão;
-- não mostrar inferência como certeza.
+Não apagar o histórico nem o contexto.
 
 ==================================================
-4. PRIVACIDADE DA MEMÓRIA
+3. MENSAGEM MANUAL PAUSA A IA
 ==================================================
 
-Não exibir:
+Toda mensagem enviada por um operador humano deve atualizar:
 
-- CPF completo;
-- telefone completo;
-- dados bancários;
-- tokens;
-- documentos completos;
-- informações sensíveis desnecessárias.
+attendance_mode = HUMAN
+human_operator_id = usuário atual
+human_last_activity_at = now()
+ai_resume_at = now() + HUMAN_IDLE_TIMEOUT
 
-Aplicar mascaramento no backend antes da resposta.
+A mensagem manual deve ser salva como:
 
-Não depender somente da interface.
+role = operator
 
-==================================================
-5. ABA APRENDIZADO
-==================================================
+ou tipo equivalente claramente distinto de assistant.
 
-Reutilizar:
-
-knowledge_suggestions
-
-ou estrutura equivalente.
-
-Exibir:
-
-- título;
-- categoria;
-- conteúdo sugerido;
-- resumo das evidências;
-- quantidade de ocorrências;
-- confiança;
-- impacto estimado;
-- status;
-- criado em;
-- revisado por;
-- revisado em.
-
-Status:
-
-PENDING
-APPROVED
-REJECTED
-PUBLISHED
+Ela não pode voltar pelo webhook e disparar a IA.
 
 ==================================================
-6. APROVAÇÃO DO APRENDIZADO
+4. BLOQUEIO NO WEBHOOK
 ==================================================
 
-Permitir:
+Quando chegar uma mensagem da cliente:
 
-- visualizar evidências;
-- editar sugestão;
-- aprovar;
-- rejeitar;
-- publicar;
-- cancelar publicação.
+1. salvar a mensagem;
+2. atualizar a Caixa de Entrada;
+3. localizar a conversa;
+4. verificar attendance_mode antes de chamar a IA.
 
-A IA nunca pode publicar automaticamente.
+Se attendance_mode = HUMAN:
 
-Somente usuário com permissão:
+- não chamar runAgent;
+- não enviar fallback;
+- não enviar resposta automática;
+- definir pending_customer_reply = true;
+- registrar customer_message_waiting_for_human;
+- atualizar unread_count;
+- manter a mensagem visível para o atendente.
 
-ai_learning_approve
-
-pode aprovar.
-
-Somente usuário com permissão:
-
-ai_learning_publish
-
-pode publicar.
-
-A aprovação e a publicação devem ser ações separadas.
+A mensagem nunca pode ser perdida.
 
 ==================================================
-7. PROTEGER BASE GLOBAL
+5. TEMPO DE INATIVIDADE DO HUMANO
 ==================================================
 
-Antes de publicar conhecimento:
+Criar configuração:
 
-- validar schema;
-- verificar conflito com regras obrigatórias;
-- verificar conteúdo malicioso;
-- impedir instruções do cliente virarem regra;
-- impedir preço ou política não confirmada;
-- registrar versão;
-- permitir rollback.
+HUMAN_IDLE_TIMEOUT_MINUTES
 
-A base de conhecimento editável não pode sobrescrever regras técnicas obrigatórias.
+Valor inicial recomendado:
 
-==================================================
-8. ABA DECISÕES
-==================================================
-
-Criar ou reutilizar:
-
-ai_decision_logs
-
-Cada decisão deve armazenar somente resumo operacional estruturado.
-
-Não armazenar chain-of-thought, raciocínio privado ou prompt interno integral.
-
-Estrutura:
-
-{
-  decisionType,
-  selectedAction,
-  confidence,
-  evidenceCodes,
-  resultCode,
-  conversationId,
-  customerId,
-  unitId,
-  agentId,
-  traceId,
-  createdAt
-}
-
-==================================================
-9. TIPOS DE DECISÃO
-==================================================
-
-Exibir decisões como:
-
-IDENTIFY_INTENT
-SELECT_NEXT_STEP
-REQUEST_CUSTOMER_NAME
-REQUEST_CPF
-VALIDATE_PLAN
-SELECT_EFFECTIVE_UNIT
-TRANSFER_UNIT
-RESOLVE_SERVICE
-LIST_PROFESSIONALS
-LIST_SLOTS
-CREATE_APPOINTMENT
-GENERATE_FOLLOWUP
-HANDOFF_HUMAN
-CANCEL_AUTOMATION
-CLOSE_CONVERSATION
-
-==================================================
-10. DETALHES DA DECISÃO
-==================================================
-
-Ao abrir uma decisão, mostrar:
-
-- ação escolhida;
-- confiança;
-- códigos de evidência;
-- unidade efetiva;
-- estágio do funil;
-- tools relacionadas;
-- resultado;
-- intervenção humana;
-- traceId;
-- duração.
-
-Não mostrar conteúdo sensível integral.
-
-==================================================
-11. FILTROS DE DECISÕES
-==================================================
-
-Adicionar filtros:
-
-- período;
-- unidade;
-- agente;
-- cliente;
-- tipo;
-- confiança;
-- resultado;
-- com erro;
-- com intervenção humana.
-
-Usar paginação server-side.
-
-==================================================
-12. ABA CONFIGURAÇÕES
-==================================================
-
-Criar configurações de governança.
-
-Se já existir tabela de configurações, reutilizar.
-
-Configurações:
-
-IA_ENABLED
-PRIMARY_MODEL
-AI_TIMEOUT_MS
-AI_MAX_RETRIES
-MAX_HISTORY_MESSAGES
-MAX_CONTEXT_TOKENS
-FOLLOWUP_AUTONOMY_MODE
-FOLLOWUP_MAX_ATTEMPTS
-FOLLOWUP_ALLOWED_START_TIME
-FOLLOWUP_ALLOWED_END_TIME
-CUSTOMER_MEMORY_ENABLED
-AUTO_MEMORY_CONFIRMATION
-LEARNING_APPROVAL_REQUIRED
-HUMAN_FALLBACK_ENABLED
-LOG_LEVEL
-
-==================================================
-13. ESCOPO DAS CONFIGURAÇÕES
-==================================================
+15 minutos
 
 Permitir configuração por:
-
-- organização;
-- unidade;
-- agente.
-
-Prioridade:
 
 agente
 → unidade
 → organização
-→ padrão global.
+→ padrão global
 
-Criar função central:
+A prioridade deve seguir essa ordem.
 
-resolveAIConfiguration()
-
-Não espalhar resolução de configuração pelo frontend.
+Não deixar o valor fixo espalhado pelo código.
 
 ==================================================
-14. CONFIGURAÇÕES SENSÍVEIS
+6. RETOMADA AUTOMÁTICA
 ==================================================
 
-Não exibir nem editar diretamente:
+Criar job:
 
-- API keys;
-- service role;
-- BEMP token;
-- Evolution API key;
-- segredos de webhook.
+resumeAIForInactiveHumanConversations()
 
-A tela pode mostrar apenas:
+Executar a cada minuto ou em frequência compatível com a infraestrutura.
 
-“Configurado”
-ou
-“Não configurado”.
+Selecionar conversas onde:
 
-Segredos permanecem em variáveis de ambiente ou cofre seguro.
+attendance_mode = HUMAN
+human_last_activity_at <= now() - timeout
+pending_customer_reply = true
+IA do agente está ativa
+agente está conectado
+unidade está definida
+não existe lock ativo
+não existe operador digitando
+não existe envio humano em andamento
+cliente não pediu atendimento exclusivamente humano
 
-==================================================
-15. ALTERAÇÕES DE CONFIGURAÇÃO
-==================================================
+Mover primeiro para:
 
-Toda alteração deve:
+attendance_mode = WAITING_AI_RESUME
 
-1. validar permissão;
-2. validar schema Zod;
-3. mostrar confirmação;
-4. salvar versão anterior;
-5. registrar auditoria;
-6. atualizar cache;
-7. permitir rollback.
-
-Criar ou reutilizar:
-
-ai_configuration_audit
-
-Campos:
-
-id
-scope_type
-scope_id
-config_key
-old_value
-new_value
-changed_by
-changed_at
-reason
-trace_id
-
-Mascarar valores sensíveis.
+Depois executar validação final.
 
 ==================================================
-16. FEATURE FLAGS
-==================================================
-
-Adicionar ou reutilizar feature flags para:
-
-- memória automática;
-- aprendizado;
-- decisões;
-- follow-up autônomo;
-- campanhas automáticas;
-- mídia;
-- health checks.
-
-Não ativar funcionalidades globalmente apenas por criar a tela.
-
-==================================================
-17. PERMISSÕES
-==================================================
-
-Validar no backend:
-
-ai_memory_view
-ai_memory_manage
-ai_learning_view
-ai_learning_approve
-ai_learning_publish
-ai_decisions_view
-ai_settings_view
-ai_settings_manage
-
-Usuário sem permissão deve receber 403 real.
-
-==================================================
-18. PERFORMANCE
-==================================================
-
-As novas abas devem:
-
-- carregar sob demanda;
-- usar paginação;
-- usar filtros server-side;
-- evitar carregar históricos completos;
-- usar consultas agregadas;
-- não criar novas subscriptions desnecessárias.
-
-Não carregar Memória, Aprendizado, Decisões e Configurações na abertura inicial da Central IA.
-
-==================================================
-19. UX
-==================================================
-
-Usar componentes do Design System existente.
-
-Adicionar:
-
-- filtros;
-- tabelas;
-- drawers;
-- diff de versões;
-- badges de confiança;
-- badges de origem;
-- dialogs de confirmação;
-- skeleton;
-- empty state;
-- error state;
-- toasts.
-
-Não criar um segundo Design System.
-
-==================================================
-20. TESTES
-==================================================
-
-Criar testes para:
-
-- visualizar memória;
-- confirmar memória;
-- rejeitar memória;
-- editar memória;
-- restaurar versão;
-- mascarar CPF;
-- aprovar aprendizado;
-- impedir publicação sem permissão;
-- publicar conhecimento;
-- rollback de conhecimento;
-- listar decisões;
-- filtrar decisões;
-- não expor raciocínio privado;
-- editar configuração;
-- resolver configuração por prioridade;
-- rollback de configuração;
-- acesso negado;
-- paginação.
-
-==================================================
-21. RELATÓRIO
+7. VALIDAÇÃO ANTES DA RETOMADA
 ==================================================
 
 Criar:
 
-docs/ai-control-center-v2.md
+validateAIResume(conversationId)
+
+Verificar novamente:
+
+- humano não respondeu depois da seleção;
+- cliente continua aguardando;
+- não existe mensagem humana mais recente que a mensagem da cliente;
+- conversa não foi encerrada;
+- não existe handoff obrigatório;
+- IA está ativa;
+- agente está READY;
+- unidade efetiva existe;
+- cliente não pediu “quero falar com uma pessoa”;
+- não existe bloqueio por reclamação ou caso sensível;
+- não existe outro processamento em andamento.
+
+Se alguma condição falhar:
+
+- voltar para HUMAN quando o humano retomou;
+ou
+- manter pausada com motivo apropriado.
+
+==================================================
+8. REGRA DA MENSAGEM MAIS RECENTE
+==================================================
+
+A IA só deve retomar quando a última mensagem relevante da conversa for da cliente.
+
+Comparar:
+
+last_customer_message_at
+last_human_message_at
+last_ai_message_at
+
+Condição obrigatória:
+
+last_customer_message_at > last_human_message_at
+
+Se o humano já respondeu depois da cliente:
+
+pending_customer_reply = false
+não retomar a IA.
+
+==================================================
+9. LOCK ATÔMICO
+==================================================
+
+A retomada deve usar lock por conversation_id.
+
+Fluxo:
+
+- adquirir lock;
+- reler a conversa;
+- validar estado;
+- alterar para WAITING_AI_RESUME;
+- chamar IA;
+- enviar uma única resposta;
+- alterar para AI;
+- limpar pending_customer_reply;
+- liberar lock em finally.
+
+Duas instâncias do job não podem retomar a mesma conversa.
+
+==================================================
+10. CONTEXTO DA RETOMADA
+==================================================
+
+Ao retomar, enviar ao orquestrador:
+
+- histórico recente;
+- últimas mensagens do humano;
+- mensagem da cliente aguardando;
+- estágio atual do agendamento;
+- contexto do cliente;
+- unidade atual;
+- resumo do atendimento humano;
+- motivo da pausa.
+
+Adicionar instrução:
+
+“O atendimento estava sendo conduzido por uma pessoa e foi retomado automaticamente por inatividade. Continue do ponto atual. Não cumprimente novamente, não repita perguntas já respondidas e não critique o atendente humano.”
+
+==================================================
+11. MENSAGEM DE RETOMADA
+==================================================
+
+A IA não deve necessariamente avisar:
+
+“Voltei a atender.”
+
+Ela deve responder diretamente à pergunta pendente.
+
+Exemplo:
+
+Humano:
+“Vou verificar um horário para você.”
+
+Cliente:
+“Tudo bem, fico aguardando.”
+
+Após o timeout, a IA deve consultar os horários e responder com dados reais.
+
+Não enviar apenas:
+
+“Como posso ajudar?”
+
+==================================================
+12. CASOS QUE NÃO DEVEM RETOMAR AUTOMATICAMENTE
+==================================================
+
+Não retomar quando houver:
+
+- reclamação;
+- cobrança ou financeiro;
+- conflito;
+- pedido explícito de humano;
+- situação sensível;
+- erro persistente;
+- atendimento marcado como exclusivo do operador;
+- conversa encerrada;
+- bloqueio manual da IA;
+- cliente com opt-out;
+- operador ainda digitando;
+- tarefa humana pendente explicitamente registrada.
+
+Criar campo ou estado:
+
+human_only = true
+
+Quando ativo, somente ação manual pode devolver a conversa para a IA.
+
+==================================================
+13. BOTÕES NA SECRETÁRIA VIRTUAL
+==================================================
+
+Adicionar controles claros:
+
+Quando IA está ativa:
+
+[Assumir atendimento]
+
+Quando humano assumiu:
+
+[Devolver para IA]
+[Manter atendimento humano]
+
+Mostrar badge:
+
+IA atendendo
+Humano atendendo
+IA pausada
+Aguardando retomada automática
+
+Exibir:
+
+Atendente: [nome]
+IA retomará após: [horário]
+Última atividade humana: [hora]
+
+==================================================
+14. DEVOLUÇÃO MANUAL PARA A IA
+==================================================
+
+Ao clicar em “Devolver para IA”:
+
+- validar se há mensagem pendente;
+- alterar attendance_mode para AI;
+- limpar human_operator_id quando apropriado;
+- limpar ai_resume_at;
+- registrar auditoria;
+- se houver cliente aguardando, iniciar processamento uma única vez.
+
+Pedir confirmação:
+
+“A IA continuará o atendimento usando todo o histórico desta conversa.”
+
+==================================================
+15. MANTER ATENDIMENTO HUMANO
+==================================================
+
+Ao clicar em “Manter atendimento humano”:
+
+human_only = true
+attendance_mode = HUMAN
+ai_resume_at = null
+
+A IA não volta automaticamente.
+
+Somente “Devolver para IA” remove esse bloqueio.
+
+==================================================
+16. DETECÇÃO DE OPERADOR DIGITANDO
+==================================================
+
+Se a interface já possuir indicador de digitação, atualizar:
+
+human_typing_until
+
+Enquanto:
+
+human_typing_until > now()
+
+não retomar IA.
+
+O indicador deve expirar automaticamente para evitar bloqueio permanente.
+
+Se não houver suporte atual, não criar dependência obrigatória; usar mensagens e atividade como fonte principal.
+
+==================================================
+17. FOLLOW-UP
+==================================================
+
+Quando attendance_mode = HUMAN:
+
+- pausar follow-ups;
+- não enviar mensagens automáticas;
+- não criar abordagem concorrente.
+
+Ao retornar para AI:
+
+- reavaliar os follow-ups;
+- cancelar os que perderam sentido;
+- não enviar imediatamente um follow-up se a IA acabou de responder.
+
+==================================================
+18. IDEMPOTÊNCIA
+==================================================
+
+Criar chave de retomada baseada em:
+
+conversation_id
++
+last_customer_message_id
++
+resume_cycle
+
+A mesma mensagem pendente não pode gerar duas respostas.
+
+Registrar:
+
+ai_resume_attempt_id
+
+==================================================
+19. FALHAS
+==================================================
+
+Se a IA falhar ao retomar:
+
+- não marcar como AI;
+- retornar para HUMAN ou WAITING_AI_RESUME;
+- preservar pending_customer_reply;
+- liberar lock;
+- criar alerta para a equipe;
+- não enviar múltiplos fallbacks.
+
+Se a Evolution falhar no envio:
+
+- não considerar a retomada concluída;
+- manter estado recuperável;
+- evitar envio duplicado após confirmação de sucesso.
+
+==================================================
+20. LOGS
+==================================================
+
+Registrar:
+
+human_assumed_conversation
+human_message_sent
+ai_paused_for_human
+customer_message_waiting_for_human
+human_idle_timeout_reached
+ai_resume_validation_started
+ai_resume_blocked
+ai_resume_started
+ai_resume_completed
+ai_resume_failed
+conversation_returned_to_ai
+conversation_marked_human_only
 
 Incluir:
 
-- arquitetura;
-- fontes de dados;
-- tabelas reutilizadas;
-- migrations;
-- permissões;
-- mascaramento;
-- versionamento;
-- configurações;
-- testes;
-- riscos;
-- pendências.
+traceId
+conversationId
+agentId
+unitId
+operatorId
+lastCustomerMessageId
+
+Não registrar conteúdo completo da conversa.
 
 ==================================================
-22. ENTREGA
+21. AUDITORIA
+==================================================
+
+Criar timeline de eventos internos:
+
+- IA pausada;
+- humano assumiu;
+- humano respondeu;
+- cliente respondeu;
+- timeout atingido;
+- IA retomou;
+- humano retomou novamente.
+
+Esses eventos devem ser do tipo system e não incrementar unread_count.
+
+==================================================
+22. TESTES OBRIGATÓRIOS
+==================================================
+
+Teste 1 — humano assume
+
+- IA ativa;
+- operador clica em assumir;
+- cliente envia mensagem;
+- IA não responde.
+
+Teste 2 — mensagem manual
+
+- operador envia mensagem;
+- IA fica pausada;
+- fromMe não dispara runAgent.
+
+Teste 3 — humano inativo
+
+- cliente envia mensagem;
+- humano não responde pelo tempo configurado;
+- IA retoma uma única vez.
+
+Teste 4 — humano responde antes do timeout
+
+- pending_customer_reply é limpo;
+- IA não retoma.
+
+Teste 5 — humano responde durante a retomada
+
+- lock/validação detecta;
+- IA não envia resposta concorrente.
+
+Teste 6 — nova mensagem após timeout
+
+- usar somente a mensagem ainda pendente;
+- sem duplicidade.
+
+Teste 7 — pedido explícito de humano
+
+Cliente:
+“Quero falar com uma atendente.”
+
+Resultado:
+human_only = true ou handoff obrigatório;
+IA não volta automaticamente.
+
+Teste 8 — devolução manual
+
+- operador clica “Devolver para IA”;
+- IA continua do ponto correto.
+
+Teste 9 — follow-up
+
+- follow-up pausado durante HUMAN;
+- reavaliado após retorno.
+
+Teste 10 — erro da IA
+
+- estado não fica incorretamente como AI;
+- equipe recebe alerta.
+
+Teste 11 — duas execuções do job
+
+- uma única adquire lock;
+- uma única resposta enviada.
+
+Teste 12 — última mensagem foi do humano
+
+- IA não retoma.
+
+==================================================
+23. ATIVAÇÃO SEGURA
+==================================================
+
+Implementar feature flag:
+
+AI_AUTO_RESUME_AFTER_HUMAN_IDLE
+
+Iniciar desativada.
+
+Depois:
+
+1. ativar em homologação;
+2. testar com agente de teste;
+3. ativar em uma unidade;
+4. acompanhar logs;
+5. expandir gradualmente.
+
+Não ativar globalmente durante a implementação.
+
+==================================================
+24. ENTREGA
 ==================================================
 
 Ao concluir informar:
 
-1. abas implementadas;
-2. componentes criados;
-3. tabelas reutilizadas;
-4. migrations criadas;
-5. permissões;
-6. versionamento;
-7. auditoria;
-8. feature flags;
-9. arquivos alterados;
-10. build;
-11. typecheck;
-12. lint;
-13. testes.
+1. campos reutilizados ou criados;
+2. migration;
+3. timeout padrão;
+4. job de retomada;
+5. validações;
+6. locks;
+7. controles da interface;
+8. interação com follow-up;
+9. logs;
+10. testes;
+11. build;
+12. typecheck;
+13. lint;
+14. feature flag;
+15. rollback.
 
 Não publicar automaticamente.
 
 CRITÉRIO DE CONCLUSÃO
 
-A versão 2 só estará concluída quando for possível:
+O fluxo só estará concluído quando:
 
-- revisar e corrigir memórias;
-- aprovar ou rejeitar aprendizados;
-- auditar decisões operacionais;
-- alterar configurações autorizadas;
-- restaurar versões anteriores;
-- garantir que dados sensíveis e raciocínio privado não sejam expostos.
+- o humano assumir e a IA parar imediatamente;
+- mensagens da cliente continuarem entrando;
+- a IA retomar somente após inatividade real;
+- a última mensagem continuar sem resposta humana;
+- não houver respostas simultâneas;
+- o humano puder bloquear ou devolver a conversa manualmente.
       */}
       <div className="bg-green-600 text-white p-2 text-center text-xs font-medium">
         Sistema otimizado: cache de permissões e credenciais ativado para maior velocidade.
