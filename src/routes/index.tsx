@@ -247,7 +247,7 @@ ETAPA 6 — PADRONIZAÇÃO DAS RESPOSTAS
 ==================================================
 
 Todos os serviços devem retornar:
-ServiceResult<T>
+ServiceResult{"<"}T{">"}
 
 Nunca retornar:
 undefined
