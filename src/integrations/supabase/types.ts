@@ -203,6 +203,33 @@ export type Database = {
         }
         Relationships: []
       }
+      bemp_idempotency: {
+        Row: {
+          appointment_id: string
+          conversation_id: string | null
+          created_at: string | null
+          idempotency_key: string
+          payload: Json | null
+          response: Json | null
+        }
+        Insert: {
+          appointment_id: string
+          conversation_id?: string | null
+          created_at?: string | null
+          idempotency_key: string
+          payload?: Json | null
+          response?: Json | null
+        }
+        Update: {
+          appointment_id?: string
+          conversation_id?: string | null
+          created_at?: string | null
+          idempotency_key?: string
+          payload?: Json | null
+          response?: Json | null
+        }
+        Relationships: []
+      }
       crm_customer_pipeline: {
         Row: {
           abandonment_reason: string | null
