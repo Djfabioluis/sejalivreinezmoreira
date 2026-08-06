@@ -799,132 +799,97 @@ function buildTools(
           }
 
           // 1) Cria o NOVO agendamento primeiro. Se falhar, mantém o antigo.
-          const createPayload = withProfessionalPreferenceNote({
-            salon_id: input.salon_id,
-            service_id: input.service_id,
-            professional_id: input.professional_id,
+          const { createRobustAppointment } = await import("@/lib/bemp/appointments.server");
+          
+          // 1) Cria o NOVO agendamento primeiro. Se falhar, mantém o antigo.
+          const created = await createRobustAppointment({
+            conversationId: conversationKey || "unknown",
+            unitId: input.salon_id,
+            serviceId: input.service_id,
+            professionalId: input.professional_id,
             start: input.new_start,
             end: input.new_end,
             name: input.name,
             phone_country_code: input.phone_country_code,
             phone_area_code: input.phone_area_code,
             phone_number: input.phone_number,
-          });
-          const created = await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule`, {
-            method: "POST",
-            body: JSON.stringify(createPayload),
-          });
-          if (input.professional_id != null) {
-            await tryUpdateBempScheduleNote(created, PROFESSIONAL_PREFERENCE_NOTE);
+            confirmationMessageId: currentMessageId || undefined,
+          }, sandbox);
+
+          if (!created.success) {
+            return created;
           }
-          const newBempId = extractBempAppointmentId(created);
+
+          const newBempId = created.appointmentId;
 
           // 2) Cancela o antigo. Se falhar, mantém o novo e sinaliza pendência.
           let oldCancelled = true;
           let oldCancelError: string | null = null;
-          try {
-            const qs = new URLSearchParams({
-              phone_country_code: input.phone_country_code,
-              phone_area_code: input.phone_area_code,
-              phone_number: input.phone_number,
-              id: String(input.old_appointment_id),
-            });
-            await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule?${qs.toString()}`, {
-              method: "DELETE",
-            });
-          } catch (err) {
-            oldCancelled = false;
-            oldCancelError = err instanceof Error ? err.message : String(err);
-            console.error(
-              "[reschedule_appointment] novo criado mas cancelamento do antigo falhou:",
-              oldCancelError,
-            );
+          if (!sandbox) {
+            try {
+              const qs = new URLSearchParams({
+                phone_country_code: input.phone_country_code,
+                phone_area_code: input.phone_area_code,
+                phone_number: input.phone_number,
+                id: String(input.old_appointment_id),
+              });
+              await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule?${qs.toString()}`, {
+                method: "DELETE",
+              });
+            } catch (err) {
+              oldCancelled = false;
+              oldCancelError = err instanceof Error ? err.message : String(err);
+              console.error(
+                "[reschedule_appointment] novo criado mas cancelamento do antigo falhou:",
+                oldCancelError,
+              );
+            }
           }
 
-          // 3) Notifica cliente + atualiza agendamentos_notif (best-effort).
+          // 3) Atualiza histórico de reagendamento (best-effort).
           try {
             const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-            const { sendWhatsAppText, formatBrDateTime } = await import(
-              "@/lib/whatsapp-send.server"
-            );
             const phone = `${input.phone_country_code}${input.phone_area_code}${input.phone_number}`;
-            let serviceName: string | null = null;
-            try {
-              const cfg = await getBempConfig();
-              const services = (await bempFetch(
-                `${cfg.apiBase}/salons/${input.salon_id}/services`,
-              )) as Array<Record<string, unknown>> | null;
-              if (Array.isArray(services)) {
-                const found = services.find((s) => Number(s.id) === input.service_id);
-                if (found && typeof found.name === "string") serviceName = found.name;
-              }
-            } catch {
-              // segue sem nome do serviço
-            }
-            const when = formatBrDateTime(input.new_start);
-            const msg = serviceName
-              ? `Oi ${input.name}! 💜 Seu *${serviceName}* foi reagendado para ${when}. Tá tudo certinho por aqui.\n\nSe precisar mudar de novo, é só me chamar. Até lá! ✨\n— Julia, Salão Seja Livre`
-              : `Oi ${input.name}! 💜 Seu atendimento foi reagendado para ${when}. Tá tudo certinho por aqui.\n\nSe precisar mudar de novo, é só me chamar. Até lá! ✨\n— Julia, Salão Seja Livre`;
-            const sent = await sendWhatsAppText(phone, msg);
-
-            // Insere linha nova para o cron de lembretes rodar sobre a nova data.
-            await supabaseAdmin.from("agendamentos_notif" as never).insert({
-              bemp_appointment_id: newBempId,
-              salon_id: String(input.salon_id),
-              service_id: String(input.service_id),
-              service_name: serviceName,
-              start_at: input.new_start,
-              phone,
-              name: input.name,
-              sandbox: false,
-              confirmation_sent_at: sent ? new Date().toISOString() : null,
-            } as never);
-
-            // Remove a linha antiga para não disparar lembrete de horário obsoleto.
-            if (oldCancelled) {
+            
+            // Remove a linha antiga das notificações se cancelado com sucesso
+            if (oldCancelled && !sandbox) {
               await supabaseAdmin
                 .from("agendamentos_notif" as never)
                 .delete()
                 .eq("bemp_appointment_id", String(input.old_appointment_id));
             }
 
-            // Grava o histórico de reagendamento para o painel.
-            const finalStatus = oldCancelled ? "rescheduled" : "rescheduled_with_warning";
-            const finalWarning = oldCancelled
-              ? null
-              : `Cancelamento do antigo (${input.old_appointment_id}) falhou: ${oldCancelError}`;
+            const finalStatus = sandbox ? "simulated_rescheduled" : (oldCancelled ? "rescheduled" : "rescheduled_with_warning");
+            const finalWarning = oldCancelled ? null : `Cancelamento do antigo (${input.old_appointment_id}) falhou: ${oldCancelError}`;
+
             await supabaseAdmin.from("reagendamentos_hist" as never).insert({
               old_appointment_id: String(input.old_appointment_id),
               new_appointment_id: newBempId,
               salon_id: String(input.salon_id),
               service_id: String(input.service_id),
-              service_name: serviceName,
-              professional_id:
-                input.professional_id != null ? String(input.professional_id) : null,
+              service_name: (created as any).serviceName,
+              professional_id: input.professional_id != null ? String(input.professional_id) : null,
               old_start: input.old_start ?? null,
               new_start: input.new_start,
               phone,
               name: input.name,
               status: finalStatus,
               warning: finalWarning,
-              message_text: msg,
-              message_sent: sent,
-              message_sent_at: sent ? new Date().toISOString() : null,
-              sandbox: false,
+              sandbox: sandbox,
             } as never);
           } catch (err) {
-            console.error("[reschedule_appointment] falha ao registrar/notificar:", err);
+            console.error("[reschedule_appointment] falha ao registrar histórico:", err);
           }
 
           return {
             status: oldCancelled ? "rescheduled" : "rescheduled_with_warning",
-            new_appointment: created,
+            new_appointment: created.data,
             new_appointment_id: newBempId,
             old_appointment_id: String(input.old_appointment_id),
             old_cancelled: oldCancelled,
             warning: oldCancelled
               ? null
-              : `O novo horário foi criado com sucesso, mas o cancelamento do antigo (${input.old_appointment_id}) falhou: ${oldCancelError}. Avise o cliente que a equipe vai remover o horário antigo manualmente.`,
+              : `O novo horário foi criado com sucesso, mas o cancelamento do antigo (${input.old_appointment_id}) falhou. Avise o cliente que a equipe vai remover o horário antigo manualmente.`,
             rescheduled_at: new Date().toISOString(),
           };
         }),
