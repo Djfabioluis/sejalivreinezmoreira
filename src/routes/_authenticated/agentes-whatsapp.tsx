@@ -270,8 +270,8 @@ function AgentesWhatsAppPage() {
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6 p-4 sm:p-6">
       <header className="space-y-1">
-        <h1 className="font-display text-2xl tracking-tight">Agentes WhatsApp</h1>
-        <p className="text-sm text-muted-foreground">Escolha a unidade após conectar o número</p>
+        <h1 className="font-display text-2xl tracking-tight">Gerenciador de Agentes</h1>
+        <p className="text-sm text-muted-foreground">Gerencie instâncias da Evolution API e vincule a unidades do salão</p>
       </header>
 
       <Button className="w-full" size="lg" onClick={() => setAddOpen(true)}>
