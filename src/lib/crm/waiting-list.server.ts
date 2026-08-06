@@ -72,5 +72,13 @@ export async function handleAppointmentCancellationForWaitingList(params: {
       });
     
     console.log(`[waiting-list] Generated WAITING_LIST opportunity for ${match.customer_id}`);
+    
+    // Registrar que o slot está sendo monitorado para recuperação
+    await (supabaseAdmin
+      .from("crm_opportunities" as any) as any)
+      .update({ trigger: `RECUPERAÇÃO: ${params.serviceName} (${params.professionalName})` } as never)
+      .eq("customer_id", match.customer_id)
+      .eq("opportunity_type", "WAITING_LIST")
+      .eq("status", "PENDENTE");
   }
 }
