@@ -115,489 +115,185 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* 
-        Execute esta instrucao no projeto: OTIMIZAÇÃO URGENTE DE PERFORMANCE
+        Execute esta instrucao no projeto: SPRINT 1 — TAREFA 1
 
-PROBLEMA
-
-A Seja Livre AI Platform está muito pesada, lenta para abrir páginas, trocar telas, carregar dados e atualizar conversas.
+OTIMIZAÇÃO DA SECRETÁRIA VIRTUAL
 
 OBJETIVO
 
-Melhorar significativamente a velocidade da aplicação sem remover funcionalidades e sem alterar regras de negócio.
+Refatorar a Secretária Virtual para melhorar drasticamente a performance.
+
+Não alterar regras de negócio.
+
+Não alterar a aparência.
+
+Não remover funcionalidades.
 
 Não publicar automaticamente.
 
 ==================================================
-1. MEDIR ANTES DE OTIMIZAR
-==================================================
 
-Executar profiling e registrar:
-
-- tempo de carregamento inicial;
-- tamanho do bundle;
-- quantidade de requests por página;
-- tempo das queries;
-- componentes com mais renders;
-- listeners Realtime ativos;
-- uso de memória;
-- páginas mais pesadas;
-- tempo até interação;
-- tempo de troca entre rotas.
-
-Gerar relatório antes/depois.
+ANALISAR
 
 ==================================================
-2. CODE SPLITTING
-==================================================
 
-Aplicar lazy loading nas páginas pesadas:
+Identificar:
 
-- Dashboard;
-- Secretária Virtual;
-- CRM;
-- Agenda;
-- Central IA;
-- Analytics;
-- Financeiro;
-- Campanhas;
-- Follow-ups;
-- Oportunidades.
+• quantidade de queries executadas ao abrir a tela
 
-Usar React.lazy ou o mecanismo compatível com o router atual.
+• quantidade de subscriptions Realtime
 
-Não carregar todas as páginas no bundle inicial.
+• componentes que renderizam mais de uma vez
+
+• hooks repetidos
+
+• consultas duplicadas
+
+• histórico carregado desnecessariamente
+
+• mensagens carregadas desnecessariamente
 
 ==================================================
-3. IMPORTS PESADOS
-==================================================
 
-Auditar imports de:
-
-- bibliotecas de gráficos;
-- calendários;
-- editores;
-- ícones;
-- animações;
-- drag and drop;
-- players de áudio e vídeo.
-
-Evitar imports globais.
-
-Importar somente os módulos utilizados.
-
-Não importar bibliotecas inteiras quando bastar um componente.
+LISTA DE CONVERSAS
 
 ==================================================
-4. DASHBOARD
-==================================================
 
-O Dashboard não deve buscar todos os dados brutos.
+Não carregar todas as conversas.
 
-Criar endpoints ou queries agregadas para:
+Implementar:
 
-- agenda de hoje;
-- receita;
-- conversão;
-- follow-ups;
-- oportunidades;
-- ocupação;
-- clientes em risco.
+- paginação
 
-Evitar carregar milhares de registros para calcular indicadores no frontend.
+- carregamento incremental
 
-Usar agregações no banco.
+- virtualização
 
-==================================================
-5. REACT QUERY
-==================================================
+Mostrar inicialmente apenas:
 
-Padronizar query keys.
+última mensagem
 
-Configurar staleTime adequado.
+nome
 
-Exemplo:
+foto
 
-- unidades: 5 minutos;
-- profissionais: 2 minutos;
-- serviços: 5 minutos;
-- dashboards: 1 minuto;
-- conversas: atualização Realtime;
-- configurações: 10 minutos.
+status
 
-Não refazer queries a cada render.
+horário
 
-Desabilitar refetchOnWindowFocus onde não for necessário.
+contador de não lidas
 
 ==================================================
-6. REALTIME
-==================================================
 
-Auditar todas as subscriptions Supabase Realtime.
-
-Garantir:
-
-- uma subscription por recurso;
-- unsubscribe no unmount;
-- não recriar listeners a cada render;
-- não assinar a tabela inteira sem filtro;
-- filtrar por unidade, conversa ou organização;
-- não executar refetch completo a cada evento.
-
-Quando chegar uma nova mensagem:
-
-- atualizar somente a conversa afetada;
-- não recarregar toda a caixa de entrada.
+HISTÓRICO
 
 ==================================================
-7. SECRETÁRIA VIRTUAL
-==================================================
 
-A lista de conversas deve usar:
+Não carregar todo o histórico.
 
-- paginação;
-- carregamento incremental;
-- virtualização;
-- filtros server-side.
+Ao abrir uma conversa:
 
-Não carregar todas as conversas e todo o histórico de uma vez.
+carregar apenas as últimas 50 mensagens.
 
-Carregar:
+Criar botão:
 
-- lista resumida;
-- histórico apenas da conversa selecionada;
-- mensagens antigas sob demanda.
+"Carregar mensagens anteriores"
 
-Virtualizar a lista de mensagens quando houver histórico longo.
+Buscar mais 50 quando necessário.
 
 ==================================================
-8. CRM
-==================================================
 
-O Kanban não deve carregar todos os clientes de todas as etapas.
-
-Usar:
-
-- paginação por coluna;
-- limite inicial;
-- lazy loading;
-- filtros no banco;
-- drag and drop otimista.
-
-Não recalcular todos os scores no frontend.
+REALTIME
 
 ==================================================
-9. AGENDA
-==================================================
 
-Carregar somente o período visível.
+Criar apenas UMA subscription.
 
-Exemplo:
+Quando chegar uma mensagem:
 
-- visão diária: apenas o dia;
-- semanal: apenas a semana;
-- mensal: intervalo do mês.
+atualizar somente aquela conversa.
 
-Não buscar todos os agendamentos históricos.
-
-Filtrar por unidade e profissional no backend.
+Não recarregar toda a caixa de entrada.
 
 ==================================================
-10. GRÁFICOS
-==================================================
 
-Carregar gráficos somente quando entrarem na viewport.
-
-Usar IntersectionObserver ou lazy loading.
-
-Não renderizar gráficos ocultos em tabs inativas.
-
-Reduzir quantidade de pontos.
-
-Usar dados agregados.
+RENDERS
 
 ==================================================
-11. IMAGENS E MÍDIA
-==================================================
 
-Usar:
+Eliminar renderizações desnecessárias.
 
-- thumbnails;
-- lazy loading;
-- compressão;
-- URLs assinadas temporárias;
-- player somente quando aberto.
-
-Não baixar áudio, vídeo e imagem completa na lista de conversas.
+Aplicar memoização apenas onde houver ganho real.
 
 ==================================================
-12. MEMOIZAÇÃO
-==================================================
 
-Auditar componentes com renderizações excessivas.
-
-Aplicar React.memo, useMemo e useCallback somente onde houver ganho real.
-
-Prioridade:
-
-- lista de conversas;
-- mensagens;
-- cards;
-- tabelas;
-- Kanban;
-- agenda;
-- gráficos.
-
-Não aplicar memoização indiscriminadamente.
+REACT QUERY
 
 ==================================================
-13. ESTADO GLOBAL
-==================================================
 
-Revisar stores ou contexts grandes.
+Padronizar cache.
 
-Não colocar toda a aplicação em um único Context.
-
-Separar:
-
-- sessão;
-- unidade;
-- tema;
-- notificações;
-- conversa ativa.
-
-Evitar que uma atualização de conversa renderize todo o layout.
+Evitar refetch constante.
 
 ==================================================
-14. QUERIES SUPABASE
-==================================================
 
-Evitar select("*").
-
-Selecionar apenas colunas necessárias.
-
-Adicionar paginação:
-
-range()
-limit()
-
-Filtrar antes de retornar.
-
-Revisar queries N+1.
-
-Usar joins ou RPCs agregadas quando apropriado.
+BANCO
 
 ==================================================
-15. ÍNDICES NO BANCO
-==================================================
 
-Criar ou confirmar índices para:
+Eliminar SELECT *
 
-wa_conversas:
-- updated_at
-- unidade_id
-- instance
-- status
-- phone
-
-mensagens/eventos:
-- instance + message_id
-- conversation_key
-- created_at
-
-CRM:
-- status
-- stage
-- scheduled_at
-- customer_id
-- unit_id
-
-follow-ups:
-- status + scheduled_at
-- conversation_id
-- unit_id
-
-agendamentos:
-- unit_id + date
-- professional_id + date
-- customer_id
-
-Usar EXPLAIN ANALYZE nas queries lentas.
+Buscar apenas colunas necessárias.
 
 ==================================================
-16. SERVER-SIDE AGGREGATION
-==================================================
 
-Mover cálculos pesados para backend ou banco:
-
-- score de conversão;
-- receita;
-- ocupação;
-- clientes em risco;
-- métricas;
-- contagem por etapa;
-- campanhas;
-- oportunidades.
-
-O frontend deve receber dados prontos para exibir.
+PERFORMANCE
 
 ==================================================
-17. BACKGROUND JOBS
-==================================================
 
-Não executar no carregamento das páginas:
+Meta:
 
-- cálculo de score;
-- geração de campanha;
-- detecção de abandono;
-- follow-up;
-- análise de memória;
-- Opportunity Engine;
-- relatórios.
-
-Esses processos devem rodar em cron ou fila.
+Abrir conversa em menos de 300 ms após a lista carregada.
 
 ==================================================
-18. CACHE
-==================================================
 
-Criar cache seguro para:
-
-- unidades;
-- serviços;
-- profissionais;
-- configurações;
-- prompt;
-- base de conhecimento.
-
-Não usar cache para:
-
-- disponibilidade em tempo real;
-- status de plano;
-- confirmação de agendamento;
-- unidade transferida sem invalidação.
-
-Adicionar invalidação explícita.
+VALIDAÇÃO
 
 ==================================================
-19. BUNDLE
-==================================================
 
-Gerar análise do bundle.
+Executar:
 
-Identificar os 20 maiores módulos.
+build
 
-Remover:
+typecheck
 
-- dependências não utilizadas;
-- bibliotecas duplicadas;
-- polyfills desnecessários;
-- ícones importados em massa.
+lint
 
-Criar chunks separados para módulos pesados.
+testes
 
 ==================================================
-20. ANIMAÇÕES
-==================================================
 
-Reduzir animações em listas grandes.
-
-Não animar:
-
-- centenas de cards;
-- todas as linhas de tabela;
-- todas as mensagens;
-- gráficos completos a cada atualização.
-
-Respeitar prefers-reduced-motion.
+ENTREGA
 
 ==================================================
-21. SKELETON E CARREGAMENTO
-==================================================
 
-Mostrar skeleton rapidamente.
+Informar:
 
-Não bloquear a página inteira por uma query secundária.
+- arquivos alterados
 
-Carregar em prioridade:
+- queries reduzidas
 
-1. layout;
-2. conteúdo principal;
-3. dados secundários;
-4. gráficos;
-5. insights da IA.
+- subscriptions reduzidas
 
-==================================================
-22. LOGS NO FRONTEND
-==================================================
+- tempo antes/depois
 
-Remover console.log excessivo em produção.
+- build
 
-Não imprimir payloads grandes, históricos, respostas BEMP ou eventos Realtime.
+- typecheck
 
-Logs excessivos podem degradar performance.
-
-==================================================
-23. PÁGINAS PESADAS
-==================================================
-
-Identificar arquivos com:
-
-- mais de 500 linhas;
-- muitos hooks;
-- muitas queries;
-- muitos estados;
-- vários modais no mesmo componente.
-
-Dividir em componentes menores, sem alterar comportamento.
-
-==================================================
-24. TESTES DE PERFORMANCE
-==================================================
-
-Medir pelo menos:
-
-- abertura do Dashboard;
-- abertura da Secretária Virtual;
-- troca de conversa;
-- carregamento do CRM;
-- mudança de semana na Agenda;
-- abertura da Central IA.
-
-Metas iniciais:
-
-- primeira interação abaixo de 3 segundos em conexão normal;
-- troca de rota abaixo de 1 segundo após cache;
-- abertura de conversa abaixo de 500 ms após lista carregada;
-- nenhuma página carregando milhares de registros de uma vez.
-
-==================================================
-25. ENTREGA
-==================================================
-
-Ao concluir, informar:
-
-1. tamanho do bundle antes/depois;
-2. requests antes/depois;
-3. queries corrigidas;
-4. subscriptions Realtime corrigidas;
-5. páginas com lazy loading;
-6. listas virtualizadas;
-7. índices criados;
-8. componentes divididos;
-9. dependências removidas;
-10. tempos antes/depois;
-11. build;
-12. typecheck;
-13. lint;
-14. testes.
+- lint
 
 Não publicar automaticamente.
-
-CRITÉRIO DE CONCLUSÃO
-
-Não considerar concluído apenas porque o build passou.
-
-Comprovar melhoria mensurável nas páginas mais pesadas.
       */}
       <div className="bg-green-600 text-white p-2 text-center text-xs font-medium">
         Sistema otimizado: cache de permissões e credenciais ativado para maior velocidade.
