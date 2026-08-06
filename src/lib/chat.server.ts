@@ -2625,12 +2625,6 @@ export async function runAgentWithLogging(params: {
 
     let reply = agentResult;
 
-    // PROTEÇÃO DE SAÍDA #1 (pós-orquestrador): nunca mencionar CPF no fluxo de assinatura.
-    const cpfGuard = enforceNoCpfInSubscriptionFlow(reply, currentCustomerContext as never);
-    if (cpfGuard.blocked) {
-      console.log(`[chat] subscription_cpf_output_blocked: traceId=${effectiveTraceId}, lookupStage=${currentCustomerContext.subscriptionLookupStage || "NONE"}, phoneAttempts=${currentCustomerContext.subscriptionPhoneAttempts || 0}`);
-      reply = cpfGuard.text;
-    }
 
     // Validação determinística da promoção na resposta
     if (mandatoryPromo && !(historyData?.customer_context as any)?.mechasPromotionPresented) {
