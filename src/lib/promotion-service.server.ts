@@ -10,12 +10,13 @@ export const PromotionSchema = z.object({
   title: z.string(),
   service_category: z.string(),
   service_name: z.string(),
-  promotional_price: z.coerce.number().positive(),
+  promotional_price: z.coerce.number(),
   unit_id: z.string().nullable().optional(),
   start_at: z.string(),
   end_at: z.string(),
   status: z.string(),
-  channels: z.array(z.string())
+  channels: z.array(z.string()),
+  priority: z.number().nullable().optional()
 });
 
 export type Promotion = z.infer<typeof PromotionSchema>;
@@ -28,11 +29,10 @@ export type PromotionLookupResult =
   | {
       success: false;
       code:
-        | "PROMOTION_TABLE_NOT_FOUND"
+        | "PROMOTIONS_TABLE_NOT_FOUND"
         | "PROMOTION_QUERY_FAILED"
         | "PROMOTION_INVALID_DATA";
       message: string;
-      retryable: boolean;
     };
 
 export class PromotionService {
@@ -44,16 +44,29 @@ export class PromotionService {
     const traceId = Math.random().toString(36).substring(7);
     
     try {
-      let query = (supabaseAdmin
+      const query = (supabaseAdmin
         .from('promotions' as any)
-        .select('*') as any)
+        .select(`
+          id,
+          code,
+          title,
+          service_category,
+          service_name,
+          promotional_price,
+          unit_id,
+          start_at,
+          end_at,
+          status,
+          channels,
+          priority
+        `) as any)
         .eq('status', 'ACTIVE')
         .contains('channels', [params.channel])
         .lte('start_at', new Date().toISOString())
         .gte('end_at', new Date().toISOString());
 
       if (params.category) {
-        query = query.eq('service_category', params.category);
+        query.eq('service_category', params.category);
       }
 
       const { data, error } = await query;
@@ -62,9 +75,8 @@ export class PromotionService {
         logger.error("PromotionService", "promotion_query_failed", error.message, { error, ...params, traceId });
         return {
           success: false,
-          code: error.code === "42P01" ? "PROMOTION_TABLE_NOT_FOUND" : "PROMOTION_QUERY_FAILED",
-          message: error.message,
-          retryable: true
+          code: error.code === "42P01" ? "PROMOTIONS_TABLE_NOT_FOUND" : "PROMOTION_QUERY_FAILED",
+          message: error.message
         };
       }
 
@@ -78,6 +90,11 @@ export class PromotionService {
           }
         } else {
           logger.warn("PromotionService", "promotion_invalid_data", "Falha ao validar promoção", { error: validation.error, item, traceId });
+          return {
+            success: false,
+            code: "PROMOTION_INVALID_DATA",
+            message: "Dados da promoção inválidos no banco."
+          };
         }
       }
 
@@ -91,8 +108,7 @@ export class PromotionService {
       return {
         success: false,
         code: "PROMOTION_QUERY_FAILED",
-        message,
-        retryable: true
+        message
       };
     }
   }
