@@ -477,35 +477,47 @@ function Dashboard() {
         <h2 className="text-3xl font-display tracking-tight">Bom dia, Gestor ☀️</h2>
         <p className="text-muted-foreground">Aqui está o que está acontecendo na sua clínica hoje.</p>
       </div>
-              to="/base-conhecimento"
-              className="inline-flex items-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/90"
-            >
-              <BookOpen className="h-4 w-4" /> <span className="hidden sm:inline">Base de conhecimento</span><span className="sm:hidden">Base</span>
-            </Link>
-            <Link
-              to="/sugestoes"
-              className="inline-flex items-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/90"
-            >
-              <Sparkles className="h-4 w-4" /> Sugestões
-            </Link>
-            <Link
-              to="/auditoria-sugestoes"
-              className="inline-flex items-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/90"
-            >
-              <ClipboardList className="h-4 w-4" /> Auditoria
-            </Link>
-            <Link
-              to="/agendar"
-              className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-            >
-              <MessageSquare className="h-4 w-4" /> <span className="hidden sm:inline">Central WhatsApp</span><span className="sm:hidden">Inbox</span>
-            </Link>
-          </div>
-        </div>
-      </header>
+      
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Card className="bg-primary text-primary-foreground shadow-lg shadow-primary/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium opacity-90">Agenda Hoje</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">92%</div>
+            <p className="text-xs opacity-70 mt-1">+4% em relação a ontem</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Receita Estimada</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">R$ 12.480</div>
+            <p className="text-xs text-emerald-500 font-medium mt-1">↑ 12% este mês</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">IA Recuperou</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">R$ 3.250</div>
+            <p className="text-xs text-muted-foreground mt-1">6 horários preenchidos</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Ocupação</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">18 Vagas</div>
+            <p className="text-xs text-amber-500 font-medium mt-1">Alta ociosidade à tarde</p>
+          </CardContent>
+        </Card>
+      </div>
 
-
-      <main className="mx-auto max-w-6xl px-3 sm:px-4 py-6 sm:py-8">
+      <div className="space-y-6">
         {evoError && (
           <Alert variant="destructive" className="mb-6">
             <AlertCircle className="h-4 w-4" />
