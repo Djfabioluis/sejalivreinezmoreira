@@ -11,16 +11,40 @@ import { analyzeAgenda } from '@/lib/crm/agenda-analyzer.server';
 import { processWaitingList } from '@/lib/crm/waiting-list.server';
 import { runDailyAnalysis } from '@/lib/crm/daily-analyst.server';
 import { runPredictiveCampaignEngine } from '@/lib/crm/predictive-campaign.server';
+import { logger } from '@/lib/observability/logger.server';
+import { getServerEnv } from '@/lib/config/env.server';
 
+type JobResult = {
+  name: string;
+  success: boolean;
+  durationMs: number;
+  error?: string;
+};
+
+async function runJob(name: string, fn: () => Promise<any>): Promise<JobResult> {
+  const startedAt = Date.now();
+  logger.info("CRON_JOB_START", `Running job: ${name}`);
+  try {
+    await fn();
+    const durationMs = Date.now() - startedAt;
+    logger.info("CRON_JOB_SUCCESS", `Job ${name} completed`, { durationMs });
+    return { name, success: true, durationMs };
+  } catch (err: any) {
+    const durationMs = Date.now() - startedAt;
+    logger.error("CRON_JOB_FAILED", `Job ${name} failed: ${err.message}`, { name, error: err, durationMs });
+    return { name, success: false, durationMs, error: err.message };
+  }
+}
 
 export const Route = createFileRoute('/api/public/crm-cron')({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        // Fail-closed: sem segredo configurado, o endpoint não executa nada.
-        const cronSecret = process.env['CRON_SECRET'];
+        const env = getServerEnv();
+        const cronSecret = env.CRON_SECRET;
+        
         if (!cronSecret) {
-          console.error("[crm-cron] CRON_SECRET não configurado — requisição rejeitada.");
+          logger.critical("CRON_SECURITY_FAILURE", "CRON_SECRET not configured");
           return new Response('Service unavailable', { status: 503 });
         }
 
@@ -29,62 +53,60 @@ export const Route = createFileRoute('/api/public/crm-cron')({
           return new Response('Unauthorized', { status: 401 });
         }
 
-        try {
-          // 0. Agenda Analysis (identifies slots and idle pros)
-          await analyzeAgenda();
+        const results: JobResult[] = [];
+        
+        // Sequencial execution for safety, but isolated
+        // 0. Agenda Analysis
+        results.push(await runJob("analyzeAgenda", () => analyzeAgenda()));
+        // 1. Detect Abandonment
+        results.push(await runJob("detectAbandonment", () => detectConversationAbandonment()));
+        // 2. Process Followups
+        results.push(await runJob("processFollowups", () => processPendingFollowups()));
+        // 3. Process Recoveries
+        results.push(await runJob("processRecoveries", () => processAutomatedRecoveries()));
+        // 4. Update AI Scores
+        results.push(await runJob("updateScores", () => updateCustomerScores()));
+        // 5. Run Opportunity Engine
+        results.push(await runJob("runOpportunityEngine", () => runOpportunityEngine()));
+        // 6. Run Return Prediction Engine
+        results.push(await runJob("runPredictionEngine", () => runReturnPredictionEngine()));
+        // 7. Waiting List Matcher
+        results.push(await runJob("processWaitingList", () => processWaitingList()));
+        // 8. Run Revenue Engine
+        results.push(await runJob("runRevenueEngine", () => runRevenueEngine()));
 
-          // 1. Detect Abandonment (updates stages)
-          await detectConversationAbandonment();
-          
-          // 2. Process Followups (sends messages)
-          await processPendingFollowups();
+        // Time-based jobs (Brasília time)
+        const now = new Date();
+        const brTime = new Intl.DateTimeFormat('pt-BR', { 
+          timeZone: 'America/Sao_Paulo', 
+          hour: 'numeric', 
+          hour12: false 
+        }).format(now);
+        
+        const hour = parseInt(brTime);
 
-          // 3. Process Recoveries
-          await processAutomatedRecoveries();
-
-          // 4. Update AI Scores
-          await updateCustomerScores();
-
-          // 5. Run Opportunity Engine
-          await runOpportunityEngine();
-
-          // 6. Run Return Prediction Engine
-          await runReturnPredictionEngine();
-          
-          // 7. Waiting List Matcher
-          await processWaitingList();
-
-          // 8. Run Revenue Engine (Slot opportunities)
-          await runRevenueEngine();
-
-          // 8. Generate Morning Briefing for Management (usually runs at 7 AM)
-          const hour = new Date().getUTCHours() - 3; // GMT-3 (Brasília)
-          if (hour === 7) {
-            await generateManagementBriefing();
-          }
-
-          // 9. Daily Analysis (Nightly - 22h)
-          if (hour === 22) {
-            await runDailyAnalysis();
-          }
-
-          // 10. Predictive Campaign Engine (Runs daily at 10 AM to plan ahead)
-          if (hour === 10) {
-            await runPredictiveCampaignEngine();
-          }
-
-          
-          return new Response(JSON.stringify({ ok: true, timestamp: new Date().toISOString() }), {
-            headers: { 'Content-Type': 'application/json' }
-          });
-        } catch (err: any) {
-          console.error("[crm-cron] Handler failed:", err);
-          return new Response(JSON.stringify({ error: err.message }), { 
-            status: 500,
-            headers: { 'Content-Type': 'application/json' }
-          });
+        if (hour === 7) {
+          results.push(await runJob("managementBriefing", () => generateManagementBriefing()));
         }
+        if (hour === 22) {
+          results.push(await runJob("dailyAnalysis", () => runDailyAnalysis()));
+        }
+        if (hour === 10) {
+          results.push(await runJob("predictiveCampaign", () => runPredictiveCampaignEngine()));
+        }
+
+        const success = results.every(r => r.success);
+        
+        return new Response(JSON.stringify({ 
+          ok: success, 
+          timestamp: new Date().toISOString(),
+          results 
+        }), {
+          status: success ? 200 : 207, // Multi-status if some failed
+          headers: { 'Content-Type': 'application/json' }
+        });
       }
     }
   }
 });
+

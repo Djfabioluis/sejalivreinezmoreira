@@ -163,9 +163,10 @@ async function sendRecoveryMessage(phone: string, text: string, conv: any, reaso
   const { updateCustomerPipeline } = await import("../crm.server");
   await updateCustomerPipeline({
     phone,
-    stage: 'IDENTIFICANDO_SERVICO', // Bring them back to life
+    stage: 'IDENTIFYING_SERVICE', // Bring them back to life
     nextAction: 'Recovery sent'
   });
+
 
   console.log(`[crm-recovery] Sent recovery to ${phone} for ${reason}`);
 }

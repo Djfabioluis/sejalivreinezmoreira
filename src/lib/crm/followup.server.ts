@@ -1,5 +1,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { type PipelineStage } from "../crm.server";
+import { logger } from "../observability/logger.server";
+import { AppError } from "../core/errors";
 
 export async function scheduleFollowup(params: {
   phone: string;
@@ -8,6 +10,8 @@ export async function scheduleFollowup(params: {
   scheduledAt: Date;
   metadata?: Record<string, any>;
 }) {
+  logger.info("CRM_FOLLOWUP_SCHEDULE_START", `Scheduling followup for ${params.phone} at ${params.scheduledAt.toISOString()}`, { stage: params.stage });
+
   const { data, error } = await supabaseAdmin.rpc("schedule_customer_followup", {
     p_phone: params.phone,
     p_stage: params.stage,
@@ -17,46 +21,51 @@ export async function scheduleFollowup(params: {
   });
 
   if (error) {
-    console.error("[crm-followup] Failed to schedule followup:", error.message);
-    return null;
+    logger.error("CRM_FOLLOWUP_SCHEDULE_FAILED", error.message, { phone: params.phone, error });
+    throw new AppError({
+      code: "FOLLOWUP_SCHEDULE_FAILED",
+      message: "Não foi possível agendar o follow-up do cliente.",
+      cause: error
+    });
   }
 
   return data;
 }
+
 
 /**
  * Logic to decide when to schedule a followup based on state changes.
  */
 export async function handleCrmStageChange(phone: string, oldStage: PipelineStage, newStage: PipelineStage) {
   // If moving to terminal states, cancel pending followups
-  if (['AGENDADO', 'ATENDIDO', 'CANCELADO', 'CONVERTIDO'].includes(newStage)) {
+  if (['SCHEDULED', 'ATTENDED', 'CANCELED', 'CONVERTED', 'ABANDONED'].includes(newStage)) {
     await supabaseAdmin
       .from("crm_followups")
-      .update({ status: 'ENCERRADO', cancelled_at: new Date().toISOString() })
+      .update({ status: 'CLOSED', cancelled_at: new Date().toISOString() })
       .eq("phone", phone)
-      .eq("status", "PENDENTE");
+      .eq("status", "PENDING");
     return;
   }
 
   // Logic for followups:
-  // - IDENTIFICANDO_SERVICO -> Followup in 30 min
-  // - ESCOLHENDO_HORARIO -> Followup in 2h
-  // - AGUARDANDO_CONFIRMACAO -> Followup in 2h
+  // - IDENTIFYING_SERVICE -> Followup in 30 min
+  // - CHOOSING_TIME -> Followup in 2h
+  // - AWAITING_CONFIRMATION -> Followup in 2h
   
   let delayMs = 0;
   let reason = "";
 
-  if (newStage === 'IDENTIFICANDO_SERVICO') {
+  if (newStage === 'IDENTIFYING_SERVICE') {
     delayMs = 30 * 60 * 1000;
     reason = "Interesse em serviço mas sem prosseguir";
-  } else if (['ESCOLHENDO_HORARIO', 'AGUARDANDO_CONFIRMACAO'].includes(newStage)) {
+  } else if (['CHOOSING_TIME', 'AWAITING_CONFIRMATION'].includes(newStage)) {
     delayMs = 2 * 60 * 60 * 1000;
     reason = "Faltou confirmar o horário";
   }
 
   if (delayMs > 0) {
     await scheduleFollowup({
-      phone,
+      phone: phone,
       stage: newStage,
       reason,
       scheduledAt: new Date(Date.now() + delayMs),
@@ -64,3 +73,4 @@ export async function handleCrmStageChange(phone: string, oldStage: PipelineStag
     });
   }
 }
+
