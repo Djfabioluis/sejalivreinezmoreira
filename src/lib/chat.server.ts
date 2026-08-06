@@ -2320,6 +2320,12 @@ export async function runAgentWithLogging(params: {
   const { instance, messageId, phone, conversationKey, unidadeId, pushName, remoteJid, text, traceId } = params;
   const effectiveTraceId = traceId || `${instance}:${messageId}`;
 
+  logger.info("IA_FLOW_STARTED", `Julia AI processando mensagem [${effectiveTraceId}]`, { 
+    instance, 
+    phone,
+    unitId: unidadeId
+  });
+
 
   try {
     await logEvent({ instance, messageId, event: "history_load_started", status: "started" });
@@ -2669,7 +2675,7 @@ export async function runAgentWithLogging(params: {
       });
       
       if (validatedReply !== reply) {
-        logger.info("PROMOTION_INJECTED", `Promoção injetada na resposta final`, { promo: mandatoryPromo.code });
+        logger.info("PROMOTION_INJECTED", `Promoção injetada na resposta final [${effectiveTraceId}]`, { promo: mandatoryPromo.code });
         reply = validatedReply;
       }
 
