@@ -2500,6 +2500,44 @@ export async function runAgentWithLogging(params: {
 
 
 
+    // 10. RECUPERAR ESTADOS PRESOS (Requisito 10)
+    if (currentCustomerContext.subscriptionLookupStage === "LOOKING_UP_PHONE") {
+      const lastUpdate = currentCustomerContext.subscriptionCheckedAt ? new Date(currentCustomerContext.subscriptionCheckedAt).getTime() : 0;
+      const now = Date.now();
+      const twoMinutes = 2 * 60 * 1000;
+
+      if (now - lastUpdate > twoMinutes) {
+        console.log(`[chat] subscription_phone_lookup_recovered: traceId=${effectiveTraceId}`);
+        const patch = {
+          subscriptionLookupStage: "AWAITING_REGISTERED_PHONE",
+          subscriptionCheckedAt: new Date().toISOString()
+        };
+        await patchCustomerContext(conversationKey, patch);
+        Object.assign(currentCustomerContext, patch);
+
+        const { replyToUser } = await import("./evolution/reply.server");
+        await replyToUser({
+          instance,
+          phone,
+          text: "Houve uma pequena demora na minha consulta. Pode me enviar o seu telefone cadastrado novamente com o DDD, por favor? 💜",
+          conversationKey,
+          messageId
+        });
+        return;
+      } else {
+        // Se ainda está processando e não expirou, informa o cliente ou silencia
+        const { replyToUser } = await import("./evolution/reply.server");
+        await replyToUser({
+          instance,
+          phone,
+          text: "Estou terminando de consultar sua assinatura, um momentinho só... ✨",
+          conversationKey,
+          messageId
+        });
+        return;
+      }
+    }
+
     const intent = detectServiceCategory(params.text);
     let mandatoryPromo: any = null;
     let activePromotions: any[] = [];
