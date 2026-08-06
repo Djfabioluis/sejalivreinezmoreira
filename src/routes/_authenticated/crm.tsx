@@ -98,8 +98,8 @@ function CRMPage() {
           <Badge className="bg-primary/10 text-primary border-none text-[10px] font-bold uppercase tracking-[0.2em] mb-2 px-3">
             Inteligência de Vendas
           </Badge>
-          <h1 className="text-4xl font-display font-bold tracking-tight">CRM Inteligente</h1>
-          <p className="text-muted-foreground max-w-lg">Análise comportamental, previsão de churn e automação comercial de alta performance.</p>
+          <h1 className="text-4xl font-display font-bold tracking-tight">Seja Livre AI Platform</h1>
+          <p className="text-muted-foreground max-w-lg">CRM Inteligente: Análise comportamental, previsão de churn e automação comercial.</p>
         </div>
         <div className="flex items-center gap-4">
           <div className="text-right hidden sm:block">
