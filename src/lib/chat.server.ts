@@ -2403,7 +2403,7 @@ export async function runAgentWithLogging(params: {
       activePromotions, // Passando promoções ativas para o runAgent
     });
 
-    let reply = typeof agentResult === 'string' ? agentResult : agentResult.text;
+    let reply = agentResult;
 
     // Validação determinística da promoção na resposta
     if (mandatoryPromo && !(historyData?.customer_context as any)?.mechasPromotionPresented) {
