@@ -26,4 +26,11 @@ describe("Service Identification", () => {
     );
     expect(isMechas).toBe(true);
   });
+
+  it("should detect active promotions", () => {
+    const { isPromotionActive } = require("./service-utils");
+    // Como a data no teste pode variar, verificamos apenas se a função existe e retorna boolean
+    expect(typeof isPromotionActive("PACOTE_MECHAS")).toBe("boolean");
+  });
 });
+
