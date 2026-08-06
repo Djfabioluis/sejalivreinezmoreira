@@ -158,12 +158,15 @@ export async function getConnectionState(instance: string): Promise<EvolutionSta
   return "desconectado";
 }
 
+export async function logoutInstance(instance: string) {
+  await evoFetch(`/instance/logout/${encodeURIComponent(instance)}`, { method: "DELETE" });
+}
+
 export async function deleteInstance(instance: string) {
-  await evoFetch(`/instance/logout/${encodeURIComponent(instance)}`, { method: "DELETE" }).catch(
-    () => undefined,
-  );
+  await logoutInstance(instance).catch(() => undefined);
   await evoFetch(`/instance/delete/${encodeURIComponent(instance)}`, { method: "DELETE" });
 }
+
 
 export async function sendEvolutionText(
   instance: string,
