@@ -115,24 +115,46 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="hidden">
-        Execute esta instrucao no projeto: Criar dashboard com indicadores como:
+        Execute esta instrucao no projeto: Implementar Revenue Engine.
 
-        Taxa de conversão
-        Agendamentos iniciados
-        Agendamentos concluídos
-        Agendamentos abandonados
-        Recuperações por follow-up
-        Horários recuperados
-        Receita estimada recuperada
-        Clientes VIP
-        Clientes inativos
-        Clientes em risco
-        Planos ativos
-        Benefícios não utilizados
-        Conversões por unidade
-        Conversões por profissional
-        Tempo médio de resposta da IA
-        Tempo médio para conclusão do agendamento
+        Sempre que surgir um horário livre:
+        consultar automaticamente:
+        clientes interessados
+        ↓
+        mesmo serviço
+        ↓
+        mesma unidade
+        ↓
+        mesma profissional
+        ↓
+        mesmo período
+        ↓
+        score de conversão
+        ↓
+        última interação
+        ↓
+        probabilidade de aceite
+
+        Ordenar do maior para o menor.
+        Criar ranking.
+        Enviar apenas uma proposta por horário.
+        Esperar resposta.
+
+        Se recusar:
+        oferecer ao próximo cliente.
+
+        Nunca oferecer o mesmo horário para vários clientes simultaneamente.
+
+        Criar tabela:
+        crm_slot_opportunities
+
+        status:
+        pending
+        offered
+        accepted
+        declined
+        expired
+        reserved
       </div>
 
       <div className="bg-green-600 text-white p-2 text-center text-xs font-medium">

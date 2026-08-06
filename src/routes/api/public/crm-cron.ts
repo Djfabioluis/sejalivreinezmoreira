@@ -5,6 +5,7 @@ import { processAutomatedRecoveries } from '@/lib/crm/recovery.server';
 import { updateCustomerScores } from '@/lib/crm/score.server';
 import { runOpportunityEngine } from '@/lib/crm/opportunity.server';
 import { runReturnPredictionEngine } from '@/lib/crm/prediction.server';
+import { runRevenueEngine } from '@/lib/crm/revenue-engine.server';
 
 
 export const Route = createFileRoute('/api/public/crm-cron')({
@@ -41,6 +42,9 @@ export const Route = createFileRoute('/api/public/crm-cron')({
 
           // 6. Run Return Prediction Engine
           await runReturnPredictionEngine();
+          
+          // 7. Run Revenue Engine (Slot opportunities)
+          await runRevenueEngine();
 
           
           return new Response(JSON.stringify({ ok: true, timestamp: new Date().toISOString() }), {
