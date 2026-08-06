@@ -2871,9 +2871,7 @@ ${subscriptionContextLine(ctx as Record<string, any>)}
     abortSignal: AbortSignal.timeout(60000),
   });
 
-  const effectiveTraceId = traceId;
-  logger.audit("IA_RAW_RESPONSE", `Resposta bruta gerada pelo modelo [${effectiveTraceId}]`, {
-    traceId: effectiveTraceId,
+  logger.audit("IA_RAW_RESPONSE", `Resposta bruta gerada pelo modelo`, {
     text: result.text,
     finishReason: result.finishReason
   });
