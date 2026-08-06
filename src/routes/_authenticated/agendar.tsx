@@ -14,8 +14,12 @@ import {
   Send, 
   RefreshCcw, 
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Zap,
+  TrendingUp,
+  CheckCircle2
 } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { AiSimulator } from "@/components/ai-simulator";
 import { useServerFn } from "@tanstack/react-start";
 import { 
