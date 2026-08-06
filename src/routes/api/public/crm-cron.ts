@@ -3,6 +3,7 @@ import { detectConversationAbandonment } from '@/lib/crm/abandonment.server';
 import { processPendingFollowups } from '@/lib/crm/followup-processor.server';
 import { processAutomatedRecoveries } from '@/lib/crm/recovery.server';
 import { updateCustomerScores } from '@/lib/crm/score.server';
+import { runOpportunityEngine } from '@/lib/crm/opportunity.server';
 
 export const Route = createFileRoute('/api/public/crm-cron')({
   server: {
@@ -26,8 +27,11 @@ export const Route = createFileRoute('/api/public/crm-cron')({
           // 3. Process Recoveries
           await processAutomatedRecoveries();
 
-          // 4. Update AI Scores (Daily calculation)
+          // 4. Update AI Scores
           await updateCustomerScores();
+
+          // 5. Run Opportunity Engine
+          await runOpportunityEngine();
           
           return new Response(JSON.stringify({ ok: true, timestamp: new Date().toISOString() }), {
             headers: { 'Content-Type': 'application/json' }
