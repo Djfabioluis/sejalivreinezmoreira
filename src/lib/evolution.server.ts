@@ -1,6 +1,8 @@
 // Cliente HTTP server-only para a Evolution API (WhatsApp Web via QR Code).
 // Nunca importar em código de browser.
 import { sanitizeCustomerText } from "@/lib/text-sanitize";
+import { logger } from "./observability/logger.server";
+import { AppError } from "./core/errors";
 
 async function getDbConfig(): Promise<{
   url: string;
@@ -40,17 +42,8 @@ export async function getEvolutionApiKey(): Promise<string> {
   if (!cfg.apiKey) throw new Error("EVOLUTION_API_KEY não configurada.");
   return cfg.apiKey;
 }
-export function evolutionApiKey(): never {
-  throw new Error("Use await getEvolutionApiKey() em vez de evolutionApiKey().");
-}
 
 export type EvolutionState = "aguardando_qr" | "conectado" | "desconectado";
-
-async function getBaseUrl(): Promise<string> {
-  const cfg = await getEvolutionConfig();
-  if (!cfg.url) throw new Error("EVOLUTION_API_URL não configurada.");
-  return cfg.url;
-}
 
 export async function isEvolutionConfigured(): Promise<boolean> {
   const db = await getDbConfig();
@@ -67,9 +60,10 @@ async function evoFetch(
   const url = `${base}${path}`;
 
   if (debug)
-    console.log(`[evolution] fetch ${init.method ?? "GET"} ${url.replace(apiKey, "REDACTED")}`);
+    logger.debug("EVOLUTION_API_REQUEST", `${init.method ?? "GET"} ${path}`);
 
   let res: Response;
+  const startedAt = Date.now();
   try {
     res = await fetch(url, {
       method: init.method ?? "GET",
@@ -80,17 +74,16 @@ async function evoFetch(
       body: init.body === undefined ? undefined : JSON.stringify(init.body),
       signal: AbortSignal.timeout(20000),
     });
-  } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-    const hostname = new URL(base).hostname;
-    const isIpAddress = /^(?:\d{1,3}\.){3}\d{1,3}$/.test(hostname);
-    const tlsHint = isIpAddress
-      ? "A URL usa um endereço IP, mas o certificado HTTPS do servidor não é válido para esse IP. Configure um domínio com certificado SSL válido no proxy da Evolution e use esse domínio em EVOLUTION_API_URL."
-      : "Confirme se o domínio possui certificado HTTPS público e válido.";
-    throw new Error(
-      `Não foi possível conectar à Evolution API. ${tlsHint} Detalhe técnico: ${detail}`,
-    );
+  } catch (err: any) {
+    logger.error("EVOLUTION_API_CONNECTION_FAILED", err.message, { path, method: init.method });
+    throw new AppError({
+      code: "EVOLUTION_CONNECTION_FAILED",
+      message: `Não foi possível conectar à Evolution API: ${err.message}`,
+      safeMessage: "O serviço de WhatsApp está temporariamente indisponível."
+    });
   }
+
+  const durationMs = Date.now() - startedAt;
   const text = await res.text().catch(() => "");
   let data: any = null;
   try {
@@ -98,6 +91,11 @@ async function evoFetch(
   } catch {
     data = null;
   }
+
+  if (debug) {
+    logger.debug("EVOLUTION_API_RESPONSE", `Status: ${res.status}`, { durationMs, path });
+  }
+
   return { ok: res.ok, status: res.status, data, text };
 }
 
@@ -123,7 +121,6 @@ export async function createInstance(instance: string, webhookUrl: string) {
     if (/already in use|already exists|já existe/i.test(msg)) return { ok: true, existed: true };
     throw new Error(`Evolution não criou a instância (${res.status}): ${msg.slice(0, 300)}`);
   }
-  // Garante o webhook mesmo em versões que ignoram o campo no create.
   await setWebhook(instance, webhookUrl).catch(() => undefined);
   return { ok: true, existed: false };
 }
@@ -161,10 +158,6 @@ export async function getConnectionState(instance: string): Promise<EvolutionSta
   return "desconectado";
 }
 
-export async function logoutInstance(instance: string) {
-  await evoFetch(`/instance/logout/${encodeURIComponent(instance)}`, { method: "DELETE" });
-}
-
 export async function deleteInstance(instance: string) {
   await evoFetch(`/instance/logout/${encodeURIComponent(instance)}`, { method: "DELETE" }).catch(
     () => undefined,
@@ -179,21 +172,8 @@ export async function sendEvolutionText(
   typingMs = 0,
 ): Promise<boolean> {
   const number = to.replace(/\D/g, "");
-  // Preserve line breaks and Markdown for WhatsApp. 
-  // slice(0, 3500) is fine to avoid payload limits.
   const text = sanitizeCustomerText(body).slice(0, 3500);
 
-  if (process.env.WHATSAPP_DEBUG === "true") {
-    console.log("[evolution] Sending text:", {
-      length: text.length,
-      lineBreaks: (text.match(/\n/g) || []).length,
-      preview: text.slice(0, 100).replace(/\n/g, "\\n") + "..."
-    });
-  }
-
-  // Na Evolution v2, `delay` + `presence` no próprio sendText faz o WhatsApp
-  // exibir "digitando…" durante o intervalo antes de entregar a mensagem.
-  // Enviamos também dentro de `options` para compatibilidade com v1.
   const payload: Record<string, unknown> = { number, text };
   if (typingMs > 0) {
     payload.delay = typingMs;
@@ -204,16 +184,14 @@ export async function sendEvolutionText(
     method: "POST",
     body: payload,
   });
-  if (!res.ok)
-    console.error("[evolution] envio de texto falhou:", res.status, res.text.slice(0, 300));
+  
+  if (!res.ok) {
+    logger.error("EVOLUTION_SEND_TEXT_FAILED", `Status: ${res.status}`, { to, textSnippet: text.slice(0, 50) });
+  }
+  
   return res.ok;
 }
 
-
-/**
- * Ativa o indicador nativo "digitando…" do WhatsApp (presença composing/paused).
- * Não envia mensagem visível: o cliente vê "digitando..." no topo da conversa.
- */
 export async function sendEvolutionPresence(
   instance: string,
   to: string,
@@ -225,8 +203,6 @@ export async function sendEvolutionPresence(
     method: "POST",
     body: { number, delay: delayMs, presence },
   });
-  if (!res.ok)
-    console.error("[evolution] presença falhou:", res.status, res.text.slice(0, 200));
   return res.ok;
 }
 
@@ -240,12 +216,9 @@ export async function sendEvolutionAudio(
     method: "POST",
     body: { number, audio: mp3.toString("base64") },
   });
-  if (!res.ok)
-    console.error("[evolution] envio de áudio falhou:", res.status, res.text.slice(0, 300));
   return res.ok;
 }
 
-/** Baixa mídia (áudio) de uma mensagem recebida, em base64. */
 export async function fetchEvolutionMediaBase64(
   instance: string,
   messageKeyId: string,
@@ -258,7 +231,7 @@ export async function fetchEvolutionMediaBase64(
   return (res.data?.base64 as string | undefined) ?? null;
 }
 
-/** Gera um nome de instância seguro a partir do telefone. */
 export function instanceNameFor(phoneDigits: string): string {
   return `agente-${phoneDigits}`;
 }
+
