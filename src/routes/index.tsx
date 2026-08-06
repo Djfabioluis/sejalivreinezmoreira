@@ -1100,7 +1100,7 @@ Não publicar automaticamente.
 CRITÉRIO DE CONCLUSÃO
 
 O módulo só estará concluído quando a IA conseguir detectar uma conversa abandonada, criar um follow-up adequado, validar as condições, enviar uma única mensagem, interpretar a resposta e retomar o agendamento no estágio correto.
-      </div>
+      */}
       <div className="bg-green-600 text-white p-2 text-center text-xs font-medium">
         Sistema otimizado: cache de permissões e credenciais ativado para maior velocidade.
       </div>
