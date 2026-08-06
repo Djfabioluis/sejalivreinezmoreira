@@ -1394,7 +1394,7 @@ function buildTools(
         plan_name: z.string(),
         name: z.string(),
         email: z.string().optional(),
-        cpf: z.string().optional(),
+        
         phone_country_code: z.string(),
         phone_area_code: z.string(),
         phone_number: z.string(),
@@ -1422,7 +1422,7 @@ function buildTools(
               plano_nome: input.plan_name,
               nome: input.name,
               email: input.email ?? null,
-              cpf: input.cpf ?? null,
+              
               phone_country_code: input.phone_country_code,
               phone_area_code: input.phone_area_code,
               phone_number: input.phone_number,
@@ -2583,13 +2583,11 @@ export async function runAgentWithLogging(params: {
 
     let reply = agentResult;
 
-    // 11. BLOQUEIO FINAL INDEPENDENTE DO ESTADO ANTIGO (Requisito 11)
-    if (currentCustomerContext.subscriptionIntent === true && currentCustomerContext.subscriptionPhoneValidated !== true) {
-      const containsCPFPattern = /cpf|documento|\d{3}\.\d{3}\.\d{3}-\d{2}|000\.000\.000-00|somente números do cpf/i.test(reply);
-      if (containsCPFPattern) {
-         console.log(`[chat] cpf_request_blocked: traceId=${effectiveTraceId}, replacing with fixed phone request`);
-         reply = "Perfeito! 💜\n\nQual é o número de telefone cadastrado na assinatura?\n\nPode enviar com DDD.";
-      }
+    // 11. BLOQUEIO FINAL OBRIGATÓRIO (Requisito 8 e 11)
+    const containsForbiddenPattern = /cpf|documento|\d{3}\.\d{3}\.\d{3}-\d{2}|000\.000\.000-00|somente números do cpf/i.test(reply);
+    if (containsForbiddenPattern) {
+       console.log(`[chat] forbidden_content_blocked: traceId=${effectiveTraceId}, replacing with fixed phone request`);
+       reply = "Perfeito! 💜\n\nQual é o número de telefone cadastrado na assinatura?\n\nPode enviar com DDD.";
     }
 
     // Validação determinística da promoção na resposta
@@ -2785,9 +2783,7 @@ ${subscriptionContextLine(ctx as Record<string, any>)}
     messages: await convertToModelMessages(sanitizeMessagesForModel(uiMessages)),
     tools: (() => {
       const tools = buildTools(sandbox, effectiveUnitId, opts.conversationKey || undefined, opts.messageId ?? null);
-      if (!ALLOW_SUBSCRIPTION_CPF_FALLBACK || opts.customerContext?.subscriptionLookupStage !== "AWAITING_CPF_FALLBACK") {
-        delete tools.validate_subscription_cpf;
-      }
+      delete tools.validate_subscription_cpf;
       return tools;
     })(),
 
