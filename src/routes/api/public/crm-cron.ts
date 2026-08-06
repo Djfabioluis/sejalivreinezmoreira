@@ -4,6 +4,8 @@ import { processPendingFollowups } from '@/lib/crm/followup-processor.server';
 import { processAutomatedRecoveries } from '@/lib/crm/recovery.server';
 import { updateCustomerScores } from '@/lib/crm/score.server';
 import { runOpportunityEngine } from '@/lib/crm/opportunity.server';
+import { runReturnPredictionEngine } from '@/lib/crm/prediction.server';
+
 
 export const Route = createFileRoute('/api/public/crm-cron')({
   server: {
@@ -36,6 +38,10 @@ export const Route = createFileRoute('/api/public/crm-cron')({
 
           // 5. Run Opportunity Engine
           await runOpportunityEngine();
+
+          // 6. Run Return Prediction Engine
+          await runReturnPredictionEngine();
+
           
           return new Response(JSON.stringify({ ok: true, timestamp: new Date().toISOString() }), {
             headers: { 'Content-Type': 'application/json' }
