@@ -1,7 +1,7 @@
 // Classificação de falhas do atendimento automático (puro / testável).
 
 export const GENERIC_FALLBACK_TEXT =
-  "Estou com uma instabilidade momentânea aqui no atendimento automático 😔\n\nNossa equipe já foi avisada e vai te responder por aqui em instantes 💛";
+  "Não consegui concluir sua solicitação agora, mas já encaminhei para nossa equipe humana te ajudar em instantes! 💜";
 
 export type FailureClass = {
   /** Código estável para logs/telemetria. */
@@ -89,6 +89,10 @@ export function classifyFailure(err: unknown): FailureClass {
       "Essa profissional não realiza esse serviço nesta unidade 😊 Quer que eu mostre quem atende?",
     no_slots: "Não encontrei horários livres nessa data 😊 Quer tentar outro dia?",
     conversation_not_found: GENERIC_FALLBACK_TEXT,
+    cpf_invalid: "Não consegui validar esse CPF. Pode conferir e enviar novamente, por favor? 💜",
+    customer_not_found: "Não encontrei um cadastro com esse CPF. Pode conferir o número? ✨",
+    plan_not_active: "Seu plano foi localizado, mas não há utilização disponível no momento. 😔",
+    plan_no_balance: "Seu plano está ativo, mas parece que o saldo de utilizações acabou. 💛",
   };
   if (code && known[code]) {
     return { code, userMessage: known[code]!, expected: true, escalate: false };
@@ -115,8 +119,26 @@ export function classifyFailure(err: unknown): FailureClass {
         escalate: false,
       };
     }
+    if (httpStatus === 401 || httpStatus === 403) {
+      return {
+        code: "bemp_unauthorized",
+        userMessage: GENERIC_FALLBACK_TEXT,
+        expected: false,
+        escalate: true,
+      };
+    }
     return {
       code: `bemp_http_${httpStatus || "error"}`,
+      userMessage: GENERIC_FALLBACK_TEXT,
+      expected: false,
+      escalate: true,
+    };
+  }
+
+  // Timeout ou erro de rede
+  if (/timeout|econnrefused|enetunreach/i.test(msg)) {
+    return {
+      code: "integration_timeout",
       userMessage: GENERIC_FALLBACK_TEXT,
       expected: false,
       escalate: true,
