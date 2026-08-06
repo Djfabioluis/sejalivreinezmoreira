@@ -86,3 +86,18 @@ export const listOpportunities = createServerFn({ method: "GET" })
     return data || [];
   });
 
+export const listRecommendations = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    
+    const { data, error } = await (supabaseAdmin
+      .from("crm_recommendations" as any) as any)
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+  });
+
+
