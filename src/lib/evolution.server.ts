@@ -263,6 +263,11 @@ async function resolveSafeOutboundSubscriptionText(params: {
         source: "sendEvolutionText",
         contextFound: !!context
       } as any);
+      
+      await logger.info("subscription_cpf_blocked_at_transport", {
+        instance: params.instance,
+        phoneLast4: normalizedPhone.slice(-4)
+      } as any);
       return { 
         text: enforced.text, 
         blocked: true, 
