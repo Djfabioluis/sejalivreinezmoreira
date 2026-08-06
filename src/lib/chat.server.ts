@@ -208,8 +208,7 @@ async function patchCustomerContext(
 }
 
 /**
- * Linha de estado do CPF para o prompt.
- * A validação só vale para o mesmo dia: em nova conversa/dia o CPF é pedido novamente.
+ * Estado do atendimento para o prompt.
  */
 /**
  * Linha de estado da assinatura para o prompt.
@@ -1993,7 +1992,7 @@ export function mandatoryOperationalRules(opts: {
     "- PLANOS DE ASSINATURA (IDENTIFICAÇÃO): Quando o cliente mencionar plano, benefício ou assinatura, peça o TELEFONE CADASTRADO antes de qualquer consulta:\n\"Perfeito! 💜\n\nQual é o número de telefone cadastrado na assinatura?\n\nPode enviar com DDD.\"",
     "- Ao receber o telefone, chame SEMPRE validate_subscription_phone. Não peça CPF como primeira opção.",
     "- Se a busca por telefone falhar, pergunte: \"Não encontrei uma assinatura com esse telefone. Pode conferir se esse é o número cadastrado no plano? ✨\"",
-    "- É PROIBIDO solicitar CPF ou qualquer documento de identificação para validar assinaturas.",
+    "- É PROIBIDO solicitar CPF ou qualquer documento de identificação.",
     "- Se o telefone já foi validado NESTA conversa (subscriptionPhoneValidated = true no estado atual), NUNCA peça o telefone ou CPF de novo.",
     "- Em uma NOVA conversa, sempre solicite o telefone novamente antes de usar qualquer plano.",
     "- NUNCA repita o telefone completo nas mensagens; se precisar citar, use o formato mascarado (ex: ******3684).",
