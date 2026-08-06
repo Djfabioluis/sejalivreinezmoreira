@@ -1217,16 +1217,16 @@ function buildTools(
       execute: async ({ cpf }) =>
         safeTool("validate_subscription_cpf", async () => {
           const { getCustomerByCPF } = await import("@/lib/bemp/subscriptions.server");
-          const { maskCPF } = await import("@/lib/text-sanitize");
+          const { maskCPF } = await import("@/lib/cpf");
           
           const result = await getCustomerByCPF(cpf);
           
-          if (result.success && result.customer) {
+          if (result.success && result.found) {
             await patchCustomerContext(conversationKey, {
               subscriptionPhoneValidated: true,
               subscriptionCpfValidated: true,
-              subscriptionCpfLast4: result.customer.cpfMasked.slice(-4),
-              bempCustomerId: result.customer.id,
+              subscriptionCpfLast4: cpf.replace(/\D/g, "").slice(-4),
+              bempCustomerId: result.customerId,
               subscriptionCheckedAt: new Date().toISOString(),
               subscriptionLookupStage: "PLAN_FOUND"
             });
