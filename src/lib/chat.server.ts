@@ -71,60 +71,63 @@ type ToolCtx = { conversationKey?: string; effectiveUnitId?: string | null };
  * Executa uma tool com logs estruturados (tool_started / tool_completed / tool_failed).
  * Nunca propaga exceção: devolve retorno estruturado { success:false, code, message }.
  */
+/**
+ * Executa uma tool com logs estruturados e classificação de erro rigorosa.
+ */
 function runTool<T>(label: string, fn: () => Promise<T>, ctx: ToolCtx = {}) {
   const startedAt = Date.now();
-  const base = `tool=${label}, conversationKey=${ctx.conversationKey ?? "n/a"}, effectiveUnitId=${ctx.effectiveUnitId ?? "n/a"}`;
+  const traceId = Math.random().toString(36).substring(7);
+  const base = `traceId=${traceId}, tool=${label}, conversationKey=${ctx.conversationKey ?? "n/a"}`;
+  
   console.log(`[chat] tool_started: ${base}`);
+  
   return fn()
     .then(async (result) => {
-      console.log(`[chat] tool_completed: ${base}, executionTimeMs=${Date.now() - startedAt}`);
+      console.log(`[chat] tool_completed: ${base}, durationMs=${Date.now() - startedAt}`);
       
-      // CRM Update on tool success
       if (ctx.conversationKey) {
         const stage = inferStageFromTool(label, result);
         if (stage) {
-          const abandonTrigger = (result as any)?.abandon_trigger;
-          
-          // Lógica de Reagendamento Inteligente para métricas
-          let rebookingStatus: string | undefined = undefined;
-          if (label === 'cancel_appointment' && (result as any)?.success !== false) {
-             rebookingStatus = 'rebooking_attempt';
-          } else if (label === 'create_appointment' || label === 'reschedule_appointment') {
-             const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-             const { data: conv } = await (supabaseAdmin.from("wa_conversas") as any).select("customer_context").eq("phone", ctx.conversationKey).maybeSingle();
-             if ((conv as any)?.customer_context?.rebooking_attempt) {
-                rebookingStatus = (result as any)?.success !== false ? 'rebooking_success' : 'rebooking_failed';
-                // Limpa flag após conclusão
-                await patchCustomerContext(ctx.conversationKey, { rebooking_attempt: false });
-             }
-          }
-
           await updateCustomerPipeline({
             phone: ctx.conversationKey,
             stage,
-            abandonmentReason: abandonTrigger || rebookingStatus
+            abandonmentReason: (result as any)?.abandon_trigger
           });
+        }
+      }
+      return result;
+    })
+    .catch(async (err) => {
+      const info = describeError(err);
+      const failure = classifyFailure(err);
+      const durationMs = Date.now() - startedAt;
 
-          if (abandonTrigger) {
-            await patchCustomerContext(ctx.conversationKey, { abandon_trigger: abandonTrigger });
-          }
+      // Log estruturado para diagnóstico real
+      console.error(
+        `[chat] tool_failed: ${base}, durationMs=${durationMs}, code=${failure.code}, integration=${failure.code.startsWith('bemp') ? 'BEMP' : 'INTERNAL'}, statusCode=${info.status}, message=${info.message}`
+      );
+
+      // Se for um erro crítico/inesperado, aciona handoff humano
+      if (failure.escalate && ctx.conversationKey) {
+        try {
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          await supabaseAdmin.from("wa_conversas").update({
+            attendance_mode: 'HUMAN',
+            last_error_code: failure.code,
+            last_error_at: new Date().toISOString()
+          } as any).eq("phone", ctx.conversationKey);
+          console.log(`[chat] human_handoff_triggered: ${base}, reason=${failure.code}`);
+        } catch (handoffErr) {
+          console.error(`[chat] handoff_failed: ${base}`, handoffErr);
         }
       }
 
-      return result;
-    })
-    .catch((err) => {
-      const info = describeError(err);
-      const failure = classifyFailure(err);
-      console.error(
-        `[chat] tool_failed: ${base}, executionTimeMs=${Date.now() - startedAt}, code=${failure.code}, name=${info.name}, message=${info.message}, details=${sanitizeErrorText((err as any)?.details ?? "", 300)}`,
-      );
-      if (info.stack) console.error(`[chat] tool_failed_stack: tool=${label}\n${info.stack}`);
       return {
         success: false,
         code: failure.code,
         message: failure.userMessage,
         error: info.message,
+        traceId
       } as const;
     });
 }
