@@ -172,7 +172,7 @@ export async function deleteInstance(instance: string) {
   await evoFetch(`/instance/delete/${encodeURIComponent(instance)}`, { method: "DELETE" });
 }
 
-export async function sendText(
+export async function sendEvolutionText(
   instance: string,
   to: string,
   body: string,
