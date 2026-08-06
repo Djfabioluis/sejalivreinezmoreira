@@ -10,6 +10,7 @@ import { generateManagementBriefing } from '@/lib/crm/management-report.server';
 import { analyzeAgenda } from '@/lib/crm/agenda-analyzer.server';
 import { processWaitingList } from '@/lib/crm/waiting-list.server';
 import { runDailyAnalysis } from '@/lib/crm/daily-analyst.server';
+import { runPredictiveCampaignEngine } from '@/lib/crm/predictive-campaign.server';
 
 
 export const Route = createFileRoute('/api/public/crm-cron')({
@@ -65,6 +66,11 @@ export const Route = createFileRoute('/api/public/crm-cron')({
           // 9. Daily Analysis (Nightly - 22h)
           if (hour === 22) {
             await runDailyAnalysis();
+          }
+
+          // 10. Predictive Campaign Engine (Runs daily at 10 AM to plan ahead)
+          if (hour === 10) {
+            await runPredictiveCampaignEngine();
           }
 
           

@@ -158,12 +158,12 @@ function CRMPage() {
             <div className="space-y-4">
               {opportunities.length > 0 ? (
                 opportunities.map((opp: any) => (
-                  <Card key={opp.id} className={`border-l-4 ${opp.opportunity_type === 'WAITING_LIST' ? 'border-l-purple-500 bg-purple-50/20' : 'border-l-blue-500'}`}>
+                  <Card key={opp.id} className={`border-l-4 ${opp.opportunity_type === 'WAITING_LIST' ? 'border-l-purple-500 bg-purple-50/20' : opp.metadata?.is_premium_decision ? 'border-l-amber-500 bg-amber-50/10' : 'border-l-blue-500'}`}>
                     <CardHeader className="pb-2">
                       <div className="flex justify-between items-start">
                         <div>
-                          <Badge variant={opp.opportunity_type === 'WAITING_LIST' ? 'secondary' : 'outline'} className="mb-1">
-                            {opp.opportunity_type === 'WAITING_LIST' ? 'LISTA DE ESPERA 💜' : opp.opportunity_type.replace(/_/g, ' ')}
+                          <Badge variant={opp.opportunity_type === 'WAITING_LIST' ? 'secondary' : opp.metadata?.is_premium_decision ? 'default' : 'outline'} className={`mb-1 ${opp.metadata?.is_premium_decision ? 'bg-amber-600 hover:bg-amber-700' : ''}`}>
+                            {opp.opportunity_type === 'WAITING_LIST' ? 'LISTA DE ESPERA 💜' : opp.metadata?.is_premium_decision ? 'CAMPANHA PREMIUM ⭐' : opp.opportunity_type.replace(/_/g, ' ')}
                           </Badge>
                           <CardTitle className="text-sm">{opp.customer_id}</CardTitle>
                         </div>
@@ -174,8 +174,13 @@ function CRMPage() {
                     </CardHeader>
                     <CardContent className="space-y-2">
                       <p className="text-xs text-muted-foreground italic">"{opp.trigger}"</p>
-                      <div className={`${opp.opportunity_type === 'WAITING_LIST' ? 'bg-purple-50 border-purple-100' : 'bg-blue-50/50 border-blue-100'} p-2 rounded text-[11px] border`}>
-                        <strong>Ação Recomendada:</strong> {opp.recommended_action}
+                      {opp.metadata?.is_premium_decision && (
+                        <div className="text-[10px] font-bold text-amber-700 bg-amber-100/50 px-2 py-1 rounded mb-1">
+                          Público: {opp.metadata.target_audience}
+                        </div>
+                      )}
+                      <div className={`${opp.opportunity_type === 'WAITING_LIST' ? 'bg-purple-50 border-purple-100' : opp.metadata?.is_premium_decision ? 'bg-amber-50 border-amber-100' : 'bg-blue-50/50 border-blue-100'} p-2 rounded text-[11px] border`}>
+                        <strong>{opp.metadata?.is_premium_decision ? 'Sugestão de Mensagem:' : 'Ação Recomendada:'}</strong> {opp.recommended_action}
                       </div>
                       <div className="flex justify-between items-center pt-2">
                         {opp.opportunity_type === 'WAITING_LIST' && (
@@ -183,7 +188,12 @@ function CRMPage() {
                              RECUPERAÇÃO DE SLOT
                            </Badge>
                         )}
-                        <Badge variant="secondary" className="text-[9px] uppercase ml-auto">{opp.status}</Badge>
+                        <div className="flex gap-2 items-center ml-auto">
+                          {opp.metadata?.is_premium_decision && opp.status === 'PENDENTE' && (
+                            <Badge className="bg-amber-600 text-[9px] cursor-pointer hover:bg-amber-700">APROVAR CAMPANHA</Badge>
+                          )}
+                          <Badge variant="secondary" className="text-[9px] uppercase">{opp.status}</Badge>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
