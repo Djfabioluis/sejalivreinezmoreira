@@ -119,7 +119,8 @@ export const sendManualWAMessage = createServerFn({ method: "POST" })
     phone: z.string(), 
     text: z.string().min(1).max(3500) 
   }))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    await assertPermission(context, "agendar");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     
     const { data: conv, error: convErr } = await supabaseAdmin
