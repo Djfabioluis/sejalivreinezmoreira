@@ -115,184 +115,468 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* 
-        Execute esta instrucao no projeto: DIAGNÓSTICO E CORREÇÃO DO MOTOR DE FOLLOW-UP
+        Execute esta instrucao no projeto: CORREÇÃO CRÍTICA — IA NÃO PAUSA QUANDO O HUMANO RESPONDE
 
 PROBLEMA
 
-A IA não está enviando follow-ups automaticamente.
+Um atendente humano começa a conversar com a cliente pela Secretária Virtual ou pelo próprio WhatsApp conectado, mas a IA continua respondendo junto.
 
 OBJETIVO
 
-Descobrir exatamente em qual etapa o fluxo está parando e corrigir sem alterar as regras de negócio.
+Qualquer interação humana válida deve pausar imediatamente a IA antes de a mensagem ser enviada ou processada.
+
+Não permitir respostas simultâneas de humano e IA.
+
+Não depender somente do botão “Assumir atendimento”.
 
 Não publicar automaticamente.
 
 ==================================================
-FASE 1 — RASTREAR O FLUXO
+1. IDENTIFICAR TODOS OS CANAIS DE RESPOSTA HUMANA
 ==================================================
 
-Mapear todo o fluxo:
+Mapear onde um humano pode responder:
 
-1. detecção de abandono;
-2. criação do follow-up;
-3. gravação no banco;
-4. agendamento;
-5. job responsável;
-6. geração da mensagem;
-7. envio pela Evolution;
-8. atualização do status.
+- campo de mensagem da Secretária Virtual;
+- botão “Enviar”;
+- respostas rápidas;
+- envio de mídia;
+- envio pelo WhatsApp físico conectado;
+- ações administrativas que enviam mensagens;
+- integração externa, se houver.
 
-Mostrar onde a execução interrompe.
+Todas essas ações devem passar por uma função única:
+
+pauseAIForHumanInteraction()
 
 ==================================================
-FASE 2 — BANCO
+2. PAUSAR ANTES DO ENVIO HUMANO
 ==================================================
+
+No handler de envio manual, executar nesta ordem:
+
+1. adquirir lock da conversa;
+2. marcar atendimento humano;
+3. cancelar processamento pendente da IA;
+4. enviar mensagem humana;
+5. salvar mensagem como operator;
+6. atualizar última atividade humana;
+7. liberar lock.
+
+Não enviar primeiro e pausar depois.
+
+Exemplo:
+
+await pauseAIForHumanInteraction({
+  conversationId,
+  operatorId,
+  source: "SECRETARIA_VIRTUAL"
+});
+
+await sendManualMessage(...);
+
+==================================================
+3. FUNÇÃO ÚNICA DE PAUSA
+==================================================
+
+Criar ou consolidar:
+
+pauseAIForHumanInteraction({
+  conversationId,
+  operatorId,
+  source
+})
+
+Ela deve atualizar atomicamente:
+
+attendance_mode = "HUMAN"
+human_operator_id = operatorId
+human_assumed_at = COALESCE(human_assumed_at, now())
+human_last_activity_at = now()
+ai_paused_at = now()
+ai_pause_reason = "HUMAN_INTERACTION"
+ai_resume_at = now() + timeout
+pending_customer_reply = false
+human_only = false, salvo configuração explícita
+
+Também deve:
+
+- cancelar jobs pendentes da IA para a conversa;
+- cancelar follow-ups prontos para envio;
+- invalidar respostas ainda não enviadas;
+- registrar auditoria.
+
+==================================================
+4. NÃO DEPENDER DO FRONTEND
+==================================================
+
+A pausa deve ocorrer no backend.
+
+Mesmo que o frontend falhe ou seja contornado, qualquer rota de envio manual deve obrigatoriamente chamar pauseAIForHumanInteraction().
+
+Não confiar em:
+
+setState local
+botão oculto
+badge visual
+campo attendance_mode alterado apenas no browser
+
+==================================================
+5. MENSAGEM HUMANA SALVA COMO OPERATOR
+==================================================
+
+Mensagens manuais devem ser salvas com origem clara:
+
+role = "operator"
+
+ou:
+
+sender_type = "HUMAN"
+
+Não salvar mensagem humana como:
+
+assistant
+user
+system
+
+A IA deve conseguir distinguir:
+
+cliente
+IA
+atendente humano
+
+==================================================
+6. MENSAGEM ENVIADA PELO WHATSAPP FÍSICO
+==================================================
+
+Quando o atendente responder pelo próprio aplicativo WhatsApp conectado, a Evolution provavelmente enviará:
+
+fromMe = true
+
+Hoje essas mensagens podem estar sendo apenas ignoradas.
+
+Alterar o tratamento:
+
+Se fromMe = true:
+
+- não chamar IA;
+- não salvar como mensagem do cliente;
+- identificar se é mensagem humana real ou mensagem enviada pelo sistema;
+- quando for humana, pausar a IA;
+- salvar como operator;
+- atualizar human_last_activity_at.
+
+Não retornar imediatamente antes de atualizar o modo humano.
+
+==================================================
+7. DIFERENCIAR MENSAGEM DO SISTEMA E DO HUMANO
+==================================================
+
+Não tratar todo fromMe como humano, pois respostas da própria IA também retornam como fromMe.
+
+Criar correlação de envios.
+
+Quando o sistema enviar pela Evolution, registrar:
+
+outbound_message_id
+source = "AI" | "SYSTEM" | "FOLLOWUP"
+
+Quando chegar evento fromMe:
+
+- se messageId estiver registrado como envio da IA/sistema:
+  apenas atualizar status de entrega;
+  não pausar IA;
+
+- se messageId não estiver registrado como envio do sistema:
+  considerar possível envio humano;
+  salvar como operator;
+  pausar IA.
+
+Esta distinção é obrigatória.
+
+==================================================
+8. BLOQUEIO ANTES DO RUNAGENT
+==================================================
+
+Imediatamente antes de chamar runAgent(), reler a conversa no banco.
+
+Não confiar no estado carregado no início do webhook.
 
 Verificar:
 
-- crm_followups;
-- status;
-- scheduled_at;
-- attempts;
-- last_attempt_at;
-- canceled_at;
-- completed_at.
+attendance_mode
+human_last_activity_at
+human_only
+ai_paused_at
 
-Informar:
+Se attendance_mode = HUMAN ou human_only = true:
 
-- existem follow-ups pendentes?
-- existem follow-ups expirados?
-- existem follow-ups presos?
+- abortar runAgent;
+- registrar ai_execution_blocked_by_human;
+- não enviar fallback;
+- preservar a mensagem da cliente.
 
-==================================================
-FASE 3 — JOBS
-==================================================
+Essa segunda verificação evita corrida:
 
-Verificar se existe job responsável pelo envio.
-
-Confirmar:
-
-- está executando;
-- última execução;
-- frequência;
-- quantidade processada;
-- erros.
-
-Se não existir:
-
-implementar um worker dedicado.
+cliente envia
+→ webhook começa
+→ humano responde
+→ webhook antigo continua
+→ IA responde
 
 ==================================================
-FASE 4 — CONDIÇÕES
+9. CANCELAR PROCESSAMENTO EM ANDAMENTO
 ==================================================
 
-Verificar se o follow-up está sendo cancelado por:
+Se o humano assumir enquanto a IA já está processando:
 
-- atendimento humano;
-- conversa encerrada;
-- cliente respondeu;
-- IA desativada;
-- agente desconectado;
-- timeout;
-- erro de validação;
-- lock.
+- marcar uma versão/epoch da conversa;
+- antes de enviar a resposta da IA, validar novamente;
+- se o modo mudou para HUMAN, cancelar o envio.
 
-Registrar exatamente qual condição bloqueou.
+Criar:
 
-==================================================
-FASE 5 — EVOLUTION
-==================================================
+conversation_ai_epoch
 
-Testar envio utilizando EvolutionService.
+Ao iniciar IA:
 
-Confirmar:
+capture epoch
 
-- mensagem gerada;
-- payload enviado;
-- resposta da API;
-- messageId retornado.
+Antes do envio:
+
+confirmar que epoch não mudou.
+
+Ou usar:
+
+ai_processing_token
+
+Se o humano assumir, invalidar o token.
 
 ==================================================
-FASE 6 — IA
+10. LOCK DE CONVERSA
 ==================================================
 
-Confirmar que a IA realmente gera a mensagem.
+Usar o mesmo lock para:
 
-Se não gerar:
+- processamento da IA;
+- envio humano;
+- devolução à IA;
+- retomada automática.
 
-registrar motivo.
+O envio humano deve ter prioridade.
 
-==================================================
-FASE 7 — LOGS
-==================================================
+Se existir processamento da IA:
 
-Criar logs obrigatórios:
-
-followup_detected
-
-followup_created
-
-followup_scheduled
-
-followup_validation_started
-
-followup_validation_failed
-
-followup_send_started
-
-followup_send_completed
-
-followup_send_failed
+- sinalizar cancelamento;
+- aguardar ou invalidar o envio;
+- nunca enviar as duas respostas.
 
 ==================================================
-FASE 8 — TESTE REAL
+11. INTERFACE
 ==================================================
 
-Criar uma conversa de teste.
+Ao abrir uma conversa e o operador começar a digitar, opcionalmente marcar atividade temporária.
 
-Simular:
+Mas a pausa definitiva deve ocorrer ao:
 
-cliente abandona o agendamento.
+- clicar “Assumir atendimento”;
+- enviar a primeira mensagem humana.
 
-Confirmar:
+Depois do envio, mostrar imediatamente:
 
-✓ follow-up criado
+“Humano atendendo”
 
-✓ horário agendado
+e:
 
-✓ job executado
+“IA pausada”
 
-✓ mensagem enviada
-
-✓ Evolution confirmou envio
-
-✓ status atualizado
+Sem precisar atualizar a página.
 
 ==================================================
-ENTREGA
+12. BOTÃO ASSUMIR ATENDIMENTO
 ==================================================
 
-Informar:
+Manter o botão, mas ele deve usar a mesma função server-side.
+
+Não criar dois fluxos diferentes:
+
+botão assumir
+e
+mensagem manual
+
+Ambos devem chamar:
+
+página pauseAIForHumanInteraction()
+
+==================================================
+13. FOLLOW-UP E AUTOMAÇÕES
+==================================================
+
+Quando humano assume:
+
+- cancelar follow-up em estado READY ou SENDING ainda não enviado;
+- pausar novos follow-ups;
+- não gerar campanha individual para a conversa;
+- não executar retomada automática antes do timeout.
+
+Não cancelar campanhas gerais já aprovadas, salvo regra explícita.
+
+==================================================
+14. RETOMADA AUTOMÁTICA
+==================================================
+
+A retomada só pode ocorrer quando:
+
+- último evento humano ultrapassou o timeout;
+- existe mensagem da cliente sem resposta humana;
+- última mensagem relevante é da cliente;
+- human_only = false;
+- não existe operador digitando;
+- não existe job humano pendente.
+
+Não retomar apenas porque passou o tempo.
+
+==================================================
+15. LOGS OBRIGATÓRIOS
+==================================================
+
+Registrar:
+
+human_interaction_detected
+human_pause_started
+human_pause_completed
+manual_message_send_started
+manual_message_send_completed
+from_me_matched_system_outbound
+from_me_classified_as_human
+ai_processing_invalidated_by_human
+ai_execution_blocked_by_human
+ai_send_canceled_by_human
+human_activity_updated
+
+Incluir:
+
+traceId
+conversationId
+operatorId
+source
+messageId
+attendanceModeBefore
+attendanceModeAfter
+
+Não registrar conteúdo completo.
+
+==================================================
+16. TESTE DE CORRIDA CRÍTICO
+==================================================
+
+Cenário:
+
+1. cliente envia mensagem;
+2. IA começa a processar;
+3. antes da resposta, humano envia mensagem;
+4. humano é salvo como operator;
+5. IA tenta enviar.
+
+Resultado obrigatório:
+
+- mensagem humana enviada;
+- resposta da IA cancelada;
+- attendance_mode = HUMAN;
+- apenas uma mensagem enviada à cliente.
+
+==================================================
+17. TESTES OBRIGATÓRIOS
+==================================================
+
+Teste 1 — botão assumir
+
+IA para imediatamente.
+
+Teste 2 — envio manual sem clicar em assumir
+
+Primeira mensagem humana pausa IA.
+
+Teste 3 — resposta pelo WhatsApp físico
+
+Evento fromMe não registrado como outbound do sistema:
+pausa IA.
+
+Teste 4 — resposta da própria IA volta como fromMe
+
+Não pausa IA.
+
+Teste 5 — follow-up enviado pelo sistema volta como fromMe
+
+Não classificar como humano.
+
+Teste 6 — humano responde durante runAgent
+
+Resposta da IA não é enviada.
+
+Teste 7 — nova mensagem da cliente durante modo HUMAN
+
+Mensagem entra na caixa;
+IA não responde.
+
+Teste 8 — dois operadores
+
+Última atividade é atualizada;
+não criar dois processamentos.
+
+Teste 9 — falha ao pausar
+
+Não enviar mensagem humana como se a pausa tivesse funcionado silenciosamente;
+mostrar erro e impedir risco de resposta concorrente.
+
+Teste 10 — retomada após timeout
+
+Somente retomar quando cliente continua aguardando.
+
+==================================================
+18. AUDITORIA DO CÓDIGO EXISTENTE
+==================================================
+
+Localizar todas as chamadas a:
+
+sendEvolutionText
+sendManualMessage
+sendMessage
+runAgent
+runAgentWithLogging
+processMessagesUpsert
+
+Confirmar que:
+
+- todo envio humano pausa IA;
+- todo runAgent verifica modo humano;
+- todo envio da IA verifica novamente antes de sair.
+
+==================================================
+19. ENTREGA
+==================================================
+
+Ao concluir informar:
 
 1. causa raiz;
+2. onde o envio humano não pausava;
+3. como fromMe é diferenciado;
+4. como processamento da IA é invalidado;
+5. arquivos alterados;
+6. migrations;
+7. logs do teste de corrida;
+8. build;
+9. typecheck;
+10. lint;
+11. testes.
 
-2. arquivo responsável;
+Não publicar automaticamente.
 
-3. função responsável;
+CRITÉRIO DE CONCLUSÃO
 
-4. correção realizada;
+Não declarar corrigido apenas porque attendance_mode foi atualizado.
 
-5. logs do teste;
-
-6. build;
-
-7. typecheck;
-
-8. lint;
-
-9. testes.
-
-Não considerar concluído até um follow-up real ser enviado com sucesso para uma conversa de teste.
+É obrigatório comprovar que uma mensagem humana enviada enquanto a IA processa impede o envio da resposta da IA.
       */}
 
       <div className="bg-green-600 text-white p-2 text-center text-xs font-medium">
