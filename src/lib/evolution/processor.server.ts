@@ -39,8 +39,7 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
 
   for (const msg of messages) {
     const traceId = (payload as any)._traceId || `${msg.instance}:${msg.messageId}`;
-    logger.info("EvolutionProcessor", "MESSAGE_UPSTREAM", `Processando mensagem do WhatsApp`, { 
-      traceId, 
+    logger.info("MESSAGE_UPSTREAM", `Processando mensagem do WhatsApp [${traceId}]`, { 
       instance: msg.instance, 
       phone: msg.remoteJid 
     });

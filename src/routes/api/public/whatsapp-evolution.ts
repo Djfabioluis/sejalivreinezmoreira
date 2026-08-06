@@ -33,8 +33,7 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           payload: { traceId, event: eventData.event }
         });
         
-        logger.info("EvolutionWebhook", "WEBHOOK_ENTRY", `Entrada de webhook Evolution`, { 
-          traceId, 
+        logger.info("WEBHOOK_ENTRY", `Entrada de webhook Evolution [${traceId}]`, { 
           instance: eventData.instance, 
           event: eventData.event 
         });
