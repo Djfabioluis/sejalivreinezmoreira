@@ -332,6 +332,42 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_recommendations: {
+        Row: {
+          confidence: number
+          created_at: string | null
+          customer_id: string
+          id: string
+          metadata: Json | null
+          reason: string
+          recommendation_type: string
+          status: string
+          suggested_message: string | null
+        }
+        Insert: {
+          confidence?: number
+          created_at?: string | null
+          customer_id: string
+          id?: string
+          metadata?: Json | null
+          reason: string
+          recommendation_type: string
+          status?: string
+          suggested_message?: string | null
+        }
+        Update: {
+          confidence?: number
+          created_at?: string | null
+          customer_id?: string
+          id?: string
+          metadata?: Json | null
+          reason?: string
+          recommendation_type?: string
+          status?: string
+          suggested_message?: string | null
+        }
+        Relationships: []
+      }
       crm_recoveries: {
         Row: {
           conversation_id: string | null
