@@ -1,6 +1,14 @@
 import { bempFetch, getBempConfig, type JsonValue } from "./bemp.server";
-import { logger } from "./core-service";
+import { logger } from "./observability/logger.server";
+import { AppError } from "./core/errors";
 import { z } from "zod";
+
+export type BempResult<T> = {
+  success: boolean;
+  data?: T;
+  error?: string;
+  errorCode?: "NOT_FOUND" | "UNAUTHORIZED" | "RATE_LIMITED" | "BEMP_UNAVAILABLE" | "INVALID_RESPONSE";
+};
 
 /**
  * BempService: Camada única para comunicação com a API BEMP.
@@ -9,33 +17,54 @@ import { z } from "zod";
 export class BempService {
   private static async fetch<T = JsonValue>(url: string, init?: RequestInit, module = "bemp-service"): Promise<T> {
     const startedAt = Date.now();
+    logger.debug("BEMP_REQUEST_START", `${init?.method || "GET"} ${url}`, { module });
+    
     try {
       const data = await bempFetch(url, init);
-      logger.info(module, "bemp_request_success", `${init?.method || "GET"} ${url}`, { durationMs: Date.now() - startedAt });
+      const durationMs = Date.now() - startedAt;
+      logger.info("BEMP_REQUEST_SUCCESS", `${init?.method || "GET"} ${url}`, { durationMs, module });
       return data as T;
-    } catch (error) {
-      logger.error(module, "bemp_request_failed", error instanceof Error ? error.message : "Erro na BEMP", { 
+    } catch (error: any) {
+      const durationMs = Date.now() - startedAt;
+      logger.error("BEMP_REQUEST_FAILED", error.message, { 
         url, 
         method: init?.method,
-        durationMs: Date.now() - startedAt 
+        durationMs,
+        module,
+        status: error.status
       });
-      throw error;
+
+      let code = "BEMP_UNAVAILABLE";
+      if (error.status === 404) code = "NOT_FOUND";
+      if (error.status === 401) code = "UNAUTHORIZED";
+      if (error.status === 429) code = "RATE_LIMITED";
+
+      throw new AppError({
+        code: code,
+        message: error.message || "Erro de comunicação com a API BEMP.",
+        safeMessage: "Não foi possível sincronizar com o sistema de agenda (BEMP).",
+        statusCode: error.status || 500,
+        cause: error
+      });
     }
   }
 
-  static async listSalons() {
+  static async listSalons(): Promise<any[]> {
     const cfg = await getBempConfig();
-    return this.fetch(`${cfg.apiBase}/salons`, undefined, "bemp-salons");
+    const result = await this.fetch<any>(`${cfg.apiBase}/salons`, undefined, "bemp-salons");
+    return Array.isArray(result) ? result : (result?.data || []);
   }
 
-  static async listServices(salonId: string | number) {
+  static async listServices(salonId: string | number): Promise<any[]> {
     const cfg = await getBempConfig();
-    return this.fetch(`${cfg.apiBase}/salons/${salonId}/services`, undefined, "bemp-services");
+    const result = await this.fetch<any>(`${cfg.apiBase}/salons/${salonId}/services`, undefined, "bemp-services");
+    return Array.isArray(result) ? result : (result?.data || []);
   }
 
-  static async listProfessionals(salonId: string | number, serviceId: string | number) {
+  static async listProfessionals(salonId: string | number, serviceId: string | number): Promise<any[]> {
     const cfg = await getBempConfig();
-    return this.fetch(`${cfg.apiBase}/salons/${salonId}/services/${serviceId}/professionals`, undefined, "bemp-professionals");
+    const result = await this.fetch<any>(`${cfg.apiBase}/salons/${salonId}/services/${serviceId}/professionals`, undefined, "bemp-professionals");
+    return Array.isArray(result) ? result : (result?.data || []);
   }
 
   static async listAvailableSlots(params: {
@@ -43,11 +72,13 @@ export class BempService {
     serviceId: string | number;
     professionalId?: string | number;
     date: string;
-  }) {
+  }): Promise<any[]> {
     const cfg = await getBempConfig();
     let url = `${cfg.apiBase}/salons/${params.salonId}/services/${params.serviceId}/slots?date=${params.date}`;
     if (params.professionalId) url += `&professional_id=${params.professionalId}`;
     
-    return this.fetch(url, undefined, "bemp-slots");
+    const result = await this.fetch<any>(url, undefined, "bemp-slots");
+    return Array.isArray(result) ? result : (result?.data || []);
   }
 }
+
