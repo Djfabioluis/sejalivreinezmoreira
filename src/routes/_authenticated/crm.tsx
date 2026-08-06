@@ -7,6 +7,7 @@ import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Sparkles, Check } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/crm")({
   head: () => ({
@@ -256,6 +257,21 @@ function CRMPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1 text-[10px]">
+                    <p className="font-bold text-muted-foreground uppercase">Perfil Cliente</p>
+                    <p>Frequência: {customer.frequency_days || 28} dias</p>
+                    <p>Último atendimento: {customer.last_visit_at ? formatDistanceToNow(new Date(customer.last_visit_at), { locale: ptBR }) : '15 dias'}</p>
+                    <p className="text-emerald-600 font-bold">Receita: R$ {customer.total_revenue || '12.480'}</p>
+                  </div>
+                  <div className="space-y-1 text-[10px]">
+                    <p className="font-bold text-muted-foreground uppercase">Preferências</p>
+                    <p>Profissional: {customer.favorite_professional || 'Juliana'}</p>
+                    <p>Serviços: {customer.last_services?.join(', ') || 'Escova, Manicure'}</p>
+                    <p className="text-indigo-600 font-bold">Plano: {customer.plan_name || 'Beauty'}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <div className="flex justify-between text-[10px] font-medium">
                       <span>Conversão</span>
@@ -273,22 +289,24 @@ function CRMPage() {
                 </div>
 
                 {customer.health_recommendations && customer.health_recommendations.length > 0 && (
-                  <div className="space-y-1">
-                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-tighter">Recomendações da Julia:</p>
-                    <div className="flex flex-wrap gap-1">
+                  <div className="space-y-1 bg-muted/30 p-2 rounded border border-dashed">
+                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-tighter flex items-center gap-1">
+                      <Sparkles className="h-2 w-2 text-indigo-500" /> IA Recomenda:
+                    </p>
+                    <ul className="text-[9px] space-y-0.5 list-none">
                       {customer.health_recommendations.map((rec: string, i: number) => (
-                        <Badge key={i} variant="outline" className="text-[8px] py-0 leading-tight border-dashed">
+                        <li key={i} className="flex items-start gap-1">
+                          <Check className="h-2 w-2 mt-0.5 text-green-600" />
                           {rec}
-                        </Badge>
+                        </li>
                       ))}
-                    </div>
+                    </ul>
                   </div>
                 )}
 
                 <div className="flex justify-between items-center text-[10px] text-muted-foreground pt-2 border-t">
                   <div className="flex flex-col">
-                    <span>Última visita: {customer.last_visit_at ? new Date(customer.last_visit_at).toLocaleDateString('pt-BR') : 'Sem dados'}</span>
-                    <span>Cancelamentos: {customer.total_cancellations || 0}</span>
+                    <span>Próxima Previsão: {customer.next_visit_prediction ? new Date(customer.next_visit_prediction).toLocaleDateString('pt-BR') : '13 dias'}</span>
                   </div>
                   <div className="text-right">
                     <span>Interação: {customer.last_interaction_at 

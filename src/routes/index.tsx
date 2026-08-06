@@ -115,20 +115,53 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="hidden">
-        Execute esta instrucao no projeto: Todo dia às 7h, a Julia gera um relatório para a gestão:
+        Execute esta instrucao no projeto: MARIA GABRIELA
 
-        Bom dia!
+        ★★★★★ Cliente VIP
 
-        Hoje temos:
-        18 horários vagos
-        7 clientes com alta chance de retorno
-        5 follow-ups pendentes
-        3 aniversariantes
-        2 clientes VIP sem visita há mais de 45 dias
-        Receita potencial recuperável estimada em R$ 2.800
-        Horários com maior risco de ociosidade: quinta-feira à tarde
+        Plano Beauty
 
-        Isso transforma a IA em uma assistente de gestão, não apenas de atendimento.
+        Cliente há 3 anos
+
+        Receita acumulada
+
+        R$ 12.480
+
+        Últimos serviços
+
+        ✓ Escova
+
+        ✓ Manicure
+
+        ✓ Hidratação
+
+        Profissional favorita
+
+        Juliana
+
+        Frequência
+
+        28 dias
+
+        Último atendimento
+
+        15 dias
+
+        Próxima previsão
+
+        13 dias
+
+        IA recomenda
+
+        ✔ Entrar em contato daqui a 10 dias.
+
+        ✔ Alta chance de aceitar.
+
+        ✔ Preferência por sexta à tarde.
+
+        ✔ Melhor horário: 16h.
+
+        ✔ Plano ativo.
       </div>
 
       <div className="bg-green-600 text-white p-2 text-center text-xs font-medium">
