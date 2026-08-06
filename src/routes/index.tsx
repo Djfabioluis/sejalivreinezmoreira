@@ -52,7 +52,6 @@ function LandingPage() {
   const [selectedPrice, setSelectedPrice] = useState<string | null>(null);
 
   useEffect(() => {
-    // Retoma o destino pretendido salvo antes do login social (redirect_uri é a origem pública).
     const resumeNext = () => {
       try {
         const stored = localStorage.getItem("auth:next");
@@ -78,7 +77,6 @@ function LandingPage() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-
   function handleSubscribe(priceId: string) {
     if (!session) {
       navigate({
@@ -95,7 +93,6 @@ function LandingPage() {
     }, 50);
   }
 
-  // Auto-open checkout after login redirect back with ?assinar=
   useEffect(() => {
     if (!session) return;
     const params = new URLSearchParams(window.location.search);
@@ -114,291 +111,11 @@ function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      {/* 
-        Execute esta instrucao no projeto: DIAGNÓSTICO DA MENSAGEM DE INSTABILIDADE
-
-PROBLEMA
-
-A IA está respondendo:
-
-"Estou com uma instabilidade momentânea no meu sistema..."
-
-Mas não sabemos qual erro realmente ocorreu.
-
-OBJETIVO
-
-Descobrir exatamente qual exceção, timeout ou falha faz essa mensagem ser enviada.
-
-Não alterar regras de negócio.
-
-Não publicar automaticamente.
-
-==================================================
-1. LOCALIZAR A MENSAGEM
-==================================================
-
-Encontrar onde essa mensagem está definida.
-
-Listar:
-
-- arquivo;
-- função;
-- linha aproximada;
-- fluxo que chega nela.
-
-==================================================
-2. IDENTIFICAR TODOS OS CATCH
-==================================================
-
-Localizar todos os blocos catch relacionados a:
-
-- createAppointment
-- scheduleAppointment
-- listSlots
-- listProfessionals
-- validateSubscription
-- BempService
-- EvolutionService
-- AI orchestration
-
-Mostrar quais deles retornam essa mesma mensagem.
-
-==================================================
-3. LOGAR O ERRO REAL
-==================================================
-
-Antes de enviar a mensagem ao cliente, registrar:
-
-- errorCode;
-- errorType;
-- stack resumida;
-- integração envolvida;
-- endpoint;
-- status HTTP;
-- traceId;
-- conversationId;
-- unitId.
-
-Não registrar dados sensíveis.
-
-==================================================
-4. CLASSIFICAR O ERRO
-==================================================
-
-Separar:
-
-- BEMP indisponível;
-- horário indisponível;
-- profissional indisponível;
-- timeout;
-- autenticação;
-- validação;
-- Evolution;
-- erro interno;
-- exceção inesperada.
-
-Não tratar todos como "instabilidade".
-
-==================================================
-5. TESTE
-==================================================
-
-Executar um agendamento real de teste.
-
-Informar exatamente:
-
-- em qual etapa ocorreu a falha;
-- qual exceção foi lançada;
-- qual integração respondeu;
-- qual status HTTP foi recebido.
-
-==================================================
-6. ENTREGA
-==================================================
-
-Informar:
-
-1. causa raiz;
-2. arquivo responsável;
-3. função responsável;
-4. integração responsável;
-5. status HTTP;
-6. correção proposta;
-7. build;
-8. typecheck;
-9. lint.
-
-Não considerar concluído até identificar a causa exata da mensagem.
-
-quando a consulta ao BEMP falhar.
-
-==================================================
-12. CORRIGIR A TOOL
-==================================================
-
-Em:
-
-src/lib/chat.server.ts
-
-A tool validate_subscription_cpf deve utilizar apenas o result estruturado.
-
-Fluxo:
-
-1. validar CPF;
-2. findCustomerByCPF;
-3. listCustomerSubscriptions;
-4. normalizar planos;
-5. selecionar planos ativos;
-6. salvar contexto;
-7. retornar para a IA.
-
-Não capturar todos os problemas como customer_not_found.
-
-==================================================
-13. NÃO DUPLICAR CONSULTA POR TELEFONE
-==================================================
-
-Depois da validação obrigatória por CPF:
-
-- utilizar o customerId oficial localizado;
-- não substituir o resultado pela consulta por telefone;
-- não chamar get_customer_active_plans por telefone como fonte principal.
-
-A consulta por telefone pode ser usada somente como fallback explicitamente permitido, nunca para contradizer o CPF validado.
-
-==================================================
-14. CORRIGIR OS TESTES
-==================================================
-
-Os testes atuais apenas simulam que o primeiro endpoint retorna o formato desejado.
-
-Manter testes unitários, mas adicionar testes de contrato com fixtures reais sanitizadas.
-
-Criar fixtures para:
-
-- objeto customer;
-- data.customer;
-- array de clientes;
-- results;
-- resposta de erro;
-- assinaturas separadas;
-- plano ativo;
-- plano inativo;
-- status desconhecido;
-- cliente sem plano.
-
-Adicionar teste que confirme:
-
-getCustomerByCPF não considera qualquer objeto como cliente.
-
-Adicionar teste que confirme:
-
-uma resposta array é interpretada corretamente.
-
-Adicionar teste que confirme:
-
-a assinatura é consultada pelo customerId.
-
-==================================================
-15. TESTE REAL OBRIGATÓRIO
-==================================================
-
-Usar um CPF real de teste já confirmado no BEMP.
-
-Não colocar o CPF no código, logs, relatório ou commit.
-
-Executar o fluxo e comprovar:
-
-cpf_validation_completed
-bemp_customer_lookup_started
-bemp_customer_lookup_completed
-bemp_customer_identity_matched
-bemp_subscription_lookup_started
-bemp_subscription_lookup_completed
-bemp_active_subscription_found
-subscription_service_resolved
-
-Mostrar no relatório somente:
-
-{
-  cpfLast4,
-  customerIdMasked,
-  customerFound: true,
-  subscriptionsCount,
-  activeSubscriptionsCount,
-  mappedServiceName
-}
-
-==================================================
-16. LOGS
-==================================================
-
-Adicionar:
-
-bemp_cpf_endpoint_resolved
-bemp_customer_response_shape
-bemp_customer_identity_matched
-bemp_customer_identity_mismatch
-bemp_subscription_endpoint_resolved
-bemp_subscription_response_shape
-bemp_active_subscription_found
-bemp_no_subscription
-bemp_subscription_unknown_status
-bemp_cpf_lookup_unsupported
-
-Não registrar URLs com query contendo CPF.
-
-Não registrar resposta completa.
-
-==================================================
-17. ARQUIVOS PRIORITÁRIOS
-==================================================
-
-Revisar e corrigir:
-
-src/lib/bemp/subscriptions.server.ts
-src/lib/bemp-service.server.ts
-src/lib/bemp.server.ts
-src/lib/chat.server.ts
-src/lib/bemp/tests/cpf-plans.test.ts
-
-Não criar uma terceira implementação de busca por CPF.
-
-==================================================
-18. ENTREGA
-==================================================
-
-Ao concluir, informar:
-
-1. endpoint real de busca por CPF;
-2. parâmetro real utilizado;
-3. formato real do cliente;
-4. endpoint real das assinaturas;
-5. formato real das assinaturas;
-6. causa raiz;
-7. arquivos alterados;
-8. testes unitários;
-9. teste de contrato;
-10. teste real mascarado;
-11. build;
-12. typecheck;
-13. lint.
-
-Não publicar automaticamente.
-
-CRITÉRIO DE CONCLUSÃO
-
-Não declarar corrigido com base apenas nos mocks atuais.
-
-A correção só estará comprovada quando um CPF conhecido for localizado no BEMP, o customerId for obtido e as assinaturas desse cliente forem consultadas com sucesso.
-      */}
-
       <div className="bg-green-600 text-white p-2 text-center text-xs font-medium">
         Sistema otimizado: cache de permissões e credenciais ativado para maior velocidade.
       </div>
       <PaymentTestModeBanner />
 
-      {/* Nav */}
       <header className="sticky top-0 z-30 border-b border-border/60 bg-background/80 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <Link to="/" className="flex items-center gap-2">
@@ -442,7 +159,6 @@ A correção só estará comprovada quando um CPF conhecido for localizado no BE
         </div>
       </header>
 
-      {/* Hero */}
       <section className="relative overflow-hidden">
         <div className="mx-auto max-w-6xl px-4 py-16 sm:py-24">
           <div className="max-w-3xl">
@@ -475,7 +191,6 @@ A correção só estará comprovada quando um CPF conhecido for localizado no BE
         </div>
       </section>
 
-      {/* Recursos */}
       <section id="recursos" className="border-t border-border/60 bg-card/30 py-20">
         <div className="mx-auto max-w-6xl px-4">
           <h2 className="font-display text-3xl sm:text-4xl">
@@ -499,30 +214,99 @@ A correção só estará comprovada quando um CPF conhecido for localizado no BE
                 text: "Ao final de cada agendamento, oferece serviços complementares com regras que você define.",
               },
               {
-                icon: Bot,
-                title: "Confirmações e lembretes",
-                text: "Envia confirmação imediata e lembrete 24h antes automaticamente pelo WhatsApp.",
+                icon: ShieldCheck,
+                title: "Controle de Acesso (RBAC)",
+                text: "Defina exatamente o que cada operador pode ver ou fazer, com auditoria completa de ações.",
               },
               {
-                icon: ShieldCheck,
-                title: "Handoff humano quando precisa",
-                text: "Casos delicados são encaminhados aos seus operadores com contexto completo da conversa.",
+                icon: Bot,
+                title: "Julia AI - Persona Especializada",
+                text: "Treinada especificamente para o mercado de beleza, com tom de voz acolhedor e focado em conversão.",
               },
               {
                 icon: BarChart3,
-                title: "Painel em tempo real",
-                text: "Veja leads, atendimentos, sugestões e auditoria de tudo o que a IA fez.",
+                title: "CRM Inteligente & Métricas",
+                text: "Acompanhe funis, previsões de faturamento e o comportamento das suas clientes em tempo real.",
               },
-            ].map((f) => (
-              <Card key={f.title} className="border-border/60">
-                <CardHeader>
-                  <div className="mb-2 grid h-10 w-10 place-items-center rounded-lg bg-primary/10 text-primary">
-                    <f.icon className="h-5 w-5" />
-                  </div>
-                  <CardTitle className="text-lg">{f.title}</CardTitle>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
+            ].map((f, i) => (
+              <div
+                key={i}
+                className="group relative overflow-hidden rounded-2xl border border-border/50 bg-background p-6 transition-all hover:shadow-xl hover:shadow-primary/5"
+              >
+                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <f.icon className="h-5 w-5" />
+                </div>
+                <h3 className="font-display text-xl">{f.title}</h3>
+                <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
                   {f.text}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="planos" className="py-24">
+        <div className="mx-auto max-w-6xl px-4">
+          <div className="flex flex-col items-center text-center">
+            <h2 className="font-display text-4xl sm:text-5xl">Investimento simples e transparente</h2>
+            <p className="mt-4 max-w-2xl text-muted-foreground">
+              Escolha o plano ideal para o tamanho do seu salão. Todos incluem a Julia AI e a integração com Bemp.
+            </p>
+
+            <div className="mt-10 inline-flex items-center rounded-full border border-border/50 bg-muted/50 p-1">
+              <button
+                onClick={() => setCycle("monthly")}
+                className={`rounded-full px-6 py-1.5 text-sm font-medium transition-all ${
+                  cycle === "monthly" ? "bg-background shadow-sm" : "text-muted-foreground"
+                }`}
+              >
+                Mensal
+              </button>
+              <button
+                onClick={() => setCycle("yearly")}
+                className={`rounded-full px-6 py-1.5 text-sm font-medium transition-all ${
+                  cycle === "yearly" ? "bg-background shadow-sm" : "text-muted-foreground"
+                }`}
+              >
+                Anual <span className="text-[10px] text-green-600 ml-1">(-20%)</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+            {CENTRAL_PLANS.map((plan) => (
+              <Card key={plan.id} className={`relative flex flex-col overflow-hidden border-2 transition-all hover:border-primary/50 ${plan.popular ? 'border-primary' : 'border-border'}`}>
+                {plan.popular && (
+                  <div className="absolute top-0 right-0 bg-primary px-3 py-1 text-[10px] font-bold uppercase text-primary-foreground">
+                    Mais Popular
+                  </div>
+                )}
+                <CardHeader>
+                  <CardTitle className="font-display text-2xl">{plan.name}</CardTitle>
+                  <div className="mt-4 flex items-baseline gap-1">
+                    <span className="text-4xl font-bold">R$ {cycle === 'monthly' ? plan.priceMonthly : plan.priceYearly}</span>
+                    <span className="text-sm text-muted-foreground">/{cycle === 'monthly' ? 'mês' : 'ano'}</span>
+                  </div>
+                  <p className="mt-2 text-sm text-muted-foreground">{plan.description}</p>
+                </CardHeader>
+                <CardContent className="flex flex-1 flex-col">
+                  <ul className="space-y-3 text-sm">
+                    {plan.features.map((feature, i) => (
+                      <li key={i} className="flex items-start gap-3">
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <Button
+                    onClick={() => handleSubscribe(cycle === 'monthly' ? plan.stripeIdMonthly : plan.stripeIdYearly)}
+                    variant={plan.popular ? 'default' : 'outline'}
+                    className="mt-8 w-full"
+                    size="lg"
+                  >
+                    Começar agora
+                  </Button>
                 </CardContent>
               </Card>
             ))}
@@ -530,145 +314,46 @@ A correção só estará comprovada quando um CPF conhecido for localizado no BE
         </div>
       </section>
 
-      {/* Planos */}
-      <section id="planos" className="py-20">
-        <div className="mx-auto max-w-6xl px-4">
-          <div className="mb-10 text-center">
-            <h2 className="font-display text-3xl sm:text-4xl">Escolha seu plano</h2>
-            <p className="mt-3 text-muted-foreground">
-              Preços em reais, com impostos calculados automaticamente.
-            </p>
-            <div className="mt-6 inline-flex rounded-full border border-border p-1">
-              <button
-                onClick={() => setCycle("monthly")}
-                className={`rounded-full px-4 py-1.5 text-sm transition ${
-                  cycle === "monthly"
-                    ? "bg-foreground text-background"
-                    : "text-muted-foreground"
-                }`}
-              >
-                Mensal
-              </button>
-              <button
-                onClick={() => setCycle("yearly")}
-                className={`rounded-full px-4 py-1.5 text-sm transition ${
-                  cycle === "yearly"
-                    ? "bg-foreground text-background"
-                    : "text-muted-foreground"
-                }`}
-              >
-                Anual · 2 meses grátis
-              </button>
-            </div>
-          </div>
-
-          <div className="grid gap-6 lg:grid-cols-3">
-            {CENTRAL_PLANS.filter((p) => p.cycle === cycle).map((plan) => {
-              return (
-                <Card
-                  key={plan.id}
-                  className={`flex flex-col ${
-                    plan.highlight
-                      ? "border-primary shadow-lg ring-2 ring-primary/40"
-                      : "border-border/60"
-                  }`}
-                >
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-xl">{plan.name}</CardTitle>
-                      {plan.highlight && <Badge>Mais escolhido</Badge>}
-                    </div>
-                    <p className="text-sm text-muted-foreground">{plan.tagline}</p>
-                    <div className="mt-4">
-                      <div className="flex items-baseline gap-1">
-                        <span className="font-display text-4xl">{plan.priceLabel}</span>
-                        <span className="text-sm text-muted-foreground">
-                          /{cycle === "monthly" ? "mês" : "ano"}
-                        </span>
-                      </div>
-                      {plan.cycle === "yearly" && (
-                         <p className="text-xs text-muted-foreground">≈ R$ {Math.round(parseInt(plan.priceLabel.replace(/\D/g, '')) / 12)}/mês</p>
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="flex flex-1 flex-col justify-between gap-6">
-                    <ul className="space-y-2 text-sm">
-                      {plan.features.map((f: string) => (
-                        <li key={f} className="flex items-start gap-2">
-                          <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                          <span>{f}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    <Button
-                      className="w-full"
-                      variant={plan.highlight ? "default" : "outline"}
-                      onClick={() => handleSubscribe(plan.id)}
-                    >
-                      Assinar {plan.name}
-                    </Button>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* Checkout */}
       {selectedPrice && (
-        <section id="checkout-section" className="border-t border-border/60 bg-card/30 py-16">
+        <section id="checkout-section" className="border-t border-border bg-muted/30 py-24">
           <div className="mx-auto max-w-3xl px-4">
-            <h2 className="mb-6 font-display text-2xl">Finalizar assinatura</h2>
-            <Card>
-              <CardContent className="p-4 sm:p-6">
-                <Suspense fallback={<div className="py-10 text-center text-sm text-muted-foreground">Carregando checkout…</div>}>
-                  <StripeEmbeddedCheckout priceId={selectedPrice} />
-                </Suspense>
-              </CardContent>
+            <div className="mb-8 text-center">
+              <h2 className="font-display text-3xl">Concluir Assinatura</h2>
+              <p className="text-muted-foreground">Pagamento seguro processado pelo Stripe</p>
+            </div>
+            <Card className="overflow-hidden border-none shadow-2xl">
+              <Suspense
+                fallback={
+                  <div className="flex h-[500px] flex-col items-center justify-center space-y-4">
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+                    <p className="text-sm text-muted-foreground">Iniciando checkout seguro...</p>
+                  </div>
+                }
+              >
+                <StripeEmbeddedCheckout priceId={selectedPrice} />
+              </Suspense>
             </Card>
-            <p className="mt-4 text-center text-xs text-muted-foreground">
-              Em ambiente de teste use o cartão 4242 4242 4242 4242 com qualquer
-              CVV e data futura.
-            </p>
           </div>
         </section>
       )}
 
-      {/* FAQ */}
-      <section id="faq" className="py-20">
-        <div className="mx-auto max-w-3xl px-4">
-          <h2 className="mb-8 font-display text-3xl">Perguntas frequentes</h2>
-          <div className="space-y-6">
-            {[
-              {
-                q: "Preciso de conta no Bemp?",
-                a: "Sim — a Julia se conecta ao seu Bemp para consultar agenda e criar agendamentos reais.",
-              },
-              {
-                q: "Como cancelo?",
-                a: "A qualquer momento, direto pelo portal do cliente dentro do seu painel. Você mantém acesso até o fim do período pago.",
-              },
-              {
-                q: "Preciso configurar o WhatsApp?",
-                a: "Sim. Após assinar, guiamos você para conectar o WhatsApp Cloud API da Meta ao seu número.",
-              },
-              {
-                q: "Como funciona a nota fiscal?",
-                a: "O Stripe calcula e coleta os impostos aplicáveis no checkout. A emissão da nota fiscal fica a cargo do prestador.",
-              },
-            ].map((item) => (
-              <div key={item.q} className="border-b border-border/60 pb-6">
-                <h3 className="font-medium">{item.q}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{item.a}</p>
-              </div>
-            ))}
+      <footer className="border-t border-border py-12">
+        <div className="mx-auto max-w-6xl px-4">
+          <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
+            <div className="flex items-center gap-2">
+              <Flower2 className="h-5 w-5 text-primary" />
+              <span className="font-display text-lg">Seja Livre AI</span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              © {new Date().getFullYear()} Seja Livre AI Platform. Todos os direitos reservados.
+            </p>
+            <div className="flex gap-6 text-sm text-muted-foreground">
+              <Link to="/auth">Entrar</Link>
+              <a href="#">Privacidade</a>
+              <a href="#">Termos</a>
+            </div>
           </div>
         </div>
-      </section>
-
-      <footer className="border-t border-border/60 py-8 text-center text-sm text-muted-foreground">
-        © {new Date().getFullYear()} Seja Livre AI Platform · Julia AI
       </footer>
     </div>
   );
