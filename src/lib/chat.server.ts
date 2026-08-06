@@ -1917,6 +1917,9 @@ function buildTools(
   return base;
 }
 
+const ALLOW_SUBSCRIPTION_CPF_FALLBACK = false;
+
+
 
 
 // Backwards-compat export (used by any older imports).
