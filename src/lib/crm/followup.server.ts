@@ -29,34 +29,34 @@ export async function scheduleFollowup(params: {
  */
 export async function handleCrmStageChange(phone: string, oldStage: PipelineStage, newStage: PipelineStage) {
   // If moving to terminal states, cancel pending followups
-  if (['AGENDADO', 'ATENDIDO', 'CANCELADO', 'CONVERTIDO'].includes(newStage)) {
+  if (['SCHEDULED', 'ATTENDED', 'CANCELED', 'CONVERTED', 'ABANDONED'].includes(newStage)) {
     await supabaseAdmin
       .from("crm_followups")
-      .update({ status: 'ENCERRADO', cancelled_at: new Date().toISOString() })
+      .update({ status: 'CLOSED', cancelled_at: new Date().toISOString() })
       .eq("phone", phone)
-      .eq("status", "PENDENTE");
+      .eq("status", "PENDING");
     return;
   }
 
   // Logic for followups:
-  // - IDENTIFICANDO_SERVICO -> Followup in 30 min
-  // - ESCOLHENDO_HORARIO -> Followup in 2h
-  // - AGUARDANDO_CONFIRMACAO -> Followup in 2h
+  // - IDENTIFYING_SERVICE -> Followup in 30 min
+  // - CHOOSING_TIME -> Followup in 2h
+  // - AWAITING_CONFIRMATION -> Followup in 2h
   
   let delayMs = 0;
   let reason = "";
 
-  if (newStage === 'IDENTIFICANDO_SERVICO') {
+  if (newStage === 'IDENTIFYING_SERVICE') {
     delayMs = 30 * 60 * 1000;
     reason = "Interesse em serviço mas sem prosseguir";
-  } else if (['ESCOLHENDO_HORARIO', 'AGUARDANDO_CONFIRMACAO'].includes(newStage)) {
+  } else if (['CHOOSING_TIME', 'AWAITING_CONFIRMATION'].includes(newStage)) {
     delayMs = 2 * 60 * 60 * 1000;
     reason = "Faltou confirmar o horário";
   }
 
   if (delayMs > 0) {
     await scheduleFollowup({
-      phone,
+      phone: phone,
       stage: newStage,
       reason,
       scheduledAt: new Date(Date.now() + delayMs),
@@ -64,3 +64,4 @@ export async function handleCrmStageChange(phone: string, oldStage: PipelineStag
     });
   }
 }
+
