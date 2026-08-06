@@ -2421,10 +2421,16 @@ export async function runAgentWithLogging(params: {
       });
 
       console.log(`[chat] subscription_phone_requested: traceId=${effectiveTraceId}`);
-      return {
-        text: "Perfeito! 💜\n\nQual é o número de telefone cadastrado na assinatura?\n\nPode enviar com DDD.",
-        skipModel: true
-      };
+      const phoneRequest = "Perfeito! 💜\n\nQual é o número de telefone cadastrado na assinatura?\n\nPode enviar com DDD.";
+      const { replyToUser } = await import("./evolution/reply.server");
+      await replyToUser({
+        instance,
+        phone,
+        text: phoneRequest,
+        conversationKey,
+        messageId
+      });
+      return;
     }
 
     // Processamento de Telefone durante o fluxo de assinatura
