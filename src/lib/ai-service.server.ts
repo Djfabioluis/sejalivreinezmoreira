@@ -1,8 +1,11 @@
-import { generateText, generateObject, type CoreMessage } from "ai";
+import { generateText, generateObject } from "ai";
 import { createLovableAiGatewayProvider } from "./ai-gateway.server";
 import { z } from "zod";
 import { logger } from "./core-service";
 
+/**
+ * Mapeamento de tipos para os nomes literais dos modelos.
+ */
 export type AIModelType = "flash" | "pro" | "ultra";
 
 /**
@@ -20,7 +23,6 @@ export class AIService {
   }
 
   private static getModel(type: AIModelType = "flash") {
-    // Padronização de modelos conforme auditoria
     const models = {
       flash: "google/gemini-1.5-flash",
       pro: "google/gemini-1.5-pro",
@@ -33,7 +35,7 @@ export class AIService {
   static async generate(params: {
     system?: string;
     prompt: string;
-    messages?: CoreMessage[];
+    messages?: any[]; // Usando any[] para evitar conflitos de versão do CoreMessage se o SDK mudar
     type?: AIModelType;
     temperature?: number;
     module: string;
