@@ -1197,6 +1197,11 @@ function buildTools(
               subscriptionPhoneLast4: result.customer.phoneMasked.slice(-4),
               bempCustomerId: result.customer.id,
               subscriptionCheckedAt: new Date().toISOString(),
+              subscriptionLookupStage: "PLAN_FOUND"
+            });
+          } else if (result.code === "CUSTOMER_NOT_FOUND" || result.code === "NO_ACTIVE_SUBSCRIPTION") {
+            await patchCustomerContext(conversationKey, {
+              subscriptionLookupStage: "PHONE_NOT_FOUND"
             });
           }
           
