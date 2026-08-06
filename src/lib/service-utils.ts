@@ -40,3 +40,32 @@ export const SERVICE_CATEGORY_ALIASES = {
 } as const;
 
 export type ServiceCategory = keyof typeof SERVICE_CATEGORY_ALIASES;
+
+/**
+ * Configuração central de promoções.
+ */
+export const PROMOTIONS = {
+  PACOTE_MECHAS: {
+    enabled: true,
+    price: 289.90,
+    title: "Pacote de Mechas",
+    startDate: "2026-08-01",
+    endDate: "2026-08-31",
+    priority: 1
+  }
+} as const;
+
+/**
+ * Verifica se uma promoção está ativa.
+ */
+export function isPromotionActive(promotionKey: keyof typeof PROMOTIONS): boolean {
+  const promo = PROMOTIONS[promotionKey];
+  if (!promo.enabled) return false;
+  
+  const now = new Date();
+  const start = new Date(promo.startDate);
+  const end = new Date(promo.endDate);
+  
+  return now >= start && now <= end;
+}
+
