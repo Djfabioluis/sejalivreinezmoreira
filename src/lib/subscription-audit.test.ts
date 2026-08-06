@@ -64,7 +64,8 @@ describe("Subscription Protection - Final Audit Tests", () => {
       expect(sent).toBe(true);
       // O fetch deve ter sido chamado com o texto SEGURO
       const fetchCall = vi.mocked(global.fetch).mock.calls[0];
-      const payload = JSON.parse(fetchCall[1].body as string);
+      if (!fetchCall) throw new Error("Fetch não foi chamado");
+      const payload = JSON.parse(fetchCall[1]?.body as string);
       
       expect(payload.text).toContain("telefone cadastrado");
       expect(payload.text).not.toContain("CPF");
@@ -74,8 +75,9 @@ describe("Subscription Protection - Final Audit Tests", () => {
       const body = "Informe seu CPF.";
       await sendEvolutionText("inst", "55119", body);
       
-      const fetchCall = vi.mocked(global.fetch).mock.calls.find(c => c[0].includes("/message/sendText"));
-      const payload = JSON.parse(fetchCall[1].body as string);
+      const fetchCall = vi.mocked(global.fetch).mock.calls.find(c => String(c[0]).includes("/message/sendText"));
+      if (!fetchCall) throw new Error("Fetch sendText não encontrado");
+      const payload = JSON.parse(fetchCall[1]?.body as string);
       expect(payload.text).not.toContain("CPF");
     });
   });
