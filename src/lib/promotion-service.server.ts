@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { logger } from "./core-service";
+import { logger } from "@/lib/observability/logger.server";
 import { BempService } from "./bemp-service.server";
 import { normalizeServiceSearchText } from "./service-utils";
 import { z } from "zod";
