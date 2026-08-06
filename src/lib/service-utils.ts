@@ -42,7 +42,8 @@ export const SERVICE_CATEGORY_ALIASES = {
 export type ServiceCategory = keyof typeof SERVICE_CATEGORY_ALIASES;
 
 /**
- * Configuração central de promoções.
+ * Promoções legadas (deprecado em favor do PromotionService que usa o banco).
+ * Mantido apenas por compatibilidade temporária se necessário.
  */
 export const PROMOTIONS = {
   PACOTE_MECHAS: {
@@ -56,7 +57,7 @@ export const PROMOTIONS = {
 } as const;
 
 /**
- * Verifica se uma promoção está ativa.
+ * @deprecated Use PromotionService.getActivePromotions() no backend.
  */
 export function isPromotionActive(promotionKey: keyof typeof PROMOTIONS): boolean {
   const promo = PROMOTIONS[promotionKey];
