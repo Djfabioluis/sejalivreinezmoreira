@@ -2508,6 +2508,9 @@ export async function runAgentWithLogging(params: {
               // Falha técnica NUNCA vira "plano não encontrado" e não consome tentativa.
               errorText = SUBSCRIPTION_MESSAGES.TECHNICAL_HANDOFF;
               stage = "HUMAN_HANDOFF";
+            } else if (technicalFailure) {
+              errorText = SUBSCRIPTION_MESSAGES.TECHNICAL_HANDOFF;
+              stage = "HUMAN_HANDOFF";
             } else if (attempts >= SUBSCRIPTION_MAX_PHONE_ATTEMPTS) {
               errorText = SUBSCRIPTION_MESSAGES.HUMAN_HANDOFF;
               stage = "HUMAN_HANDOFF";
@@ -2516,13 +2519,13 @@ export async function runAgentWithLogging(params: {
               stage = "AWAITING_REGISTERED_PHONE_RETRY";
             }
 
-            console.log(`[chat] subscription_phone_lookup_completed: traceId=${effectiveTraceId}, code=${result.code}, stage=${stage}, phoneAttempts=${attempts}, phoneLast4=${normalizedPhone.full.slice(-4)}`);
+            logger.info("SUBSCRIPTION_PHONE_LOOKUP_COMPLETED", `Consulta de telefone de assinatura concluída`, { code: result.code, stage, phoneAttempts: attempts, phoneLast4: normalizedPhone.full.slice(-4) });
             await logEvent({
               instance,
               messageId,
               event: technicalFailure ? "subscription_phone_lookup_completed" : "subscription_phone_not_found",
               status: technicalFailure ? "failed" : "not_found",
-              payload: { traceId: effectiveTraceId, lookupStage: stage, phoneAttempts: attempts, phoneLast4: normalizedPhone.full.slice(-4) },
+              payload: { lookupStage: stage, phoneAttempts: attempts, phoneLast4: normalizedPhone.full.slice(-4) },
             });
 
             const patch = {
@@ -2574,7 +2577,7 @@ export async function runAgentWithLogging(params: {
       const twoMinutes = 2 * 60 * 1000;
 
       if (now - lastUpdate > twoMinutes) {
-        console.log(`[chat] subscription_phone_lookup_recovered: traceId=${effectiveTraceId}`);
+        logger.warn("SUBSCRIPTION_PHONE_LOOKUP_RECOVERED", `Recuperando estado de consulta de telefone preso`);
         const patch = {
           subscriptionLookupStage: "AWAITING_REGISTERED_PHONE",
           subscriptionCheckedAt: new Date().toISOString()
