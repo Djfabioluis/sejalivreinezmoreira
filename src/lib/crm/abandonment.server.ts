@@ -35,9 +35,7 @@ export async function detectConversationAbandonment() {
       newStage = 'ABANDONADO';
       reason = 'Sem resposta após escolher serviço';
     } 
-    // RULE 2: 2 hours + Time chosen + no confirmation -> AGUARDANDO_RETORNO (using a custom reason in terminal state or intermediate if supported)
-    // We treat it as ABANDONADO for now to clear the active pipeline, or we could add a new enum stage.
-    // The requirement says -> AGUARDANDO_RETORNO. Let's stick to the rules and use the reason for categorization.
+    // RULE 2: 2 hours + Time chosen + no confirmation -> ABANDONADO
     else if (diffHours >= 2 && item.current_stage === 'AGUARDANDO_CONFIRMACAO') {
       newStage = 'ABANDONADO';
       reason = 'Sem confirmação após escolher horário';
@@ -46,6 +44,14 @@ export async function detectConversationAbandonment() {
     else if (diffHours >= 24) {
       newStage = 'ABANDONADO';
       reason = 'Nenhuma resposta em 24h';
+    }
+
+    // NEW RECOVERY HINTS: If we detected specific blockers in the context
+    const ctx = item.customer_context || {};
+    if (newStage === 'ABANDONADO') {
+       if (ctx.abandon_trigger === 'PROFESSIONAL_UNAVAILABLE') reason = 'PROFESSIONAL_UNAVAILABLE';
+       else if (ctx.abandon_trigger === 'SATURDAY_FULL') reason = 'SATURDAY_FULL';
+       else if (ctx.abandon_trigger === 'PRICE') reason = 'PRICE';
     }
 
     if (newStage) {

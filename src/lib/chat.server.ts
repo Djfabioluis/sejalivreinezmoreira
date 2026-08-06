@@ -33,6 +33,9 @@ REGRAS OBRIGATÓRIAS:
 - NUNCA ofereça troca de unidade nem interprete menção a outras unidades como mudança operacional.
 - NÃO reinicie o atendimento a cada mensagem. Se o cliente disser "Olá", responda com uma saudação breve e prossiga de onde pararam.
 - NÃO repita perguntas já respondidas. Consulte o "ESTADO ATUAL" e o "HISTÓRICO".
+- Se o profissional desejado não tiver agenda, informe o cliente e pergunte se ele gostaria de entrar na lista de espera (isso sinaliza ao sistema para monitorar desistências).
+- Se o sábado estiver lotado, peça desculpas e ofereça o dia útil mais próximo, mencionando que avisará se um horário abrir no sábado.
+- Se o cliente desistir pelo PREÇO, respeite a decisão e não insista.
 - Faça apenas uma pergunta por vez, focando no próximo passo necessário para o agendamento.
 - Use um tom caloroso, mas profissional. Emojis com moderação.
 - list_units_info pode ser usada apenas para informação consultiva (endereço, telefone). Após informar sobre outras unidades, reforce que o agendamento neste canal é para a unidade vinculada.
@@ -46,7 +49,12 @@ REGRAS TÉCNICAS:
 - Formate preços como R$ XX,XX.
 - Antes de confirmar o agendamento, SEMPRE apresente um resumo (Serviço, Profissional, Data, Horário) e peça confirmação explícita.
 - Promoção do mês: Planos de assinatura SEM TAXA DE ADESÃO.
-- Restrição: Unidade Centro Cívico não aceita planos de assinatura.`;
+- Restrição: Unidade Centro Cívico não aceita planos de assinatura.
+
+DIRETRIZES DE ABANDONO E PREÇO:
+- Se o cliente desistir por PREÇO, respeite a decisão e não insista. 
+- Se o profissional desejado não tiver agenda, informe o cliente e pergunte se ele gostaria de entrar na lista de espera (isso ajuda o sistema a monitorar desistências).
+- Se o sábado estiver lotado, peça desculpas e ofereça o dia útil mais próximo.`;
 
 const SANDBOX_NOTE = `
 
@@ -73,10 +81,16 @@ function runTool<T>(label: string, fn: () => Promise<T>, ctx: ToolCtx = {}) {
       if (ctx.conversationKey) {
         const stage = inferStageFromTool(label, result);
         if (stage) {
+          const abandonTrigger = (result as any)?.abandon_trigger;
           await updateCustomerPipeline({
             phone: ctx.conversationKey,
-            stage
+            stage,
+            abandonmentReason: abandonTrigger
           });
+
+          if (abandonTrigger) {
+            await patchCustomerContext(ctx.conversationKey, { abandon_trigger: abandonTrigger });
+          }
         }
       }
 
@@ -254,7 +268,12 @@ function buildTools(
       execute: async ({ target_unit_id, reason, confirmed }) =>
         safeTool("transfer_conversation_unit", async () => {
           if (!conversationKey) throw new Error("Chave da conversa não fornecida para transferência.");
-          if (!confirmed) return { success: false, message: "Transferência não confirmada pelo cliente." };
+          if (!confirmed) {
+             if (reason?.toLowerCase().includes("preço") || reason?.toLowerCase().includes("caro")) {
+                return { success: false, abandon_trigger: "PRICE", message: "Entendo perfeitamente. Se mudar de ideia ou precisar de outro serviço, estarei aqui! 😊" };
+             }
+             return { success: false, message: "Transferência não confirmada pelo cliente." };
+          }
           
           console.log(`[transfer] transfer_started for ${conversationKey} to ${target_unit_id}`);
           
@@ -567,7 +586,19 @@ function buildTools(
           const url = professional_id
             ? `${cfg.apiBase}/salons/${effectiveUnitId}/services/${resolvedServiceId}/professionals/${professional_id}/slots/${date}`
             : `${cfg.apiBase}/salons/${effectiveUnitId}/services/${resolvedServiceId}/slots/${date}`;
-          return await bempFetch(url);
+          const slots: any = await bempFetch(url);
+          const list = Array.isArray(slots) ? slots : (slots?.data ?? slots?.slots ?? []);
+          
+          if (list.length === 0) {
+            const isSaturday = new Date(date).getDay() === 6;
+            return { 
+              success: false, 
+              abandon_trigger: isSaturday ? "SATURDAY_FULL" : (professional_id ? "PROFESSIONAL_UNAVAILABLE" : undefined),
+              message: "Não encontrei horários disponíveis para esta data. Gostaria de tentar outro dia?" 
+            };
+          }
+
+          return slots;
         }),
     }),
 
