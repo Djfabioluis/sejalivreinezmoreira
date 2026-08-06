@@ -64,6 +64,15 @@ function CRMPage() {
     return "bg-red-500";
   };
 
+  const getHealthColorClass = (status: string) => {
+    switch (status) {
+      case 'VERDE': return 'bg-green-100 text-green-700 border-green-200';
+      case 'AMARELO': return 'bg-amber-100 text-amber-700 border-amber-200';
+      case 'VERMELHO': return 'bg-red-100 text-red-700 border-red-200';
+      default: return 'bg-slate-100 text-slate-700 border-slate-200';
+    }
+  };
+
   return (
     <div className="container mx-auto p-4 space-y-8">
       <div className="flex justify-between items-center">
