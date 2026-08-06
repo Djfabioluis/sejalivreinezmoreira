@@ -265,20 +265,39 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
  */
 export async function processConnectionUpdate(payload: any) {
   const instance = payload.instance || payload.instanceName || "unknown";
+  const state = payload.data?.status || payload.data?.state || "updated";
+  const phoneNumber = payload.data?.number || payload.data?.phone || null;
   
   await logEvent({
     instance,
     event: "connection.update",
-    status: payload.data?.status || "updated",
+    status: state,
     payload: payload.data
   });
 
-  // Se a conexão foi aberta, podemos atualizar o status do agente no banco
-  if (payload.data?.status === "open") {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await supabaseAdmin
-      .from("wa_agentes" as never)
-      .update({ status_conexao: "conectado" } as never)
-      .eq("instancia", instance);
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  // Normalização de Status
+  let dbStatus = "desconectado";
+  if (state === "open" || state === "connected") dbStatus = "conectado";
+  else if (state === "connecting") dbStatus = "conectando";
+  else if (state === "close" || state === "disconnected") dbStatus = "desconectado";
+
+  const updateData: any = { 
+    status_conexao: dbStatus,
+    updated_at: new Date().toISOString()
+  };
+  
+  if (phoneNumber) {
+    updateData.telefone = phoneNumber;
   }
+  
+  if (dbStatus === "conectado") {
+    updateData.last_connection_at = new Date().toISOString();
+  }
+
+  await supabaseAdmin
+    .from("wa_agentes" as never)
+    .update(updateData as never)
+    .eq("instancia", instance);
 }
