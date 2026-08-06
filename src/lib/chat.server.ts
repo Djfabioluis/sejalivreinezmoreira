@@ -2410,7 +2410,7 @@ export async function runAgentWithLogging(params: {
       normalizedText.includes("plano de hidratacao");
 
     if (isSubscriptionIntent && !historyData?.customer_context?.subscriptionPhoneValidated && historyData?.customer_context?.subscriptionLookupStage !== "LOOKING_UP_PHONE") {
-      console.log(`[chat] subscription_intent_detected_deterministic: traceId=${effectiveTraceId}`);
+      console.log(`[chat] subscription_intent_detected: traceId=${effectiveTraceId}`);
       await patchCustomerContext(conversationKey, {
         subscriptionIntent: true,
         subscriptionLookupMethod: "PHONE",
@@ -2420,10 +2420,21 @@ export async function runAgentWithLogging(params: {
         cpfValidationPending: false
       });
 
+      console.log(`[chat] subscription_phone_requested: traceId=${effectiveTraceId}`);
       return {
         text: "Perfeito! 💜\n\nQual é o número de telefone cadastrado na assinatura?\n\nPode enviar com DDD.",
         skipModel: true
       };
+    }
+
+    // Processamento de Telefone durante o fluxo de assinatura
+    if (historyData?.customer_context?.subscriptionLookupStage === "AWAITING_REGISTERED_PHONE") {
+       // Tentar extrair telefone da mensagem
+       const digitsOnly = normalizedText.replace(/\D/g, "");
+       if (digitsOnly.length >= 10 && digitsOnly.length <= 11) {
+         console.log(`[chat] subscription_phone_received: traceId=${effectiveTraceId}, length=${digitsOnly.length}`);
+         // Deixa o orquestrador seguir para a IA mas a IA vai preferir chamar a tool de telefone agora
+       }
     }
 
 
@@ -2477,9 +2488,9 @@ export async function runAgentWithLogging(params: {
     // Bloqueio Determinístico de CPF no fluxo de Assinatura
     const context = historyData?.customer_context as any;
     if (context?.subscriptionLookupStage === "AWAITING_REGISTERED_PHONE") {
-      const containsCPFPattern = /cpf|documento|\d{3}\.\d{3}\.\d{3}-\d{2}|somente números do cpf/i.test(reply);
+      const containsCPFPattern = /cpf|documento|\d{3}\.\d{3}\.\d{3}-\d{2}|000\.000\.000-00|somente números do cpf/i.test(reply);
       if (containsCPFPattern) {
-         console.log(`[chat] cpf_request_blocked: traceId=${effectiveTraceId}, replacing with phone request`);
+         console.log(`[chat] cpf_request_blocked: traceId=${effectiveTraceId}, replacing with fixed phone request`);
          reply = "Perfeito! 💜\n\nQual é o número de telefone cadastrado na assinatura?\n\nPode enviar com DDD.";
       }
     }
