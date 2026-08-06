@@ -7,7 +7,8 @@ import { sanitizeCustomerText } from "@/lib/text-sanitize";
 import { logEvent } from "./evolution/logger.server";
 import { classifyFailure, describeError, sanitizeErrorText } from "./evolution/failure";
 import { updateCustomerPipeline, inferStageFromTool } from "@/lib/crm.server";
-import { normalizeServiceSearchText, SERVICE_CATEGORY_ALIASES, PROMOTIONS, isPromotionActive, type ServiceCategory } from "./service-utils";
+import { normalizeServiceSearchText, SERVICE_CATEGORY_ALIASES, type ServiceCategory } from "./service-utils";
+import { PromotionService, type Promotion } from "./promotion-service.server";
 
 
 import {
@@ -40,8 +41,8 @@ REGRAS OBRIGATÓRIAS:
 - Use um tom caloroso, mas profissional. Emojis com moderação.
 
 FLUXO DE SERVIÇOS (MECHAS):
-- Quando a cliente perguntar genericamente por mechas, Pacote de Mechas, luzes, morena iluminada ou serviços relacionados:
-  1. Verifique se a promoção "PACOTE_MECHAS" está ativa. Se sim, informe amigavelmente: "✨ Temos uma ótima notícia! Neste mês o nosso *Pacote de Mechas* está em promoção por apenas *R$ 289,90*. 💜 Se desejar, posso agendar esse pacote para você ou apresentar outras opções de mechas disponíveis."
+- Quando a cliente demonstrar interesse em mechas e existir uma promoção ativa e confirmada da categoria MECHAS para a unidade efetiva, informe primeiro a promoção do Pacote de Mechas com o preço confirmado. Depois pergunte se deseja essa opção ou ver outros serviços de mechas.
+  1. Se uma promoção ativa for fornecida no contexto (PROMOÇÕES ATIVAS E CONFIRMADAS), use os dados exatos (nome e preço) para informar a cliente amigavelmente.
   2. NÃO escolha um serviço sozinha nem selecione o primeiro da lista.
 
   2. Use a ferramenta search_services informando a categoria "MECHAS".
@@ -452,28 +453,41 @@ function buildTools(
             });
 
             if (result.success && result.data) {
-              // Contexto da conversa conforme requisito 16
+              // Buscar promoções reais do banco
+              const activePromos = await PromotionService.getActivePromotions({
+                unitId: String(effectiveUnitId),
+                channel: "WHATSAPP",
+                category: searchCategory
+              });
+
+              // Resolver serviços das promoções
+              const promosWithService = await Promise.all(activePromos.map(async p => {
+                const service = await PromotionService.resolvePromotionService(p, String(effectiveUnitId));
+                return service ? { ...p, serviceId: service.id } : null;
+              }));
+
+              const validPromos = promosWithService.filter(p => p !== null);
+
+              // Contexto da conversa
               await patchCustomerContext(conversationKey, {
                 requestedServiceCategory: searchCategory,
                 serviceSearchQuery: query,
-                matchingServices: result.data.slice(0, 10).map(s => ({ id: s.id, name: s.name, unitId: effectiveUnitId }))
+                matchingServices: result.data.slice(0, 10).map(s => ({ id: s.id, name: s.name, unitId: effectiveUnitId })),
+                activePromotions: validPromos
               });
-
-              const promoActive = isPromotionActive("PACOTE_MECHAS");
-              const promo = PROMOTIONS.PACOTE_MECHAS;
 
               return {
                 success: true,
                 unitName: effectiveUnitName || String(effectiveUnitId),
                 category: searchCategory,
                 services: result.data,
-                promotion: promoActive ? {
-                  title: promo.title,
-                  price: promo.price,
-                  message: `✨ Temos uma ótima notícia! Neste mês o nosso *${promo.title}* está em promoção por apenas *R$ 289,90*. 💜`
-                } : null
+                promotions: validPromos.map(p => ({
+                  code: p?.code,
+                  title: p?.title,
+                  price: p?.promotional_price,
+                  message: `✨ Temos uma ótima notícia! O nosso *${p?.title}* está em promoção por apenas *R$ ${p?.promotional_price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}*. 💜`
+                }))
               };
-
             }
             return result;
           }
@@ -2150,12 +2164,27 @@ ${subscriptionContextLine(ctx as Record<string, any>)}
 
   const basePrompt = await loadSystemPrompt();
 
-  const { effectiveUnitId, effectiveUnitName, source: unitSource } = await resolveEffectiveUnit({ 
+  const { effectiveUnitId, effectiveUnitName } = await resolveEffectiveUnit({ 
     conversationKey: opts.conversationKey || undefined, 
     agentUnitId: opts.unidadeId 
   });
 
   const currentUnitName = effectiveUnitName || opts.unitName;
+
+  // Buscar promoções ativas para o contexto
+  let promotionBlock = "";
+  try {
+    const activePromos = await PromotionService.getActivePromotions({
+      unitId: effectiveUnitId ? String(effectiveUnitId) : undefined,
+      channel: "WHATSAPP"
+    });
+
+    if (activePromos.length > 0) {
+      promotionBlock = `\n\nPROMOÇÕES ATIVAS E CONFIRMADAS:\n${JSON.stringify(activePromos, null, 2)}`;
+    }
+  } catch (err) {
+    console.error("[chat] erro ao carregar promoções para contexto:", err);
+  }
 
   let system = assembleSystemPrompt(basePrompt, {
     contactName: opts.contactName,
@@ -2171,6 +2200,7 @@ ${subscriptionContextLine(ctx as Record<string, any>)}
            NO_DURATION_GUARD + 
            unitContext +
            contactInfo +
+           promotionBlock +
            (sandbox ? SANDBOX_NOTE : "") +
            (opts.persona ? `\n\n${opts.persona}` : "") +
            mandatoryOperationalRules({
@@ -2440,6 +2470,27 @@ ${subscriptionContextLine(ctx as Record<string, any>)}
 
   const currentUnitName = effectiveUnitName || opts.unitName;
 
+  // Buscar promoções ativas para o contexto
+  let promotionBlock = "";
+  try {
+    const activePromos = await PromotionService.getActivePromotions({
+      unitId: effectiveUnitId ? String(effectiveUnitId) : undefined,
+      channel: "WHATSAPP"
+    });
+
+    if (activePromos.length > 0) {
+      promotionBlock = `\n\nPROMOÇÕES ATIVAS E CONFIRMADAS:\n${JSON.stringify(activePromos.map(p => ({
+        code: p.code,
+        title: p.title,
+        price: p.promotional_price,
+        category: p.service_category,
+        validUntil: p.end_at
+      })), null, 2)}`;
+    }
+  } catch (err) {
+    console.error("[chat] erro ao carregar promoções para contexto:", err);
+  }
+
   let fullSystem = assembleSystemPrompt(basePrompt, {
     contactName: opts.contactName,
     contactPhone: opts.contactPhone,
@@ -2454,6 +2505,7 @@ ${subscriptionContextLine(ctx as Record<string, any>)}
                NO_DURATION_GUARD + 
                unitContext + 
                contactInfo + 
+               promotionBlock +
                (sandbox ? SANDBOX_NOTE : "") + 
                (opts.persona ? `\n\n${opts.persona}` : "") +
                mandatoryOperationalRules({
