@@ -7,9 +7,10 @@ export const Route = createFileRoute("/api/public/test-ia")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        // Proteção por segredo (pode ser o LOVABLE_API_KEY ou um customizado)
+        // Proteção fail-closed: exige o segredo do servidor, sem fallback embutido.
+        const expected = process.env['TEST_ENDPOINT_SECRET'] || process.env['LOVABLE_API_KEY'];
         const secret = request.headers.get("x-test-secret");
-        if (secret !== process.env.LOVABLE_API_KEY && secret !== "test-secret-123") {
+        if (!expected || !secret || secret !== expected) {
           return new Response("Unauthorized", { status: 401 });
         }
 

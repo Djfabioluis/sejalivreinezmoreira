@@ -3,6 +3,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { assertPermission } from "@/lib/permissions.functions";
 import { MEMORY_FIELDS } from "@/lib/memory/types";
+import { safeIlikePattern } from "@/lib/postgrest-safe";
 
 const PERM = "aprendizado-ia" as const;
 
@@ -54,7 +55,7 @@ export const listCustomerMemories = createServerFn({ method: "GET" })
       .limit(data.limit);
 
     if (data.search) {
-      const term = `%${data.search}%`;
+      const term = safeIlikePattern(data.search);
       query = query.or(
         `phone_normalized.ilike.${term},contact_name.ilike.${term},preferred_name.ilike.${term},bemp_customer_id.ilike.${term}`,
       );

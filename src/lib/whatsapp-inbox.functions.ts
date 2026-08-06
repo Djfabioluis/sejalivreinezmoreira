@@ -2,6 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { sendEvolutionText } from "@/lib/evolution.server";
+import { assertPermission } from "@/lib/permissions.functions";
+import { safeIlikePattern } from "@/lib/postgrest-safe";
 
 export type WAConversation = {
   phone: string;
@@ -36,11 +38,12 @@ export const listWAConversations = createServerFn({ method: "GET" })
     instance: z.string().optional(), 
     status: z.string().optional(), 
     unreadOnly: z.boolean().optional(), 
-    search: z.string().optional(),
+    search: z.string().trim().max(120).optional(),
     page: z.number().default(0),
     pageSize: z.number().default(20)
   }))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    await assertPermission(context, "painel");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let query = supabaseAdmin
       .from("wa_conversas" as never)
@@ -51,7 +54,8 @@ export const listWAConversations = createServerFn({ method: "GET" })
     if (data.status && data.status !== "todos") query = query.eq("status", data.status);
     if (data.unreadOnly) query = query.gt("unread_count", 0);
     if (data.search) {
-      query = query.or(`phone_number.ilike.%${data.search}%,contact_name.ilike.%${data.search}%`);
+      const term = safeIlikePattern(data.search);
+      query = query.or(`phone_number.ilike.${term},contact_name.ilike.${term}`);
     }
 
     const from = data.page * data.pageSize;
@@ -68,7 +72,8 @@ export const listWAConversations = createServerFn({ method: "GET" })
 export const getWAConversation = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ phone: z.string() }))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    await assertPermission(context, "painel");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row, error } = await supabaseAdmin
       .from("wa_conversas" as never)
@@ -83,7 +88,8 @@ export const getWAConversation = createServerFn({ method: "GET" })
 export const markAsRead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ phone: z.string() }))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    await assertPermission(context, "painel");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("wa_conversas" as never)
@@ -96,7 +102,8 @@ export const markAsRead = createServerFn({ method: "POST" })
 export const updateConversationStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ phone: z.string(), status: z.string() }))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    await assertPermission(context, "painel");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("wa_conversas" as never)
@@ -112,7 +119,8 @@ export const sendManualWAMessage = createServerFn({ method: "POST" })
     phone: z.string(), 
     text: z.string().min(1).max(3500) 
   }))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    await assertPermission(context, "agendar");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     
     const { data: conv, error: convErr } = await supabaseAdmin
@@ -155,6 +163,7 @@ export const transferConversationUnit = createServerFn({ method: "POST" })
     reason: z.string().optional()
   }))
   .handler(async ({ data, context }) => {
+    await assertPermission(context, "agendar");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const userId = (context as any).userId;
 
