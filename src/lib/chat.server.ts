@@ -2037,33 +2037,62 @@ export function mandatoryOperationalRules(opts: {
 }
 
 
-export async function loadSystemPrompt(): Promise<string> {
-  try {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data } = await supabaseAdmin
-      .from("base_conhecimento" as never)
-      .select("conteudo")
-      .eq("id", 1)
-      .maybeSingle();
-    const conteudo = (data as { conteudo?: string } | null)?.conteudo?.trim();
-    if (conteudo && conteudo.length > 0) {
-      const flags = detectPromptConflicts(conteudo);
-      if (flags.length > 0) {
-        await logEvent({
-          instance: "system",
-          event: "knowledge_prompt_conflict_detected",
-          status: "warning",
-          payload: { flags },
-        }).catch(() => {});
-      }
-      return conteudo;
-    }
-    return DEFAULT_SYSTEM_PROMPT;
-  } catch (err) {
-    console.error("[chat] falha ao carregar base de conhecimento:", err);
-    return DEFAULT_SYSTEM_PROMPT;
+export async function loadSystemPrompt(params: {
+  contactName?: string;
+  contactPhone?: string;
+  unitName?: string;
+  customerContext?: any;
+  activePromotions?: any[];
+} = {}): Promise<string> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: knowledge } = await supabaseAdmin
+    .from("base_conhecimento")
+    .select("conteudo")
+    .eq("id", 1)
+    .maybeSingle();
+
+  let prompt = MANDATORY_SYSTEM_RULES + "\n\n";
+  
+  if (knowledge?.conteudo) {
+    prompt += knowledge.conteudo + "\n\n";
+  } else {
+    prompt += DEFAULT_KNOWLEDGE_PROMPT + "\n\n";
   }
+
+  const summary = params.customerContext ? JSON.stringify(params.customerContext, null, 2) : "Nenhum contexto anterior.";
+  const promoBlock = params.activePromotions?.length 
+    ? JSON.stringify(params.activePromotions, null, 2) 
+    : "Nenhuma promoção ativa no momento.";
+
+  return prompt
+    .replace("{{contactName}}", params.contactName || "não informado")
+    .replace("{{contactPhone}}", params.contactPhone || "não informado")
+    .replace("{{unitName}}", params.unitName || "não informada")
+    .replace("{{customer_context_summary}}", summary)
+    .replace("{{active_promotions_block}}", promoBlock);
 }
+
+export function detectServiceCategory(message: string): { category: ServiceCategory; confidence: number } | null {
+  const normalized = normalizeServiceSearchText(message);
+  for (const [category, aliases] of Object.entries(SERVICE_CATEGORY_ALIASES)) {
+    if (aliases.some(alias => normalized.includes(normalizeServiceSearchText(alias)))) {
+      return { category: category as ServiceCategory, confidence: 1 };
+    }
+  }
+  return null;
+}
+
+export function ensureMandatoryPromotionMessage(text: string, promotion: { title: string; price: number }): string {
+  const priceStr = promotion.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+  const hasTitle = text.toLowerCase().includes(promotion.title.toLowerCase());
+  const hasPrice = text.includes(priceStr);
+
+  if (hasTitle && hasPrice) return text;
+
+  const prefix = `✨ Neste mês, o *${promotion.title}* está em promoção por *R$ ${priceStr}*. 💜\n\n`;
+  return prefix + text;
+}
+
 
 /** Monta o system prompt completo com variáveis substituídas e regras obrigatórias no final. */
 export function assembleSystemPrompt(
