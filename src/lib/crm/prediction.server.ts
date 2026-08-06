@@ -2,6 +2,13 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 /**
+ * Interface interna para os dados do cliente
+ */
+interface CustomerRow {
+  customer_id: string | null;
+}
+
+/**
  * Calcula a média de dias entre visitas e agenda lembretes de retorno.
  * Baseia-se no histórico de atendimentos do BEMP.
  */
@@ -12,7 +19,6 @@ export const calculateReturnPrediction = createServerFn({ method: "POST" })
     const { bempFetch, BEMP_WEBHOOK_BASE } = await import("@/lib/bemp.server");
 
     // 1. Buscar histórico de atendimentos concluídos no BEMP
-    // Usando o endpoint de histórico de agendamentos
     const qs = new URLSearchParams({ customer_id: data.customerId });
     const response: any = await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_appointments?${qs.toString()}`);
     
@@ -31,7 +37,7 @@ export const calculateReturnPrediction = createServerFn({ method: "POST" })
         const prev = new Date(completed[i-1].start_at).getTime();
         const curr = new Date(completed[i].start_at).getTime();
         const diffDays = Math.round((curr - prev) / (1000 * 60 * 60 * 24));
-        if (diffDays > 5 && diffDays < 180) { // Filtra ruídos (visitas muito próximas ou muito distantes)
+        if (diffDays > 5 && diffDays < 180) {
           intervals.push(diffDays);
         }
       }
@@ -46,13 +52,12 @@ export const calculateReturnPrediction = createServerFn({ method: "POST" })
     const predictionDate = new Date(lastVisit);
     predictionDate.setDate(predictionDate.getDate() + averageDays);
     
-    // 4. Criar oportunidade RETURN_REMINDER para X dias antes da previsão (ex: 2 dias antes, como no exemplo do 26º dia para ciclo de 28)
     const reminderDate = new Date(predictionDate);
     reminderDate.setDate(reminderDate.getDate() - 2);
 
     // Só cria se o lembrete for no futuro
     if (reminderDate > new Date()) {
-      await supabaseAdmin.from("crm_opportunities" as any).insert({
+      await (supabaseAdmin.from("crm_opportunities" as any) as any).insert({
         customer_id: data.customerId,
         opportunity_type: "RETURN_REMINDER",
         priority_score: 85,
@@ -76,23 +81,20 @@ export const calculateReturnPrediction = createServerFn({ method: "POST" })
 export async function runReturnPredictionEngine() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   
-  // Busca clientes que tiveram interações recentes ou estão no pipeline
-  const { data: customers } = await supabaseAdmin
-    .from("crm_customer_pipeline" as any)
+  const { data: customers } = await (supabaseAdmin
+    .from("crm_customer_pipeline" as any) as any)
     .select("customer_id")
     .not("customer_id", "is", null);
 
-  if (!customers) return;
+  if (!customers || !Array.isArray(customers)) return;
 
-  // Processa em lotes para evitar sobrecarga
-  for (const customer of customers) {
+  for (const customer of (customers as CustomerRow[])) {
     try {
       if (customer.customer_id) {
-        await calculateReturnPrediction({ customerId: customer.customer_id });
+        await calculateReturnPrediction({ data: { customerId: customer.customer_id } });
       }
     } catch (err) {
-      console.error(`[prediction-engine] Failed for customer ${customer.customer_id}:`, err);
+      console.error(`[prediction-engine] Failed for customer ${customer?.customer_id}:`, err);
     }
   }
 }
-
