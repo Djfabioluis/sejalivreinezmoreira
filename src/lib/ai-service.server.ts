@@ -35,13 +35,14 @@ export class AIService {
   static async generate(params: {
     system?: string;
     prompt: string;
-    messages?: any[]; // Usando any[] para evitar conflitos de versão do CoreMessage se o SDK mudar
+    messages?: any;
     type?: AIModelType;
     temperature?: number;
     module: string;
   }) {
     const startedAt = Date.now();
     try {
+      // @ts-ignore - version mismatch in AI SDK CoreMessage
       const { text } = await generateText({
         model: this.getModel(params.type),
         system: params.system,
