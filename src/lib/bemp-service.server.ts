@@ -9,7 +9,7 @@ export type BempResult<T> = {
   success: boolean;
   data?: T;
   error?: string;
-  errorCode?: "NOT_FOUND" | "UNAUTHORIZED" | "RATE_LIMITED" | "BEMP_UNAVAILABLE" | "INVALID_RESPONSE";
+  errorCode?: "NOT_FOUND" | "UNAUTHORIZED" | "RATE_LIMITED" | "BEMP_UNAVAILABLE" | "INVALID_RESPONSE" | "UNIT_NOT_FOUND" | "NO_MATCHING_SERVICES";
 };
 
 /**
@@ -140,7 +140,7 @@ export class BempService {
 
         // 5. Descrição ou tag relacionada
         if (aliases.some(alias => desc.includes(normalizeServiceSearchText(alias)))) return true;
-        if (tags.some(tag => aliases.some(alias => tag.includes(normalizeServiceSearchText(alias))))) return true;
+        if (tags.some((tag: string) => aliases.some(alias => tag.includes(normalizeServiceSearchText(alias))))) return true;
 
         return false;
       });
