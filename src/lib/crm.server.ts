@@ -21,6 +21,7 @@ export async function updateCustomerPipeline(params: {
   customerName?: string;
   nextAction?: string;
   nextActionAt?: string;
+  abandonmentReason?: string;
 }) {
   const { error } = await supabaseAdmin.rpc("update_customer_pipeline" as any, {
     p_phone: params.phone,
@@ -29,6 +30,7 @@ export async function updateCustomerPipeline(params: {
     p_customer_name: params.customerName || null,
     p_next_action: params.nextAction || null,
     p_next_action_at: params.nextActionAt || null,
+    p_abandonment_reason: params.abandonmentReason || null,
   });
 
   if (error) {
