@@ -115,302 +115,553 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* 
-        Execute esta instrucao no projeto: VALIDAÇÃO DO AI CONTROL CENTER — VERSÃO 1
+        Execute esta instrucao no projeto: IMPLEMENTAR AI CONTROL CENTER — VERSÃO 2
 
-OBJETIVO
+PROJETO
 
-Validar tecnicamente e funcionalmente a implementação das abas:
+Seja Livre AI Platform
+
+CONTEXTO
+
+A versão 1 do AI Control Center já foi implementada e validada com as abas:
 
 - Atendimento
 - Ferramentas
 - Saúde
 - Logs
 
-Não criar novas funcionalidades.
+Agora implementar somente:
+
+- Memória
+- Aprendizado
+- Decisões
+- Configurações
+
+Não refatorar novamente a versão 1.
+
+Não alterar regras de atendimento.
+
 Não publicar automaticamente.
-Não avançar para Memória, Aprendizado, Decisões ou Configurações antes desta validação.
 
 ==================================================
-1. ROTA E MENU
+1. ABA MEMÓRIA
 ==================================================
 
-Confirmar:
+Reutilizar a estrutura existente de memória do cliente.
 
-- rota /ai-control-center existe;
-- item Central IA aparece no menu;
-- acesso exige autenticação;
-- usuários sem permissão recebem bloqueio real no backend;
-- rota não depende apenas de ocultação visual.
+Antes de criar tabela nova, verificar:
 
-==================================================
-2. ABA ATENDIMENTO
-==================================================
+customer_ai_memory
+customer_memory_versions
+ai_response_feedback
+ou estruturas equivalentes.
 
-Validar que mostra dados reais:
+Exibir:
 
 - cliente;
-- conversa;
 - unidade;
-- agente;
-- estágio;
-- última mensagem;
-- última resposta da IA;
-- tempo de resposta;
+- tipo de memória;
+- valor resumido;
+- origem;
+- confiança;
 - status;
-- atendimento humano;
-- follow-up;
-- agendamento.
+- data de criação;
+- última atualização;
+- versão.
 
-Testar filtros:
+Tipos possíveis:
 
-- unidade;
-- agente;
-- período;
-- status;
-- com erro;
-- com atendimento humano.
+PREFERRED_NAME
+PREFERRED_SERVICE
+PREFERRED_PROFESSIONAL
+PREFERRED_UNIT
+PREFERRED_DAY
+PREFERRED_TIME
+SUBSCRIPTION
+RESTRICTION
+IMPORTANT_NOTE
+PENDING_TOPIC
 
-Confirmar que clicar em uma conversa abre os detalhes corretos.
+Status:
 
-Não usar dados mockados em produção.
+SUGGESTED
+CONFIRMED
+REJECTED
+DELETED
 
 ==================================================
-3. ABA FERRAMENTAS
+2. AÇÕES DE MEMÓRIA
 ==================================================
 
-Validar registros reais de tool calls.
+Permitir:
 
-Testar pelo menos:
+- confirmar;
+- editar;
+- rejeitar;
+- excluir;
+- visualizar histórico;
+- restaurar versão anterior.
 
-- list_services;
-- list_professionals;
-- list_slots;
-- create_appointment;
-- transfer_conversation_unit;
-- get_customer_active_plans.
+Toda ação deve:
 
-Confirmar:
+- validar permissão no backend;
+- registrar usuário responsável;
+- registrar data;
+- preservar versão anterior;
+- usar auditoria.
 
-- status;
-- duração;
-- unidade;
-- conversa;
-- código de erro;
-- data;
-- resultado resumido.
+Não apagar histórico ao editar.
+
+==================================================
+3. CONFIANÇA E ORIGEM
+==================================================
+
+Exibir origem:
+
+EXPLICIT_CUSTOMER_STATEMENT
+BEMP_CONFIRMED
+APPOINTMENT_CONFIRMED
+OPERATOR_CONFIRMED
+INFERRED
+
+Regras:
+
+- INFERRED não pode substituir fato confirmado;
+- BEMP_CONFIRMED prevalece para dados operacionais atuais;
+- correção explícita da cliente deve gerar nova versão;
+- não mostrar inferência como certeza.
+
+==================================================
+4. PRIVACIDADE DA MEMÓRIA
+==================================================
 
 Não exibir:
 
 - CPF completo;
 - telefone completo;
+- dados bancários;
 - tokens;
-- API keys;
-- payloads sensíveis.
+- documentos completos;
+- informações sensíveis desnecessárias.
+
+Aplicar mascaramento no backend antes da resposta.
+
+Não depender somente da interface.
 
 ==================================================
-4. ABA SAÚDE
+5. ABA APRENDIZADO
 ==================================================
 
-Validar health checks reais para:
+Reutilizar:
 
-- IA;
-- Evolution;
-- BEMP;
-- Supabase;
-- Realtime;
-- jobs;
-- filas;
-- follow-up;
-- campanhas.
+knowledge_suggestions
 
-Cada integração deve mostrar:
+ou estrutura equivalente.
 
-- OK;
-- DEGRADED;
-- DOWN;
-- última verificação;
-- latência;
-- erro recente;
-- taxa de sucesso.
+Exibir:
 
-Não marcar OK apenas porque a página carregou.
+- título;
+- categoria;
+- conteúdo sugerido;
+- resumo das evidências;
+- quantidade de ocorrências;
+- confiança;
+- impacto estimado;
+- status;
+- criado em;
+- revisado por;
+- revisado em.
 
-==================================================
-5. ABA LOGS
-==================================================
+Status:
 
-Validar:
-
-- paginação;
-- filtros server-side;
-- busca por traceId;
-- filtro por conversa;
-- filtro por unidade;
-- filtro por nível;
-- filtro por integração;
-- período.
-
-Confirmar que a tela não carrega todos os logs de uma vez.
+PENDING
+APPROVED
+REJECTED
+PUBLISHED
 
 ==================================================
-6. TRACE COMPLETO
+6. APROVAÇÃO DO APRENDIZADO
 ==================================================
 
-Executar uma conversa real controlada.
+Permitir:
 
-Fluxo:
+- visualizar evidências;
+- editar sugestão;
+- aprovar;
+- rejeitar;
+- publicar;
+- cancelar publicação.
 
-mensagem recebida
-→ webhook
-→ persistência
-→ IA
-→ tool
-→ envio
-→ resposta salva
+A IA nunca pode publicar automaticamente.
 
-Confirmar que o mesmo traceId aparece em todas as etapas.
+Somente usuário com permissão:
 
-O painel deve permitir rastrear a conversa do início ao fim.
+ai_learning_approve
 
-==================================================
-7. MASCARAMENTO
-==================================================
+pode aprovar.
 
-Testar dados sensíveis.
+Somente usuário com permissão:
 
-Confirmar que aparecem mascarados:
+ai_learning_publish
 
-CPF:
-***.***.***-12
+pode publicar.
 
-Telefone:
-******9999
-
-Tokens:
-nunca exibidos
-
-URLs assinadas:
-não exibidas integralmente
+A aprovação e a publicação devem ser ações separadas.
 
 ==================================================
-8. PERMISSÕES
+7. PROTEGER BASE GLOBAL
 ==================================================
 
-Testar três perfis:
+Antes de publicar conhecimento:
 
-Administrador:
-acesso completo.
+- validar schema;
+- verificar conflito com regras obrigatórias;
+- verificar conteúdo malicioso;
+- impedir instruções do cliente virarem regra;
+- impedir preço ou política não confirmada;
+- registrar versão;
+- permitir rollback.
 
-Gestor:
-acesso conforme unidade ou organização.
-
-Usuário comum:
-sem acesso a logs técnicos e configurações sensíveis.
-
-Validar no backend.
-
-==================================================
-9. PERFORMANCE
-==================================================
-
-Medir:
-
-- tempo para abrir a Central IA;
-- requests iniciais;
-- tamanho dos dados;
-- tempo de troca entre abas;
-- uso de memória;
-- tempo de aplicação dos filtros.
-
-Confirmar que:
-
-- abas são carregadas sob demanda;
-- gráficos não carregam em abas ocultas;
-- logs usam paginação;
-- não existem subscriptions duplicadas.
+A base de conhecimento editável não pode sobrescrever regras técnicas obrigatórias.
 
 ==================================================
-10. ERROS
+8. ABA DECISÕES
 ==================================================
 
-Simular:
+Criar ou reutilizar:
 
-- Evolution desconectada;
-- BEMP indisponível;
-- IA com timeout;
-- job com falha;
-- tool com erro.
+ai_decision_logs
 
-Confirmar que:
+Cada decisão deve armazenar somente resumo operacional estruturado.
 
-- Saúde muda corretamente;
-- log é registrado;
-- erro aparece no painel;
-- sistema não mostra sucesso falso;
-- dados antigos não são apresentados como atuais.
+Não armazenar chain-of-thought, raciocínio privado ou prompt interno integral.
+
+Estrutura:
+
+{
+  decisionType,
+  selectedAction,
+  confidence,
+  evidenceCodes,
+  resultCode,
+  conversationId,
+  customerId,
+  unitId,
+  agentId,
+  traceId,
+  createdAt
+}
 
 ==================================================
-11. BUILD E TESTES
+9. TIPOS DE DECISÃO
 ==================================================
 
-Executar:
+Exibir decisões como:
 
-build
-typecheck
-lint
-test
+IDENTIFY_INTENT
+SELECT_NEXT_STEP
+REQUEST_CUSTOMER_NAME
+REQUEST_CPF
+VALIDATE_PLAN
+SELECT_EFFECTIVE_UNIT
+TRANSFER_UNIT
+RESOLVE_SERVICE
+LIST_PROFESSIONALS
+LIST_SLOTS
+CREATE_APPOINTMENT
+GENERATE_FOLLOWUP
+HANDOFF_HUMAN
+CANCEL_AUTOMATION
+CLOSE_CONVERSATION
 
-Mostrar:
+==================================================
+10. DETALHES DA DECISÃO
+==================================================
 
-- comando;
+Ao abrir uma decisão, mostrar:
+
+- ação escolhida;
+- confiança;
+- códigos de evidência;
+- unidade efetiva;
+- estágio do funil;
+- tools relacionadas;
 - resultado;
-- duração;
-- erros;
-- warnings;
-- testes não executados.
+- intervenção humana;
+- traceId;
+- duração.
+
+Não mostrar conteúdo sensível integral.
 
 ==================================================
-12. RELATÓRIO
+11. FILTROS DE DECISÕES
+==================================================
+
+Adicionar filtros:
+
+- período;
+- unidade;
+- agente;
+- cliente;
+- tipo;
+- confiança;
+- resultado;
+- com erro;
+- com intervenção humana.
+
+Usar paginação server-side.
+
+==================================================
+12. ABA CONFIGURAÇÕES
+==================================================
+
+Criar configurações de governança.
+
+Se já existir tabela de configurações, reutilizar.
+
+Configurações:
+
+IA_ENABLED
+PRIMARY_MODEL
+AI_TIMEOUT_MS
+AI_MAX_RETRIES
+MAX_HISTORY_MESSAGES
+MAX_CONTEXT_TOKENS
+FOLLOWUP_AUTONOMY_MODE
+FOLLOWUP_MAX_ATTEMPTS
+FOLLOWUP_ALLOWED_START_TIME
+FOLLOWUP_ALLOWED_END_TIME
+CUSTOMER_MEMORY_ENABLED
+AUTO_MEMORY_CONFIRMATION
+LEARNING_APPROVAL_REQUIRED
+HUMAN_FALLBACK_ENABLED
+LOG_LEVEL
+
+==================================================
+13. ESCOPO DAS CONFIGURAÇÕES
+==================================================
+
+Permitir configuração por:
+
+- organização;
+- unidade;
+- agente.
+
+Prioridade:
+
+agente
+→ unidade
+→ organização
+→ padrão global.
+
+Criar função central:
+
+resolveAIConfiguration()
+
+Não espalhar resolução de configuração pelo frontend.
+
+==================================================
+14. CONFIGURAÇÕES SENSÍVEIS
+==================================================
+
+Não exibir nem editar diretamente:
+
+- API keys;
+- service role;
+- BEMP token;
+- Evolution API key;
+- segredos de webhook.
+
+A tela pode mostrar apenas:
+
+“Configurado”
+ou
+“Não configurado”.
+
+Segredos permanecem em variáveis de ambiente ou cofre seguro.
+
+==================================================
+15. ALTERAÇÕES DE CONFIGURAÇÃO
+==================================================
+
+Toda alteração deve:
+
+1. validar permissão;
+2. validar schema Zod;
+3. mostrar confirmação;
+4. salvar versão anterior;
+5. registrar auditoria;
+6. atualizar cache;
+7. permitir rollback.
+
+Criar ou reutilizar:
+
+ai_configuration_audit
+
+Campos:
+
+id
+scope_type
+scope_id
+config_key
+old_value
+new_value
+changed_by
+changed_at
+reason
+trace_id
+
+Mascarar valores sensíveis.
+
+==================================================
+16. FEATURE FLAGS
+==================================================
+
+Adicionar ou reutilizar feature flags para:
+
+- memória automática;
+- aprendizado;
+- decisões;
+- follow-up autônomo;
+- campanhas automáticas;
+- mídia;
+- health checks.
+
+Não ativar funcionalidades globalmente apenas por criar a tela.
+
+==================================================
+17. PERMISSÕES
+==================================================
+
+Validar no backend:
+
+ai_memory_view
+ai_memory_manage
+ai_learning_view
+ai_learning_approve
+ai_learning_publish
+ai_decisions_view
+ai_settings_view
+ai_settings_manage
+
+Usuário sem permissão deve receber 403 real.
+
+==================================================
+18. PERFORMANCE
+==================================================
+
+As novas abas devem:
+
+- carregar sob demanda;
+- usar paginação;
+- usar filtros server-side;
+- evitar carregar históricos completos;
+- usar consultas agregadas;
+- não criar novas subscriptions desnecessárias.
+
+Não carregar Memória, Aprendizado, Decisões e Configurações na abertura inicial da Central IA.
+
+==================================================
+19. UX
+==================================================
+
+Usar componentes do Design System existente.
+
+Adicionar:
+
+- filtros;
+- tabelas;
+- drawers;
+- diff de versões;
+- badges de confiança;
+- badges de origem;
+- dialogs de confirmação;
+- skeleton;
+- empty state;
+- error state;
+- toasts.
+
+Não criar um segundo Design System.
+
+==================================================
+20. TESTES
+==================================================
+
+Criar testes para:
+
+- visualizar memória;
+- confirmar memória;
+- rejeitar memória;
+- editar memória;
+- restaurar versão;
+- mascarar CPF;
+- aprovar aprendizado;
+- impedir publicação sem permissão;
+- publicar conhecimento;
+- rollback de conhecimento;
+- listar decisões;
+- filtrar decisões;
+- não expor raciocínio privado;
+- editar configuração;
+- resolver configuração por prioridade;
+- rollback de configuração;
+- acesso negado;
+- paginação.
+
+==================================================
+21. RELATÓRIO
 ==================================================
 
 Criar:
 
-docs/ai-control-center-v1-validation.md
+docs/ai-control-center-v2.md
 
 Incluir:
 
-1. visão geral;
-2. arquivos alterados;
-3. fontes de dados;
-4. permissões;
-5. mascaramento;
-6. health checks;
-7. tracing;
-8. performance;
-9. testes;
-10. erros encontrados;
-11. pendências;
-12. riscos;
-13. recomendação para a versão 2.
+- arquitetura;
+- fontes de dados;
+- tabelas reutilizadas;
+- migrations;
+- permissões;
+- mascaramento;
+- versionamento;
+- configurações;
+- testes;
+- riscos;
+- pendências.
 
 ==================================================
-13. CRITÉRIO DE APROVAÇÃO
+22. ENTREGA
 ==================================================
 
-A versão 1 só pode ser aprovada quando:
+Ao concluir informar:
 
-- dados são reais;
-- traceId funciona;
-- permissões funcionam no backend;
-- informações sensíveis estão mascaradas;
-- health checks representam o estado real;
-- logs são pesquisáveis;
-- filtros funcionam;
-- não existem mocks em produção;
-- build, typecheck, lint e testes passam.
+1. abas implementadas;
+2. componentes criados;
+3. tabelas reutilizadas;
+4. migrations criadas;
+5. permissões;
+6. versionamento;
+7. auditoria;
+8. feature flags;
+9. arquivos alterados;
+10. build;
+11. typecheck;
+12. lint;
+13. testes.
 
 Não publicar automaticamente.
-Não iniciar a versão 2 se houver falha crítica.
+
+CRITÉRIO DE CONCLUSÃO
+
+A versão 2 só estará concluída quando for possível:
+
+- revisar e corrigir memórias;
+- aprovar ou rejeitar aprendizados;
+- auditar decisões operacionais;
+- alterar configurações autorizadas;
+- restaurar versões anteriores;
+- garantir que dados sensíveis e raciocínio privado não sejam expostos.
       */}
       <div className="bg-green-600 text-white p-2 text-center text-xs font-medium">
         Sistema otimizado: cache de permissões e credenciais ativado para maior velocidade.
