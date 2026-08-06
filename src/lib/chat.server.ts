@@ -1058,7 +1058,7 @@ function buildTools(
             .from("crm_waiting_list" as any) as any)
             .insert({
               customer_id: conversationKey,
-              customer_name: (contextData as any)?.contactName || conversationKey,
+              customer_name: conversationKey, // Placeholder: o sistema buscará o nome real se necessário
               unit_id: effectiveUnitId,
               service_id: input.service_id,
               professional_id: input.professional_id,
