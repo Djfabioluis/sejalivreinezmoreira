@@ -115,248 +115,199 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="hidden">
-        Execute esta instrucao no projeto: LOTE C — ARQUITETURA E ESCALABILIDADE
+        Execute esta instrucao no projeto: PROJETO
+
+Seja Livre AI Platform
+
+FASE FINAL
+
+ENTERPRISE HARDENING
 
 OBJETIVO
 
-Consolidar a arquitetura da Seja Livre AI Platform para suportar crescimento, novos módulos, multiempresa e futuras integrações.
+Preparar completamente a plataforma para operação 24 horas por dia, múltiplas unidades, milhares de clientes e futuras empresas.
 
-Não criar novas funcionalidades para o usuário final.
+Não criar novas funcionalidades.
 
 Não alterar regras de negócio.
 
 Não publicar automaticamente.
 
 ==================================================
-ETAPA 1 — MAPA DA ARQUITETURA
+FASE 1 — AUDITORIA FINAL
 ==================================================
 
-Gerar um mapa atualizado contendo:
+Executar auditoria completa.
 
-- Frontend
-- Backend
-- Serviços
-- Banco
-- IA
-- Evolution
-- BEMP
-- CRM
-- Jobs
-- Filas
-- Realtime
+Confirmar:
 
-Criar documentação:
-docs/system-architecture.md
+nenhum TODO crítico
+nenhum FIXME crítico
+nenhum console.log de produção
+nenhum any crítico
+nenhum endpoint sem autenticação
+nenhuma migration quebrada
+nenhum RLS ausente
+nenhuma rota pública indevida
 
 ==================================================
-ETAPA 2 — CAMADA DE SERVIÇOS
+FASE 2 — HEALTH CHECK
 ==================================================
 
-Garantir que todas as integrações externas passem por serviços únicos.
+Criar monitoramento interno.
 
-Criar ou consolidar:
+Dashboard mostrando:
 
-AIService
-EvolutionService
-BempService
-CRMService
-CampaignService
-FollowupService
-OpportunityService
-CustomerMemoryService
-AppointmentService
-NotificationService
-
-Nenhum componente React pode acessar APIs externas diretamente.
-
-==================================================
-ETAPA 3 — ORQUESTRADOR DA IA
-==================================================
-
-Criar um único fluxo para:
-
-entrada
-↓
-contexto
-↓
-memória
-↓
+Frontend
+Backend
+Supabase
+Realtime
+Evolution
 BEMP
-↓
-CRM
-↓
-prompt
-↓
-IA
-↓
-tools
-↓
-validação
-↓
-resposta
-↓
-persistência
-↓
-envio
+OpenAI/Gemini
+Cron
+Jobs
+Storage
+Filas
 
-Toda conversa deve passar pelo mesmo orquestrador.
+Cada serviço deve possuir:
+
+OK
+WARNING
+ERROR
+Tempo médio
+Último erro
 
 ==================================================
-ETAPA 4 — PADRONIZAÇÃO DE EVENTOS
+FASE 3 — OBSERVABILIDADE
 ==================================================
 
-Criar Event Bus interno.
+Adicionar:
 
-Eventos como:
+TraceID
+CorrelationID
+ConversationID
+CampaignID
+CustomerID
+UnitID
+JobID
 
-MessageReceived
-MessageStored
-CustomerIdentified
-AppointmentCreated
-AppointmentCancelled
-CampaignGenerated
-FollowupSent
-UnitTransferred
-MemoryUpdated
-AIResponseSent
-
-Cada módulo apenas publica ou consome eventos.
-Evitar dependências diretas entre módulos.
+Todo log deve ser rastreável.
 
 ==================================================
-ETAPA 5 — CONTRATOS
+FASE 4 — ALERTAS
 ==================================================
 
-Criar contratos únicos para:
+Criar alertas para:
 
-Cliente
-Profissional
-Serviço
-Plano
-Agendamento
-Mensagem
-Campanha
-Follow-up
-Oportunidade
-Memória
-
-Todos derivados de schemas Zod.
+IA parou
+Webhook parado
+Evolution desconectada
+BEMP indisponível
+Cron falhou
+Fila parada
+Mensagens duplicadas
+Tempo alto de resposta
+Campanhas falhando
+Follow-up falhando
 
 ==================================================
-ETAPA 6 — PADRONIZAÇÃO DAS RESPOSTAS
+FASE 5 — BACKUP
 ==================================================
 
-Todos os serviços devem retornar:
-ServiceResult{"<"}T{">"}
+Criar plano completo.
 
-Nunca retornar:
-undefined
-null inesperado
-boolean isolado
-
-==================================================
-ETAPA 7 — MÓDULOS
-==================================================
-
-Separar claramente:
-
-AI
-CRM
-Agenda
-WhatsApp
-Integrações
-Analytics
-Financeiro
+Banco
+Storage
 Configuração
-Shared
+Knowledge Base
+CRM
+Memória
+Logs
 
-Cada módulo deve possuir:
-
-routes
-services
-schemas
-types
-repositories
-hooks
-tests
+Documentar recuperação.
 
 ==================================================
-ETAPA 8 — REPOSITÓRIOS
+FASE 6 — RECUPERAÇÃO
 ==================================================
 
-Criar camada Repository para acesso ao banco.
-Não permitir consultas SQL espalhadas.
+Documentar:
+
+Rollback
+Restore
+Recovery
+Failover
 
 ==================================================
-ETAPA 9 — CONFIGURAÇÃO
+FASE 7 — PERFORMANCE
 ==================================================
 
-Centralizar:
+Executar profiling.
 
-env
-feature flags
-timeouts
-retry
-cache
-limites
-modelos IA
+Identificar:
 
-==================================================
-ETAPA 10 — OBSERVABILIDADE
-==================================================
-
-Padronizar:
-
-logs
-traceId
-requestId
-conversationId
-jobId
-campaignId
+consultas lentas
+queries repetidas
+renders
+memória
+CPU
+bundle
 
 ==================================================
-ETAPA 11 — DOCUMENTAÇÃO
+FASE 8 — SEGURANÇA
 ==================================================
 
-Criar:
+Executar checklist OWASP.
 
-docs/modules.md
-docs/services.md
-docs/events.md
-docs/repositories.md
-docs/folder-structure.md
+Verificar:
 
-==================================================
-ETAPA 12 — ESCALABILIDADE
-==================================================
-
-Preparar arquitetura para:
-
-multiempresa
-novas integrações
-novos canais
-novos modelos IA
-novos CRMs
-novos ERPs
-novos gateways
-
-Sem alterar o comportamento atual.
+XSS
+CSRF
+Injection
+Secrets
+Headers
+Rate Limit
+JWT
+Storage
+Uploads
 
 ==================================================
-ETAPA 13 — LIMPEZA
+FASE 9 — TESTE DE CARGA
 ==================================================
 
-Remover apenas:
+Simular:
 
-imports mortos
-funções não utilizadas
-componentes órfãos
-arquivos duplicados
+100
+500
+1000
+5000
 
-Nunca remover código ainda referenciado.
+mensagens simultâneas.
+
+Medir:
+
+tempo
+CPU
+memória
+fila
+locks
 
 ==================================================
-ETAPA 14 — VALIDAÇÃO
+FASE 10 — DOCUMENTAÇÃO
+==================================================
+
+Criar documentação Enterprise.
+
+Arquitetura
+Infraestrutura
+Banco
+Deploy
+Rollback
+Runbooks
+Monitoramento
+
+==================================================
+FASE 11 — CHECKLIST FINAL
 ==================================================
 
 Executar:
@@ -364,28 +315,30 @@ Executar:
 build
 typecheck
 lint
-test
-
-Comparar antes/depois.
+tests
+coverage
+security audit
+performance audit
 
 ==================================================
 ENTREGA
 ==================================================
 
-Informar:
+Gerar um relatório final contendo:
 
-1. módulos consolidados;
-2. serviços criados;
-3. dependências removidas;
-4. acoplamentos eliminados;
-5. arquivos alterados;
-6. documentação criada;
-7. ganhos de escalabilidade;
-8. riscos remanescentes;
-9. plano para o Lote D.
+Arquitetura
+Performance
+Segurança
+Cobertura
+Escalabilidade
+Confiabilidade
+Observabilidade
+Riscos restantes
+Plano para produção
 
 Não publicar automaticamente.
       </div>
+
 
 
 
