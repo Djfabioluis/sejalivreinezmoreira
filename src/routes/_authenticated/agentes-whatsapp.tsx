@@ -148,20 +148,23 @@ function AgentesWhatsAppPage() {
   // Realtime updates for agent status (Item 9)
   useEffect(() => {
     const channel = supabase
-      .channel("wa_agentes_status_changes")
+      .channel("wa_agentes_all_changes")
       .on(
         "postgres_changes",
         {
-          event: "UPDATE",
+          event: "*",
           schema: "public",
           table: "wa_agentes",
-          filter: "status=eq.conectado_sem_unidade",
         },
         (payload) => {
-          const updatedAgent = payload.new as AgenteWa;
+          const updated = payload.new as AgenteWa;
+          setItems(current => 
+            current.map(item => item.id === updated.id ? { ...item, ...updated } : item)
+          );
+          
           // Abre modal de unidade se o agente foi recém-conectado e não tem unidade (Item 1)
-          if (updatedAgent.status === "conectado_sem_unidade" && !updatedAgent.unidade_id) {
-            handleOpenUnit(updatedAgent, "auto");
+          if (updated.status === "conectado_sem_unidade" && !updated.unidade_id && payload.eventType === "UPDATE") {
+            handleOpenUnit(updated, "auto");
           }
         },
       )
