@@ -49,7 +49,7 @@ async function processSlotOpportunity(opp: any) {
     name: c.customer_name,
     score: c.conversion_score,
     probability: (c.conversion_score || 50) / 100
-  })).sort((a, b) => b.score - a.score);
+  })).sort((a, b) => (b.score || 0) - (a.score || 0));
 
   // 4. Salvar ranking e oferecer ao primeiro
   const bestCandidate = ranking[0];
