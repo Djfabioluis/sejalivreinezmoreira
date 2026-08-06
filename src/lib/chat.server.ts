@@ -1036,6 +1036,43 @@ function buildTools(
           }
         }),
     }),
+    }),
+    join_waiting_list: tool({
+      description:
+        "Adiciona o cliente à lista de espera para uma unidade e serviço específicos. Útil quando não há horários disponíveis no momento ou para o profissional preferido.",
+      inputSchema: z.object({
+        service_id: z.string(),
+        service_name: z.string(),
+        professional_id: z.string().optional(),
+        preferred_period: z.enum(['MANHA', 'TARDE', 'NOITE', 'QUALQUER']).default('QUALQUER'),
+        preferred_days: z.array(z.string()).optional().describe("Ex: ['SEG', 'TER', 'SAB']"),
+      }),
+      execute: async (input) =>
+        safeTool("join_waiting_list", async () => {
+          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: fallbackAgentUnitId });
+          if (!effectiveUnitId) throw new Error("ID da unidade não resolvido.");
+          
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          
+          await (supabaseAdmin
+            .from("crm_waiting_list" as any) as any)
+            .insert({
+              customer_id: conversationKey,
+              customer_name: (contextData as any)?.contactName || conversationKey,
+              unit_id: effectiveUnitId,
+              service_id: input.service_id,
+              professional_id: input.professional_id,
+              preferred_period: input.preferred_period,
+              preferred_days: input.preferred_days,
+              status: 'ACTIVE'
+            });
+
+          return { 
+            success: true, 
+            message: "Você foi adicionado à nossa lista de espera! Avisaremos assim que surgir um horário." 
+          };
+        }),
+    }),
     get_customer_active_plans: tool({
       description:
         "Consulta no BEMP se o cliente possui plano de assinatura ATIVO (usando o telefone do WhatsApp). Chame SEMPRE que o cliente mencionar plano, benefício, assinatura ou 'quero usar meu plano'. Retorna os planos ativos com validade e saldo, e também os planos inválidos com o motivo.",
