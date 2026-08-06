@@ -115,458 +115,120 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* 
-        Execute esta instrucao no projeto: CORREÇÃO DEFINITIVA DA BUSCA DE ASSINANTE POR CPF
+        Execute esta instrucao no projeto: DIAGNÓSTICO DA MENSAGEM DE INSTABILIDADE
 
-A correção anterior não foi aplicada corretamente.
+PROBLEMA
 
-O arquivo atual:
+A IA está respondendo:
 
-src/lib/bemp/subscriptions.server.ts
+"Estou com uma instabilidade momentânea no meu sistema..."
 
-ainda contém:
+Mas não sabemos qual erro realmente ocorreu.
 
-const attempts = [
-  `${BEMP_WEBHOOK_BASE}/whatsapp_customer?document=${cpf}`,
-  `${BEMP_WEBHOOK_BASE}/whatsapp_customer?cpf=${cpf}`,
-];
+OBJETIVO
 
-Esses endpoints são tentativas especulativas e não possuem contrato validado no projeto.
+Descobrir exatamente qual exceção, timeout ou falha faz essa mensagem ser enviada.
 
-Também existe um erro de sintaxe com um segundo fechamento:
-
-];
-];
-
-Remover o colchete excedente.
-
-Não adicionar novos endpoints por tentativa.
-
-Não declarar sucesso baseado em mocks.
+Não alterar regras de negócio.
 
 Não publicar automaticamente.
 
 ==================================================
-1. INTERROMPER O USO DO WEBHOOK POR CPF
+1. LOCALIZAR A MENSAGEM
 ==================================================
 
-O endpoint:
+Encontrar onde essa mensagem está definida.
 
-/webhooks/whatsapp_customer
+Listar:
 
-já é utilizado no projeto para busca por telefone:
-
-phone_country_code
-phone_area_code
-phone_number
-
-Não continuar usando esse webhook com:
-
-cpf
-document
-
-sem confirmação real do contrato.
-
-Remover a lista attempts.
+- arquivo;
+- função;
+- linha aproximada;
+- fluxo que chega nela.
 
 ==================================================
-2. IMPLEMENTAR BUSCA NA API AUTENTICADA
+2. IDENTIFICAR TODOS OS CATCH
 ==================================================
 
-Adicionar ao arquivo:
+Localizar todos os blocos catch relacionados a:
 
-src/lib/bemp-service.server.ts
+- createAppointment
+- scheduleAppointment
+- listSlots
+- listProfessionals
+- validateSubscription
+- BempService
+- EvolutionService
+- AI orchestration
 
-os métodos reais:
-
-BempService.findCustomerByCPF(cpf)
-
-BempService.listCustomerSubscriptions(customerId)
-
-A busca deve utilizar:
-
-const cfg = await getBempConfig();
-
-e a API autenticada:
-
-https://${dominio}.bemp.app/api
-
-Não usar BEMP_WEBHOOK_BASE para busca administrativa por CPF.
+Mostrar quais deles retornam essa mesma mensagem.
 
 ==================================================
-3. DESCOBRIR O ENDPOINT REAL
+3. LOGAR O ERRO REAL
 ==================================================
 
-Antes de alterar definitivamente, inspecionar a API autenticada disponível para a conta.
+Antes de enviar a mensagem ao cliente, registrar:
 
-Testar, de forma controlada e sem registrar CPF completo, os recursos existentes relacionados a:
+- errorCode;
+- errorType;
+- stack resumida;
+- integração envolvida;
+- endpoint;
+- status HTTP;
+- traceId;
+- conversationId;
+- unitId.
 
-customers
-clients
-people
-contacts
-subscriptions
-subscription_plans
-contracts
-wallet
-
-Não fazer tentativas aleatórias em produção.
-
-Usar uma ferramenta ou script administrativo temporário que:
-
-- utilize as credenciais BEMP do backend;
-- receba um CPF de teste;
-- não grave o CPF;
-- registre apenas endpoint, status e formato da resposta;
-- seja removido ou protegido depois do diagnóstico.
-
-Resultado obrigatório:
-
-identificar:
-
-- endpoint real para clientes;
-- nome real do filtro de CPF;
-- formato real da resposta;
-- endpoint real de assinaturas;
-- formato real da assinatura.
-
-Se a API autenticada não oferecer busca por CPF, retornar:
-
-BEMP_CPF_LOOKUP_UNSUPPORTED
-
-e não CUSTOMER_NOT_FOUND.
+Não registrar dados sensíveis.
 
 ==================================================
-4. NÃO MISTURAR CLIENTE COM ASSINATURA
+4. CLASSIFICAR O ERRO
 ==================================================
 
-Implementar o fluxo:
+Separar:
 
-CPF
-→ localizar cliente
-→ obter customerId
-→ consultar assinaturas por customerId
-→ validar plano
+- BEMP indisponível;
+- horário indisponível;
+- profissional indisponível;
+- timeout;
+- autenticação;
+- validação;
+- Evolution;
+- erro interno;
+- exceção inesperada.
 
-Não continuar fazendo apenas:
-
-CPF
-→ cliente
-→ extractPlansFromCustomer(cliente)
-
-A assinatura pode não estar embutida no objeto do cliente.
+Não tratar todos como "instabilidade".
 
 ==================================================
-5. CORRIGIR BEMPSERVICE
+5. TESTE
 ==================================================
 
-Implementar:
+Executar um agendamento real de teste.
 
-static async findCustomerByCPF(
-  cpf: string
-): Promise<CustomerLookupResult>
+Informar exatamente:
 
-static async listCustomerSubscriptions(
-  customerId: string | number
-): Promise<SubscriptionLookupResult>
-
-Tipos:
-
-type CustomerLookupResult =
-  | {
-      success: true;
-      customer: {
-        id: string | number;
-        name: string | null;
-        documentLast4: string;
-      };
-    }
-  | {
-      success: false;
-      code:
-        | "CUSTOMER_NOT_FOUND"
-        | "MULTIPLE_CUSTOMERS_FOUND"
-        | "BEMP_CPF_LOOKUP_UNSUPPORTED"
-        | "BEMP_UNAUTHORIZED"
-        | "BEMP_RATE_LIMITED"
-        | "BEMP_UNAVAILABLE"
-        | "BEMP_INVALID_RESPONSE";
-      retryable: boolean;
-    };
-
-type SubscriptionLookupResult =
-  | {
-      success: true;
-      subscriptions: NormalizedSubscription[];
-    }
-  | {
-      success: false;
-      code:
-        | "BEMP_UNAUTHORIZED"
-        | "BEMP_RATE_LIMITED"
-        | "BEMP_UNAVAILABLE"
-        | "BEMP_INVALID_RESPONSE";
-      retryable: boolean;
-    };
+- em qual etapa ocorreu a falha;
+- qual exceção foi lançada;
+- qual integração respondeu;
+- qual status HTTP foi recebido.
 
 ==================================================
-6. NORMALIZAÇÃO DO CPF
-==================================================
-
-CPF deve permanecer string.
-
-Proibido:
-
-Number(cpf)
-parseInt(cpf)
-+cpf
-
-Usar:
-
-const normalizedCPF = normalizeCPF(cpf);
-
-Validar dígitos verificadores antes de consultar a API.
-
-Nunca registrar CPF completo.
-
-==================================================
-7. PARSER DE CLIENTES
-==================================================
-
-Criar schema Zod baseado na resposta real.
-
-Tratar explicitamente somente formatos confirmados.
-
-Possibilidades que devem ser analisadas:
-
-array direto
-data array
-data.customers
-customers
-results
-
-Quando retornar uma lista:
-
-- comparar o documento normalizado;
-- selecionar correspondência exata;
-- zero resultados → CUSTOMER_NOT_FOUND;
-- mais de um resultado → MULTIPLE_CUSTOMERS_FOUND.
-
-Não escolher o primeiro cadastro.
-
-Não aceitar qualquer objeto apenas porque possui id ou name.
-
-==================================================
-8. PARSER DE ASSINATURAS
-==================================================
-
-Normalizar:
-
-{
-  id,
-  name,
-  status,
-  validFrom,
-  validUntil,
-  availableUses,
-  unlimited,
-  benefits,
-  unitIds
-}
-
-Não usar asArray() para transformar qualquer formato desconhecido em lista vazia.
-
-Formato desconhecido deve resultar em:
-
-BEMP_INVALID_RESPONSE
-
-==================================================
-9. STATUS ATIVO
-==================================================
-
-O código atual considera o plano ativo quando não reconhece um status inativo:
-
-active: inactiveReason === null
-
-Isso está incorreto.
-
-Alterar para uma lista explícita de status ativos confirmados pela resposta real do BEMP.
-
-Exemplo:
-
-const ACTIVE_STATUSES = [
-  "active",
-  "ativo",
-  "vigente"
-];
-
-Status vazio ou desconhecido:
-
-UNKNOWN
-
-Plano UNKNOWN não pode ser utilizado automaticamente.
-
-==================================================
-10. CORRIGIR GETCUSTOMERBYCPF
-==================================================
-
-Em:
-
-src/lib/bemp/subscriptions.server.ts
-
-getCustomerByCPF deve apenas orquestrar:
-
-const customerResult =
-  await BempService.findCustomerByCPF(cpf);
-
-if (!customerResult.success) {
-  return customerResult;
-}
-
-const subscriptionsResult =
-  await BempService.listCustomerSubscriptions(
-    customerResult.customer.id
-  );
-
-if (!subscriptionsResult.success) {
-  return subscriptionsResult;
-}
-
-const evaluated =
-  subscriptionsResult.subscriptions.map(
-    evaluateNormalizedSubscription
-  );
-
-Não realizar fetch direto nesse arquivo.
-
-==================================================
-11. CORRIGIR A TOOL
-==================================================
-
-Em:
-
-src/lib/chat.server.ts
-
-validate_subscription_cpf deve diferenciar:
-
-INVALID_CPF
-CUSTOMER_NOT_FOUND
-MULTIPLE_CUSTOMERS_FOUND
-NO_SUBSCRIPTION
-NO_ACTIVE_SUBSCRIPTION
-SUBSCRIPTION_NO_BALANCE
-BEMP_CPF_LOOKUP_UNSUPPORTED
-BEMP_UNAVAILABLE
-BEMP_UNAUTHORIZED
-BEMP_INVALID_RESPONSE
-
-Não transformar falha técnica em:
-
-customer_not_found
-
-Se ocorrer erro técnico, responder:
-
-“Não consegui consultar seu plano agora. Vou encaminhar essa validação para nossa equipe.”
-
-Não afirmar que a cliente não possui plano.
-
-==================================================
-12. MAPEAMENTO DOS PLANOS
-==================================================
-
-Manter:
-
-Plano de manicure
-→ Manicure Plano Beauty
-
-Plano de escova
-→ Escova Plano Beauty
-
-Plano de hidratação e escova
-→ Hidratação e Escova
-
-Somente depois da assinatura ativa ter sido confirmada.
-
-==================================================
-13. TESTE REAL OBRIGATÓRIO
-==================================================
-
-Utilizar um CPF conhecido que aparece no relatório de assinaturas do BEMP.
-
-Não salvar o CPF no código.
-
-Demonstrar:
-
-cpfValid = true
-customerFound = true
-customerIdFound = true
-subscriptionsCount > 0
-activeSubscriptionsCount > 0
-planName identificado
-serviceName mapeado
-
-Relatório mascarado:
-
-{
-  cpfLast4: "**12",
-  customerIdMasked: "***",
-  customerFound: true,
-  subscriptionsCount: 1,
-  activeSubscriptionsCount: 1,
-  planName: "Plano de Manicure",
-  serviceName: "Manicure Plano Beauty"
-}
-
-==================================================
-14. TESTAR A MESMA CLIENTE MANUALMENTE
-==================================================
-
-Antes do teste pelo WhatsApp:
-
-1. executar BempService.findCustomerByCPF;
-2. mostrar que encontrou customerId;
-3. executar listCustomerSubscriptions;
-4. mostrar que encontrou assinatura;
-5. somente depois testar a tool;
-6. somente depois testar a IA.
-
-Isso identifica se a falha está:
-
-- no endpoint;
-- no parser;
-- na tool;
-- ou no modelo.
-
-==================================================
-15. NÃO USAR MOCK COMO PROVA
-==================================================
-
-Testes mockados são necessários, mas não comprovam a integração.
-
-A correção somente estará concluída após teste contra a conta BEMP configurada no ambiente.
-
-==================================================
-16. ENTREGA
+6. ENTREGA
 ==================================================
 
 Informar:
 
-1. endpoint real de clientes;
-2. filtro real de CPF;
-3. formato real da resposta;
-4. endpoint real de assinaturas;
-5. formato real das assinaturas;
-6. status ativo real;
-7. causa raiz;
-8. arquivos alterados;
-9. logs mascarados;
-10. teste direto do BempService;
-11. teste da tool;
-12. teste da IA;
-13. build;
-14. typecheck;
-15. lint.
+1. causa raiz;
+2. arquivo responsável;
+3. função responsável;
+4. integração responsável;
+5. status HTTP;
+6. correção proposta;
+7. build;
+8. typecheck;
+9. lint.
 
-Não declarar corrigido se o teste direto do BempService não localizar um assinante real.
+Não considerar concluído até identificar a causa exata da mensagem.
 
 quando a consulta ao BEMP falhar.
 
