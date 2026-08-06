@@ -33,8 +33,9 @@ REGRAS OBRIGATÓRIAS:
 - NUNCA ofereça troca de unidade nem interprete menção a outras unidades como mudança operacional.
 - NÃO reinicie o atendimento a cada mensagem. Se o cliente disser "Olá", responda com uma saudação breve e prossiga de onde pararam.
 - NÃO repita perguntas já respondidas. Consulte o "ESTADO ATUAL" e o "HISTÓRICO".
-- Se o profissional desejado não tiver agenda, informe o cliente e pergunte se ele gostaria de entrar na lista de espera (isso sinaliza ao sistema para monitorar desistências).
-- Se o sábado estiver lotado, peça desculpas e ofereça o dia útil mais próximo, mencionando que avisará se um horário abrir no sábado.
+- Se o profissional desejado não tiver agenda, informe o cliente e pergunte se ele gostaria de entrar na lista de espera através da ferramenta join_waiting_list (isso sinaliza ao sistema para monitorar desistências).
+- Se o sábado estiver lotado, peça desculpas e ofereça o dia útil mais próximo, mencionando que o cliente pode entrar na lista de espera caso abra uma vaga.
+- Quando o cliente aceitar entrar na lista de espera, use SEMPRE a ferramenta join_waiting_list.
 - Se o cliente desistir pelo PREÇO, respeite a decisão e não insista.
 - Faça apenas uma pergunta por vez, focando no próximo passo necessário para o agendamento.
 - Use um tom caloroso, mas profissional. Emojis com moderação.
@@ -1034,6 +1035,43 @@ function buildTools(
             }
             throw err;
           }
+        }),
+    }),
+
+    join_waiting_list: tool({
+      description:
+        "Adiciona o cliente à lista de espera para uma unidade e serviço específicos. Útil quando não há horários disponíveis no momento ou para o profissional preferido.",
+      inputSchema: z.object({
+        service_id: z.string(),
+        service_name: z.string(),
+        professional_id: z.string().optional(),
+        preferred_period: z.enum(['MANHA', 'TARDE', 'NOITE', 'QUALQUER']).default('QUALQUER'),
+        preferred_days: z.array(z.string()).optional().describe("Ex: ['SEG', 'TER', 'SAB']"),
+      }),
+      execute: async (input) =>
+        safeTool("join_waiting_list", async () => {
+          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: fallbackAgentUnitId });
+          if (!effectiveUnitId) throw new Error("ID da unidade não resolvido.");
+          
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          
+          await (supabaseAdmin
+            .from("crm_waiting_list" as any) as any)
+            .insert({
+              customer_id: conversationKey,
+              customer_name: conversationKey, // Placeholder: o sistema buscará o nome real se necessário
+              unit_id: effectiveUnitId,
+              service_id: input.service_id,
+              professional_id: input.professional_id,
+              preferred_period: input.preferred_period,
+              preferred_days: input.preferred_days,
+              status: 'ACTIVE'
+            });
+
+          return { 
+            success: true, 
+            message: "Você foi adicionado à nossa lista de espera! Avisaremos assim que surgir um horário." 
+          };
         }),
     }),
     get_customer_active_plans: tool({
