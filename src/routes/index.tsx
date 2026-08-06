@@ -115,134 +115,398 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* 
-        Execute esta instrucao no projeto: SPRINT PERFORMANCE 1 — TAREFA 2
+        Execute esta instrucao no projeto: PROJETO
 
-OTIMIZAÇÃO DAS CONSULTAS SUPABASE
+Seja Livre AI Platform
+
+SPRINT PERFORMANCE 1.3
 
 OBJETIVO
 
-Auditar e otimizar todas as consultas ao Supabase para reduzir tempo de resposta, consumo de recursos e número de requisições.
+Transformar a Secretária Virtual em um módulo altamente performático, escalável e preparado para milhares de conversas simultâneas.
 
 Não alterar regras de negócio.
 
-Não alterar layout.
+Não alterar comportamento funcional.
 
 Não remover funcionalidades.
 
 Não publicar automaticamente.
 
 ==================================================
-ETAPA 1 — INVENTÁRIO
+FASE 1 — ARQUITETURA
 ==================================================
 
-Localizar todas as consultas:
+Antes de alterar o código:
 
-- .from()
-- .select()
-- .insert()
-- .update()
-- .delete()
-- .rpc()
+Mapear completamente a arquitetura atual da Secretária Virtual.
 
-Criar um inventário contendo:
+Identificar:
 
-- arquivo
-- função
-- tabela
-- operação
-- frequência estimada
-- criticidade
+- componentes
+- hooks
+- contextos
+- React Query
+- Realtime
+- queries
+- estados
+- providers
 
-==================================================
-ETAPA 2 — IDENTIFICAR GARGALOS
-==================================================
-
-Localizar:
-
-- SELECT *
-- consultas repetidas
-- N+1
-- joins desnecessários
-- múltiplas consultas que podem ser consolidadas
-- consultas sem paginação
-- consultas sem filtro
-- consultas feitas a cada render
-
-Classificar:
-
-CRÍTICO
-ALTO
-MÉDIO
-BAIXO
+Gerar um diagrama da estrutura atual.
 
 ==================================================
-ETAPA 3 — OTIMIZAÇÃO
+FASE 2 — DIVISÃO EM MÓDULOS
 ==================================================
 
-Aplicar:
+Dividir a Secretária Virtual em módulos independentes.
 
-- selecionar apenas colunas necessárias
-- paginação
-- filtros server-side
-- consolidação de consultas
-- RPC agregadas quando apropriado
-- eliminação de consultas duplicadas
+Criar, quando necessário:
 
-Não alterar o comportamento funcional.
+ConversationList
+
+ConversationListItem
+
+ConversationFilters
+
+ConversationSearch
+
+ConversationHeader
+
+ConversationTimeline
+
+MessageList
+
+MessageItem
+
+MessageComposer
+
+MediaViewer
+
+CustomerSidebar
+
+CustomerSummary
+
+CRMPanel
+
+AppointmentPanel
+
+FollowupPanel
+
+AISuggestionsPanel
+
+ConversationRealtime
+
+ConversationStore
+
+Cada módulo deve possuir responsabilidade única.
 
 ==================================================
-ETAPA 4 — REACT QUERY
+FASE 3 — ESTADO
 ==================================================
 
-Revisar:
+Separar completamente os estados.
 
-- staleTime
-- refetchOnWindowFocus
-- retry
-- cache
-- invalidações
+Não permitir um único estado controlar toda a tela.
 
-Eliminar refetch desnecessário.
+Separar:
+
+Lista de conversas
+
+↓
+
+Conversa ativa
+
+↓
+
+Mensagens
+
+↓
+
+CRM
+
+↓
+
+IA
+
+↓
+
+Sidebar
+
+↓
+
+Follow-up
+
+↓
+
+Agendamento
+
+Uma atualização em mensagens não pode renderizar CRM, Dashboard ou Sidebar.
 
 ==================================================
-ETAPA 5 — RELATÓRIO
+FASE 4 — CONVERSAS
 ==================================================
+
+Implementar:
+
+scroll infinito
+
+paginação
+
+virtualização
+
+cache
+
+ordenação incremental
+
+Ao abrir:
+
+carregar apenas:
+
+30 conversas
+
+Ao chegar nova conversa:
+
+inserir somente ela.
+
+Nunca recarregar toda a lista.
+
+==================================================
+FASE 5 — HISTÓRICO
+==================================================
+
+Carregar inicialmente:
+
+50 mensagens.
+
+Mensagens antigas:
+
+somente sob demanda.
 
 Criar:
 
-docs/supabase-performance.md
+Load Older Messages
 
-Informar:
+Virtualizar mensagens.
 
-- consultas auditadas
-- consultas corrigidas
-- consultas pendentes
-- tabelas mais acessadas
-- possíveis índices recomendados
-- ganho esperado
+Conversas com milhares de mensagens devem continuar fluidas.
 
 ==================================================
-VALIDAÇÃO
+FASE 6 — REALTIME
+==================================================
+
+Criar um único gerenciador.
+
+ConversationRealtimeManager
+
+Ele deve:
+
+abrir apenas uma subscription
+
+filtrar por unidade
+
+filtrar por organização
+
+atualizar apenas:
+
+última mensagem
+
+contador
+
+status
+
+Não permitir refetch completo.
+
+==================================================
+FASE 7 — REACT QUERY
+==================================================
+
+Separar queries.
+
+ConversationsQuery
+
+MessagesQuery
+
+CustomerQuery
+
+CRMQuery
+
+AppointmentQuery
+
+AISummaryQuery
+
+Cada uma com cache próprio.
+
+==================================================
+FASE 8 — CACHE
+==================================================
+
+Criar estratégia.
+
+Conversas
+
+5 segundos
+
+Mensagens
+
+infinito até alteração
+
+CRM
+
+2 minutos
+
+Cliente
+
+5 minutos
+
+Configurações
+
+10 minutos
+
+==================================================
+FASE 9 — RENDERS
+==================================================
+
+Medir.
+
+Eliminar:
+
+renders duplicados
+
+hooks repetidos
+
+effects desnecessários
+
+props enormes
+
+memoização incorreta
+
+==================================================
+FASE 10 — MÍDIA
+==================================================
+
+Nunca baixar automaticamente:
+
+vídeos
+
+áudios
+
+imagens
+
+documentos
+
+Carregar somente quando o usuário clicar.
+
+==================================================
+FASE 11 — PERFORMANCE
+==================================================
+
+Metas:
+
+abrir conversa
+
+<300ms
+
+scroll
+
+60fps
+
+lista
+
+1000 conversas
+
+sem travar
+
+histórico
+
+10000 mensagens
+
+sem travar
+
+==================================================
+FASE 12 — TESTES
 ==================================================
 
 Executar:
 
 build
+
 typecheck
+
 lint
+
 test
+
+Testar:
+
+nova mensagem
+
+troca de conversa
+
+histórico
+
+áudio
+
+imagem
+
+vídeo
+
+CRM
+
+follow-up
+
+agendamento
+
+IA
+
+==================================================
+FASE 13 — RELATÓRIO
+==================================================
+
+Criar:
+
+docs/secretaria-virtual-performance.md
+
+Mostrar:
+
+Arquitetura antiga
+
+Arquitetura nova
+
+Componentes criados
+
+Queries reduzidas
+
+Renders reduzidos
+
+Subscriptions reduzidas
+
+Tempo antes
+
+Tempo depois
+
+Uso de memória
+
+Ganho esperado
+
+Pendências
 
 ==================================================
 ENTREGA
 ==================================================
 
-Informar:
+Não considerar concluído até:
 
-- arquivos alterados
-- consultas reduzidas
-- RPCs criadas ou reutilizadas
-- recomendações de índices
-- resultado dos testes
+✔ build
+
+✔ typecheck
+
+✔ lint
+
+✔ testes
+
+✔ relatório
+
+✔ comparação antes/depois
 
 Não publicar automaticamente.
       */}
