@@ -83,6 +83,7 @@ export async function processPendingFollowups() {
       const conv = instanceData as any;
       if (conv?.instance && conv?.phone_number) {
         const { sendEvolutionText } = await import("@/lib/evolution.server");
+
         await sendEvolutionText(conv.instance, conv.phone_number, text);
         
         // Registrar na conversa
