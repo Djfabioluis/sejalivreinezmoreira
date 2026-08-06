@@ -2516,7 +2516,13 @@ ${subscriptionContextLine(ctx as Record<string, any>)}
 `.trim();
   }
 
-  const basePrompt = await loadSystemPrompt();
+  const basePrompt = await loadSystemPrompt({
+    contactName: opts.contactName || undefined,
+    contactPhone: opts.contactPhone || undefined,
+    unitName: opts.unitName || undefined,
+    customerContext: opts.customerContext,
+    activePromotions: opts.activePromotions
+  });
 
   const { effectiveUnitId, effectiveUnitName, source } = await resolveEffectiveUnit({ 
     conversationKey: opts.conversationKey || undefined, 

@@ -12,5 +12,6 @@ export interface AgentOptions {
   messageId?: string | null;
   /** Bloco "MEMÓRIA CONFIRMADA DO CLIENTE" injetado no system prompt. */
   memoryBlock?: string;
+  activePromotions?: any[];
 }
 
