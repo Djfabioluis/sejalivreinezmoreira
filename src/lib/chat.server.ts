@@ -2608,8 +2608,12 @@ export async function runAgentWithLogging(params: {
     let mandatoryPromo: any = null;
     let activePromotions: any[] = [];
 
-    if (intent?.category === "MECHAS") {
-      console.log(`[chat] mechas_intent_detected: traceId=${effectiveTraceId}`);
+    if (intent?.category === "MECHAS" || params.text.toLowerCase().includes("mecha")) {
+      logger.info("MECHAS_INTENT_DETECTED", `Intenção de mechas detectada [${effectiveTraceId}]`, { 
+        traceId: effectiveTraceId, 
+        textSnippet: params.text.slice(0, 50) 
+      });
+      
       const promoResult = await PromotionService.getActivePromotions({
         unitId: effectiveUnitId || undefined,
         channel: "WHATSAPP",
@@ -2621,10 +2625,16 @@ export async function runAgentWithLogging(params: {
         const mechasPromo = activePromotions.find(p => p.code === 'PACOTE_MECHAS_MENSAL');
         if (mechasPromo) {
           mandatoryPromo = mechasPromo;
-          console.log(`[chat] mechas_promotion_active: traceId=${effectiveTraceId}, promo=${mechasPromo.code}`);
+          logger.info("PROMOTION_SELECTED", `Promoção de mechas selecionada [${effectiveTraceId}]`, { 
+            traceId: effectiveTraceId, 
+            promo: mechasPromo.code 
+          });
         }
       } else {
-        console.error(`[chat] promotion_database_lookup_failed: traceId=${effectiveTraceId}, code=${promoResult.code}`);
+        logger.error("PROMOTION_LOOKUP_FAILED", `Falha ao buscar promoções [${effectiveTraceId}]`, { 
+          traceId: effectiveTraceId, 
+          code: promoResult.code 
+        });
       }
     }
 
@@ -2859,6 +2869,13 @@ ${subscriptionContextLine(ctx as Record<string, any>)}
     stopWhen: stepCountIs(5),
     abortSignal: AbortSignal.timeout(60000),
   });
+
+  logger.audit("IA_RAW_RESPONSE", `Resposta bruta gerada pelo modelo [${traceId}]`, {
+    traceId,
+    text: result.text,
+    finishReason: result.finishReason
+  });
+
   return sanitizeCustomerText(result.text?.trim() || "Desculpe, tive um probleminha aqui. Pode repetir?");
 }
 
