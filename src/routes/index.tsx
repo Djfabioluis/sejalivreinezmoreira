@@ -115,29 +115,24 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="hidden">
-        Execute esta instrucao no projeto: Implementar IA de previsão de retorno.
+        Execute esta instrucao no projeto: Criar dashboard com indicadores como:
 
-        Calcular:
-        dias médios entre visitas.
-
-        Exemplo:
-        Cliente retorna:
-        28
-        29
-        27
-        30
-        ↓
-        previsão
-        28 dias
-
-        No 26º dia:
-        criar oportunidade:
-        RETURN_REMINDER
-
-        Mensagem:
-        "Oi, Gabi!
-        Está chegando o momento da sua próxima manutenção.
-        Posso reservar um horário?"
+        Taxa de conversão
+        Agendamentos iniciados
+        Agendamentos concluídos
+        Agendamentos abandonados
+        Recuperações por follow-up
+        Horários recuperados
+        Receita estimada recuperada
+        Clientes VIP
+        Clientes inativos
+        Clientes em risco
+        Planos ativos
+        Benefícios não utilizados
+        Conversões por unidade
+        Conversões por profissional
+        Tempo médio de resposta da IA
+        Tempo médio para conclusão do agendamento
       </div>
 
       <div className="bg-green-600 text-white p-2 text-center text-xs font-medium">

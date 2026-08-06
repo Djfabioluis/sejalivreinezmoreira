@@ -78,34 +78,57 @@ function CRMPage() {
 
       {/* Dashboard Stats Grid */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Agendamentos Abandonados" value={stats.abandonedAppointments} description="Pararam no meio do agendamento" />
-        <StatCard title="Clientes Quentes" value={stats.hotCustomers} description="Score acima de 70%" color="text-green-600" />
-        <StatCard title="Clientes VIP" value={stats.vipCustomers} description="Score acima de 90%" color="text-purple-600" />
-        <StatCard title="Clientes Frios" value={stats.coldCustomers} description="Score abaixo de 30%" color="text-red-600" />
-        
-        <StatCard title="Sem retorno (30 dias)" value={stats.noReturn30} description="Último contato há 1 mês" />
-        <StatCard title="Sem retorno (60 dias)" value={stats.noReturn60} description="Último contato há 2 meses" />
-        <StatCard title="Sem retorno (90 dias)" value={stats.noReturn90} description="Último contato há 3 meses" />
-        <StatCard title="Clientes Plano Beauty" value={stats.beautyPlanCustomers} description="Assinantes ativos" color="text-pink-600" />
+        <StatCard title="Taxa de Conversão" value={`${stats.conversionRate.toFixed(1)}%`} description="Lead -> Atendimento" color="text-blue-600" />
+        <StatCard title="Agendamentos Concluídos" value={stats.concludedAppointments} description="Total de conversões" color="text-green-600" />
+        <StatCard title="Agendamentos Iniciados" value={stats.startedAppointments} description="Interações totais" />
+        <StatCard title="Agendamentos Abandonados" value={stats.abandonedAppointments} description="Pararam no fluxo" color="text-red-600" />
 
-        <StatCard title="Follow-ups Pendentes" value={stats.pendingFollowups} description="Aguardando envio pelo cron" />
-        <StatCard title="Follow-ups Enviados" value={stats.sentFollowups} description="Histórico total de envios" />
-        <StatCard title="Taxa de Conversão" value={`${stats.conversionRate.toFixed(1)}%`} description="Lead -> Agendado/Convertido" color="text-blue-600" />
+        <StatCard title="Recuperações Follow-up" value={stats.followupRecoveries} description="Convertidos pós-retorno" color="text-purple-600" />
+        <StatCard title="Horários Recuperados" value={stats.recoveredSlots} description="Slots de cancelamento reocupados" />
+        <StatCard title="Receita Recuperada" value={`R$ ${stats.estimatedRevenueRecovered}`} description="Estimativa baseada em conversões" color="text-emerald-600" />
+        <StatCard title="Tempo Médio IA" value={stats.avgResponseTime} description="Velocidade de resposta Julia" />
+
+        <StatCard title="Clientes VIP" value={stats.vipCustomers} description="Score acima de 90%" color="text-indigo-600" />
+        <StatCard title="Clientes Inativos" value={stats.inactiveCustomers} description="Sem contato há 60 dias+" />
+        <StatCard title="Clientes em Risco" value={stats.atRiskCustomers} description="Baixo score + Abandono" color="text-orange-600" />
+        <StatCard title="Tempo Conclusão" value={stats.avgCompletionTime} description="Média do primeiro oi ao agendado" />
+
+        <StatCard title="Planos Ativos" value={stats.activePlans} description="Assinaturas vigentes" />
+        <StatCard title="Benefícios Disponíveis" value={stats.unusedBenefits} description="Itens de plano não utilizados" color="text-pink-600" />
         <Card>
           <CardHeader className="p-4 pb-0">
-            <CardTitle className="text-sm font-medium">Motivos de Perda</CardTitle>
+            <CardTitle className="text-sm font-medium">Conversões por Unidade</CardTitle>
           </CardHeader>
           <CardContent className="p-4 pt-2">
             <div className="text-xs space-y-1">
-              {Object.entries(stats.lossReasons).length > 0 ? (
-                Object.entries(stats.lossReasons).map(([reason, count]) => (
-                  <div key={reason} className="flex justify-between">
-                    <span className="truncate mr-2">{reason.replace(/_/g, ' ')}</span>
+              {Object.entries(stats.conversionsByUnit).length > 0 ? (
+                Object.entries(stats.conversionsByUnit).map(([unit, count]) => (
+                  <div key={unit} className="flex justify-between">
+                    <span className="truncate mr-2">{unit}</span>
                     <span className="font-bold">{String(count)}</span>
                   </div>
                 ))
               ) : (
-                <p className="text-muted-foreground italic">Nenhum dado registrado</p>
+                <p className="text-muted-foreground italic text-[10px]">Sem dados</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="p-4 pb-0">
+            <CardTitle className="text-sm font-medium">Conversões por Profissional</CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-2">
+            <div className="text-xs space-y-1">
+              {Object.entries(stats.conversionsByProfessional).length > 0 ? (
+                Object.entries(stats.conversionsByProfessional).map(([prof, count]) => (
+                  <div key={prof} className="flex justify-between">
+                    <span className="truncate mr-2">{prof}</span>
+                    <span className="font-bold">{String(count)}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-muted-foreground italic text-[10px]">Sem dados</p>
               )}
             </div>
           </CardContent>
