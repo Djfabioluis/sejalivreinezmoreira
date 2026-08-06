@@ -1,7 +1,6 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { generateText } from "ai";
 import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
-import { runAgentFlow } from "@/lib/evolution/processor.server";
 
 /**
  * Processa follow-ups agendados.
@@ -43,7 +42,10 @@ export async function processPendingFollowups() {
         .maybeSingle();
 
       if (!conversation) {
-        await supabaseAdmin.update({ status: 'CANCELADO' }).eq("id", followup.id);
+        await supabaseAdmin
+          .from("crm_followups")
+          .update({ status: 'CANCELADO' })
+          .eq("id", followup.id);
         continue;
       }
 
@@ -71,11 +73,7 @@ export async function processPendingFollowups() {
         prompt,
       });
 
-      // 4. Enviar via Evolution API (simulando uma entrada do sistema)
-      // Usamos a lógica interna de resposta para garantir que passe pelos canais oficiais
-      // Nota: Idealmente aqui chamaríamos uma tool de envio direto se existisse, 
-      // mas vamos usar a reply logic ou inserir na fila de mensagens da conversa.
-      
+      // 4. Enviar via Evolution API
       const { data: instanceData } = await supabaseAdmin
         .from("wa_conversas")
         .select("instance")
@@ -83,19 +81,16 @@ export async function processPendingFollowups() {
         .single();
       
       if (instanceData?.instance) {
-        const { sendWhatsAppMessage } = await import("@/lib/evolution.server");
-        await sendWhatsAppMessage(instanceData.instance, followup.phone, text);
+        const { sendText } = await import("@/lib/evolution.server");
+        await sendText(instanceData.instance, followup.phone, text);
         
         // Registrar na conversa
         const { appendWaMessage } = await import("@/lib/evolution/conversation.server");
         await appendWaMessage({
           phone: followup.phone,
-          message: {
-            role: 'assistant',
-            content: text,
-            timestamp: Date.now(),
-            type: 'text'
-          }
+          role: 'assistant',
+          content: text,
+          type: 'text'
         });
       }
 
