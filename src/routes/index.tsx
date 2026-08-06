@@ -43,7 +43,7 @@ export const Route = createFileRoute("/")({
   component: LandingPage,
 });
 
-import { PLAN_METADATA, PLANS as CENTRAL_PLANS, type PlanKey, type Cycle } from "@/lib/plans";
+import { PLANS as CENTRAL_PLANS, type Cycle } from "@/lib/plans";
 
 function LandingPage() {
   const navigate = useNavigate();
@@ -108,6 +108,8 @@ function LandingPage() {
       );
     }
   }, [session]);
+
+  const filteredPlans = CENTRAL_PLANS.filter(p => p.cycle === cycle);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -275,9 +277,9 @@ function LandingPage() {
           </div>
 
           <div className="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-            {CENTRAL_PLANS.map((plan) => (
-              <Card key={plan.id} className={`relative flex flex-col overflow-hidden border-2 transition-all hover:border-primary/50 ${plan.popular ? 'border-primary' : 'border-border'}`}>
-                {plan.popular && (
+            {filteredPlans.map((plan) => (
+              <Card key={plan.id} className={`relative flex flex-col overflow-hidden border-2 transition-all hover:border-primary/50 ${plan.highlight ? 'border-primary' : 'border-border'}`}>
+                {plan.highlight && (
                   <div className="absolute top-0 right-0 bg-primary px-3 py-1 text-[10px] font-bold uppercase text-primary-foreground">
                     Mais Popular
                   </div>
@@ -285,10 +287,10 @@ function LandingPage() {
                 <CardHeader>
                   <CardTitle className="font-display text-2xl">{plan.name}</CardTitle>
                   <div className="mt-4 flex items-baseline gap-1">
-                    <span className="text-4xl font-bold">R$ {cycle === 'monthly' ? plan.priceMonthly : plan.priceYearly}</span>
-                    <span className="text-sm text-muted-foreground">/{cycle === 'monthly' ? 'mês' : 'ano'}</span>
+                    <span className="text-4xl font-bold">{plan.priceLabel}</span>
+                    <span className="text-sm text-muted-foreground">/{plan.cycle === 'monthly' ? 'mês' : 'ano'}</span>
                   </div>
-                  <p className="mt-2 text-sm text-muted-foreground">{plan.description}</p>
+                  <p className="mt-2 text-sm text-muted-foreground">{plan.tagline}</p>
                 </CardHeader>
                 <CardContent className="flex flex-1 flex-col">
                   <ul className="space-y-3 text-sm">
@@ -300,8 +302,8 @@ function LandingPage() {
                     ))}
                   </ul>
                   <Button
-                    onClick={() => handleSubscribe(cycle === 'monthly' ? plan.stripeIdMonthly : plan.stripeIdYearly)}
-                    variant={plan.popular ? 'default' : 'outline'}
+                    onClick={() => handleSubscribe(plan.id)}
+                    variant={plan.highlight ? 'default' : 'outline'}
                     className="mt-8 w-full"
                     size="lg"
                   >
