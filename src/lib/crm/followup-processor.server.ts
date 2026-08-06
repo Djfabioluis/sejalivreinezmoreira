@@ -28,6 +28,14 @@ export async function processPendingFollowups() {
 
   for (const followup of pending) {
     try {
+      if (followup.reason === 'PRICE') {
+        await supabaseAdmin
+          .from("crm_followups")
+          .update({ status: 'ENCERRADO', cancelled_at: new Date().toISOString() })
+          .eq("id", followup.id);
+        continue;
+      }
+
       // Marcar como em processamento
       await supabaseAdmin
         .from("crm_followups")
@@ -60,6 +68,7 @@ export async function processPendingFollowups() {
         - Histórico recente: ${JSON.stringify((conversation.customer_context || {}))}
         
         REGRAS:
+        - Se o motivo do abandono foi PREÇO, NÃO insista e encerre o follow-up.
         - NUNCA use mensagens genéricas.
         - Refira-se ao interesse anterior (ex: "Vi que estávamos conversando sobre seu corte de cabelo...").
         - Seja gentil, acolhedora e NUNCA pressione.
