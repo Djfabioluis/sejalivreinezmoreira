@@ -19,21 +19,25 @@ export async function generateManagementBriefing() {
     hotReturns: (pipeline as any[])?.filter(c => (c.conversion_score || 0) > 70 && c.current_stage !== 'AGENDADO').length || 0,
     pendingFollowups: followups?.length || 0,
     birthdays: 0,
+    waitingList: (pipeline as any[])?.filter(c => c.abandonment_reason === 'PROFESSIONAL_UNAVAILABLE').length || 0,
     vipAtRisk: (pipeline as any[])?.filter(c => (c.health_score || 0) >= 90 && c.last_visit_at && new Date(c.last_visit_at) < fortyFiveDaysAgo).length || 0,
     estimatedRevenue: (slots?.length || 0) * 150 + (followups?.length || 0) * 150,
     idleRiskDay: "quinta-feira à tarde"
   };
 
   const report = `📢 *Morning Briefing da Julia* ☕\n\n` +
-    `Bom dia! Aqui está o panorama para hoje:\n\n` +
+    `Bom dia! Aqui está o panorama estratégico de hoje:\n\n` +
+    `📅 *Agenda e Ocupação:*\n` +
     `📍 *${stats.pendingSlots}* horários vagos identificados\n` +
-    `🎯 *${stats.hotReturns}* clientes com alta chance de retorno\n` +
-    `✉️ *${stats.pendingFollowups}* follow-ups pendentes para envio\n` +
-    `🎂 *${stats.birthdays}* aniversariantes no dia\n` +
-    `⚠️ *${stats.vipAtRisk}* clientes VIP sem visita há +45 dias\n\n` +
-    `💰 *Receita potencial recuperável:* R$ ${stats.estimatedRevenue.toLocaleString('pt-BR')}\n` +
-    `📉 *Risco de ociosidade:* ${stats.idleRiskDay}\n\n` +
-    `Estou focada em preencher esses horários e reativar seus clientes VIP. Ótimo trabalho! 🚀`;
+    `👥 *${stats.waitingList}* clientes na lista de espera por vaga\n\n` +
+    `🎯 *Relacionamento:*\n` +
+    `🔥 *${stats.hotReturns}* clientes com alta chance de retorno\n` +
+    `✉️ *${stats.pendingFollowups}* follow-ups pendentes\n` +
+    `🎂 *${stats.birthdays}* aniversariantes\n` +
+    `⚠️ *${stats.vipAtRisk}* clientes VIP em risco (+45 dias)\n\n` +
+    `💰 *Impacto Financeiro:* R$ ${stats.estimatedRevenue.toLocaleString('pt-BR')}\n` +
+    `📉 *Tendência de Ociosidade:* ${stats.idleRiskDay}\n\n` +
+    `Já estou analisando a agenda para converter essas oportunidades. Vamos crescer! 🚀`;
 
   // 2. Enviar para os administradores
   const { data: admins } = await supabaseAdmin

@@ -1,84 +1,99 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { OpportunityType } from "./opportunity.server";
 
-/**
- * Processa um cancelamento e busca clientes na lista de espera que se encaixem no perfil do horário vago.
- */
-export async function handleAppointmentCancellationForWaitingList(params: {
+export interface CancellationData {
   unitId: string;
   serviceId: string;
   professionalId?: string;
-  professionalName: string;
+  professionalName?: string;
   startTime: string;
-  serviceName: string;
-}) {
-  console.log(`[waiting-list] Processing cancellation for unit ${params.unitId}, service ${params.serviceId}, time ${params.startTime}`);
+  serviceName?: string;
+}
 
-  const startAt = new Date(params.startTime);
-  const hour = startAt.getHours();
-  
-  let period = 'QUALQUER';
-  if (hour < 12) period = 'MANHA';
-  else if (hour < 18) period = 'TARDE';
-  else period = 'NOITE';
+/**
+ * Motor de Lista de Espera Inteligente
+ * Identifica clientes que demonstraram interesse em horários indisponíveis.
+ */
+export async function processWaitingList() {
+  console.log("[waiting-list] Processando lista de espera...");
 
-  // 1. Buscar clientes na lista de espera para a mesma unidade e serviço
-  const { data: waitingList } = await (supabaseAdmin
-    .from("crm_waiting_list" as any) as any)
+  // 1. Buscar oportunidades de horários vagos recém-criadas
+  const { data: opportunities } = await supabaseAdmin
+    .from("crm_slot_opportunities")
     .select("*")
-    .eq("unit_id", params.unitId)
-    .eq("service_id", params.serviceId)
-    .eq("status", "ACTIVE");
+    .eq("status", "pending")
+    .order("created_at", { ascending: false })
+    .limit(20);
 
-  if (!waitingList || waitingList.length === 0) {
-    console.log("[waiting-list] No matching customers found in waiting list.");
+  if (!opportunities || opportunities.length === 0) return;
+
+  // 2. Buscar clientes que estão na "Lista de Espera" (abandonaram por falta de horário)
+  const { data: waitingCustomers } = await supabaseAdmin
+    .from("crm_customer_pipeline")
+    .select("*")
+    .eq("abandonment_reason", "PROFESSIONAL_UNAVAILABLE")
+    .order("conversion_score", { ascending: false });
+
+  if (!waitingCustomers || waitingCustomers.length === 0) return;
+
+  for (const opp of opportunities) {
+    // Tenta encontrar um cliente compatível
+    const candidate = waitingCustomers.find(c => {
+      // No futuro: validar unidade e serviço
+      return true; 
+    });
+
+    if (candidate) {
+      console.log(`[waiting-list] Casamento encontrado: Cliente ${candidate.phone} para Slot ${opp.id}`);
+      
+      // Marcar oportunidade como WAITING_LIST para o Revenue Engine processar
+      await (supabaseAdmin
+        .from("crm_opportunities" as any) as any)
+        .insert({
+          customer_id: candidate.phone,
+          opportunity_type: 'WAITING_LIST',
+          score: candidate.conversion_score || 90,
+          trigger: `Horário vago encontrado em ${new Date(opp.start_at).toLocaleDateString()}`,
+          status: 'PENDENTE',
+          metadata: {
+            slot_opportunity_id: opp.id,
+            start_at: opp.start_at
+          }
+        });
+    }
+  }
+}
+
+/**
+ * Lida com o cancelamento de um agendamento no BEMP.
+ * Cria uma oportunidade de horário vago (EMPTY_SLOT) e tenta casar com a lista de espera.
+ */
+export async function handleAppointmentCancellationForWaitingList(data: CancellationData) {
+  console.log(`[waiting-list] Processando cancelamento de agendamento: ${data.startTime}`);
+
+  // 1. Criar a oportunidade de slot
+  const { data: newSlot, error } = await supabaseAdmin
+    .from("crm_slot_opportunities")
+    .insert({
+      unidade_id: data.unitId,
+      service_id: data.serviceId,
+      professional_id: data.professionalId || null,
+      start_at: data.startTime,
+      end_at: data.startTime, // Simplificado
+      status: 'pending',
+      metadata: {
+        professional_name: data.professionalName,
+        service_name: data.serviceName,
+        source: 'cancellation_webhook'
+      }
+    })
+    .select()
+    .single();
+
+  if (error || !newSlot) {
+    console.error("[waiting-list] Falha ao criar oportunidade de slot pós-cancelamento:", error);
     return;
   }
 
-  // 2. Filtrar e ordenar por profissional e período
-  const matches = waitingList.filter((entry: any) => {
-    // Se tiver período preferido e não for QUALQUER, deve bater
-    if (entry.preferred_period && entry.preferred_period !== 'QUALQUER' && entry.preferred_period !== period) {
-      return false;
-    }
-    return true;
-  }).sort((a: any, b: any) => {
-    // Priorizar quem escolheu o mesmo profissional
-    const aProfMatch = a.professional_id === params.professionalId ? 1 : 0;
-    const bProfMatch = b.professional_id === params.professionalId ? 1 : 0;
-    return bProfMatch - aProfMatch;
-  });
-
-  if (matches.length === 0) return;
-
-  // 3. Gerar oportunidades para os melhores matches (top 3 para aprovação)
-  for (const match of matches.slice(0, 3)) {
-    const timeFormatted = startAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    const dateFormatted = startAt.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-    
-    const recommendedMessage = `Oi, ${match.customer_name || 'tudo bem'}! 💜 Acabou de surgir um horário para ${params.serviceName} no dia ${dateFormatted} às ${timeFormatted} com a profissional ${params.professionalName}. Deseja que eu reserve para você?`;
-
-    await (supabaseAdmin
-      .from("crm_opportunities" as any) as any)
-      .insert({
-        customer_id: match.customer_id,
-        unit_id: params.unitId,
-        opportunity_type: 'WAITING_LIST' as OpportunityType,
-        priority: match.professional_id === params.professionalId ? 95 : 80,
-        score: match.professional_id === params.professionalId ? 95 : 80,
-        trigger: `Slot cancelado: ${params.serviceName} em ${params.unitId} (${params.professionalName})`,
-        recommended_action: recommendedMessage,
-        status: 'PENDENTE'
-      });
-    
-    console.log(`[waiting-list] Generated WAITING_LIST opportunity for ${match.customer_id}`);
-    
-    // Registrar que o slot está sendo monitorado para recuperação
-    await (supabaseAdmin
-      .from("crm_opportunities" as any) as any)
-      .update({ trigger: `RECUPERAÇÃO: ${params.serviceName} (${params.professionalName})` } as never)
-      .eq("customer_id", match.customer_id)
-      .eq("opportunity_type", "WAITING_LIST")
-      .eq("status", "PENDENTE");
-  }
+  // 2. Notificar imediatamente clientes em lista de espera (opcional, ou deixar para o cron)
+  // Por simplicidade, deixamos o processWaitingList via cron lidar com isso na próxima execução.
 }
