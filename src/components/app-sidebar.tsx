@@ -37,24 +37,25 @@ import { SandboxToggle } from "@/components/sandbox-toggle";
 import { useMyPermissions } from "@/hooks/use-my-permissions";
 
 const items = [
-  { title: "Painel", url: "/painel", icon: LayoutDashboard, group: "Operação", key: "painel" },
-  { title: "CRM Inteligente", url: "/crm", icon: TrendingUp, group: "Operação", key: "crm" },
-  { title: "Secretária virtual", url: "/agendar", icon: MessageCircle, group: "Operação", key: "agendar" },
-  { title: "Base de conhecimento", url: "/base-conhecimento", icon: BookOpen, group: "Configuração", key: "base-conhecimento" },
-  { title: "Boas-vindas", url: "/boas-vindas", icon: Hand, group: "Configuração", key: "boas-vindas" },
-  { title: "Operadores", url: "/operadores", icon: UserCog, group: "Configuração", key: "operadores" },
-  { title: "Sugestões", url: "/sugestoes", icon: Sparkles, group: "Configuração", key: "sugestoes" },
-  { title: "Auditoria de sugestões", url: "/auditoria-sugestoes", icon: ClipboardList, group: "Configuração", key: "auditoria-sugestoes" },
-  { title: "Aprendizado da IA", url: "/aprendizado-ia", icon: Brain, group: "Configuração", key: "aprendizado-ia" },
-  { title: "Integração Bemp", url: "/integracao-bemp", icon: KeyRound, group: "Configuração", key: "integracao-bemp" },
-  { title: "Configuração do WhatsApp", url: "/configuracao-whatsapp", icon: MessageCircle, group: "Configuração", key: "config-whatsapp" },
-  { title: "WhatsApp — Agentes", url: "/agentes-whatsapp", icon: QrCode, group: "Configuração", key: "config-whatsapp" },
-  { title: "Níveis de acesso", url: "/acessos", icon: ShieldCheck, group: "Configuração", key: "acessos" },
-  { title: "Usuários", url: "/usuarios", icon: Users, group: "Configuração", key: "usuarios" },
-  { title: "Permissões", url: "/permissoes", icon: Lock, group: "Configuração", key: "permissoes" },
-  { title: "Assinantes", url: "/assinantes", icon: CreditCard, group: "Configuração", key: "assinantes" },
-  { title: "Minha assinatura", url: "/assinatura", icon: CreditCard, group: "Conta", key: "__always" },
-  { title: "Meu perfil", url: "/perfil", icon: UserCircle, group: "Conta", key: "__always" },
+  { title: "Dashboard", url: "/painel", icon: LayoutDashboard, group: "Visão Geral", key: "painel" },
+  { title: "Agenda", url: "/agendar", icon: MessageCircle, group: "Operação", key: "agendar" },
+  { title: "Secretária Virtual", url: "/agendar", icon: MessageCircle, group: "Operação", key: "agendar" },
+  { title: "Conversas", url: "/agendar", icon: MessageCircle, group: "Operação", key: "agendar" },
+  { title: "Clientes", url: "/usuarios", icon: Users, group: "Operação", key: "usuarios" },
+  { title: "CRM Inteligente", url: "/crm", icon: TrendingUp, group: "Estratégico", key: "crm" },
+  { title: "Follow-ups", url: "/auditoria-sugestoes", icon: ClipboardList, group: "Estratégico", key: "auditoria-sugestoes" },
+  { title: "Oportunidades", url: "/crm", icon: Sparkles, group: "Estratégico", key: "crm" },
+  { title: "Campanhas", url: "/crm", icon: TrendingUp, group: "Estratégico", key: "crm" },
+  { title: "Planos Beauty", url: "/assinatura", icon: CreditCard, group: "Gestão", key: "__always" },
+  { title: "Profissionais", url: "/operadores", icon: UserCog, group: "Gestão", key: "operadores" },
+  { title: "Unidades", url: "/base-conhecimento", icon: BookOpen, group: "Gestão", key: "base-conhecimento" },
+  { title: "Financeiro", url: "/crm", icon: CreditCard, group: "Gestão", key: "crm" },
+  { title: "Analytics", url: "/crm", icon: TrendingUp, group: "Estratégico", key: "crm" },
+  { title: "Relatórios", url: "/auditoria-sugestoes", icon: ClipboardList, group: "Estratégico", key: "auditoria-sugestoes" },
+  { title: "Central IA", url: "/aprendizado-ia", icon: Brain, group: "IA & Inteligência", key: "aprendizado-ia" },
+  { title: "Configurações", url: "/configuracao-whatsapp", icon: UserCog, group: "IA & Inteligência", key: "config-whatsapp" },
+  { title: "Perfil", url: "/perfil", icon: UserCircle, group: "Conta", key: "__always" },
+  { title: "Ajuda", url: "/perfil", icon: UserCircle, group: "Conta", key: "__always" },
 ] as const;
 
 export function AppSidebar() {
@@ -77,19 +78,19 @@ export function AppSidebar() {
   const groups = Array.from(new Set(visibleItems.map((i) => i.group)));
 
   return (
-    <Sidebar collapsible="icon">
-      <SidebarHeader>
-        <div className="flex items-center gap-2 px-2 py-3">
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-sidebar-primary text-sidebar-primary-foreground shadow-sm">
-            <Flower2 className="h-4 w-4" />
+    <Sidebar collapsible="icon" className="border-r border-sidebar-border bg-sidebar shadow-xl transition-all duration-300">
+      <SidebarHeader className="border-b border-sidebar-border/50">
+        <div className="flex items-center gap-3 px-3 py-5">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 transition-transform hover:scale-105 active:scale-95">
+            <Flower2 className="h-5 w-5" />
           </div>
           {!collapsed && (
-            <div className="min-w-0">
-              <p className="font-display text-lg leading-none tracking-tight text-sidebar-foreground">
+            <div className="min-w-0 animate-in fade-in slide-in-from-left-2 duration-300">
+              <p className="font-display text-xl leading-none tracking-tight text-white">
                 Seja Livre
               </p>
-              <p className="truncate text-[11px] uppercase tracking-[0.14em] text-sidebar-foreground/60">
-                Secretária virtual
+              <p className="mt-1 truncate text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">
+                AI Platform
               </p>
             </div>
           )}
@@ -98,10 +99,14 @@ export function AppSidebar() {
 
       <SidebarContent>
         {groups.map((group) => (
-          <SidebarGroup key={group}>
-            <SidebarGroupLabel>{group}</SidebarGroupLabel>
+          <SidebarGroup key={group} className="px-3 py-2">
+            {!collapsed && (
+              <SidebarGroupLabel className="px-2 py-2 text-[10px] font-bold uppercase tracking-widest text-sidebar-foreground/30">
+                {group}
+              </SidebarGroupLabel>
+            )}
             <SidebarGroupContent>
-              <SidebarMenu>
+              <SidebarMenu className="gap-1">
                 {visibleItems
                   .filter((i) => i.group === group)
                   .map((item) => (
@@ -110,10 +115,11 @@ export function AppSidebar() {
                         asChild
                         isActive={isActive(item.url)}
                         tooltip={item.title}
+                        className="h-10 px-3 transition-all duration-200 hover:bg-sidebar-accent/50 hover:text-white data-[active=true]:bg-primary data-[active=true]:text-white data-[active=true]:shadow-md data-[active=true]:shadow-primary/20"
                       >
-                        <Link to={item.url} className="flex items-center gap-2">
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.title}</span>
+                        <Link to={item.url} className="flex items-center gap-3">
+                          <item.icon className="h-4.5 w-4.5 shrink-0" />
+                          <span className="text-sm font-medium">{item.title}</span>
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
