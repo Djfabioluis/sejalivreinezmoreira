@@ -1078,9 +1078,8 @@ function buildTools(
           return result;
         }),
     }),
-
-    }),
     resolve_subscription_service: tool({
+
       description:
         "Resolve, na unidade EFETIVA da conversa, qual serviço do BEMP corresponde ao plano do cliente (ex.: plano de manicure → 'Manicure Plano Beauty'). Chame antes de consultar profissionais/horários de um agendamento por plano. O backend resolve o service_id — nunca invente IDs.",
       inputSchema: z.object({
