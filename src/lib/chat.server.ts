@@ -2273,7 +2273,6 @@ ${subscriptionContextLine(ctx as Record<string, any>)}
            NO_DURATION_GUARD + 
            unitContext +
            contactInfo +
-           promotionBlock +
            (sandbox ? SANDBOX_NOTE : "") +
            (opts.persona ? `\n\n${opts.persona}` : "") +
            mandatoryOperationalRules({
