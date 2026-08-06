@@ -424,37 +424,49 @@ export type Database = {
       }
       crm_recommendations: {
         Row: {
+          campaign_name: string | null
           confidence: number
           created_at: string | null
-          customer_id: string
+          customer_id: string | null
           id: string
           metadata: Json | null
           reason: string
           recommendation_type: string
+          service_focus: string | null
           status: string
           suggested_message: string | null
+          target_audience: string | null
+          unit_id: string | null
         }
         Insert: {
+          campaign_name?: string | null
           confidence?: number
           created_at?: string | null
-          customer_id: string
+          customer_id?: string | null
           id?: string
           metadata?: Json | null
           reason: string
           recommendation_type: string
+          service_focus?: string | null
           status?: string
           suggested_message?: string | null
+          target_audience?: string | null
+          unit_id?: string | null
         }
         Update: {
+          campaign_name?: string | null
           confidence?: number
           created_at?: string | null
-          customer_id?: string
+          customer_id?: string | null
           id?: string
           metadata?: Json | null
           reason?: string
           recommendation_type?: string
+          service_focus?: string | null
           status?: string
           suggested_message?: string | null
+          target_audience?: string | null
+          unit_id?: string | null
         }
         Relationships: []
       }
