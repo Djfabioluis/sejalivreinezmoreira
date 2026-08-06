@@ -2092,7 +2092,13 @@ export async function loadSystemPrompt(params: {
 
   const summary = params.customerContext ? JSON.stringify(params.customerContext, null, 2) : "Nenhum contexto anterior.";
   const promoBlock = params.activePromotions?.length 
-    ? JSON.stringify(params.activePromotions, null, 2) 
+    ? JSON.stringify(params.activePromotions.map(p => ({
+        code: p.code,
+        title: p.title,
+        price: p.promotional_price,
+        category: p.service_category,
+        validUntil: p.end_at
+      })), null, 2) 
     : "Nenhuma promoção ativa no momento.";
 
   return prompt
@@ -2144,7 +2150,7 @@ export function assembleSystemPrompt(
     customer_context_summary: opts.contextSummary,
   };
   let out = replacePromptVariables(basePrompt, values);
-  if (!/\{\{|DADOS CONFIÁVEIS DO ATENDIMENTO/.test(basePrompt)) {
+  if (!/DADOS CONFIÁVEIS DO ATENDIMENTO/.test(basePrompt)) {
     out += `\n\nDADOS CONFIÁVEIS DO ATENDIMENTO:\nNome do cliente: ${values.contactName}\nTelefone do WhatsApp: ${values.contactPhone}\nUnidade operacional: ${values.unitName}\n\nESTADO ATUAL:\n${values.customer_context_summary}`;
   }
   return out;
@@ -2223,8 +2229,6 @@ ${subscriptionContextLine(ctx as Record<string, any>)}
 `.trim();
   }
 
-  const basePrompt = await loadSystemPrompt();
-
   const { effectiveUnitId, effectiveUnitName } = await resolveEffectiveUnit({ 
     conversationKey: opts.conversationKey || undefined, 
     agentUnitId: opts.unidadeId 
@@ -2233,25 +2237,27 @@ ${subscriptionContextLine(ctx as Record<string, any>)}
   const currentUnitName = effectiveUnitName || opts.unitName;
 
   // Buscar promoções ativas para o contexto
-  let promotionBlock = "";
+  let activePromotions: any[] = [];
   try {
-    const activePromosResult = await PromotionService.getActivePromotions({
+    const promoResult = await PromotionService.getActivePromotions({
       unitId: effectiveUnitId ? String(effectiveUnitId) : undefined,
       channel: "WHATSAPP"
     });
 
-    if (activePromosResult.success && activePromosResult.promotions.length > 0) {
-      promotionBlock = `\n\nPROMOÇÕES ATIVAS E CONFIRMADAS:\n${JSON.stringify(activePromosResult.promotions.map((p: any) => ({
-        code: p.code,
-        title: p.title,
-        price: p.promotional_price,
-        category: p.service_category,
-        validUntil: p.end_at
-      })), null, 2)}`;
+    if (promoResult.success) {
+      activePromotions = promoResult.promotions;
     }
   } catch (err) {
-    console.error("[chat] erro ao carregar promoções para contexto:", err);
+    console.error("[chat] erro ao carregar promoções para contexto (stream):", err);
   }
+
+  const basePrompt = await loadSystemPrompt({
+    contactName: opts.contactName || undefined,
+    contactPhone: opts.contactPhone || undefined,
+    unitName: currentUnitName || undefined,
+    customerContext: opts.customerContext,
+    activePromotions: activePromotions
+  });
 
   let system = assembleSystemPrompt(basePrompt, {
     contactName: opts.contactName,
