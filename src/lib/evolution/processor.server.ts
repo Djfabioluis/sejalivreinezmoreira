@@ -7,6 +7,7 @@ import { extractMessageText } from "./message-text";
 import { normalizeIncomingMessage } from "./media-normalizer";
 import { mediaPlaceholderText } from "./media-pipeline.server";
 import { normalizePhone, buildConversationKey, normalizeContactName } from "./contact";
+import { logger } from "@/lib/observability/logger.server";
 
 /** Normalização estrita: só valores explicitamente verdadeiros contam como fromMe. */
 export function isFromMe(value: unknown): boolean {
@@ -37,7 +38,11 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
   }
 
   for (const msg of messages) {
-    const traceId = `${msg.instance}:${msg.messageId}`;
+    const traceId = (payload as any)._traceId || `${msg.instance}:${msg.messageId}`;
+    logger.info("MESSAGE_UPSTREAM", `Processando mensagem do WhatsApp [${traceId}]`, { 
+      instance: msg.instance, 
+      phone: msg.remoteJid 
+    });
 
     try {
       // 2. fromMe (mensagem enviada pelo próprio número) → ignorar cedo

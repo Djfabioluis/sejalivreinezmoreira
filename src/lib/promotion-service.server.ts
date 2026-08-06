@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { logger } from "./core-service";
+import { logger } from "@/lib/observability/logger.server";
 import { BempService } from "./bemp-service.server";
 import { normalizeServiceSearchText } from "./service-utils";
 import { z } from "zod";
@@ -44,9 +44,8 @@ export class PromotionService {
     const traceId = Math.random().toString(36).substring(7);
     const now = new Date().toISOString();
     
-    logger.info("PromotionService", "PROMOTION_LOOKUP_STARTED", "Iniciando consulta de promoções", { 
+    logger.info("PROMOTION_LOOKUP_STARTED", `Iniciando consulta de promoções [${traceId}]`, { 
       params, 
-      traceId, 
       now 
     });
 
@@ -78,8 +77,16 @@ export class PromotionService {
 
       const { data, error, count } = await query;
 
+      logger.audit("PROMOTION_SQL_EXECUTED", "SQL de consulta de promoções executado", {
+        traceId,
+        params,
+        query_table: 'promotions',
+        query_filters: { status: 'ACTIVE', channel: params.channel, now },
+        result_count: data?.length || 0
+      });
+
       if (error) {
-        logger.error("PromotionService", "promotion_query_failed", error.message, { error, params, traceId });
+        logger.error("promotion_query_failed", error.message, { error, params, traceId });
         return {
           success: false,
           code: error.code === "42P01" ? "PROMOTIONS_TABLE_NOT_FOUND" : "PROMOTION_QUERY_FAILED",
@@ -87,9 +94,8 @@ export class PromotionService {
         };
       }
 
-      logger.info("PromotionService", "PROMOTION_LOOKUP_RESULT", `Consulta retornou ${data?.length || 0} promoções`, { 
-        data_count: data?.length || 0,
-        traceId 
+      logger.info("PROMOTION_LOOKUP_RESULT", `Consulta retornou ${data?.length || 0} promoções [${traceId}]`, { 
+        data_count: data?.length || 0
       });
 
       const parsedPromotions: Promotion[] = [];
@@ -101,7 +107,7 @@ export class PromotionService {
             parsedPromotions.push(validation.data);
           }
         } else {
-          logger.warn("PromotionService", "promotion_invalid_data", "Falha ao validar promoção", { error: validation.error, item, traceId });
+          logger.warn("promotion_invalid_data", `Falha ao validar promoção [${traceId}]`, { error: validation.error, item });
           return {
             success: false,
             code: "PROMOTION_INVALID_DATA",
@@ -110,9 +116,8 @@ export class PromotionService {
         }
       }
 
-      logger.info("PromotionService", "PROMOTION_SELECTED", `Promoções válidas selecionadas: ${parsedPromotions.length}`, { 
-        promotion_codes: parsedPromotions.map(p => p.code),
-        traceId 
+      logger.info("PROMOTION_SELECTED", `Promoções válidas selecionadas: ${parsedPromotions.length} [${traceId}]`, { 
+        promotion_codes: parsedPromotions.map(p => p.code)
       });
 
       return {
@@ -121,7 +126,7 @@ export class PromotionService {
       };
     } catch (error) {
       const message = error instanceof Error ? error.message : "Erro desconhecido";
-      logger.error("PromotionService", "promotion_lookup_exception", message, { error, params, traceId });
+      logger.error("promotion_lookup_exception", message, { error, params, traceId });
       return {
         success: false,
         code: "PROMOTION_QUERY_FAILED",
@@ -145,8 +150,7 @@ export class PromotionService {
       });
 
       if (match) {
-        logger.info("PromotionService", "promotion_service_resolved", undefined, { 
-          traceId, 
+        logger.info("promotion_service_resolved", `Serviço da promoção resolvido [${traceId}]`, { 
           promotionCode: promotion.code, 
           serviceId: match.id 
         });
@@ -155,7 +159,7 @@ export class PromotionService {
 
       return null;
     } catch (error) {
-      logger.error("PromotionService", "promotion_service_resolution_failed", error instanceof Error ? error.message : "Erro desconhecido", { error, traceId });
+      logger.error("promotion_service_resolution_failed", error instanceof Error ? error.message : "Erro desconhecido", { error, traceId });
       return null;
     }
   }

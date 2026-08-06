@@ -183,7 +183,20 @@ export async function sendEvolutionText(
   typingMs = 0,
 ): Promise<boolean> {
   const number = to.replace(/\D/g, "");
+  const traceId = `out-${Math.random().toString(36).substring(7)}`;
   
+  // INSTRUMENTAÇÃO DE AUDITORIA
+  const stack = new Error().stack;
+  logger.audit("OUTBOUND_MESSAGE_SOURCE", `Enviando mensagem direta para Evolution via sendEvolutionText`, {
+    traceId,
+    instance,
+    to: number,
+    textSnippet: body.slice(0, 100),
+    source_file: "src/lib/evolution.server.ts",
+    source_function: "sendEvolutionText",
+    stack
+  });
+
   // PROTEÇÃO GLOBAL DE SAÍDA - O ÚLTIMO PONTO POSSÍVEL
   const safeText = await resolveSafeOutboundSubscriptionText({
     instance,

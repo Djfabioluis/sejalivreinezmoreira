@@ -5,6 +5,7 @@ import { z } from "zod";
 import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
 import { sanitizeCustomerText } from "@/lib/text-sanitize";
 import { logEvent } from "./evolution/logger.server";
+import { logger } from "@/lib/observability/logger.server";
 import { classifyFailure, describeError, sanitizeErrorText } from "./evolution/failure";
 import { updateCustomerPipeline, inferStageFromTool } from "@/lib/crm.server";
 import { normalizeServiceSearchText, SERVICE_CATEGORY_ALIASES, type ServiceCategory } from "./service-utils";
@@ -31,6 +32,7 @@ export const MANDATORY_SYSTEM_RULES = `REGRAS OBRIGATÓRIAS DO SISTEMA (NUNCA IG
 - Faça apenas uma pergunta por vez.
 - Use um tom caloroso, mas profissional. Emojis com moderação.
 - Quando a intenção MECHAS for detectada e o backend fornecer a promoção PACOTE_MECHAS_MENSAL como ativa, informe obrigatoriamente o nome e o preço promocional antes de solicitar profissional ou horário. Exemplo: "Neste mês temos nosso Pacote de Mechas em promoção por apenas R$ 289,90."
+- Se a promoção PACOTE_MECHAS_MENSAL estiver no bloco de PROMOÇÕES ATIVAS, ela DEVE ser citada na resposta se o assunto for cabelos ou mechas.
 - Para identificadores de assinaturas, utilize EXCLUSIVAMENTE o telefone cadastrado. NUNCA mencione a palavra "CPF" ou solicite qualquer documento de identificação nacional. Se precisar localizar um plano, peça o telefone com DDD. Se o cliente enviar o CPF espontaneamente, ignore-o e peça o telefone.
 - Formate preços como R$ XX,XX.
 - Promoção do mês: Planos de assinatura SEM TAXA DE ADESÃO.
@@ -43,6 +45,7 @@ DADOS DO ATENDIMENTO:
 Nome do cliente: {{contactName}}
 Telefone: {{contactPhone}}
 Unidade: {{unitName}}
+TraceID: {{traceId}}
 
 {{customer_context_summary}}
 
@@ -2317,6 +2320,12 @@ export async function runAgentWithLogging(params: {
   const { instance, messageId, phone, conversationKey, unidadeId, pushName, remoteJid, text, traceId } = params;
   const effectiveTraceId = traceId || `${instance}:${messageId}`;
 
+  logger.info("IA_FLOW_STARTED", `Julia AI processando mensagem [${effectiveTraceId}]`, { 
+    instance, 
+    phone,
+    unitId: unidadeId
+  });
+
 
   try {
     await logEvent({ instance, messageId, event: "history_load_started", status: "started" });
@@ -2374,7 +2383,7 @@ export async function runAgentWithLogging(params: {
       event: "ai_context_prepared",
       status: "success",
       payload: {
-        traceId: effectiveTraceId,
+        traceId: "",
         contactNameAvailable: !!pushName || !!historyData?.contact_name,
         contactPhoneAvailable: !!phone,
         unitAvailable: !!unidadeId,
@@ -2428,7 +2437,7 @@ export async function runAgentWithLogging(params: {
 
     // 1. CORRIGIR A INTERCEPTAÇÃO INICIAL (Requisito 1 & 2)
     if (isSubscriptionIntent && !currentCustomerContext.subscriptionPhoneValidated && currentCustomerContext.subscriptionLookupStage !== "LOOKING_UP_PHONE") {
-      console.log(`[chat] subscription_intent_detected: traceId=${effectiveTraceId}`);
+      logger.info("SUBSCRIPTION_INTENT_DETECTED", `Intenção de assinatura detectada`);
       
       const patch = {
         subscriptionIntent: true,
@@ -2444,7 +2453,7 @@ export async function runAgentWithLogging(params: {
       Object.assign(currentCustomerContext, patch);
 
       const phoneRequest = SUBSCRIPTION_MESSAGES.ASK_PHONE;
-      console.log(`[chat] subscription_phone_requested: traceId=${effectiveTraceId}`);
+      logger.info("SUBSCRIPTION_PHONE_REQUESTED", `Solicitando telefone para validação de plano`);
       
       const { replyToUser } = await import("./evolution/reply.server");
       await replyToUser({
@@ -2460,7 +2469,7 @@ export async function runAgentWithLogging(params: {
         messageId,
         event: "subscription_phone_requested",
         status: "success",
-        payload: { traceId: effectiveTraceId }
+        payload: { }
       });
       return;
     }
@@ -2471,8 +2480,8 @@ export async function runAgentWithLogging(params: {
        const normalizedPhone = normalizeBrazilianPhone(params.text);
 
        if (normalizedPhone) {
-         console.log(`[chat] subscription_phone_received: traceId=${effectiveTraceId}, phoneLast4=${normalizedPhone.full.slice(-4)}`);
-         console.log(`[chat] subscription_phone_lookup_started: traceId=${effectiveTraceId}, lookupStage=LOOKING_UP_PHONE`);
+          logger.info("SUBSCRIPTION_PHONE_RECEIVED", `Telefone recebido para validação`, { phoneLast4: normalizedPhone.full.slice(-4) });
+          logger.info("SUBSCRIPTION_PHONE_LOOKUP_STARTED", `Iniciando consulta de telefone no BEMP`);
          
          await patchCustomerContext(conversationKey, {
            subscriptionLookupStage: "LOOKING_UP_PHONE"
@@ -2505,6 +2514,9 @@ export async function runAgentWithLogging(params: {
               // Falha técnica NUNCA vira "plano não encontrado" e não consome tentativa.
               errorText = SUBSCRIPTION_MESSAGES.TECHNICAL_HANDOFF;
               stage = "HUMAN_HANDOFF";
+            } else if (technicalFailure) {
+              errorText = SUBSCRIPTION_MESSAGES.TECHNICAL_HANDOFF;
+              stage = "HUMAN_HANDOFF";
             } else if (attempts >= SUBSCRIPTION_MAX_PHONE_ATTEMPTS) {
               errorText = SUBSCRIPTION_MESSAGES.HUMAN_HANDOFF;
               stage = "HUMAN_HANDOFF";
@@ -2513,13 +2525,13 @@ export async function runAgentWithLogging(params: {
               stage = "AWAITING_REGISTERED_PHONE_RETRY";
             }
 
-            console.log(`[chat] subscription_phone_lookup_completed: traceId=${effectiveTraceId}, code=${result.code}, stage=${stage}, phoneAttempts=${attempts}, phoneLast4=${normalizedPhone.full.slice(-4)}`);
+            logger.info("SUBSCRIPTION_PHONE_LOOKUP_COMPLETED", `Consulta de telefone de assinatura concluída`, { code: result.code, stage, phoneAttempts: attempts, phoneLast4: normalizedPhone.full.slice(-4) });
             await logEvent({
               instance,
               messageId,
               event: technicalFailure ? "subscription_phone_lookup_completed" : "subscription_phone_not_found",
               status: technicalFailure ? "failed" : "not_found",
-              payload: { traceId: effectiveTraceId, lookupStage: stage, phoneAttempts: attempts, phoneLast4: normalizedPhone.full.slice(-4) },
+              payload: { lookupStage: stage, phoneAttempts: attempts, phoneLast4: normalizedPhone.full.slice(-4) },
             });
 
             const patch = {
@@ -2571,7 +2583,7 @@ export async function runAgentWithLogging(params: {
       const twoMinutes = 2 * 60 * 1000;
 
       if (now - lastUpdate > twoMinutes) {
-        console.log(`[chat] subscription_phone_lookup_recovered: traceId=${effectiveTraceId}`);
+        logger.warn("SUBSCRIPTION_PHONE_LOOKUP_RECOVERED", `Recuperando estado de consulta de telefone preso`);
         const patch = {
           subscriptionLookupStage: "AWAITING_REGISTERED_PHONE",
           subscriptionCheckedAt: new Date().toISOString()
@@ -2606,8 +2618,11 @@ export async function runAgentWithLogging(params: {
     let mandatoryPromo: any = null;
     let activePromotions: any[] = [];
 
-    if (intent?.category === "MECHAS") {
-      console.log(`[chat] mechas_intent_detected: traceId=${effectiveTraceId}`);
+    if (intent?.category === "MECHAS" || params.text.toLowerCase().includes("mecha")) {
+      logger.info("MECHAS_INTENT_DETECTED", `Intenção de mechas detectada`, { 
+        textSnippet: params.text.slice(0, 50) 
+      });
+      
       const promoResult = await PromotionService.getActivePromotions({
         unitId: effectiveUnitId || undefined,
         channel: "WHATSAPP",
@@ -2619,10 +2634,14 @@ export async function runAgentWithLogging(params: {
         const mechasPromo = activePromotions.find(p => p.code === 'PACOTE_MECHAS_MENSAL');
         if (mechasPromo) {
           mandatoryPromo = mechasPromo;
-          console.log(`[chat] mechas_promotion_active: traceId=${effectiveTraceId}, promo=${mechasPromo.code}`);
+          logger.info("PROMOTION_SELECTED", `Promoção de mechas selecionada`, { 
+            promo: mechasPromo.code 
+          });
         }
       } else {
-        console.error(`[chat] promotion_database_lookup_failed: traceId=${effectiveTraceId}, code=${promoResult.code}`);
+        logger.error("PROMOTION_LOOKUP_FAILED", `Falha ao buscar promoções`, { 
+          code: promoResult.code 
+        });
       }
     }
 
@@ -2656,7 +2675,7 @@ export async function runAgentWithLogging(params: {
       });
       
       if (validatedReply !== reply) {
-        console.log(`[chat] promotion_injected_into_response: traceId=${effectiveTraceId}, promo=${mandatoryPromo.code}`);
+        logger.info("PROMOTION_INJECTED", `Promoção injetada na resposta final [${effectiveTraceId}]`, { promo: mandatoryPromo.code });
         reply = validatedReply;
       }
 
@@ -2857,6 +2876,12 @@ ${subscriptionContextLine(ctx as Record<string, any>)}
     stopWhen: stepCountIs(5),
     abortSignal: AbortSignal.timeout(60000),
   });
+
+  logger.audit("IA_RAW_RESPONSE", `Resposta bruta gerada pelo modelo`, {
+    text: result.text,
+    finishReason: result.finishReason
+  });
+
   return sanitizeCustomerText(result.text?.trim() || "Desculpe, tive um probleminha aqui. Pode repetir?");
 }
 
