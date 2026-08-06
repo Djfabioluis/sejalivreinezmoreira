@@ -80,5 +80,26 @@ export class BempService {
     const result = await this.fetch<any>(url, undefined, "bemp-slots");
     return Array.isArray(result) ? result : (result?.data || []);
   }
+  static async findCustomerByPhone(params: {
+    countryCode: string;
+    areaCode: string;
+    number: string;
+  }): Promise<any> {
+    const cfg = await getBempConfig();
+    const qs = new URLSearchParams({
+      phone_country_code: params.countryCode,
+      phone_area_code: params.areaCode,
+      phone_number: params.number,
+    });
+    return this.fetch<any>(`${cfg.apiBase}/whatsapp_customer?${qs.toString()}`, undefined, "bemp-find-customer");
+  }
+
+  static async listCustomerSubscriptions(customerId: string | number): Promise<any[]> {
+    const cfg = await getBempConfig();
+    // Reutiliza o endpoint que retorna dados do cliente incluindo assinaturas
+    const result = await this.fetch<any>(`${cfg.apiBase}/customers/${customerId}/subscriptions`, undefined, "bemp-customer-subscriptions");
+    return Array.isArray(result) ? result : (result?.data || []);
+  }
 }
+
 

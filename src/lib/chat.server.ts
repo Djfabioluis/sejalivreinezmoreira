@@ -28,35 +28,33 @@ Unidade operacional: {{unitName}}
 
 REGRAS OBRIGATÓRIAS:
 - Se "Nome do cliente" estiver preenchido, NUNCA pergunte o nome.
-- Se "Telefone do WhatsApp" estiver preenchido, NUNCA pergunte telefone ou DDD.
 - Se "Unidade operacional" estiver preenchida, NUNCA pergunte qual unidade o cliente deseja. A unidade é fixa para esta instância.
 - NUNCA ofereça troca de unidade nem interprete menção a outras unidades como mudança operacional.
 - NÃO reinicie o atendimento a cada mensagem. Se o cliente disser "Olá", responda com uma saudação breve e prossiga de onde pararam.
 - NÃO repita perguntas já respondidas. Consulte o "ESTADO ATUAL" e o "HISTÓRICO".
-- Se o profissional desejado não tiver agenda, informe o cliente e pergunte se ele gostaria de entrar na lista de espera através da ferramenta join_waiting_list (isso sinaliza ao sistema para monitorar desistências).
-- Se o sábado estiver lotado, peça desculpas e ofereça o dia útil mais próximo, mencionando que o cliente pode entrar na lista de espera caso abra uma vaga.
-- Quando o cliente aceitar entrar na lista de espera, use SEMPRE a ferramenta join_waiting_list. Se surgir uma vaga por cancelamento, o sistema gerará automaticamente uma oportunidade para recuperarmos esse horário.
-- Ao gerar uma oportunidade de lista de espera, a mensagem sugerida deve seguir o padrão humanizado: "Oi, Gabi! 💜 Acabou de surgir um horário amanhã às 15h com a Juliana. Deseja que eu reserve?" (sempre confirmando antes de agendar).
+- Se o profissional desejado não tiver agenda, informe o cliente e pergunte se ele gostaria de entrar na lista de espera através da ferramenta join_waiting_list.
 - Se o cliente desistir pelo PREÇO, respeite a decisão e não insista.
 - Faça apenas uma pergunta por vez, focando no próximo passo necessário para o agendamento.
 - Use um tom caloroso, mas profissional. Emojis com moderação.
-- list_units_info pode ser usada apenas para informação consultiva (endereço, telefone). Após informar sobre outras unidades, reforce que o agendamento neste canal é para a unidade vinculada.
+
+FLUXO DE ASSINANTES (PLANO BEAUTY):
+- Quando o cliente mencionar que tem plano ou quer usar benefício:
+  1. Primeiro, verifique se o telefone atual do WhatsApp já possui plano usando validate_subscription_phone (passe o telefone atual).
+  2. Se NÃO encontrar, pergunte gentilmente: "Perfeito! 💜 Para localizar seu plano, qual é o número de telefone cadastrado na assinatura? Pode enviar com DDD."
+  3. NUNCA peça o CPF como primeira opção. O telefone é o identificador principal.
+  4. Se o cliente informar um telefone, use validate_subscription_phone com o número fornecido.
+  5. Se encontrar mais de um plano ativo, pergunte qual ele deseja usar.
+  6. Se o plano estiver sem saldo ou inativo, explique o motivo de forma empática.
 
 ESTADO ATUAL DO ATENDIMENTO (CONTEXTO):
 {{customer_context_summary}}
 
 REGRAS TÉCNICAS:
-- Sempre use o ano corrente para agendamentos.
-- Nunca mostre durações de serviços para o cliente.
 - Formate preços como R$ XX,XX.
 - Antes de confirmar o agendamento, SEMPRE apresente um resumo (Serviço, Profissional, Data, Horário) e peça confirmação explícita.
 - Promoção do mês: Planos de assinatura SEM TAXA DE ADESÃO.
-- Restrição: Unidade Centro Cívico não aceita planos de assinatura.
+- Restrição: Unidade Centro Cívico não aceita planos de assinatura.`;
 
-DIRETRIZES DE ABANDONO E PREÇO:
-- Se o cliente desistir por PREÇO, respeite a decisão e não insista. 
-- Se o profissional desejado não tiver agenda, informe o cliente e pergunte se ele gostaria de entrar na lista de espera (isso ajuda o sistema a monitorar desistências).
-- Se o sábado estiver lotado, peça desculpas e ofereça o dia útil mais próximo.`;
 
 const SANDBOX_NOTE = `
 
@@ -213,16 +211,16 @@ async function patchCustomerContext(
  * Linha de estado do CPF para o prompt.
  * A validação só vale para o mesmo dia: em nova conversa/dia o CPF é pedido novamente.
  */
-export function cpfContextLine(ctx: Record<string, any>): string {
-  const validatedAt = ctx?.validatedAt ? Date.parse(String(ctx.validatedAt)) : NaN;
-  const sameDay =
-    Number.isFinite(validatedAt) &&
-    new Date(validatedAt).toDateString() === new Date().toDateString();
-  if (ctx?.cpf_validado === true && sameDay) {
-    return `- CPF validado nesta conversa: SIM (${ctx.cpfMasked || "***.***.***-**"}) — NÃO pedir novamente. Cliente BEMP: ${ctx.customerIdBemp ?? "não informado"}. Plano: ${ctx.planName || ctx.subscriptionPlanName || "não identificado"} (${ctx.subscriptionStatus || "status desconhecido"})`;
+/**
+ * Linha de estado da assinatura para o prompt.
+ */
+export function subscriptionContextLine(ctx: Record<string, any>): string {
+  if (ctx?.subscriptionPhoneValidated === true) {
+    return `- Plano validado nesta conversa: SIM (telefone final ${ctx.subscriptionPhoneLast4 || "****"}). Cliente BEMP: ${ctx.bempCustomerId || "n/a"}. Plano: ${ctx.subscriptionPlanName || "n/a"} (${ctx.subscriptionStatus || "status desconhecido"})`;
   }
-  return "- CPF validado nesta conversa: NÃO — solicite o CPF antes de usar qualquer plano.";
+  return "- Plano validado nesta conversa: NÃO — valide o telefone da assinatura antes de prosseguir com benefícios.";
 }
+
 
 
 async function resolveServiceForEffectiveUnit(params: { serviceName: string; effectiveUnitId: string }) {
@@ -1055,135 +1053,33 @@ function buildTools(
           };
         }),
     }),
-    validate_subscription_cpf: tool({
+    validate_subscription_phone: tool({
       description:
-        "Valida o CPF informado pelo cliente e consulta o cadastro no BEMP para localizar planos de assinatura. Use SEMPRE que o cliente disser que possui plano/benefício/assinatura. Nunca assuma que o cliente tem plano ativo sem chamar esta ferramenta.",
+        "Valida o telefone cadastrado no plano de assinatura no BEMP. Retorna o cliente e os planos ativos. Se encontrar múltiplos planos, peça ao cliente para escolher um.",
       inputSchema: z.object({
-        cpf: z.string().describe("CPF informado pelo cliente (com ou sem pontuação)"),
+        phone: z.string().describe("Número de telefone com DDD"),
       }),
-      execute: async ({ cpf }) =>
-        safeTool("validate_subscription_cpf", async () => {
-          const { normalizeCPF, isValidCPF, maskCPF, extractCPFFromText } = await import("@/lib/cpf");
-          const digits = normalizeCPF(cpf) || (extractCPFFromText(cpf) ?? "");
-
-          if (!isValidCPF(digits)) {
-            console.log("[bemp-plan] cpf_invalid");
-            return {
-              success: false,
-              code: "cpf_invalid",
-              message:
-                "CPF inválido. Responda: \"Não consegui validar esse CPF.\n\nPode conferir e enviar novamente, por favor?\"",
-            };
-          }
-
-          const { getCustomerByCPF } = await import("@/lib/bemp/subscriptions.server");
-          const res = await getCustomerByCPF(digits);
-
-          if (!res.found) {
+      execute: async ({ phone }) =>
+        safeTool("validate_subscription_phone", async () => {
+          const { validateSubscriptionByPhone } = await import("@/lib/bemp/phone-validation.server");
+          const { maskPhone } = await import("@/lib/phone");
+          
+          const result = await validateSubscriptionByPhone(phone);
+          
+          if (result.success && result.customer) {
             await patchCustomerContext(conversationKey, {
-              cpf_validado: false,
-              cpfMasked: maskCPF(digits),
-              subscriptionBenefitAvailable: false,
+              subscriptionPhoneValidated: true,
+              subscriptionPhoneLast4: result.customer.phoneMasked.slice(-4),
+              bempCustomerId: result.customer.id,
               subscriptionCheckedAt: new Date().toISOString(),
             });
-            return {
-              success: false,
-              code: "customer_not_found",
-              message:
-                "Cadastro não localizado. Responda: \"Não encontrei um cadastro com esse CPF.\n\nPode conferir o número ou, se preferir, posso encaminhar você para nossa equipe.\" NÃO continue o fluxo de plano.",
-            };
           }
-
-          const plans = res.plans.map((p) => ({
-            id: p.id,
-            name: p.name,
-            status: p.status,
-            validUntil: p.validUntil,
-            availableUses: p.availableUses,
-            benefitServiceName: p.serviceName,
-          }));
-          const invalidPlans = res.inactivePlans.map((p) => ({
-            name: p.name,
-            status: p.status,
-            reason: p.inactiveReason,
-            benefitServiceName: p.serviceName,
-          }));
-
-          const validatedAt = new Date().toISOString();
-          const base: Record<string, unknown> = {
-            cpf_validado: true,
-            cpfMasked: maskCPF(digits),
-            customerIdBemp: res.customerId,
-            validatedAt,
-            subscriptionCheckedAt: validatedAt,
-          };
-
-          if (plans.length === 1) {
-            const only = res.plans[0]!;
-            await patchCustomerContext(conversationKey, {
-              ...base,
-              planId: only.id,
-              planName: only.name,
-              subscriptionStatus: only.status,
-              subscriptionPlanId: only.id,
-              subscriptionPlanName: only.name,
-              subscriptionServiceName: only.serviceName,
-              subscriptionBenefitAvailable: true,
-            });
-          } else {
-            await patchCustomerContext(conversationKey, {
-              ...base,
-              subscriptionBenefitAvailable: plans.length > 1,
-              subscriptionStatus: plans.length === 0 ? (invalidPlans[0]?.status ?? "sem plano") : "multiplos",
-            });
-          }
-
-          if (plans.length === 0 && invalidPlans.length === 0) {
-            return {
-              success: true,
-              cpfValid: true,
-              customerFound: true,
-              customerName: res.customerName,
-              plans: [],
-              invalidPlans: [],
-              code: "no_plan",
-              message:
-                "Cliente cadastrado, porém SEM plano de assinatura. Informe com cordialidade e pergunte se deseja seguir com um agendamento convencional.",
-            };
-          }
-
-          if (plans.length === 0) {
-            return {
-              success: true,
-              cpfValid: true,
-              customerFound: true,
-              customerName: res.customerName,
-              plans: [],
-              invalidPlans,
-              code: "plan_inactive",
-              message:
-                "Plano localizado, porém inativo (cancelado, vencido, suspenso ou sem saldo). NÃO utilize o benefício: explique a situação e ofereça agendamento convencional ou atendimento humano.",
-            };
-          }
-
-          return {
-            success: true,
-            cpfValid: true,
-            customerFound: true,
-            customerName: res.customerName,
-            customerIdBemp: res.customerId,
-            plans,
-            invalidPlans,
-            multiplePlans: plans.length > 1,
-            code: plans.length > 1 ? "multiple_active_plans" : "active_plan",
-            message:
-              plans.length > 1
-                ? "Mais de um benefício ativo: liste os benefícios e pergunte qual o cliente deseja usar."
-                : "Plano ativo confirmado. Informe o benefício e chame resolve_subscription_service em seguida.",
-          };
+          
+          return result;
         }),
     }),
     resolve_subscription_service: tool({
+
       description:
         "Resolve, na unidade EFETIVA da conversa, qual serviço do BEMP corresponde ao plano do cliente (ex.: plano de manicure → 'Manicure Plano Beauty'). Chame antes de consultar profissionais/horários de um agendamento por plano. O backend resolve o service_id — nunca invente IDs.",
       inputSchema: z.object({
@@ -2170,7 +2066,8 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
 - Etapa: ${ctx.currentStep || "início"}
 - Plano de assinatura: ${ctx.subscriptionPlanName || "não identificado"}
 - Serviço do benefício: ${ctx.subscriptionServiceName || "não resolvido"}${ctx.subscriptionServiceId ? ` (id ${ctx.subscriptionServiceId})` : ""}
-${cpfContextLine(ctx as Record<string, any>)}
+${subscriptionContextLine(ctx as Record<string, any>)}
+
 `.trim();
   }
 
@@ -2453,7 +2350,7 @@ export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {})
 - Etapa: ${ctx.currentStep || "início"}
 - Plano de assinatura: ${ctx.subscriptionPlanName || "não identificado"}
 - Serviço do benefício: ${ctx.subscriptionServiceName || "não resolvido"}${ctx.subscriptionServiceId ? ` (id ${ctx.subscriptionServiceId})` : ""}
-${cpfContextLine(ctx as Record<string, any>)}
+${subscriptionContextLine(ctx as Record<string, any>)}
 `.trim();
   }
 
