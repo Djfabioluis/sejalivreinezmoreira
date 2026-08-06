@@ -2,6 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { z } from "zod";
 import { sendEvolutionText } from "@/lib/evolution.server";
+import { assertPermission } from "@/lib/permissions.functions";
+import { safeIlikePattern } from "@/lib/postgrest-safe";
 
 export type WAConversation = {
   phone: string;
