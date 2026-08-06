@@ -115,468 +115,550 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* 
-        Execute esta instrucao no projeto: CORREÇÃO CRÍTICA — IA NÃO PAUSA QUANDO O HUMANO RESPONDE
+        Execute esta instrucao no projeto: CORREÇÃO DEFINITIVA — BEMP NÃO LOCALIZA ASSINANTE PELO CPF
 
-PROBLEMA
+Foi realizada uma análise do código real do projeto Bem Agenda AI (15).
 
-Um atendente humano começa a conversar com a cliente pela Secretária Virtual ou pelo próprio WhatsApp conectado, mas a IA continua respondendo junto.
+O problema está no arquivo:
 
-OBJETIVO
+src/lib/bemp/subscriptions.server.ts
 
-Qualquer interação humana válida deve pausar imediatamente a IA antes de a mensagem ser enviada ou processada.
+A função getCustomerByCPF() atualmente presume, sem evidência validada, que o webhook:
 
-Não permitir respostas simultâneas de humano e IA.
+/webhooks/whatsapp_customer
 
-Não depender somente do botão “Assumir atendimento”.
+aceita:
+
+?document=CPF
+
+ou:
+
+?cpf=CPF
+
+No restante do projeto, esse mesmo endpoint é utilizado somente com:
+
+phone_country_code
+phone_area_code
+phone_number
+
+Além disso, os testes atuais usam mocks e não comprovam que o endpoint real do BEMP aceita CPF.
+
+Não adicionar mais tentativas aleatórias de endpoints.
+
+Não declarar corrigido sem testar com um CPF real e conhecido no BEMP.
 
 Não publicar automaticamente.
 
 ==================================================
-1. IDENTIFICAR TODOS OS CANAIS DE RESPOSTA HUMANA
+1. AUDITAR A INTEGRAÇÃO REAL
 ==================================================
 
-Mapear onde um humano pode responder:
-
-- campo de mensagem da Secretária Virtual;
-- botão “Enviar”;
-- respostas rápidas;
-- envio de mídia;
-- envio pelo WhatsApp físico conectado;
-- ações administrativas que enviam mensagens;
-- integração externa, se houver.
-
-Todas essas ações devem passar por uma função única:
-
-pauseAIForHumanInteraction()
-
-==================================================
-2. PAUSAR ANTES DO ENVIO HUMANO
-==================================================
-
-No handler de envio manual, executar nesta ordem:
-
-1. adquirir lock da conversa;
-2. marcar atendimento humano;
-3. cancelar processamento pendente da IA;
-4. enviar mensagem humana;
-5. salvar mensagem como operator;
-6. atualizar última atividade humana;
-7. liberar lock.
-
-Não enviar primeiro e pausar depois.
-
-Exemplo:
-
-await pauseAIForHumanInteraction({
-  conversationId,
-  operatorId,
-  source: "SECRETARIA_VIRTUAL"
-});
-
-await sendManualMessage(...);
-
-==================================================
-3. FUNÇÃO ÚNICA DE PAUSA
-==================================================
-
-Criar ou consolidar:
-
-pauseAIForHumanInteraction({
-  conversationId,
-  operatorId,
-  source
-})
-
-Ela deve atualizar atomicamente:
-
-attendance_mode = "HUMAN"
-human_operator_id = operatorId
-human_assumed_at = COALESCE(human_assumed_at, now())
-human_last_activity_at = now()
-ai_paused_at = now()
-ai_pause_reason = "HUMAN_INTERACTION"
-ai_resume_at = now() + timeout
-pending_customer_reply = false
-human_only = false, salvo configuração explícita
-
-Também deve:
-
-- cancelar jobs pendentes da IA para a conversa;
-- cancelar follow-ups prontos para envio;
-- invalidar respostas ainda não enviadas;
-- registrar auditoria.
-
-==================================================
-4. NÃO DEPENDER DO FRONTEND
-==================================================
-
-A pausa deve ocorrer no backend.
-
-Mesmo que o frontend falhe ou seja contornado, qualquer rota de envio manual deve obrigatoriamente chamar pauseAIForHumanInteraction().
-
-Não confiar em:
-
-setState local
-botão oculto
-badge visual
-campo attendance_mode alterado apenas no browser
-
-==================================================
-5. MENSAGEM HUMANA SALVA COMO OPERATOR
-==================================================
-
-Mensagens manuais devem ser salvas com origem clara:
-
-role = "operator"
-
-ou:
-
-sender_type = "HUMAN"
-
-Não salvar mensagem humana como:
-
-assistant
-user
-system
-
-A IA deve conseguir distinguir:
-
-cliente
-IA
-atendente humano
-
-==================================================
-6. MENSAGEM ENVIADA PELO WHATSAPP FÍSICO
-==================================================
-
-Quando o atendente responder pelo próprio aplicativo WhatsApp conectado, a Evolution provavelmente enviará:
-
-fromMe = true
-
-Hoje essas mensagens podem estar sendo apenas ignoradas.
-
-Alterar o tratamento:
-
-Se fromMe = true:
-
-- não chamar IA;
-- não salvar como mensagem do cliente;
-- identificar se é mensagem humana real ou mensagem enviada pelo sistema;
-- quando for humana, pausar a IA;
-- salvar como operator;
-- atualizar human_last_activity_at.
-
-Não retornar imediatamente antes de atualizar o modo humano.
-
-==================================================
-7. DIFERENCIAR MENSAGEM DO SISTEMA E DO HUMANO
-==================================================
-
-Não tratar todo fromMe como humano, pois respostas da própria IA também retornam como fromMe.
-
-Criar correlação de envios.
-
-Quando o sistema enviar pela Evolution, registrar:
-
-outbound_message_id
-source = "AI" | "SYSTEM" | "FOLLOWUP"
-
-Quando chegar evento fromMe:
-
-- se messageId estiver registrado como envio da IA/sistema:
-  apenas atualizar status de entrega;
-  não pausar IA;
-
-- se messageId não estiver registrado como envio do sistema:
-  considerar possível envio humano;
-  salvar como operator;
-  pausar IA.
-
-Esta distinção é obrigatória.
-
-==================================================
-8. BLOQUEIO ANTES DO RUNAGENT
-==================================================
-
-Imediatamente antes de chamar runAgent(), reler a conversa no banco.
-
-Não confiar no estado carregado no início do webhook.
+Localizar todos os endpoints e contratos BEMP disponíveis no projeto.
 
 Verificar:
 
-attendance_mode
-human_last_activity_at
-human_only
-ai_paused_at
+- documentação existente;
+- chamadas de rede já utilizadas;
+- configurações salvas;
+- respostas reais;
+- rotas da API autenticada;
+- webhooks públicos.
 
-Se attendance_mode = HUMAN ou human_only = true:
+Descobrir qual endpoint realmente permite localizar cliente por:
 
-- abortar runAgent;
-- registrar ai_execution_blocked_by_human;
-- não enviar fallback;
-- preservar a mensagem da cliente.
+- CPF;
+- documento;
+- tax_id;
+- document_number;
+- pesquisa geral;
+- outro campo equivalente.
 
-Essa segunda verificação evita corrida:
+Não presumir o nome do parâmetro.
 
-cliente envia
-→ webhook começa
-→ humano responde
-→ webhook antigo continua
-→ IA responde
+Registrar no teste, sem dados sensíveis:
+
+{
+  endpointPath,
+  method,
+  parameterName,
+  status,
+  topLevelKeys,
+  responseType
+}
+
+Nunca registrar CPF completo ou token.
 
 ==================================================
-9. CANCELAR PROCESSAMENTO EM ANDAMENTO
+2. NÃO USAR TENTATIVAS ESPECULATIVAS
 ==================================================
 
-Se o humano assumir enquanto a IA já está processando:
+Remover esta lógica:
 
-- marcar uma versão/epoch da conversa;
-- antes de enviar a resposta da IA, validar novamente;
-- se o modo mudou para HUMAN, cancelar o envio.
+const attempts = [
+  `/whatsapp_customer?document=${cpf}`,
+  `/whatsapp_customer?cpf=${cpf}`
+];
+
+Substituir por uma função central com contrato confirmado:
+
+BempService.findCustomerByCPF(cpf)
+
+Ela deve usar somente o endpoint e o parâmetro realmente aceitos pelo BEMP.
+
+Se a instalação atual do BEMP não possuir busca pública por CPF:
+
+- não fingir que existe;
+- utilizar a API autenticada correta;
+- ou criar um fluxo backend autorizado;
+- ou retornar BEMP_CPF_LOOKUP_UNSUPPORTED.
+
+==================================================
+3. CRIAR RETORNO ESTRUTURADO
+==================================================
 
 Criar:
 
-conversation_ai_epoch
+type CustomerLookupResult =
+  | {
+      success: true;
+      customer: {
+        id: string | number;
+        name: string | null;
+        documentLast4: string;
+      };
+    }
+  | {
+      success: false;
+      code:
+        | "INVALID_CPF"
+        | "CUSTOMER_NOT_FOUND"
+        | "MULTIPLE_CUSTOMERS_FOUND"
+        | "BEMP_CPF_LOOKUP_UNSUPPORTED"
+        | "BEMP_UNAUTHORIZED"
+        | "BEMP_RATE_LIMITED"
+        | "BEMP_UNAVAILABLE"
+        | "BEMP_INVALID_RESPONSE";
+      retryable: boolean;
+      message: string;
+    };
 
-Ao iniciar IA:
+Não retornar:
 
-capture epoch
+success: true
+found: false
 
-Antes do envio:
+para erros técnicos.
 
-confirmar que epoch não mudou.
-
-Ou usar:
-
-ai_processing_token
-
-Se o humano assumir, invalidar o token.
-
-==================================================
-10. LOCK DE CONVERSA
-==================================================
-
-Usar o mesmo lock para:
-
-- processamento da IA;
-- envio humano;
-- devolução à IA;
-- retomada automática.
-
-O envio humano deve ter prioridade.
-
-Se existir processamento da IA:
-
-- sinalizar cancelamento;
-- aguardar ou invalidar o envio;
-- nunca enviar as duas respostas.
+Cliente inexistente e falha técnica são situações diferentes.
 
 ==================================================
-11. INTERFACE
+4. TRATAR FORMATO REAL DA RESPOSTA
 ==================================================
 
-Ao abrir uma conversa e o operador começar a digitar, opcionalmente marcar atividade temporária.
+Criar schemas Zod com base na resposta real observada.
 
-Mas a pausa definitiva deve ocorrer ao:
+Suportar explicitamente os formatos confirmados, como:
 
-- clicar “Assumir atendimento”;
-- enviar a primeira mensagem humana.
+{
+  customer: {...}
+}
 
-Depois do envio, mostrar imediatamente:
+{
+  data: {
+    customer: {...}
+  }
+}
 
-“Humano atendendo”
+{
+  data: [...]
+}
 
-e:
+[
+  {...}
+]
 
-“IA pausada”
+{
+  results: [...]
+}
 
-Sem precisar atualizar a página.
+Não aceitar qualquer objeto automaticamente.
 
-==================================================
-12. BOTÃO ASSUMIR ATENDIMENTO
-==================================================
+Remover:
 
-Manter o botão, mas ele deve usar a mesma função server-side.
+if (data && typeof data === "object") {
+  customer = data;
+}
 
-Não criar dois fluxos diferentes:
+Validar o schema.
 
-botão assumir
-e
-mensagem manual
+Caso o formato não corresponda:
 
-Ambos devem chamar:
+BEMP_INVALID_RESPONSE
 
-página pauseAIForHumanInteraction()
-
-==================================================
-13. FOLLOW-UP E AUTOMAÇÕES
-==================================================
-
-Quando humano assume:
-
-- cancelar follow-up em estado READY ou SENDING ainda não enviado;
-- pausar novos follow-ups;
-- não gerar campanha individual para a conversa;
-- não executar retomada automática antes do timeout.
-
-Não cancelar campanhas gerais já aprovadas, salvo regra explícita.
+Registrar somente as chaves e tipos da resposta.
 
 ==================================================
-14. RETOMADA AUTOMÁTICA
+5. NORMALIZAR RESULTADOS EM ARRAY
 ==================================================
 
-A retomada só pode ocorrer quando:
+Se a busca retornar array:
 
-- último evento humano ultrapassou o timeout;
-- existe mensagem da cliente sem resposta humana;
-- última mensagem relevante é da cliente;
-- human_only = false;
-- não existe operador digitando;
-- não existe job humano pendente.
+- normalizar todos os CPFs/documentos;
+- comparar com o CPF solicitado;
+- selecionar somente correspondência exata.
 
-Não retomar apenas porque passou o tempo.
+Se zero correspondências:
 
-==================================================
-15. LOGS OBRIGATÓRIOS
-==================================================
+CUSTOMER_NOT_FOUND
 
-Registrar:
+Se uma:
 
-human_interaction_detected
-human_pause_started
-human_pause_completed
-manual_message_send_started
-manual_message_send_completed
-from_me_matched_system_outbound
-from_me_classified_as_human
-ai_processing_invalidated_by_human
-ai_execution_blocked_by_human
-ai_send_canceled_by_human
-human_activity_updated
+continuar.
 
-Incluir:
+Se mais de uma:
 
-traceId
-conversationId
-operatorId
-source
-messageId
-attendanceModeBefore
-attendanceModeAfter
+MULTIPLE_CUSTOMERS_FOUND
 
-Não registrar conteúdo completo.
+Não escolher o primeiro cadastro arbitrariamente.
 
 ==================================================
-16. TESTE DE CORRIDA CRÍTICO
+6. VALIDAR A IDENTIDADE PELO CPF
 ==================================================
 
-Cenário:
+Não considerar que qualquer objeto com id ou name seja o cliente correto.
 
-1. cliente envia mensagem;
-2. IA começa a processar;
-3. antes da resposta, humano envia mensagem;
-4. humano é salvo como operator;
-5. IA tenta enviar.
+Comparar o documento retornado pelo BEMP com o CPF solicitado quando o campo estiver disponível.
 
-Resultado obrigatório:
+Reconhecer aliases confirmados:
 
-- mensagem humana enviada;
-- resposta da IA cancelada;
-- attendance_mode = HUMAN;
-- apenas uma mensagem enviada à cliente.
+cpf
+document
+document_number
+tax_id
+documentNumber
 
-==================================================
-17. TESTES OBRIGATÓRIOS
-==================================================
+Normalizar para 11 dígitos antes de comparar.
 
-Teste 1 — botão assumir
+Se o endpoint não devolver o documento, registrar:
 
-IA para imediatamente.
+document_not_verifiable
 
-Teste 2 — envio manual sem clicar em assumir
-
-Primeira mensagem humana pausa IA.
-
-Teste 3 — resposta pelo WhatsApp físico
-
-Evento fromMe não registrado como outbound do sistema:
-pausa IA.
-
-Teste 4 — resposta da própria IA volta como fromMe
-
-Não pausa IA.
-
-Teste 5 — follow-up enviado pelo sistema volta como fromMe
-
-Não classificar como humano.
-
-Teste 6 — humano responde durante runAgent
-
-Resposta da IA não é enviada.
-
-Teste 7 — nova mensagem da cliente durante modo HUMAN
-
-Mensagem entra na caixa;
-IA não responde.
-
-Teste 8 — dois operadores
-
-Última atividade é atualizada;
-não criar dois processamentos.
-
-Teste 9 — falha ao pausar
-
-Não enviar mensagem humana como se a pausa tivesse funcionado silenciosamente;
-mostrar erro e impedir risco de resposta concorrente.
-
-Teste 10 — retomada após timeout
-
-Somente retomar quando cliente continua aguardando.
+e usar somente o contrato oficial do endpoint.
 
 ==================================================
-18. AUDITORIA DO CÓDIGO EXISTENTE
+7. CONSULTAR AS ASSINATURAS SEPARADAMENTE
 ==================================================
 
-Localizar todas as chamadas a:
+O código atual pressupõe que os planos estão embutidos no cliente:
 
-sendEvolutionText
-sendManualMessage
-sendMessage
-runAgent
-runAgentWithLogging
-processMessagesUpsert
+extractPlansFromCustomer(container)
 
-Confirmar que:
+Isso não é suficiente.
 
-- todo envio humano pausa IA;
-- todo runAgent verifica modo humano;
-- todo envio da IA verifica novamente antes de sair.
+Depois de localizar o cliente:
+
+const customer = await BempService.findCustomerByCPF(cpf);
+
+const subscriptions =
+  await BempService.listCustomerSubscriptions(
+    customer.id
+  );
+
+Descobrir e utilizar o endpoint real de assinaturas por cliente.
+
+Possíveis formatos devem ser confirmados, não presumidos.
+
+Se o endpoint do cliente já retornar assinaturas, normalizar pela mesma função.
 
 ==================================================
-19. ENTREGA
+8. IMPLEMENTAR NO BEMPSERVICE
 ==================================================
 
-Ao concluir informar:
+Adicionar em:
 
-1. causa raiz;
-2. onde o envio humano não pausava;
-3. como fromMe é diferenciado;
-4. como processamento da IA é invalidado;
-5. arquivos alterados;
-6. migrations;
-7. logs do teste de corrida;
-8. build;
-9. typecheck;
-10. lint;
-11. testes.
+src/lib/bemp-service.server.ts
+
+Métodos:
+
+findCustomerByCPF(cpf: string)
+
+listCustomerSubscriptions(customerId)
+
+getCustomerSubscriptionBenefits(
+  customerId,
+  subscriptionId
+)
+
+Não manter a consulta de CPF diretamente em subscriptions.server.ts.
+
+subscriptions.server.ts deve aplicar somente as regras de domínio depois que o BempService retornar dados normalizados.
+
+==================================================
+9. PARSER DE ASSINATURAS
+==================================================
+
+Criar schema e parser específico.
+
+Campos normalizados:
+
+{
+  id,
+  name,
+  status,
+  validFrom,
+  validUntil,
+  availableUses,
+  unlimited,
+  benefits,
+  allowedUnitIds
+}
+
+Não usar asArray() genérico para esconder formato desconhecido.
+
+Se a resposta não corresponder ao contrato:
+
+BEMP_INVALID_RESPONSE
+
+==================================================
+10. NÃO CONSIDERAR STATUS DESCONHECIDO COMO ATIVO
+==================================================
+
+Hoje evaluatePlan() considera o plano ativo sempre que não reconhece um estado inativo.
+
+Isso significa que:
+
+status vazio
+status desconhecido
+status inesperado
+
+podem virar plano ativo.
+
+Corrigir para:
+
+ACTIVE somente quando o status real estiver explicitamente mapeado como ativo.
+
+Mapear valores reais encontrados no BEMP.
+
+Exemplo conceitual:
+
+ACTIVE_ALIASES = [
+  "active",
+  "ativo",
+  "vigente",
+  "enabled"
+];
+
+INACTIVE_ALIASES = [
+  "inactive",
+  "inativo",
+  "canceled",
+  "cancelled",
+  "cancelado",
+  "expired",
+  "vencido",
+  "suspended",
+  "suspenso"
+];
+
+Status desconhecido:
+
+UNKNOWN
+
+Não autorizar uso do plano automaticamente.
+
+==================================================
+11. DIFERENCIAR CLIENTE SEM PLANO DE ERRO
+==================================================
+
+Retornos obrigatórios:
+
+Cliente não existe:
+
+CUSTOMER_NOT_FOUND
+
+Cliente existe, mas não possui assinatura:
+
+NO_SUBSCRIPTION
+
+Assinatura existe, mas está inativa:
+
+NO_ACTIVE_SUBSCRIPTION
+
+Assinatura sem saldo:
+
+SUBSCRIPTION_NO_BALANCE
+
+Erro técnico:
+
+BEMP_UNAVAILABLE
+BEMP_UNAUTHORIZED
+BEMP_INVALID_RESPONSE
+
+A IA não pode dizer:
+
+“Você não possui plano”
+
+quando a consulta ao BEMP falhar.
+
+==================================================
+12. CORRIGIR A TOOL
+==================================================
+
+Em:
+
+src/lib/chat.server.ts
+
+A tool validate_subscription_cpf deve utilizar apenas o result estruturado.
+
+Fluxo:
+
+1. validar CPF;
+2. findCustomerByCPF;
+3. listCustomerSubscriptions;
+4. normalizar planos;
+5. selecionar planos ativos;
+6. salvar contexto;
+7. retornar para a IA.
+
+Não capturar todos os problemas como customer_not_found.
+
+==================================================
+13. NÃO DUPLICAR CONSULTA POR TELEFONE
+==================================================
+
+Depois da validação obrigatória por CPF:
+
+- utilizar o customerId oficial localizado;
+- não substituir o resultado pela consulta por telefone;
+- não chamar get_customer_active_plans por telefone como fonte principal.
+
+A consulta por telefone pode ser usada somente como fallback explicitamente permitido, nunca para contradizer o CPF validado.
+
+==================================================
+14. CORRIGIR OS TESTES
+==================================================
+
+Os testes atuais apenas simulam que o primeiro endpoint retorna o formato desejado.
+
+Manter testes unitários, mas adicionar testes de contrato com fixtures reais sanitizadas.
+
+Criar fixtures para:
+
+- objeto customer;
+- data.customer;
+- array de clientes;
+- results;
+- resposta de erro;
+- assinaturas separadas;
+- plano ativo;
+- plano inativo;
+- status desconhecido;
+- cliente sem plano.
+
+Adicionar teste que confirme:
+
+getCustomerByCPF não considera qualquer objeto como cliente.
+
+Adicionar teste que confirme:
+
+uma resposta array é interpretada corretamente.
+
+Adicionar teste que confirme:
+
+a assinatura é consultada pelo customerId.
+
+==================================================
+15. TESTE REAL OBRIGATÓRIO
+==================================================
+
+Usar um CPF real de teste já confirmado no BEMP.
+
+Não colocar o CPF no código, logs, relatório ou commit.
+
+Executar o fluxo e comprovar:
+
+cpf_validation_completed
+bemp_customer_lookup_started
+bemp_customer_lookup_completed
+bemp_customer_identity_matched
+bemp_subscription_lookup_started
+bemp_subscription_lookup_completed
+bemp_active_subscription_found
+subscription_service_resolved
+
+Mostrar no relatório somente:
+
+{
+  cpfLast4,
+  customerIdMasked,
+  customerFound: true,
+  subscriptionsCount,
+  activeSubscriptionsCount,
+  mappedServiceName
+}
+
+==================================================
+16. LOGS
+==================================================
+
+Adicionar:
+
+bemp_cpf_endpoint_resolved
+bemp_customer_response_shape
+bemp_customer_identity_matched
+bemp_customer_identity_mismatch
+bemp_subscription_endpoint_resolved
+bemp_subscription_response_shape
+bemp_active_subscription_found
+bemp_no_subscription
+bemp_subscription_unknown_status
+bemp_cpf_lookup_unsupported
+
+Não registrar URLs com query contendo CPF.
+
+Não registrar resposta completa.
+
+==================================================
+17. ARQUIVOS PRIORITÁRIOS
+==================================================
+
+Revisar e corrigir:
+
+src/lib/bemp/subscriptions.server.ts
+src/lib/bemp-service.server.ts
+src/lib/bemp.server.ts
+src/lib/chat.server.ts
+src/lib/bemp/tests/cpf-plans.test.ts
+
+Não criar uma terceira implementação de busca por CPF.
+
+==================================================
+18. ENTREGA
+==================================================
+
+Ao concluir, informar:
+
+1. endpoint real de busca por CPF;
+2. parâmetro real utilizado;
+3. formato real do cliente;
+4. endpoint real das assinaturas;
+5. formato real das assinaturas;
+6. causa raiz;
+7. arquivos alterados;
+8. testes unitários;
+9. teste de contrato;
+10. teste real mascarado;
+11. build;
+12. typecheck;
+13. lint.
 
 Não publicar automaticamente.
 
 CRITÉRIO DE CONCLUSÃO
 
-Não declarar corrigido apenas porque attendance_mode foi atualizado.
+Não declarar corrigido com base apenas nos mocks atuais.
 
-É obrigatório comprovar que uma mensagem humana enviada enquanto a IA processa impede o envio da resposta da IA.
+A correção só estará comprovada quando um CPF conhecido for localizado no BEMP, o customerId for obtido e as assinaturas desse cliente forem consultadas com sucesso.
       */}
 
       <div className="bg-green-600 text-white p-2 text-center text-xs font-medium">
