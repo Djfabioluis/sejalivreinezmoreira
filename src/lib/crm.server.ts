@@ -94,6 +94,7 @@ export function inferStageFromTool(toolName: string, result: any): PipelineStage
       return 'CHOOSING_PROFESSIONAL';
     case 'list_slots':
       return 'CHOOSING_TIME';
+    case 'validate_subscription_phone':
     case 'validate_subscription_cpf':
       return 'IDENTIFYING_SERVICE';
     case 'create_appointment':

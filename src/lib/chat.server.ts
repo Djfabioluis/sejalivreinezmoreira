@@ -31,6 +31,8 @@ export const MANDATORY_SYSTEM_RULES = `REGRAS OBRIGATÓRIAS DO SISTEMA (NUNCA IG
 - Faça apenas uma pergunta por vez.
 - Use um tom caloroso, mas profissional. Emojis com moderação.
 - Quando a intenção MECHAS for detectada e o backend fornecer a promoção PACOTE_MECHAS_MENSAL como ativa, informe obrigatoriamente o nome e o preço promocional antes de solicitar profissional ou horário.
+- PARA IDENTIFICAR ASSINANTES: Use primeiro o telefone cadastrado na assinatura. Nunca solicite CPF como primeira opção. Quando a cliente mencionar plano/assinatura/benefício, pergunte: "Qual é o número de telefone cadastrado na assinatura? Pode enviar com DDD."
+- CPF como Fallback: O CPF só pode ser solicitado como fallback quando a busca por telefone falhar explicitamente e você receber autorização técnica para isso (subscription_lookup_stage = FALLBACK_ALLOWED).
 - Formate preços como R$ XX,XX.
 - Promoção do mês: Planos de assinatura SEM TAXA DE ADESÃO.
 - Restrição: Unidade Centro Cívico não aceita planos de assinatura.`;
@@ -1195,6 +1197,38 @@ function buildTools(
               subscriptionPhoneLast4: result.customer.phoneMasked.slice(-4),
               bempCustomerId: result.customer.id,
               subscriptionCheckedAt: new Date().toISOString(),
+              subscriptionLookupStage: "PLAN_FOUND"
+            });
+          } else if (result.code === "CUSTOMER_NOT_FOUND" || result.code === "NO_ACTIVE_SUBSCRIPTION") {
+            await patchCustomerContext(conversationKey, {
+              subscriptionLookupStage: "PHONE_NOT_FOUND"
+            });
+          }
+          
+          return result;
+        }),
+    }),
+    validate_subscription_cpf: tool({
+      description:
+        "Valida o CPF cadastrado no plano de assinatura no BEMP. Use APENAS como fallback se a busca por telefone falhar e o cliente autorizar.",
+      inputSchema: z.object({
+        cpf: z.string().describe("CPF no formato 000.000.000-00 ou apenas números"),
+      }),
+      execute: async ({ cpf }) =>
+        safeTool("validate_subscription_cpf", async () => {
+          const { getCustomerByCPF } = await import("@/lib/bemp/subscriptions.server");
+          const { maskCPF } = await import("@/lib/cpf");
+          
+          const result = await getCustomerByCPF(cpf);
+          
+          if (result.success && result.found) {
+            await patchCustomerContext(conversationKey, {
+              subscriptionPhoneValidated: true,
+              subscriptionCpfValidated: true,
+              subscriptionCpfLast4: cpf.replace(/\D/g, "").slice(-4),
+              bempCustomerId: result.customerId,
+              subscriptionCheckedAt: new Date().toISOString(),
+              subscriptionLookupStage: "PLAN_FOUND"
             });
           }
           
@@ -2027,18 +2061,13 @@ export function mandatoryOperationalRules(opts: {
     "- Nunca crie agendamento sem que a combinação unidade + serviço + profissional tenha sido validada; se retornar professional_not_assigned_to_service, ofereça profissionais válidos ou serviços atribuídos ao profissional.",
     "- Nunca exiba IDs técnicos ao cliente. Liste profissionais com 💜 *Nome* e serviços com • *Nome*.",
     "- Se houver apenas um profissional disponível para o serviço, NUNCA pergunte preferência nem apresente a opção 'Sem preferência'; informe o profissional selecionado com entusiasmo e avance.",
-    "- PLANOS DE ASSINATURA (BENEFÍCIO): NUNCA assuma que o cliente possui plano ativo. Se ele mencionar plano, benefício ou assinatura, peça o CPF ANTES de qualquer consulta:\n\"Perfeito! 😊\n\nPara localizar seu plano, por favor informe seu CPF (somente números ou no formato 000.000.000-00).\"",
-    "- Ao receber o CPF, chame SEMPRE validate_subscription_cpf. Não invente validação nem prossiga sem essa ferramenta.",
-    "- Se retornar cpf_invalid, responda: \"Não consegui validar esse CPF.\n\nPode conferir e enviar novamente, por favor?\" e aguarde um novo CPF.",
-    "- Se retornar customer_not_found, responda: \"Não encontrei um cadastro com esse CPF.\n\nPode conferir o número ou, se preferir, posso encaminhar você para nossa equipe.\" e NÃO continue o fluxo de plano.",
-    "- Se retornar no_plan, informe com cordialidade que não há plano vinculado e pergunte se deseja seguir com um agendamento convencional.",
-    "- Se retornar plan_inactive (cancelado, vencido, suspenso ou sem saldo), NÃO utilize o benefício: explique a situação e ofereça agendamento convencional ou atendimento humano.",
-    "- Se retornar active_plan, responda: \"Encontrei seu plano ativo. 💜\n\nBenefício disponível:\n\n✨ *<Benefício>*\n\nAgora vou consultar os profissionais disponíveis.\" e siga para resolve_subscription_service.",
-    "- Se retornar multiple_active_plans, liste os benefícios e pergunte qual usar:\n\"Encontrei estes benefícios:\n\n💜 *<Benefício 1>*\n💜 *<Benefício 2>*\n\nQual deles deseja utilizar?\"",
-    "- Se o CPF já foi validado NESTA conversa (cpf_validado = true no estado atual), NUNCA peça o CPF de novo.",
-    "- Em uma NOVA conversa, sempre solicite o CPF novamente antes de usar qualquer plano; nunca reutilize CPF validado em outra data.",
-    "- NUNCA repita o CPF completo nas mensagens; se precisar citar, use o formato mascarado ***.***.***-12.",
-    "- Depois da validação do CPF você pode usar get_customer_active_plans para reconferir saldo, mas a validação por CPF é obrigatória primeiro.",
+    "- PLANOS DE ASSINATURA (IDENTIFICAÇÃO): Quando o cliente mencionar plano, benefício ou assinatura, peça o TELEFONE CADASTRADO antes de qualquer consulta:\n\"Perfeito! 💜\n\nQual é o número de telefone cadastrado na assinatura?\n\nPode enviar com DDD.\"",
+    "- Ao receber o telefone, chame SEMPRE validate_subscription_phone. Não peça CPF como primeira opção.",
+    "- Se a busca por telefone falhar, pergunte: \"Não encontrei uma assinatura com esse telefone. Pode conferir se esse é o número cadastrado no plano? ✨\"",
+    "- O CPF só pode ser solicitado se a busca por telefone falhar múltiplas vezes e você for instruído que o fallback está ativo.",
+    "- Se o telefone já foi validado NESTA conversa (subscriptionPhoneValidated = true no estado atual), NUNCA peça o telefone ou CPF de novo.",
+    "- Em uma NOVA conversa, sempre solicite o telefone novamente antes de usar qualquer plano.",
+    "- NUNCA repita o telefone completo nas mensagens; se precisar citar, use o formato mascarado (ex: ******3684).",
     "- Mapeamento oficial de benefícios (resolvido pelo backend, nunca invente): plano de manicure → *Manicure Plano Beauty*; plano de escova → *Escova Plano Beauty*; plano de hidratação e escova → *Hidratação e Escova*.",
     "- Quando houver plano ativo, NÃO pergunte qual serviço o cliente deseja: o plano já determina o serviço. Informe o benefício e siga para profissional, data e horário.",
     "- Depois de identificar o plano, chame resolve_subscription_service para obter o serviço correto NA UNIDADE ATUAL; só então chame list_professionals e list_slots com esse service_id.",
@@ -2235,7 +2264,8 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
 - Plano de assinatura: ${ctx.subscriptionPlanName || "não identificado"}
 - Serviço do benefício: ${ctx.subscriptionServiceName || "não resolvido"}${ctx.subscriptionServiceId ? ` (id ${ctx.subscriptionServiceId})` : ""}
 ${subscriptionContextLine(ctx as Record<string, any>)}
-
+- Subscription Lookup Stage: ${ctx.subscriptionLookupStage || "NONE"}
+- Subscription Intent: ${ctx.subscriptionIntent === true ? "YES" : "NO"}
 `.trim();
   }
 
@@ -2405,6 +2435,23 @@ export async function runAgentWithLogging(params: {
     const currentUnitName = effectiveUnitName || unitName;
 
     // Detecção de Intenção e Promoção (Determinística)
+    const normalizedText = (params.text || "").toLowerCase();
+    const isSubscriptionIntent = 
+      normalizedText.includes("tenho plano") || 
+      normalizedText.includes("tenho assinante") || 
+      normalizedText.includes("sou assinante") ||
+      normalizedText.includes("plano beauty") ||
+      normalizedText.includes("usar meu plano") ||
+      normalizedText.includes("usar meu beneficio");
+
+    if (isSubscriptionIntent) {
+      await patchCustomerContext(conversationKey, {
+        subscriptionIntent: true,
+        subscriptionLookupMethod: "PHONE",
+        subscriptionLookupStage: "AWAITING_REGISTERED_PHONE"
+      });
+    }
+
     const intent = detectServiceCategory(params.text);
     let mandatoryPromo: any = null;
     let activePromotions: any[] = [];
@@ -2588,6 +2635,8 @@ export async function runAgent(uiMessages: UIMessage[], opts: AgentOptions = {})
 - Plano de assinatura: ${ctx.subscriptionPlanName || "não identificado"}
 - Serviço do benefício: ${ctx.subscriptionServiceName || "não resolvido"}${ctx.subscriptionServiceId ? ` (id ${ctx.subscriptionServiceId})` : ""}
 ${subscriptionContextLine(ctx as Record<string, any>)}
+- Subscription Lookup Stage: ${ctx.subscriptionLookupStage || "NONE"}
+- Subscription Intent: ${ctx.subscriptionIntent === true ? "YES" : "NO"}
 `.trim();
   }
 
