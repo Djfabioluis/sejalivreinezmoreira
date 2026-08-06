@@ -1144,9 +1144,13 @@ function buildTools(
           const result = await validateSubscriptionByPhone(phone);
           
           if (result.success && result.customer) {
+            const normalized = await import("@/lib/phone").then(m => m.normalizeBrazilianPhone(phone));
             await patchCustomerContext(conversationKey, {
               subscriptionPhoneValidated: true,
               subscriptionPhoneLast4: result.customer.phoneMasked.slice(-4),
+              subscriptionRegisteredPhoneCountry: normalized?.countryCode,
+              subscriptionRegisteredPhoneArea: normalized?.areaCode,
+              subscriptionRegisteredPhoneNumber: normalized?.number,
               bempCustomerId: result.customer.id,
               subscriptionCheckedAt: new Date().toISOString(),
               subscriptionLookupStage: "PLAN_FOUND"
@@ -1233,12 +1237,31 @@ function buildTools(
           const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: fallbackAgentUnitId });
           if (!effectiveUnitId) throw new Error("ID da unidade não resolvido.");
 
-          // 1. Revalidar o plano no BEMP (nunca confiar apenas no contexto local).
-          const lookup = await getCustomerActivePlans({
-            phoneCountry: input.phone_country_code,
-            phoneArea: input.phone_area_code,
-            phoneNumber: input.phone_number,
-          });
+          // 1. Revalidar o plano no BEMP (usando o telefone validado ou customerId).
+          const { data: convData } = await (await import("@/integrations/supabase/client.server")).supabaseAdmin
+            .from("wa_conversas")
+            .select("customer_context")
+            .eq("phone", conversationKey || "")
+            .maybeSingle();
+          
+          const ctx = (convData?.customer_context as any) || {};
+          
+          let lookup;
+          if (ctx.subscriptionRegisteredPhoneCountry && ctx.subscriptionRegisteredPhoneArea && ctx.subscriptionRegisteredPhoneNumber) {
+            console.log("[bemp-plan] revalidating_by_registered_phone");
+            lookup = await getCustomerActivePlans({
+              phoneCountry: ctx.subscriptionRegisteredPhoneCountry,
+              phoneArea: ctx.subscriptionRegisteredPhoneArea,
+              phoneNumber: ctx.subscriptionRegisteredPhoneNumber,
+            });
+          } else {
+            console.log("[bemp-plan] revalidating_by_input_phone");
+            lookup = await getCustomerActivePlans({
+              phoneCountry: input.phone_country_code,
+              phoneArea: input.phone_area_code,
+              phoneNumber: input.phone_number,
+            });
+          }
           const wanted = normalizeSubscriptionPlanName(input.plan_name);
           const plan =
             lookup.plans.find((p) => normalizeSubscriptionPlanName(p.name) === wanted) ??

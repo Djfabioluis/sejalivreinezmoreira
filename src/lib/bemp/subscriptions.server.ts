@@ -253,88 +253,13 @@ export type CustomerByCPFResult =
  * O CPF nunca é logado em texto completo.
  */
 export async function getCustomerByCPF(cpfInput: string): Promise<CustomerByCPFResult> {
-  if (SUBSCRIPTION_PRIMARY_LOOKUP === "PHONE") {
-    log("cpf_lookup_blocked_by_policy");
-    return {
-      success: true,
-      found: false,
-      reason: "customer_not_found",
-      message: "A busca por CPF está desativada. Por favor, utilize o telefone cadastrado.",
-    };
-  }
-  const cpf = normalizeCPF(cpfInput);
-  log("cpf_lookup_started", { cpf: maskCPF(cpf) });
-
-
-  const attempts = [
-    `${BEMP_WEBHOOK_BASE}/whatsapp_customer?document=${encodeURIComponent(cpf)}`,
-    `${BEMP_WEBHOOK_BASE}/whatsapp_customer?cpf=${encodeURIComponent(cpf)}`,
-  ];
-
-  let customer: any = null;
-  let lastError: unknown = null;
-  for (const url of attempts) {
-    try {
-      const data = await bempFetch(url);
-      if (data && typeof data === "object") {
-        customer = data;
-        break;
-      }
-    } catch (err) {
-      lastError = err;
-      const message = err instanceof Error ? err.message : String(err);
-      if (!/404|not\s*found|não encontrado/i.test(message)) continue;
-    }
-  }
-
-  if (!customer) {
-    const message = lastError instanceof Error ? lastError.message : String(lastError ?? "");
-    if (lastError && !/404|not\s*found|não encontrado/i.test(message)) {
-      log("cpf_lookup_failed", { cpf: maskCPF(cpf) });
-      throw lastError;
-    }
-    log("cpf_customer_not_found", { cpf: maskCPF(cpf) });
-    return {
-      success: true,
-      found: false,
-      reason: "customer_not_found",
-      message: "Nenhum cadastro localizado para este CPF no BEMP.",
-    };
-  }
-
-  const container =
-    customer?.customer && typeof customer.customer === "object" ? customer.customer : customer;
-
-  const hasIdentity =
-    container?.id != null ||
-    container?.customer_id != null ||
-    container?.name ||
-    container?.nome;
-  if (!hasIdentity) {
-    log("cpf_customer_not_found", { cpf: maskCPF(cpf) });
-    return {
-      success: true,
-      found: false,
-      reason: "customer_not_found",
-      message: "Nenhum cadastro localizado para este CPF no BEMP.",
-    };
-  }
-
-  const { plans, inactivePlans } = extractPlansFromCustomer(container);
-  log("cpf_lookup_completed", {
-    cpf: maskCPF(cpf),
-    active: plans.length,
-    inactive: inactivePlans.length,
-  });
-
+  // BLOQUEIO GLOBAL: Este método não deve ser usado no atendimento WhatsApp.
+  log("cpf_lookup_blocked_globally");
   return {
     success: true,
-    found: true,
-    customerId: container?.id ?? container?.customer_id ?? null,
-    customerName: container?.name ?? container?.nome ?? null,
-    unitId: container?.salon_id ?? container?.unit_id ?? container?.unidade_id ?? null,
-    plans,
-    inactivePlans,
+    found: false,
+    reason: "customer_not_found",
+    message: "A busca por CPF está desativada. Por favor, utilize o telefone cadastrado.",
   };
 }
 
