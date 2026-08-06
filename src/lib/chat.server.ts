@@ -635,115 +635,43 @@ function buildTools(
         phone_country_code: z.string(),
         phone_area_code: z.string(),
         phone_number: z.string(),
+        confirmation_message_id: z.string().optional(),
       }),
       execute: async (input) =>
         safeTool("create_appointment", async () => {
           const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: fallbackAgentUnitId });
           if (!effectiveUnitId) throw new Error("ID da unidade não resolvido.");
 
-          // Validação obrigatória das atribuições reais no BEMP (unidade + serviço + profissional).
-          const { getAvailableServiceAssignments, validateProfessionalServiceAssignment } = await import(
-            "@/lib/bemp/assignments.server"
-          );
-          const availableServices = await getAvailableServiceAssignments(effectiveUnitId);
-          const svc = availableServices.find((s) => String(s.id) === String(input.service_id));
-          if (!svc) {
-            return {
-              success: false,
-              code: "service_not_available_in_unit",
-              message: "Esse serviço não está disponível com profissionais atribuídos nesta unidade.",
-            };
-          }
-          if (input.professional_id != null) {
-            const check = await validateProfessionalServiceAssignment({
-              unitId: effectiveUnitId,
-              professionalId: input.professional_id,
-              serviceId: svc.id,
-            });
-            if (!check.valid) {
-              return {
-                success: false,
-                code: "professional_not_assigned_to_service",
-                message: "Esse profissional não realiza esse serviço nesta unidade.",
-              };
-            }
+          const { createRobustAppointment } = await import("@/lib/bemp/appointments.server");
+          
+          const result = await createRobustAppointment({
+            conversationId: conversationKey || "unknown",
+            unitId: effectiveUnitId,
+            serviceId: input.service_id,
+            professionalId: input.professional_id,
+            start: input.start,
+            end: input.end,
+            name: input.name,
+            phone_country_code: input.phone_country_code,
+            phone_area_code: input.phone_area_code,
+            phone_number: input.phone_number,
+            confirmationMessageId: input.confirmation_message_id || currentMessageId || undefined,
+          }, sandbox);
+
+          if (!result.success) {
+             return result;
           }
 
-          const fullInput = { ...input, salon_id: Number(effectiveUnitId), service_id: Number(svc.id) };
-
-
-          if (sandbox) {
-            return {
-              sandbox: true,
-              simulated: true,
-              id: `SIM-${Date.now()}`,
-              status: "simulated",
-              message:
-                "Agendamento SIMULADO (modo sandbox). Nada foi gravado na Bemp. (Confirmação por WhatsApp não é enviada em sandbox.)",
-              appointment: fullInput,
-              created_at: new Date().toISOString(),
-            };
-          }
-          // Se o serviço tem apenas um profissional atribuído, não houve escolha real:
-          // não registrar a observação "com preferência".
-          const { getProfessionalsForService } = await import("@/lib/bemp/assignments.server");
-          const assignedPros = await getProfessionalsForService(effectiveUnitId, svc.id);
-          const isSoleProfessional = assignedPros.length <= 1;
-          const shouldMarkPreference = input.professional_id != null && !isSoleProfessional;
-
-          const payload = shouldMarkPreference
-            ? withProfessionalPreferenceNote(fullInput)
-            : { ...fullInput };
-          const result = await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule`, {
-            method: "POST",
-            body: JSON.stringify(payload),
-          });
-          if (shouldMarkPreference) {
-            await tryUpdateBempScheduleNote(result, PROFESSIONAL_PREFERENCE_NOTE);
-          }
-          // Registra e envia confirmação por WhatsApp (best-effort, não bloqueia o fluxo).
-          try {
-            const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-            const { sendWhatsAppText, formatBrDateTime } = await import(
-              "@/lib/whatsapp-send.server"
-            );
-            const phone = `${input.phone_country_code}${input.phone_area_code}${input.phone_number}`;
-            const bempId = extractBempAppointmentId(result);
-            // Tenta descobrir o nome do serviço (para uma mensagem mais humana).
-            let serviceName: string | null = null;
-            try {
-              const cfg = await getBempConfig();
-              const services = (await bempFetch(
-                `${cfg.apiBase}/salons/${effectiveUnitId}/services`,
-              )) as Array<Record<string, unknown>> | null;
-              if (Array.isArray(services)) {
-                const found = services.find((s) => Number(s.id) === input.service_id);
-                if (found && typeof found.name === "string") serviceName = found.name;
-              }
-            } catch {
-              // ignora — mensagem segue sem nome do serviço
-            }
-            const when = formatBrDateTime(input.start);
-            const msg = serviceName
-              ? `Oi ${input.name}! 💜 Seu agendamento de *${serviceName}* está confirmado para ${when}.\n\nSe precisar remarcar ou cancelar, é só me chamar por aqui. Até lá! ✨\n— Julia, Salão Seja Livre`
-              : `Oi ${input.name}! 💜 Seu agendamento está confirmado para ${when}.\n\nSe precisar remarcar ou cancelar, é só me chamar por aqui. Até lá! ✨\n— Julia, Salão Seja Livre`;
-            // Removido o envio direto de mensagem para evitar duplicidade. A Julia já responderá via agent runner.
-            const sent = true; // Simulado para manter a lógica de inserção no banco se necessário
-            await supabaseAdmin.from("agendamentos_notif" as never).insert({
-              bemp_appointment_id: bempId,
-              salon_id: String(effectiveUnitId),
-              service_id: String(input.service_id),
-              service_name: serviceName,
-              start_at: input.start,
-              phone,
-              name: input.name,
-              sandbox: false,
-              confirmation_sent_at: sent ? new Date().toISOString() : null,
-            } as never);
-          } catch (err) {
-            console.error("[create_appointment] falha ao registrar/notificar:", err);
-          }
-          return result;
+          // O orquestrador enviará a confirmação final baseada no retorno estruturado.
+          return {
+            success: true,
+            appointmentId: result.appointmentId,
+            appointment: result.data,
+            serviceName: (result as any).serviceName,
+            message: sandbox 
+              ? "Agendamento SIMULADO (modo sandbox). Nada foi gravado na Bemp."
+              : undefined
+          };
         }),
     }),
 
