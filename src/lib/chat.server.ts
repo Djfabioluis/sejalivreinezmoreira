@@ -2660,6 +2660,17 @@ export async function runAgentWithLogging(params: {
         console.log(`[chat] promotion_injected_into_response: traceId=${effectiveTraceId}, promo=${mandatoryPromo.code}`);
         reply = validatedReply;
       }
+    }
+
+    // AUDITORIA CRÍTICA DE CPF NA SAÍDA
+    if (reply.includes("CPF")) {
+      console.warn(`[AUDIT] CPF_RESPONSE_GENERATED traceId=${effectiveTraceId} file=chat.server.ts function=orchestrateChat text="${reply.slice(0, 100)}..."`);
+    }
+
+    return reply;
+  } catch (error: any) {
+        reply = validatedReply;
+      }
 
       await patchCustomerContext(conversationKey, {
         mechasPromotionPresented: true,

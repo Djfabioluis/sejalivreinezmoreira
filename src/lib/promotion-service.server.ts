@@ -44,7 +44,7 @@ export class PromotionService {
     const traceId = Math.random().toString(36).substring(7);
     const now = new Date().toISOString();
     
-    logger.info("PROMOTION_LOOKUP_STARTED", "Iniciando consulta de promoções", { 
+    logger.info("PromotionService", "PROMOTION_LOOKUP_STARTED", "Iniciando consulta de promoções", { 
       params, 
       traceId, 
       now 
@@ -87,7 +87,7 @@ export class PromotionService {
         };
       }
 
-      logger.info("PROMOTION_LOOKUP_RESULT", `Consulta retornou ${data?.length || 0} promoções`, { 
+      logger.info("PromotionService", "PROMOTION_LOOKUP_RESULT", `Consulta retornou ${data?.length || 0} promoções`, { 
         data_count: data?.length || 0,
         traceId 
       });
@@ -110,7 +110,7 @@ export class PromotionService {
         }
       }
 
-      logger.info("PROMOTION_SELECTED", `Promoções válidas selecionadas: ${parsedPromotions.length}`, { 
+      logger.info("PromotionService", "PROMOTION_SELECTED", `Promoções válidas selecionadas: ${parsedPromotions.length}`, { 
         promotion_codes: parsedPromotions.map(p => p.code),
         traceId 
       });
