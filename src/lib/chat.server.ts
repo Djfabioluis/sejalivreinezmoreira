@@ -1208,6 +1208,32 @@ function buildTools(
           return result;
         }),
     }),
+    validate_subscription_cpf: tool({
+      description:
+        "Valida o CPF cadastrado no plano de assinatura no BEMP. Use APENAS como fallback se a busca por telefone falhar e o cliente autorizar.",
+      inputSchema: z.object({
+        cpf: z.string().describe("CPF no formato 000.000.000-00 ou apenas números"),
+      }),
+      execute: async ({ cpf }) =>
+        safeTool("validate_subscription_cpf", async () => {
+          const { getCustomerByCPF } = await import("@/lib/bemp/subscriptions.server");
+          const { maskCPF } = await import("@/lib/text-sanitize");
+          
+          const result = await getCustomerByCPF(cpf);
+          
+          if (result.success && result.customer) {
+            await patchCustomerContext(conversationKey, {
+              subscriptionPhoneValidated: true,
+              subscriptionCpfValidated: true,
+              subscriptionCpfLast4: result.customer.cpfMasked.slice(-4),
+              bempCustomerId: result.customer.id,
+              subscriptionCheckedAt: new Date().toISOString(),
+              subscriptionLookupStage: "PLAN_FOUND"
+            });
+          }
+          
+          return result;
+        }),
     resolve_subscription_service: tool({
 
       description:
