@@ -1009,6 +1009,69 @@ export type Database = {
         }
         Relationships: []
       }
+      promotions: {
+        Row: {
+          channels: string[] | null
+          code: string
+          created_at: string | null
+          description: string | null
+          end_at: string
+          id: string
+          metadata: Json | null
+          organization_id: string | null
+          original_price: number | null
+          priority: number | null
+          promotional_price: number | null
+          service_category: string | null
+          service_name: string | null
+          start_at: string
+          status: string | null
+          title: string
+          unit_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          channels?: string[] | null
+          code: string
+          created_at?: string | null
+          description?: string | null
+          end_at: string
+          id?: string
+          metadata?: Json | null
+          organization_id?: string | null
+          original_price?: number | null
+          priority?: number | null
+          promotional_price?: number | null
+          service_category?: string | null
+          service_name?: string | null
+          start_at: string
+          status?: string | null
+          title: string
+          unit_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          channels?: string[] | null
+          code?: string
+          created_at?: string | null
+          description?: string | null
+          end_at?: string
+          id?: string
+          metadata?: Json | null
+          organization_id?: string | null
+          original_price?: number | null
+          priority?: number | null
+          promotional_price?: number | null
+          service_category?: string | null
+          service_name?: string | null
+          start_at?: string
+          status?: string | null
+          title?: string
+          unit_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       reagendamentos_hist: {
         Row: {
           created_at: string

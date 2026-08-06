@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { logger } from "./logger";
+import { logger } from "./core-service";
 import { BempService } from "./bemp-service.server";
 import { normalizeServiceSearchText } from "./service-utils";
 
@@ -23,9 +23,10 @@ export class PromotionService {
     const traceId = Math.random().toString(36).substring(7);
     
     try {
-      let query = supabaseAdmin
-        .from('promotions')
-        .select('*')
+      // Usamos any para evitar erros de tipo até o gerador de tipos rodar
+      let query = (supabaseAdmin
+        .from('promotions' as any)
+        .select('*') as any)
         .eq('status', 'ACTIVE')
         .contains('channels', [params.channel])
         .lte('start_at', new Date().toISOString())
@@ -40,9 +41,9 @@ export class PromotionService {
       if (error) throw error;
 
       // Filtra por unidade (global ou específica)
-      return (data || []).filter(p => !p.unit_id || p.unit_id === params.unitId) as Promotion[];
+      return (data || []).filter((p: any) => !p.unit_id || p.unit_id === params.unitId) as Promotion[];
     } catch (error) {
-      logger.error("promotion_lookup_failed", "Erro ao buscar promoções", { error, ...params, traceId });
+      logger.error("PromotionService", "promotion_lookup_failed", error instanceof Error ? error.message : "Erro desconhecido", { error, ...params, traceId });
       return [];
     }
   }
@@ -51,19 +52,19 @@ export class PromotionService {
     const traceId = Math.random().toString(36).substring(7);
     
     try {
-      const servicesResult = await BempService.listServices(effectiveUnitId);
-      if (!servicesResult || !Array.isArray(servicesResult)) return null;
+      const result = await BempService.listServices(effectiveUnitId);
+      if (!result) return null;
 
       const normalizedTarget = normalizeServiceSearchText(promotion.service_name);
       
       // Busca exata ou por termo contido
-      const match = servicesResult.find((s: any) => {
+      const match = result.find((s: any) => {
         const name = normalizeServiceSearchText(s.name || s.service_name || "");
         return name === normalizedTarget || name.includes(normalizedTarget);
       });
 
       if (match) {
-        logger.info("promotion_service_resolved", "Serviço da promoção resolvido", { 
+        logger.info("PromotionService", "promotion_service_resolved", undefined, { 
           traceId, 
           promotionCode: promotion.code, 
           serviceId: match.id 
@@ -73,7 +74,7 @@ export class PromotionService {
 
       return null;
     } catch (error) {
-      logger.error("promotion_service_resolution_failed", "Erro ao resolver serviço da promoção", { error, traceId });
+      logger.error("PromotionService", "promotion_service_resolution_failed", error instanceof Error ? error.message : "Erro desconhecido", { error, traceId });
       return null;
     }
   }
