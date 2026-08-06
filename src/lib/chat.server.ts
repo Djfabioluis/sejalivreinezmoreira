@@ -457,16 +457,17 @@ function buildTools(
               const activePromos = await PromotionService.getActivePromotions({
                 unitId: String(effectiveUnitId),
                 channel: "WHATSAPP",
-                category: searchCategory
               });
+              
+              const activePromotions = activePromos.success ? activePromos.promotions : [];
 
               // Resolver serviços das promoções
-              const promosWithService = await Promise.all(activePromos.map(async p => {
+              const promosWithService = await Promise.all(activePromotions.map(async (p: any) => {
                 const service = await PromotionService.resolvePromotionService(p, String(effectiveUnitId));
                 return service ? { ...p, serviceId: service.id } : null;
               }));
 
-              const validPromos = promosWithService.filter(p => p !== null);
+              const validPromos = promosWithService.filter((p): p is any => p !== null);
 
               // Contexto da conversa
               await patchCustomerContext(conversationKey, {
@@ -2473,13 +2474,13 @@ ${subscriptionContextLine(ctx as Record<string, any>)}
   // Buscar promoções ativas para o contexto
   let promotionBlock = "";
   try {
-    const activePromos = await PromotionService.getActivePromotions({
+    const activePromosResult = await PromotionService.getActivePromotions({
       unitId: effectiveUnitId ? String(effectiveUnitId) : undefined,
       channel: "WHATSAPP"
     });
 
-    if (activePromos.length > 0) {
-      promotionBlock = `\n\nPROMOÇÕES ATIVAS E CONFIRMADAS:\n${JSON.stringify(activePromos.map(p => ({
+    if (activePromosResult.success && activePromosResult.promotions.length > 0) {
+      promotionBlock = `\n\nPROMOÇÕES ATIVAS E CONFIRMADAS:\n${JSON.stringify(activePromosResult.promotions.map((p: any) => ({
         code: p.code,
         title: p.title,
         price: p.promotional_price,
