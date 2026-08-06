@@ -81,7 +81,7 @@ export async function handleAppointmentCancellationForWaitingList(data: Cancella
       end_at: data.startTime, // Simplificado
       status: 'pending',
       metadata: {
-        professional_name: data.professional_name,
+        professional_name: data.professionalName,
         service_name: data.serviceName,
         source: 'cancellation_webhook'
       }

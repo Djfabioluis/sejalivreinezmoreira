@@ -57,14 +57,12 @@ async function analyzeSalonAgenda(salonId: number, date: string) {
       
       if (availableProfSlots.length > 5) {
         console.log(`[agenda-analyzer] Profissional ocioso detectado: ${prof.name} em ${date}`);
-        // Aqui poderíamos criar uma notificação para a gestão ou promoção específica
       }
     }
   }
 }
 
 async function createSlotOpportunity(salonId: number, serviceId: number, slot: any) {
-  // Verificar se já existe oportunidade para este slot
   const startAt = slot.start_at || slot.start;
   if (!startAt) return;
 
@@ -85,8 +83,10 @@ async function createSlotOpportunity(salonId: number, serviceId: number, slot: a
         start_at: startAt,
         end_at: slot.end_at || slot.end || startAt,
         status: 'pending',
-        price_estimated: slot.price || 0,
-        source: 'agenda_analyzer'
+        metadata: {
+          price_estimated: slot.price || 0,
+          source: 'agenda_analyzer'
+        }
       });
       
     console.log(`[agenda-analyzer] Nova oportunidade de horário: ${startAt} (Salon ${salonId})`);
