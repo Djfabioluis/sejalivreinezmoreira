@@ -7,7 +7,7 @@ import { sanitizeCustomerText } from "@/lib/text-sanitize";
 import { logEvent } from "./evolution/logger.server";
 import { classifyFailure, describeError, sanitizeErrorText } from "./evolution/failure";
 import { updateCustomerPipeline, inferStageFromTool } from "@/lib/crm.server";
-import { normalizeServiceSearchText, SERVICE_CATEGORY_ALIASES, type ServiceCategory } from "./service-utils";
+import { normalizeServiceSearchText, SERVICE_CATEGORY_ALIASES, PROMOTIONS, isPromotionActive, type ServiceCategory } from "./service-utils";
 
 
 import {
@@ -41,7 +41,9 @@ REGRAS OBRIGATÓRIAS:
 
 FLUXO DE SERVIÇOS (MECHAS):
 - Quando a cliente perguntar genericamente por mechas, Pacote de Mechas, luzes, morena iluminada ou serviços relacionados:
-  1. NÃO escolha um serviço sozinha nem selecione o primeiro da lista.
+  1. Verifique se a promoção "PACOTE_MECHAS" está ativa. Se sim, informe amigavelmente: "✨ Temos uma ótima notícia! Neste mês o nosso *Pacote de Mechas* está em promoção por apenas *R$ 289,90*. 💜 Se desejar, posso agendar esse pacote para você ou apresentar outras opções de mechas disponíveis."
+  2. NÃO escolha um serviço sozinha nem selecione o primeiro da lista.
+
   2. Use a ferramenta search_services informando a categoria "MECHAS".
   3. Apresente todas as opções encontradas na unidade de forma estruturada.
   4. Informe que os valores podem variar conforme o comprimento e volume do cabelo, ou que podem exigir avaliação prévia se indicado na descrição.
@@ -457,12 +459,21 @@ function buildTools(
                 matchingServices: result.data.slice(0, 10).map(s => ({ id: s.id, name: s.name, unitId: effectiveUnitId }))
               });
 
+              const promoActive = isPromotionActive("PACOTE_MECHAS");
+              const promo = PROMOTIONS.PACOTE_MECHAS;
+
               return {
                 success: true,
                 unitName: effectiveUnitName || String(effectiveUnitId),
                 category: searchCategory,
-                services: result.data
+                services: result.data,
+                promotion: promoActive ? {
+                  title: promo.title,
+                  price: promo.price,
+                  message: `✨ Temos uma ótima notícia! Neste mês o nosso *${promo.title}* está em promoção por apenas *R$ 289,90*. 💜`
+                } : null
               };
+
             }
             return result;
           }

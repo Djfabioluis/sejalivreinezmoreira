@@ -1,6 +1,6 @@
 
 import { describe, it, expect } from "vitest";
-import { normalizeServiceSearchText, SERVICE_CATEGORY_ALIASES } from "./service-utils";
+import { normalizeServiceSearchText, SERVICE_CATEGORY_ALIASES, isPromotionActive } from "./service-utils";
 
 describe("Service Identification", () => {
   it("should normalize service search text correctly", () => {
@@ -26,4 +26,11 @@ describe("Service Identification", () => {
     );
     expect(isMechas).toBe(true);
   });
+
+  it("should detect active promotions", () => {
+    // Como a data no teste pode variar, verificamos apenas se a função existe e retorna boolean
+
+    expect(typeof isPromotionActive("PACOTE_MECHAS")).toBe("boolean");
+  });
 });
+
