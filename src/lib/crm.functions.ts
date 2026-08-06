@@ -155,4 +155,21 @@ export const listRecommendations = createServerFn({ method: "GET" })
     return data || [];
   });
 
+export const triggerCampaignGeneration = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    
+    // Import inside handler to avoid bundling server-only logic into client if possible,
+    // though this is already a .functions.ts file which is server-safe.
+    const { runPredictiveCampaignEngine } = await import("./crm/predictive-campaign.server");
+    
+    try {
+      await runPredictiveCampaignEngine();
+      return { success: true };
+    } catch (error: any) {
+      console.error("[crm.functions] triggerCampaignGeneration failed:", error);
+      throw new Error(error.message || "Falha ao gerar campanha");
+    }
+  });
 
