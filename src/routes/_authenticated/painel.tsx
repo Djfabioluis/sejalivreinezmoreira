@@ -488,31 +488,35 @@ function Dashboard() {
             <p className="text-xs opacity-70 mt-1">+4% em relação a ontem</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-none shadow-xl bg-card/50 backdrop-blur-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Receita Estimada</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Receita Prevista</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">R$ 12.480</div>
-            <p className="text-xs text-emerald-500 font-medium mt-1">↑ 12% este mês</p>
+            <p className="text-xs text-emerald-500 font-medium mt-1">↑ 12.5% vs mês anterior</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-none shadow-xl bg-card/50 backdrop-blur-sm group">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">IA Recuperou</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+              Recuperado Julia AI <Zap className="h-3 w-3 text-primary fill-primary" />
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">R$ 3.250</div>
-            <p className="text-xs text-muted-foreground mt-1">6 horários preenchidos</p>
+            <div className="text-2xl font-bold text-primary">R$ 3.250</div>
+            <p className="text-xs text-muted-foreground mt-1">6 horários otimizados hoje</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="border-none shadow-xl bg-card/50 backdrop-blur-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Ocupação</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Taxa de Ocupação</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">18 Vagas</div>
-            <p className="text-xs text-amber-500 font-medium mt-1">Alta ociosidade à tarde</p>
+            <div className="text-2xl font-bold">88%</div>
+            <div className="mt-2 h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+              <div className="h-full bg-primary w-[88%]" />
+            </div>
           </CardContent>
         </Card>
       </div>
