@@ -2398,7 +2398,7 @@ export async function runAgentWithLogging(params: {
       "tenho plano", "tenho plano beauty", "sou assinante", "quero usar meu plano",
       "quero usar meu beneficio", "tenho assinatura", "plano de manicure",
       "plano de escova", "plano de hidratacao", "quero usar minha assinatura",
-      "sou cliente do plano"
+      "sou cliente do plano", "assinatura", "plano de manicure", "plano de escova", "plano de hidratacao", "plano de beleza", "beneficio"
     ];
 
     const isSubscriptionIntent = subscriptionKeywords.some(kw => normalizedText.includes(kw));
@@ -2625,12 +2625,6 @@ export async function runAgentWithLogging(params: {
 
     let reply = agentResult;
 
-    // PROTEÇÃO DE SAÍDA #1 (pós-orquestrador): nunca mencionar CPF no fluxo de assinatura.
-    const cpfGuard = enforceNoCpfInSubscriptionFlow(reply, currentCustomerContext as never);
-    if (cpfGuard.blocked) {
-      console.log(`[chat] subscription_cpf_output_blocked: traceId=${effectiveTraceId}, lookupStage=${currentCustomerContext.subscriptionLookupStage || "NONE"}, phoneAttempts=${currentCustomerContext.subscriptionPhoneAttempts || 0}`);
-      reply = cpfGuard.text;
-    }
 
     // Validação determinística da promoção na resposta
     if (mandatoryPromo && !(historyData?.customer_context as any)?.mechasPromotionPresented) {
@@ -2667,6 +2661,14 @@ export async function runAgentWithLogging(params: {
       return;
     }
 
+    // PROTEÇÃO DE SAÍDA #1 (pós-orquestrador): nunca mencionar CPF no fluxo de assinatura.
+    const { enforceNoCpfInSubscriptionFlow } = await import("@/lib/subscription-policy.server");
+    const cpfGuard = enforceNoCpfInSubscriptionFlow(reply, currentCustomerContext as never);
+    if (cpfGuard.blocked) {
+      console.log(`[chat] subscription_cpf_output_blocked: traceId=${effectiveTraceId}, lookupStage=${currentCustomerContext.subscriptionLookupStage || "NONE"}, phoneAttempts=${currentCustomerContext.subscriptionPhoneAttempts || 0}`);
+      reply = cpfGuard.text;
+    }
+
     await logEvent({ instance, messageId, event: "ai_request_completed", status: "success" });
 
     const { replyToUser } = await import("./evolution/reply.server");
@@ -2675,7 +2677,8 @@ export async function runAgentWithLogging(params: {
       phone,
       text: reply,
       conversationKey,
-      messageId
+      messageId,
+      traceId: effectiveTraceId
     });
 
     // CRM: Update stage after successfully replying
