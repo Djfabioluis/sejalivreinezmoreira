@@ -224,62 +224,104 @@ function CRMPage() {
       </div>
 
       <div className="grid gap-8 lg:grid-cols-2">
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold">Oportunidades Identificadas (IA)</h2>
-          <ScrollArea className="h-[600px] rounded-md border p-4">
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-display font-bold flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-amber-500" /> Oportunidades de Alta Conversão
+            </h2>
+            <Badge variant="outline" className="text-[10px]">{opportunities.length} detectadas</Badge>
+          </div>
+          <ScrollArea className="h-[600px] rounded-2xl border-none shadow-inner bg-secondary/20 p-4">
             <div className="space-y-4">
               {opportunities.length > 0 ? (
                 opportunities.map((opp: any) => (
-                  <Card key={opp.id} className={`border-l-4 ${opp.opportunity_type === 'WAITING_LIST' ? 'border-l-purple-500 bg-purple-50/20' : opp.metadata?.is_premium_decision ? 'border-l-amber-500 bg-amber-50/10' : 'border-l-blue-500'}`}>
+                  <Card key={opp.id} className={`border-none shadow-md relative overflow-hidden group transition-all hover:shadow-lg ${opp.opportunity_type === 'WAITING_LIST' ? 'bg-purple-500/5' : opp.metadata?.is_premium_decision ? 'bg-amber-500/5' : 'bg-card'}`}>
+                    <div className={`absolute top-0 left-0 bottom-0 w-1.5 ${opp.opportunity_type === 'WAITING_LIST' ? 'bg-purple-500' : opp.metadata?.is_premium_decision ? 'bg-amber-500' : 'bg-blue-500'}`} />
                     <CardHeader className="pb-2">
                       <div className="flex justify-between items-start">
-                        <div>
-                          <Badge variant={opp.opportunity_type === 'WAITING_LIST' ? 'secondary' : opp.metadata?.is_premium_decision ? 'default' : 'outline'} className={`mb-1 ${opp.metadata?.is_premium_decision ? 'bg-amber-600 hover:bg-amber-700' : ''}`}>
-                            {opp.opportunity_type === 'WAITING_LIST' ? 'LISTA DE ESPERA 💜' : opp.metadata?.is_premium_decision ? 'CAMPANHA PREMIUM ⭐' : opp.opportunity_type.replace(/_/g, ' ')}
+                        <div className="space-y-1">
+                          <Badge variant="secondary" className={`text-[9px] font-bold uppercase tracking-wider ${opp.metadata?.is_premium_decision ? 'bg-amber-500/10 text-amber-600' : 'bg-primary/10 text-primary'}`}>
+                            {opp.opportunity_type === 'WAITING_LIST' ? 'Lista de Espera 💜' : opp.metadata?.is_premium_decision ? 'Campanha Premium ⭐' : opp.opportunity_type.replace(/_/g, ' ')}
                           </Badge>
-                          <CardTitle className="text-sm">{opp.customer_id}</CardTitle>
+                          <CardTitle className="text-sm font-bold flex items-center gap-2">
+                            {opp.customer_id}
+                          </CardTitle>
                         </div>
-                        <Badge className={`${opp.opportunity_type === 'WAITING_LIST' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'} hover:opacity-80 border-none`}>
-                          Score: {opp.score}
-                        </Badge>
+                        <div className="text-right">
+                          <p className="text-[9px] font-bold text-muted-foreground uppercase">Score</p>
+                          <p className="text-lg font-display font-bold text-primary">{opp.score}</p>
+                        </div>
                       </div>
                     </CardHeader>
-                    <CardContent className="space-y-2">
-                      <p className="text-xs text-muted-foreground italic">"{opp.trigger}"</p>
-                      {opp.metadata?.is_premium_decision && (
-                        <div className="text-[10px] font-bold text-amber-700 bg-amber-100/50 px-2 py-1 rounded mb-1">
-                          Público: {opp.metadata.target_audience}
-                        </div>
-                      )}
-                      <div className={`${opp.opportunity_type === 'WAITING_LIST' ? 'bg-purple-50 border-purple-100' : opp.metadata?.is_premium_decision ? 'bg-amber-50 border-amber-100' : 'bg-blue-50/50 border-blue-100'} p-2 rounded text-[11px] border`}>
-                        <strong>{opp.metadata?.is_premium_decision ? 'Sugestão de Mensagem:' : 'Ação Recomendada:'}</strong> {opp.recommended_action}
+                    <CardContent className="space-y-4">
+                      <div className="p-3 rounded-xl bg-card/50 border border-border/40 text-xs italic text-muted-foreground leading-relaxed">
+                        "{opp.trigger}"
                       </div>
-                      <div className="flex justify-between items-center pt-2">
-                        {opp.opportunity_type === 'WAITING_LIST' && (
-                           <Badge variant="outline" className="text-[8px] bg-green-50 text-green-700 border-green-200">
-                             RECUPERAÇÃO DE SLOT
-                           </Badge>
-                        )}
-                        <div className="flex gap-2 items-center ml-auto">
-                          {opp.metadata?.is_premium_decision && opp.status === 'PENDENTE' && (
-                            <Badge className="bg-amber-600 text-[9px] cursor-pointer hover:bg-amber-700">APROVAR CAMPANHA</Badge>
-                          )}
-                          <Badge variant="secondary" className="text-[9px] uppercase">{opp.status}</Badge>
-                        </div>
+                      
+                      <div className={`p-3 rounded-xl border ${opp.opportunity_type === 'WAITING_LIST' ? 'bg-purple-500/10 border-purple-500/20' : 'bg-primary/5 border-primary/10'}`}>
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-primary mb-1">Ação Recomendada</p>
+                        <p className="text-[11px] leading-relaxed font-medium">{opp.recommended_action}</p>
+                      </div>
+
+                      <div className="flex justify-between items-center pt-2 border-t border-border/40">
+                        <Badge variant="secondary" className="text-[8px] font-bold">{opp.status}</Badge>
+                        <Button size="sm" variant="ghost" className="h-7 text-[10px] gap-1 group-hover:translate-x-1 transition-transform">
+                          Executar <ChevronRight className="h-3 w-3" />
+                        </Button>
                       </div>
                     </CardContent>
                   </Card>
                 ))
               ) : (
-                <div className="text-center py-10 text-muted-foreground italic">Nenhuma oportunidade pendente.</div>
+                <div className="flex flex-col items-center justify-center h-40 text-muted-foreground gap-2">
+                  <Clock className="h-8 w-8 opacity-20" />
+                  <p className="text-sm italic">Buscando novas oportunidades...</p>
+                </div>
               )}
             </div>
           </ScrollArea>
         </div>
 
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold">IA Comercial: Sugestões de Venda</h2>
-          <ScrollArea className="h-[300px] rounded-md border p-4 bg-green-50/5">
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-display font-bold flex items-center gap-2">
+              <Zap className="h-5 w-5 text-primary" /> IA Comercial: Next Best Action
+            </h2>
+          </div>
+          <ScrollArea className="h-[300px] rounded-2xl border-none shadow-inner bg-primary/5 p-4">
+            <div className="space-y-4">
+              {recommendations.length > 0 ? (
+                recommendations.map((rec: any) => (
+                  <Card key={rec.id} className="border-none shadow-sm hover:shadow-md transition-shadow">
+                    <CardHeader className="pb-2 flex-row items-center justify-between space-y-0">
+                      <Badge className="bg-emerald-500/10 text-emerald-600 border-none text-[9px] font-bold">
+                        {rec.recommendation_type}
+                      </Badge>
+                      <div className="flex items-center gap-1">
+                        <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="text-[9px] font-bold text-muted-foreground">{rec.confidence}% Match</span>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <p className="text-xs font-bold">{rec.customer_id}</p>
+                      <p className="text-[11px] text-muted-foreground line-clamp-2 italic">"{rec.reason}"</p>
+                    </CardContent>
+                  </Card>
+                ))
+              ) : (
+                <div className="text-center py-10 text-muted-foreground italic text-xs">Aguardando sinais do mercado...</div>
+              )}
+            </div>
+          </ScrollArea>
+
+          <div className="flex items-center justify-between pt-4">
+            <h2 className="text-xl font-display font-bold">Pipeline de Clientes</h2>
+            <div className="flex gap-2">
+              <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg"><Search className="h-4 w-4" /></Button>
+              <Button variant="outline" size="icon" className="h-8 w-8 rounded-lg"><Filter className="h-4 w-4" /></Button>
+            </div>
+          </div>
+          <ScrollArea className="h-[600px] rounded-2xl border-none shadow-inner bg-secondary/20 p-4">
             <div className="space-y-3">
               {recommendations.length > 0 ? (
                 recommendations.map((rec: any) => (
