@@ -115,36 +115,58 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* 
-        Execute esta instrucao no projeto: AUDITORIA COMPLETA DE PERFORMANCE — SEJA LIVRE AI PLATFORM
+        Execute esta instrucao no projeto: SPRINT PERFORMANCE 1 — TAREFA 2
+
+OTIMIZAÇÃO DAS CONSULTAS SUPABASE
 
 OBJETIVO
 
-Executar uma auditoria completa de performance da aplicação.
-
-Não criar novas funcionalidades.
+Auditar e otimizar todas as consultas ao Supabase para reduzir tempo de resposta, consumo de recursos e número de requisições.
 
 Não alterar regras de negócio.
 
+Não alterar layout.
+
+Não remover funcionalidades.
+
 Não publicar automaticamente.
 
-Apenas medir, localizar gargalos, classificar problemas e gerar um plano de otimização baseado em evidências.
-
 ==================================================
-FASE 1 — FRONTEND
+ETAPA 1 — INVENTÁRIO
 ==================================================
 
-Analisar todas as páginas.
+Localizar todas as consultas:
 
-Para cada página informar:
+- .from()
+- .select()
+- .insert()
+- .update()
+- .delete()
+- .rpc()
 
-- tempo de carregamento;
-- tamanho do bundle;
-- quantidade de componentes;
-- quantidade de renders;
-- quantidade de hooks;
-- quantidade de requests;
-- quantidade de queries;
-- tempo médio até interação.
+Criar um inventário contendo:
+
+- arquivo
+- função
+- tabela
+- operação
+- frequência estimada
+- criticidade
+
+==================================================
+ETAPA 2 — IDENTIFICAR GARGALOS
+==================================================
+
+Localizar:
+
+- SELECT *
+- consultas repetidas
+- N+1
+- joins desnecessários
+- múltiplas consultas que podem ser consolidadas
+- consultas sem paginação
+- consultas sem filtro
+- consultas feitas a cada render
 
 Classificar:
 
@@ -154,376 +176,75 @@ MÉDIO
 BAIXO
 
 ==================================================
-FASE 2 — COMPONENTES
+ETAPA 3 — OTIMIZAÇÃO
 ==================================================
 
-Localizar componentes:
+Aplicar:
 
-- maiores que 500 linhas;
-- com muitos estados;
-- com muitos useEffect;
-- muitos useMemo;
-- muitos useCallback;
-- muitas props;
-- renders excessivos.
+- selecionar apenas colunas necessárias
+- paginação
+- filtros server-side
+- consolidação de consultas
+- RPC agregadas quando apropriado
+- eliminação de consultas duplicadas
+
+Não alterar o comportamento funcional.
+
+==================================================
+ETAPA 4 — REACT QUERY
+==================================================
+
+Revisar:
+
+- staleTime
+- refetchOnWindowFocus
+- retry
+- cache
+- invalidações
+
+Eliminar refetch desnecessário.
+
+==================================================
+ETAPA 5 — RELATÓRIO
+==================================================
+
+Criar:
+
+docs/supabase-performance.md
 
 Informar:
 
-arquivo
-
-linhas
-
-complexidade
-
-risco
-
-==================================================
-FASE 3 — REACT QUERY
-==================================================
-
-Inventariar todas as queries.
-
-Mostrar:
-
-query key
-
-staleTime
-
-cacheTime
-
-refetch
-
-invalidate
-
-requests duplicadas
-
-queries sem cache
-
-queries pesadas
+- consultas auditadas
+- consultas corrigidas
+- consultas pendentes
+- tabelas mais acessadas
+- possíveis índices recomendados
+- ganho esperado
 
 ==================================================
-FASE 4 — REALTIME
+VALIDAÇÃO
 ==================================================
 
-Analisar:
-
-subscriptions
-
-listeners
-
-unsubscribe
-
-duplicidade
-
-re-render
-
-refetch global
-
-atualização parcial
-
-Detectar:
-
-subscriptions duplicadas
-
-listeners esquecidos
-
-memory leak
-
-==================================================
-FASE 5 — BANCO
-==================================================
-
-Localizar:
-
-SELECT *
-
-queries grandes
-
-N+1
-
-joins
-
-views
-
-RPC
-
-triggers
-
-EXPLAIN ANALYZE
-
-índices ausentes
-
-índices duplicados
-
-==================================================
-FASE 6 — SUPABASE
-==================================================
-
-Analisar:
-
-Auth
-
-Storage
-
-Realtime
-
-RPC
-
-Policies
-
-Edge Functions
-
-==================================================
-FASE 7 — EVOLUTION
-==================================================
-
-Medir:
-
-tempo médio
-
-timeout
-
-retry
-
-duplicidade
-
-webhook
-
-fila
-
-==================================================
-FASE 8 — BEMP
-==================================================
-
-Medir:
-
-tempo médio
-
-consultas
-
-cache
-
-timeout
-
-retry
-
-==================================================
-FASE 9 — IA
-==================================================
-
-Medir:
-
-tempo médio
-
-tokens
-
-histórico
-
-contexto
-
-tamanho do prompt
-
-tool calls
-
-timeout
-
-==================================================
-FASE 10 — MEMÓRIA
-==================================================
-
-Analisar:
-
-objetos grandes
-
-arrays
-
-listas
-
-context
-
-stores
-
-cache
-
-memory leak
-
-==================================================
-FASE 11 — BUNDLE
-==================================================
-
-Gerar Bundle Analyzer.
-
-Mostrar:
-
-20 maiores dependências
-
-20 maiores páginas
-
-20 maiores componentes
-
-==================================================
-FASE 12 — DEPENDÊNCIAS
-==================================================
-
-Localizar:
-
-dependências não utilizadas
-
-duplicadas
-
-pesadas
-
-abandonadas
-
-==================================================
-FASE 13 — LOGS
-==================================================
-
-Localizar:
-
-console.log
-
-console.error
-
-debug
-
-logs temporários
-
-==================================================
-FASE 14 — SEGURANÇA
-==================================================
-
-Verificar:
-
-segredos no frontend
-
-variáveis públicas
-
-tokens
-
-==================================================
-FASE 15 — UX
-==================================================
-
-Detectar:
-
-loading infinito
-
-spinner desnecessário
-
-bloqueios
-
-telas pesadas
-
-scroll ruim
-
-==================================================
-FASE 16 — SCORE
-==================================================
-
-Dar nota:
-
-Frontend
-
-Backend
-
-Banco
-
-Realtime
-
-IA
-
-Evolution
-
-BEMP
-
-UX
-
-Performance
-
-Escalabilidade
-
-==================================================
-FASE 17 — TOP 50 GARGALOS
-==================================================
-
-Gerar ranking.
-
-Para cada gargalo informar:
-
-local
-
-impacto
-
-gravidade
-
-tempo estimado para correção
-
-ganho esperado
-
-==================================================
-FASE 18 — ROADMAP
-==================================================
-
-Criar plano dividido em:
-
-Sprint Performance 1
-
-Sprint Performance 2
-
-Sprint Performance 3
-
-Sprint Performance 4
-
-Ordenar pelo maior impacto com menor esforço.
+Executar:
+
+build
+typecheck
+lint
+test
 
 ==================================================
 ENTREGA
 ==================================================
 
-Gerar:
+Informar:
 
-docs/performance-audit.md
+- arquivos alterados
+- consultas reduzidas
+- RPCs criadas ou reutilizadas
+- recomendações de índices
+- resultado dos testes
 
-Incluir:
-
-Resumo executivo
-
-Mapa da aplicação
-
-Mapa das consultas
-
-Mapa das subscriptions
-
-Mapa do bundle
-
-Mapa do banco
-
-Top 50 gargalos
-
-Notas
-
-Plano de otimização
-
-Nenhuma otimização deve ser aplicada nesta etapa.
-
-Somente medir, documentar e classificar.
-
-Executar:
-
-build
-
-typecheck
-
-lint
-
-Ao finalizar, informar:
-
-- arquivos analisados;
-- principais gargalos;
-- métricas coletadas;
-- score final da plataforma;
-- prioridade da primeira correção.
+Não publicar automaticamente.
       */}
       <div className="bg-green-600 text-white p-2 text-center text-xs font-medium">
         Sistema otimizado: cache de permissões e credenciais ativado para maior velocidade.
