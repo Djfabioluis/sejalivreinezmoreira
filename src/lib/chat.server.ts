@@ -1036,7 +1036,7 @@ function buildTools(
           }
         }),
     }),
-    }),
+
     join_waiting_list: tool({
       description:
         "Adiciona o cliente à lista de espera para uma unidade e serviço específicos. Útil quando não há horários disponíveis no momento ou para o profissional preferido.",
