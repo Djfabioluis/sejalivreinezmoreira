@@ -115,272 +115,248 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="hidden">
-        Execute esta instrucao no projeto: VALIDAÇÃO DO LOTE A — CONFIABILIDADE
+        Execute esta instrucao no projeto: LOTE C — ARQUITETURA E ESCALABILIDADE
 
 OBJETIVO
 
-Validar as correções já aplicadas no Lote A antes de iniciar o Lote B.
+Consolidar a arquitetura da Seja Livre AI Platform para suportar crescimento, novos módulos, multiempresa e futuras integrações.
 
-Não criar novas funcionalidades.
+Não criar novas funcionalidades para o usuário final.
+
+Não alterar regras de negócio.
+
 Não publicar automaticamente.
-Não avançar para segurança enquanto houver falhas de confiabilidade.
 
 ==================================================
-1. ERROS SILENCIOSOS
+ETAPA 1 — MAPA DA ARQUITETURA
 ==================================================
 
-Verificar se ainda existem operações críticas com:
+Gerar um mapa atualizado contendo:
 
-catch que apenas registra console.error;
-success: true após falha;
-Supabase error ignorado;
-Promise.allSettled rejected ignorado;
-return vazio em falha obrigatória.
+- Frontend
+- Backend
+- Serviços
+- Banco
+- IA
+- Evolution
+- BEMP
+- CRM
+- Jobs
+- Filas
+- Realtime
 
-Listar todos os casos restantes.
-
-Prioridade:
-
-- mensagens;
-- IA;
-- agendamentos;
-- transferências;
-- planos;
-- campanhas;
-- follow-ups;
-- oportunidades;
-- jobs.
+Criar documentação:
+docs/system-architecture.md
 
 ==================================================
-2. OPERAÇÕES SUPABASE
+ETAPA 2 — CAMADA DE SERVIÇOS
 ==================================================
 
-Auditar novamente:
+Garantir que todas as integrações externas passem por serviços únicos.
 
-.from()
-.rpc()
-.storage()
-.auth()
+Criar ou consolidar:
 
-Confirmar que operações obrigatórias validam error.
+AIService
+EvolutionService
+BempService
+CRMService
+CampaignService
+FollowupService
+OpportunityService
+CustomerMemoryService
+AppointmentService
+NotificationService
 
-Apresentar quantidade:
-
-- total auditado;
-- corrigido;
-- ainda pendente.
-
-==================================================
-3. TRANSAÇÕES
-==================================================
-
-Testar fluxos atômicos:
-
-- transferência de unidade;
-- limpeza de contexto após transferência;
-- criação de agendamento;
-- consumo de benefício do plano;
-- envio de follow-up;
-- conversão de oportunidade;
-- envio e persistência da resposta da IA.
-
-Simular erro no meio de cada fluxo.
-
-Resultado esperado:
-
-- rollback completo;
-- nenhum estado parcial.
+Nenhum componente React pode acessar APIs externas diretamente.
 
 ==================================================
-4. IDEMPOTÊNCIA
+ETAPA 3 — ORQUESTRADOR DA IA
 ==================================================
 
-Testar:
+Criar um único fluxo para:
 
-Mensagem duplicada:
-mesmo instance + messageId duas vezes.
+entrada
+↓
+contexto
+↓
+memória
+↓
+BEMP
+↓
+CRM
+↓
+prompt
+↓
+IA
+↓
+tools
+↓
+validação
+↓
+resposta
+↓
+persistência
+↓
+envio
 
-Esperado:
-uma chamada à IA;
-um envio;
-uma mensagem assistant.
-
-Agendamento duplicado:
-mesma confirmação duas vezes.
-
-Esperado:
-um agendamento.
-
-Follow-up duplicado:
-mesma conversa, estágio e tentativa.
-
-Esperado:
-um envio.
-
-Transferência duplicada:
-mesma conversa, destino e messageId.
-
-Esperado:
-um evento.
-
-Transferência duplicada:
-mesma unidade, oportunidade e período.
-
-Esperado:
-uma campanha.
+Toda conversa deve passar pelo mesmo orquestrador.
 
 ==================================================
-5. LOCKS
+ETAPA 4 — PADRONIZAÇÃO DE EVENTOS
 ==================================================
 
-Verificar todos os locks.
+Criar Event Bus interno.
 
-Testar:
+Eventos como:
 
-- aquisição;
-- concorrência;
-- liberação em sucesso;
-- liberação em erro;
-- liberação em timeout;
-- recuperação de lock vencido.
+MessageReceived
+MessageStored
+CustomerIdentified
+AppointmentCreated
+AppointmentCancelled
+CampaignGenerated
+FollowupSent
+UnitTransferred
+MemoryUpdated
+AIResponseSent
 
-Nenhum lock pode permanecer ativo indefinidamente.
-
-Listar registros vencidos encontrados no banco.
-
-==================================================
-6. MENSAGENS DO WHATSAPP
-==================================================
-
-Teste real controlado:
-
-1. enviar mensagem nova;
-2. confirmar recebimento;
-3. confirmar uma resposta;
-4. repetir o mesmo payload;
-5. confirmar nenhuma segunda resposta;
-6. enviar outra mensagem com messageId novo;
-7. confirmar nova resposta.
-
-Logs esperados:
-
-webhook_received
-event_registered
-lock_acquired
-processing_started
-run_agent_started
-run_agent_completed
-send_started
-send_completed
-event_processed
-lock_released
+Cada módulo apenas publica ou consome eventos.
+Evitar dependências diretas entre módulos.
 
 ==================================================
-7. FALHA DA IA
+ETAPA 5 — CONTRATOS
 ==================================================
 
-Simular erro da IA.
+Criar contratos únicos para:
 
-Esperado:
+Cliente
+Profissional
+Serviço
+Plano
+Agendamento
+Mensagem
+Campanha
+Follow-up
+Oportunidade
+Memória
 
-- mensagem do cliente continua salva;
-- evento marcado failed;
-- lock liberado;
-- nenhuma duplicação;
-- próxima mensagem do cliente processada normalmente;
-- fallback enviado no máximo uma vez.
-
-==================================================
-8. FALHA DA EVOLUTION
-==================================================
-
-Simular erro de envio.
-
-Esperado:
-
-- resposta não marcada sent;
-- evento não marcado processed;
-- erro estruturado;
-- lock liberado;
-- retentativa controlada;
-- sem duplicação após sucesso.
+Todos derivados de schemas Zod.
 
 ==================================================
-9. FALHA DO BEMP
+ETAPA 6 — PADRONIZAÇÃO DAS RESPOSTAS
 ==================================================
 
-Simular:
+Todos os serviços devem retornar:
+ServiceResult{"<"}T{">"}
 
-401
-404
-429
-500
-timeout
-resposta inválida
-
-Confirmar diferenciação entre:
-
-NOT_FOUND
-UNAUTHORIZED
-RATE_LIMITED
-BEMP_UNAVAILABLE
-INVALID_RESPONSE
-
-Não converter erro em lista vazia.
+Nunca retornar:
+undefined
+null inesperado
+boolean isolado
 
 ==================================================
-10. CAMPANHAS
+ETAPA 7 — MÓDULOS
 ==================================================
 
-Testar o botão Gerar campanha:
+Separar claramente:
 
-- sem oportunidades;
-- oportunidades insuficientes;
-- campanha gerada;
-- erro da IA;
-- erro do Supabase;
-- duplo clique.
+AI
+CRM
+Agenda
+WhatsApp
+Integrações
+Analytics
+Financeiro
+Configuração
+Shared
 
-Não pode existir sucesso falso.
+Cada módulo deve possuir:
 
-==================================================
-11. FOLLOW-UP
-==================================================
-
-Testar:
-
-- cliente respondeu antes do envio;
-- agendamento concluído;
-- humano assumiu;
-- opt-out;
-- limite de tentativas;
-- envio duplicado;
-- horário inadequado.
-
-O follow-up deve ser cancelado quando a condição deixar de existir.
+routes
+services
+schemas
+types
+repositories
+hooks
+tests
 
 ==================================================
-12. RESULTADO DO LOTE A
+ETAPA 8 — REPOSITÓRIOS
 ==================================================
 
-Gerar documento:
-
-docs/validation-lot-a.md
-
-Incluir:
-
-- itens testados;
-- evidências;
-- comandos;
-- logs;
-- resultados;
-- falhas;
-- itens pendentes;
-- riscos;
-- rollback.
+Criar camada Repository para acesso ao banco.
+Não permitir consultas SQL espalhadas.
 
 ==================================================
-13. COMANDOS
+ETAPA 9 — CONFIGURAÇÃO
+==================================================
+
+Centralizar:
+
+env
+feature flags
+timeouts
+retry
+cache
+limites
+modelos IA
+
+==================================================
+ETAPA 10 — OBSERVABILIDADE
+==================================================
+
+Padronizar:
+
+logs
+traceId
+requestId
+conversationId
+jobId
+campaignId
+
+==================================================
+ETAPA 11 — DOCUMENTAÇÃO
+==================================================
+
+Criar:
+
+docs/modules.md
+docs/services.md
+docs/events.md
+docs/repositories.md
+docs/folder-structure.md
+
+==================================================
+ETAPA 12 — ESCALABILIDADE
+==================================================
+
+Preparar arquitetura para:
+
+multiempresa
+novas integrações
+novos canais
+novos modelos IA
+novos CRMs
+novos ERPs
+novos gateways
+
+Sem alterar o comportamento atual.
+
+==================================================
+ETAPA 13 — LIMPEZA
+==================================================
+
+Remover apenas:
+
+imports mortos
+funções não utilizadas
+componentes órfãos
+arquivos duplicados
+
+Nunca remover código ainda referenciado.
+
+==================================================
+ETAPA 14 — VALIDAÇÃO
 ==================================================
 
 Executar:
@@ -390,26 +366,27 @@ typecheck
 lint
 test
 
-Executar também testes SQL/RPC críticos.
+Comparar antes/depois.
 
 ==================================================
-14. CRITÉRIO DE APROVAÇÃO
+ENTREGA
 ==================================================
 
-O Lote A só pode ser aprovado quando:
+Informar:
 
-- nenhuma operação crítica retorna sucesso falso;
-- mensagens duplicadas não geram respostas;
-- mensagens novas continuam funcionando;
-- locks são liberados;
-- transações não deixam estado parcial;
-- erros da IA, Evolution e BEMP são rastreáveis;
-- campanhas e follow-ups são idempotentes;
-- testes críticos passam.
+1. módulos consolidados;
+2. serviços criados;
+3. dependências removidas;
+4. acoplamentos eliminados;
+5. arquivos alterados;
+6. documentação criada;
+7. ganhos de escalabilidade;
+8. riscos remanescentes;
+9. plano para o Lote D.
 
 Não publicar automaticamente.
-Não iniciar o Lote B se houver falha crítica.
       </div>
+
 
 
       <div className="bg-green-600 text-white p-2 text-center text-xs font-medium">
