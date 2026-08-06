@@ -75,15 +75,24 @@ function CRMPage() {
   };
 
   return (
-    <div className="container mx-auto p-4 space-y-8">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">CRM Inteligente</h1>
-          <p className="text-muted-foreground">Visão geral do funil e saúde da base de clientes.</p>
+    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div className="space-y-1">
+          <Badge className="bg-primary/10 text-primary border-none text-[10px] font-bold uppercase tracking-[0.2em] mb-2 px-3">
+            Inteligência de Vendas
+          </Badge>
+          <h1 className="text-4xl font-display font-bold tracking-tight">CRM Inteligente</h1>
+          <p className="text-muted-foreground max-w-lg">Análise comportamental, previsão de churn e automação comercial de alta performance.</p>
         </div>
-        <Badge variant="outline" className="px-3 py-1">
-          {customers.length} Clientes no Funil
-        </Badge>
+        <div className="flex items-center gap-4">
+          <div className="text-right hidden sm:block">
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Base Ativa</p>
+            <p className="text-2xl font-bold">{customers.length}</p>
+          </div>
+          <Button className="shadow-lg shadow-primary/20 gap-2">
+            <Plus className="h-4 w-4" /> Gerar Campanha
+          </Button>
+        </div>
       </div>
 
       {/* Dashboard Stats Grid */}
