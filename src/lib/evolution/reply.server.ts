@@ -1,5 +1,7 @@
 import { sendEvolutionText, sendEvolutionPresence } from "@/lib/evolution.server";
-import { logEvent, logger } from "./logger.server";
+import { logEvent } from "./logger.server";
+import { logger } from "@/lib/observability/logger.server";
+
 
 
 // Duração do indicador nativo "digitando…" antes do envio da resposta.
