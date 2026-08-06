@@ -115,620 +115,708 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* 
-        Execute esta instrucao no projeto: IMPLEMENTAR PAUSA AUTOMÁTICA DA IA DURANTE ATENDIMENTO HUMANO
+        Execute esta instrucao no projeto: CORREÇÃO CRÍTICA — CONSULTA DE CLIENTE E PLANO POR CPF NO BEMP
+
+PROBLEMA
+
+A IA solicita o CPF, mas não encontra clientes que possuem plano de assinatura no BEMP.
 
 OBJETIVO
 
-Quando um atendente humano entrar em uma conversa, a IA deve parar imediatamente de responder.
+Corrigir o fluxo completo:
 
-A IA deve voltar automaticamente somente depois que o humano ficar sem interagir por um período configurável e ainda existir uma nova mensagem da cliente aguardando resposta.
+CPF informado
+→ validação
+→ normalização
+→ busca do cliente no BEMP
+→ identificação inequívoca do cliente
+→ consulta dos planos/assinaturas
+→ validação do status e saldo
+→ resolução do serviço do plano
+→ continuação do agendamento.
 
-Não permitir respostas simultâneas da IA e do humano.
+Não alterar regras de agendamento.
 
-Não recomeçar a conversa com nova saudação.
+Não usar dados simulados.
 
 Não publicar automaticamente.
 
 ==================================================
-1. ESTADOS DA CONVERSA
+1. RASTREAR O FLUXO ATUAL
 ==================================================
 
-Adicionar ou reutilizar campos em wa_conversas:
+Localizar todas as funções relacionadas a:
 
-attendance_mode
-human_operator_id
-human_assumed_at
-human_last_activity_at
-ai_paused_at
-ai_resume_at
-ai_pause_reason
-pending_customer_reply
-updated_at
+getCustomerByCPF
+get_customer_by_cpf
+getCustomerActivePlans
+get_customer_active_plans
+lookupCustomer
+searchCustomer
+subscription
+plan
+assinatura
+cpf
 
-Valores de attendance_mode:
+Mapear:
 
-AI
-HUMAN
-WAITING_AI_RESUME
+- onde a IA chama a tool;
+- schema de entrada;
+- normalização;
+- função BempService;
+- endpoint real;
+- formato da resposta;
+- filtro de plano;
+- retorno para a IA.
 
-Significados:
-
-AI
-→ IA pode responder normalmente.
-
-HUMAN
-→ humano assumiu; IA totalmente pausada.
-
-WAITING_AI_RESUME
-→ humano está inativo, mas o sistema ainda está validando se a IA deve retomar.
-
-Não criar campos duplicados quando já existirem equivalentes.
+Não criar outra implementação paralela antes de localizar a existente.
 
 ==================================================
-2. HUMANO ASSUME A CONVERSA
+2. CPF SEMPRE COMO STRING
 ==================================================
 
-Considerar que um humano assumiu quando ocorrer qualquer uma destas ações:
+CPF nunca pode ser tratado como number.
 
-- clicar em “Assumir atendimento”;
-- enviar mensagem manual pela Secretária Virtual;
-- selecionar um responsável humano;
-- alterar explicitamente o modo para atendimento humano.
+Proibido:
 
-Ao assumir:
+Number(cpf)
+parseInt(cpf)
++cpf
 
-attendance_mode = HUMAN
-human_operator_id = usuário autenticado
-human_assumed_at = now()
-human_last_activity_at = now()
-ai_paused_at = now()
-ai_pause_reason = HUMAN_ASSUMED
-ai_resume_at = null
-pending_customer_reply = false
+Usar exclusivamente string.
 
-Cancelar imediatamente:
+Motivo:
 
-- execução pendente da IA;
-- resposta ainda não enviada;
-- follow-up automático da conversa;
-- timers de resposta automática;
-- jobs de IA ainda não iniciados.
+- preservar zeros à esquerda;
+- evitar transformação;
+- impedir perda de precisão ou formatação.
 
-Não apagar o histórico nem o contexto.
+Criar tipo:
+
+type NormalizedCPF = string;
 
 ==================================================
-3. MENSAGEM MANUAL PAUSA A IA
+3. NORMALIZAÇÃO
 ==================================================
 
-Toda mensagem enviada por um operador humano deve atualizar:
+Criar função única:
 
-attendance_mode = HUMAN
-human_operator_id = usuário atual
-human_last_activity_at = now()
-ai_resume_at = now() + HUMAN_IDLE_TIMEOUT
+normalizeCPF(input: string): string
 
-A mensagem manual deve ser salva como:
+Ela deve:
 
-role = operator
-
-ou tipo equivalente claramente distinto de assistant.
-
-Ela não pode voltar pelo webhook e disparar a IA.
-
-==================================================
-4. BLOQUEIO NO WEBHOOK
-==================================================
-
-Quando chegar uma mensagem da cliente:
-
-1. salvar a mensagem;
-2. atualizar a Caixa de Entrada;
-3. localizar a conversa;
-4. verificar attendance_mode antes de chamar a IA.
-
-Se attendance_mode = HUMAN:
-
-- não chamar runAgent;
-- não enviar fallback;
-- não enviar resposta automática;
-- definir pending_customer_reply = true;
-- registrar customer_message_waiting_for_human;
-- atualizar unread_count;
-- manter a mensagem visível para o atendente.
-
-A mensagem nunca pode ser perdida.
-
-==================================================
-5. TEMPO DE INATIVIDADE DO HUMANO
-==================================================
-
-Criar configuração:
-
-HUMAN_IDLE_TIMEOUT_MINUTES
-
-Valor inicial recomendado:
-
-15 minutos
-
-Permitir configuração por:
-
-agente
-→ unidade
-→ organização
-→ padrão global
-
-A prioridade deve seguir essa ordem.
-
-Não deixar o valor fixo espalhado pelo código.
-
-==================================================
-6. RETOMADA AUTOMÁTICA
-==================================================
-
-Criar job:
-
-resumeAIForInactiveHumanConversations()
-
-Executar a cada minuto ou em frequência compatível com a infraestrutura.
-
-Selecionar conversas onde:
-
-attendance_mode = HUMAN
-human_last_activity_at <= now() - timeout
-pending_customer_reply = true
-IA do agente está ativa
-agente está conectado
-unidade está definida
-não existe lock ativo
-não existe operador digitando
-não existe envio humano em andamento
-cliente não pediu atendimento exclusivamente humano
-
-Mover primeiro para:
-
-attendance_mode = WAITING_AI_RESUME
-
-Depois executar validação final.
-
-==================================================
-7. VALIDAÇÃO ANTES DA RETOMADA
-==================================================
-
-Criar:
-
-validateAIResume(conversationId)
-
-Verificar novamente:
-
-- humano não respondeu depois da seleção;
-- cliente continua aguardando;
-- não existe mensagem humana mais recente que a mensagem da cliente;
-- conversa não foi encerrada;
-- não existe handoff obrigatório;
-- IA está ativa;
-- agente está READY;
-- unidade efetiva existe;
-- cliente não pediu “quero falar com uma pessoa”;
-- não existe bloqueio por reclamação ou caso sensível;
-- não existe outro processamento em andamento.
-
-Se alguma condição falhar:
-
-- voltar para HUMAN quando o humano retomou;
-ou
-- manter pausada com motivo apropriado.
-
-==================================================
-8. REGRA DA MENSAGEM MAIS RECENTE
-==================================================
-
-A IA só deve retomar quando a última mensagem relevante da conversa for da cliente.
-
-Comparar:
-
-last_customer_message_at
-last_human_message_at
-last_ai_message_at
-
-Condição obrigatória:
-
-last_customer_message_at > last_human_message_at
-
-Se o humano já respondeu depois da cliente:
-
-pending_customer_reply = false
-não retomar a IA.
-
-==================================================
-9. LOCK ATÔMICO
-==================================================
-
-A retomada deve usar lock por conversation_id.
-
-Fluxo:
-
-- adquirir lock;
-- reler a conversa;
-- validar estado;
-- alterar para WAITING_AI_RESUME;
-- chamar IA;
-- enviar uma única resposta;
-- alterar para AI;
-- limpar pending_customer_reply;
-- liberar lock em finally.
-
-Duas instâncias do job não podem retomar a mesma conversa.
-
-==================================================
-10. CONTEXTO DA RETOMADA
-==================================================
-
-Ao retomar, enviar ao orquestrador:
-
-- histórico recente;
-- últimas mensagens do humano;
-- mensagem da cliente aguardando;
-- estágio atual do agendamento;
-- contexto do cliente;
-- unidade atual;
-- resumo do atendimento humano;
-- motivo da pausa.
-
-Adicionar instrução:
-
-“O atendimento estava sendo conduzido por uma pessoa e foi retomado automaticamente por inatividade. Continue do ponto atual. Não cumprimente novamente, não repita perguntas já respondidas e não critique o atendente humano.”
-
-==================================================
-11. MENSAGEM DE RETOMADA
-==================================================
-
-A IA não deve necessariamente avisar:
-
-“Voltei a atender.”
-
-Ela deve responder diretamente à pergunta pendente.
+- remover tudo que não seja dígito;
+- preservar exatamente 11 dígitos;
+- aplicar trim antes da limpeza;
+- não retornar CPF formatado;
+- não registrar o valor completo.
 
 Exemplo:
 
-Humano:
-“Vou verificar um horário para você.”
+"123.456.789-09"
+→
+"12345678909"
 
-Cliente:
-“Tudo bem, fico aguardando.”
+Aceitar CPF recebido como:
 
-Após o timeout, a IA deve consultar os horários e responder com dados reais.
+- texto simples;
+- mensagem com pontuação;
+- frase como “meu CPF é 123...”;
+- espaços e quebras de linha.
 
-Não enviar apenas:
-
-“Como posso ajudar?”
-
-==================================================
-12. CASOS QUE NÃO DEVEM RETOMAR AUTOMATICAMENTE
-==================================================
-
-Não retomar quando houver:
-
-- reclamação;
-- cobrança ou financeiro;
-- conflito;
-- pedido explícito de humano;
-- situação sensível;
-- erro persistente;
-- atendimento marcado como exclusivo do operador;
-- conversa encerrada;
-- bloqueio manual da IA;
-- cliente com opt-out;
-- operador ainda digitando;
-- tarefa humana pendente explicitamente registrada.
-
-Criar campo ou estado:
-
-human_only = true
-
-Quando ativo, somente ação manual pode devolver a conversa para a IA.
+Extrair somente quando existir exatamente um candidato válido de 11 dígitos.
 
 ==================================================
-13. BOTÕES NA SECRETÁRIA VIRTUAL
+4. VALIDAR CPF
 ==================================================
 
-Adicionar controles claros:
+Criar ou reutilizar:
 
-Quando IA está ativa:
+isValidCPF(cpf)
 
-[Assumir atendimento]
+Validar:
 
-Quando humano assumiu:
+- 11 dígitos;
+- dígitos verificadores;
+- bloquear sequências repetidas:
+  00000000000
+  11111111111
+  etc.
 
-[Devolver para IA]
-[Manter atendimento humano]
+Se inválido:
 
-Mostrar badge:
+retornar:
 
-IA atendendo
-Humano atendendo
-IA pausada
-Aguardando retomada automática
+{
+  success: false,
+  code: "INVALID_CPF"
+}
 
-Exibir:
-
-Atendente: [nome]
-IA retomará após: [horário]
-Última atividade humana: [hora]
-
-==================================================
-14. DEVOLUÇÃO MANUAL PARA A IA
-==================================================
-
-Ao clicar em “Devolver para IA”:
-
-- validar se há mensagem pendente;
-- alterar attendance_mode para AI;
-- limpar human_operator_id quando apropriado;
-- limpar ai_resume_at;
-- registrar auditoria;
-- se houver cliente aguardando, iniciar processamento uma única vez.
-
-Pedir confirmação:
-
-“A IA continuará o atendimento usando todo o histórico desta conversa.”
+Não chamar o BEMP.
 
 ==================================================
-15. MANTER ATENDIMENTO HUMANO
+5. TOOL E SCHEMA
 ==================================================
 
-Ao clicar em “Manter atendimento humano”:
+A tool deve receber:
 
-human_only = true
-attendance_mode = HUMAN
-ai_resume_at = null
+{
+  cpf: z.string()
+}
 
-A IA não volta automaticamente.
+Não aceitar CPF opcional quando o fluxo exige validação.
 
-Somente “Devolver para IA” remove esse bloqueio.
+A tool deve retornar formato estruturado:
 
-==================================================
-16. DETECÇÃO DE OPERADOR DIGITANDO
-==================================================
+{
+  success: true,
+  customer: {
+    id,
+    name
+  },
+  plans: [...]
+}
 
-Se a interface já possuir indicador de digitação, atualizar:
+ou:
 
-human_typing_until
+{
+  success: false,
+  code:
+    | "INVALID_CPF"
+    | "CUSTOMER_NOT_FOUND"
+    | "MULTIPLE_CUSTOMERS_FOUND"
+    | "NO_ACTIVE_PLAN"
+    | "PLAN_NO_BALANCE"
+    | "BEMP_UNAUTHORIZED"
+    | "BEMP_RATE_LIMITED"
+    | "BEMP_UNAVAILABLE"
+    | "BEMP_INVALID_RESPONSE",
+  message
+}
 
-Enquanto:
-
-human_typing_until > now()
-
-não retomar IA.
-
-O indicador deve expirar automaticamente para evitar bloqueio permanente.
-
-Se não houver suporte atual, não criar dependência obrigatória; usar mensagens e atividade como fonte principal.
-
-==================================================
-17. FOLLOW-UP
-==================================================
-
-Quando attendance_mode = HUMAN:
-
-- pausar follow-ups;
-- não enviar mensagens automáticas;
-- não criar abordagem concorrente.
-
-Ao retornar para AI:
-
-- reavaliar os follow-ups;
-- cancelar os que perderam sentido;
-- não enviar imediatamente um follow-up se a IA acabou de responder.
+Não retornar array vazio como resposta genérica para qualquer falha.
 
 ==================================================
-18. IDEMPOTÊNCIA
+6. ENDPOINT REAL DO BEMP
 ==================================================
 
-Criar chave de retomada baseada em:
+Verificar na integração atual qual endpoint realmente aceita CPF.
 
-conversation_id
-+
-last_customer_message_id
-+
-resume_cycle
+Não presumir o caminho.
 
-A mesma mensagem pendente não pode gerar duas respostas.
+Inspecionar chamadas já existentes e documentação/configuração do projeto.
+
+Confirmar:
+
+- método HTTP;
+- nome do parâmetro:
+  cpf
+  document
+  document_number
+  tax_id
+  query
+  search
+  ou equivalente;
+- CPF com ou sem pontuação;
+- header de autenticação;
+- salon/unit necessário;
+- estrutura da resposta.
+
+Registrar durante o teste, de forma sanitizada:
+
+- URL sem token;
+- método;
+- nome do parâmetro;
+- status HTTP;
+- chaves do primeiro nível;
+- quantidade de resultados.
+
+Não registrar CPF completo.
+
+==================================================
+7. NÃO LIMITAR BUSCA À UNIDADE ERRADA
+==================================================
+
+O cadastro ou o plano pode estar associado a outra unidade ou existir globalmente no BEMP.
+
+Separar:
+
+BUSCA DE IDENTIDADE DO CLIENTE
+→ buscar pelo CPF no escopo exigido pelo BEMP.
+
+BUSCA DO PLANO
+→ consultar planos do cliente identificado.
+
+UNIDADE DO AGENDAMENTO
+→ validar depois se o benefício pode ser usado na unidade atual.
+
+Não concluir “cliente não encontrado” apenas porque ele não apareceu na unidade atual.
+
+Caso a API exija unidade para busca, tentar somente os escopos permitidos e documentados, sem consultas indiscriminadas.
+
+==================================================
+8. CLIENTE E PLANO PODEM ESTAR EM ENDPOINTS DIFERENTES
+==================================================
+
+Não presumir que a busca do cliente já retorna as assinaturas.
+
+Fluxo correto:
+
+const customer = await bemp.findCustomerByCPF(cpf);
+
+const plans = await bemp.getCustomerSubscriptions(
+  customer.id
+);
+
+Se a resposta do cliente já incluir planos, normalizar pelo mesmo contrato.
+
+Não procurar apenas:
+
+customer.plans
+
+Verificar estruturas como:
+
+subscriptions
+memberships
+benefits
+contracts
+customer_plans
+data.subscriptions
+data.customer.subscriptions
+
+==================================================
+9. DESEMPACOTAR RESPOSTAS ANINHADAS
+==================================================
+
+Criar parser validado por Zod para os formatos reais.
+
+Suportar somente formatos confirmados, por exemplo:
+
+{
+  data: [...]
+}
+
+{
+  data: {
+    customers: [...]
+  }
+}
+
+{
+  customer: {...}
+}
+
+{
+  results: [...]
+}
+
+Não usar `asArray()` genérico que silenciosamente retorna [] em resposta desconhecida.
+
+Se o formato não for reconhecido:
+
+{
+  success: false,
+  code: "BEMP_INVALID_RESPONSE"
+}
+
+Registrar as chaves recebidas, sem dados pessoais.
+
+==================================================
+10. IDENTIFICAÇÃO INEQUÍVOCA
+==================================================
+
+Comparar o CPF normalizado retornado pelo BEMP com o informado.
+
+Não aceitar o primeiro resultado arbitrariamente.
+
+Se nenhum resultado corresponder:
+
+CUSTOMER_NOT_FOUND
+
+Se mais de um cadastro corresponder ao mesmo CPF:
+
+MULTIPLE_CUSTOMERS_FOUND
+
+Nesse caso:
+
+- não escolher sozinho;
+- encaminhar para atendimento humano;
+- registrar inconsistência cadastral.
+
+==================================================
+11. CONSULTAR PLANOS PELO CUSTOMER ID
+==================================================
+
+Depois de identificar o cliente, usar o ID oficial do BEMP.
+
+Não consultar plano somente pelo CPF novamente quando a API espera customerId.
+
+Retorno normalizado:
+
+{
+  id,
+  name,
+  status,
+  validFrom,
+  validUntil,
+  availableUses,
+  totalUses,
+  unitIds,
+  benefits
+}
+
+Validar cada campo conforme a resposta real.
+
+==================================================
+12. NORMALIZAR STATUS DOS PLANOS
+==================================================
+
+Mapear status reais do BEMP para valores internos:
+
+ACTIVE
+INACTIVE
+CANCELED
+EXPIRED
+SUSPENDED
+NO_BALANCE
+UNKNOWN
+
+Reconhecer, após confirmar os valores reais:
+
+ativo
+active
+vigente
+enabled
+cancelado
+canceled
+cancelled
+vencido
+expired
+suspenso
+suspended
+
+Não depender de igualdade com uma única palavra.
+
+Quando status desconhecido:
+
+- não assumir ativo;
+- registrar UNKNOWN;
+- encaminhar para validação humana quando necessário.
+
+==================================================
+13. VALIDADE E SALDO
+==================================================
+
+Um plano só é utilizável quando:
+
+- status normalizado = ACTIVE;
+- data atual dentro da validade;
+- saldo/utilizações disponíveis > 0, quando essa regra existir;
+- benefício aplicável;
+- não houver bloqueio retornado pelo BEMP.
+
+Não tratar `availableUses = null` como zero sem confirmar o contrato.
+
+Diferenciar:
+
+- plano ilimitado;
+- saldo não informado;
+- saldo zero.
+
+==================================================
+14. MAPEAMENTO DO SERVIÇO
+==================================================
+
+Após encontrar plano válido:
+
+Plano de manicure
+→ Manicure Plano Beauty
+
+Plano de escova
+→ Escova Plano Beauty
+
+Plano de hidratação e escova
+→ Hidratação e Escova
+
+Normalizar nome do plano:
+
+- lowercase;
+- sem acentos;
+- espaços normalizados;
+- correspondência exata primeiro;
+- aliases centralizados.
+
+Não mapear pelo texto livre da IA.
+
+Criar configuração central:
+
+SUBSCRIPTION_SERVICE_MAP
+
+==================================================
+15. RESOLVER SERVIÇO NA UNIDADE ATUAL
+==================================================
+
+Depois de identificar o benefício:
+
+1. resolver unidade efetiva da conversa;
+2. buscar serviços reais dessa unidade;
+3. localizar o serviço mapeado;
+4. obter o ID específico da unidade;
+5. listar profissionais;
+6. listar horários.
+
+Não reutilizar serviceId de outra unidade.
+
+Se o serviço de plano não existir na unidade:
+
+SERVICE_NOT_AVAILABLE_IN_UNIT
+
+Não substituir silenciosamente pelo serviço comum.
+
+==================================================
+16. NÃO CONFIAR NA MEMÓRIA PARA VALIDAR PLANO
+==================================================
+
+Memória pode informar que a cliente já teve plano, mas a decisão atual deve vir do BEMP.
+
+Ordem:
+
+BEMP atual
+→ informação confirmada atual
+
+Memória
+→ apenas contexto auxiliar
+
+Não informar plano ativo sem consulta bem-sucedida.
+
+==================================================
+17. NÃO SALVAR CPF COMPLETO EM CONTEXTO OU LOG
+==================================================
+
+No customer_context, preferir:
+
+cpfValidated: true
+bempCustomerId
+cpfLast4
+planCheckedAt
+
+Não salvar CPF completo em texto aberto.
+
+Se o sistema realmente precisar persistir o CPF:
+
+- usar mecanismo seguro definido pelo projeto;
+- limitar acesso;
+- não incluir em logs;
+- mascarar no frontend.
+
+==================================================
+18. ERROS DO BEMP
+==================================================
+
+No BempService, diferenciar:
+
+HTTP 401/403
+→ BEMP_UNAUTHORIZED
+
+HTTP 404
+→ CUSTOMER_NOT_FOUND somente se o endpoint usar 404 para isso.
+
+HTTP 429
+→ BEMP_RATE_LIMITED
+
+HTTP 500/502/503/504
+→ BEMP_UNAVAILABLE
+
+timeout
+→ BEMP_UNAVAILABLE com retryable true
+
+JSON inválido ou schema inesperado
+→ BEMP_INVALID_RESPONSE
+
+Não converter todos esses casos em CUSTOMER_NOT_FOUND.
+
+==================================================
+19. RETRY
+==================================================
+
+Retry somente para falhas transitórias:
+
+- timeout;
+- 429, respeitando limite;
+- 502;
+- 503;
+- 504.
+
+Não repetir automaticamente:
+
+- CPF inválido;
+- 401;
+- 403;
+- cliente inexistente;
+- plano inexistente.
+
+Limitar tentativas e usar backoff.
+
+==================================================
+20. RESPOSTA PARA A IA
+==================================================
+
+A tool deve retornar apenas dados estruturados e seguros.
+
+Exemplo de sucesso:
+
+{
+  "success": true,
+  "customer": {
+    "id": "abc",
+    "name": "Maria"
+  },
+  "activePlans": [
+    {
+      "id": "plan-1",
+      "name": "Plano de Manicure",
+      "serviceName": "Manicure Plano Beauty",
+      "availableUses": 2
+    }
+  ]
+}
+
+A IA responde with linguagem natural.
+
+A tool não envia WhatsApp diretamente.
+
+==================================================
+21. RESPOSTAS AO CLIENTE
+==================================================
+
+CPF inválido:
+
+“Não consegui validar esse CPF. Pode conferir e enviar novamente, por favor?”
+
+Cliente não encontrado:
+
+“Não encontrei um cadastro com esse CPF. Pode conferir o número ou prefere que eu encaminhe para nossa equipe?”
+
+Cliente encontrado sem plano ativo:
+
+“Encontrei seu cadastro, mas não localizei um plano ativo no momento. Posso ajudar com um agendamento convencional?”
+
+BEMP indisponível:
+
+“Não consegui consultar seu plano agora. Vou encaminhar essa validação para nossa equipe para você não ficar sem atendimento.”
+
+Não dizer “não possui plano” quando o BEMP estiver indisponível.
+
+==================================================
+22. LOGS DE DIAGNÓSTICO
+==================================================
 
 Registrar:
 
-ai_resume_attempt_id
+cpf_received
+cpf_normalized
+cpf_validation_failed
+bemp_customer_lookup_started
+bemp_customer_lookup_completed
+bemp_customer_not_found
+bemp_multiple_customers
+bemp_subscription_lookup_started
+bemp_subscription_lookup_completed
+bemp_subscription_not_found
+bemp_subscription_active
+bemp_subscription_no_balance
+bemp_invalid_response
+subscription_service_resolved
+subscription_lookup_failed
 
-==================================================
-19. FALHAS
-==================================================
+Nos logs usar apenas:
 
-Se a IA falhar ao retomar:
-
-- não marcar como AI;
-- retornar para HUMAN ou WAITING_AI_RESUME;
-- preservar pending_customer_reply;
-- liberar lock;
-- criar alerta para a equipe;
-- não enviar múltiplos fallbacks.
-
-Se a Evolution falhar no envio:
-
-- não considerar a retomada concluída;
-- manter estado recuperável;
-- evitar envio duplicado após confirmação de sucesso.
-
-==================================================
-20. LOGS
-==================================================
-
-Registrar:
-
-human_assumed_conversation
-human_message_sent
-ai_paused_for_human
-customer_message_waiting_for_human
-human_idle_timeout_reached
-ai_resume_validation_started
-ai_resume_blocked
-ai_resume_started
-ai_resume_completed
-ai_resume_failed
-conversation_returned_to_ai
-conversation_marked_human_only
-
-Incluir:
-
+cpfLast4
 traceId
 conversationId
-agentId
 unitId
-operatorId
-lastCustomerMessageId
-
-Não registrar conteúdo completo da conversa.
-
-==================================================
-21. AUDITORIA
-==================================================
-
-Criar timeline de eventos internos:
-
-- IA pausada;
-- humano assumiu;
-- humano respondeu;
-- cliente respondeu;
-- timeout atingido;
-- IA retomou;
-- humano retomou novamente.
-
-Esses eventos devem ser do tipo system e não incrementar unread_count.
+customerId mascarado
+status HTTP
+responseShape
 
 ==================================================
-22. TESTES OBRIGATÓRIOS
+23. TESTE COM DADO REAL CONTROLADO
 ==================================================
 
-Teste 1 — humano assume
+Usar um CPF de teste previamente confirmado no BEMP com plano ativo.
 
-- IA ativa;
-- operador clica em assumir;
-- cliente envia mensagem;
-- IA não responde.
+Não exibir o CPF no relatório.
 
-Teste 2 — mensagem manual
+Comprovar:
 
-- operador envia mensagem;
-- IA fica pausada;
-- fromMe não dispara runAgent.
-
-Teste 3 — humano inativo
-
-- cliente envia mensagem;
-- humano não responde pelo tempo configurado;
-- IA retoma uma única vez.
-
-Teste 4 — humano responde antes do timeout
-
-- pending_customer_reply é limpo;
-- IA não retoma.
-
-Teste 5 — humano responde durante a retomada
-
-- lock/validação detecta;
-- IA não envia resposta concorrente.
-
-Teste 6 — nova mensagem após timeout
-
-- usar somente a mensagem ainda pendente;
-- sem duplicidade.
-
-Teste 7 — pedido explícito de humano
-
-Cliente:
-“Quero falar com uma atendente.”
-
-Resultado:
-human_only = true ou handoff obrigatório;
-IA não volta automaticamente.
-
-Teste 8 — devolução manual
-
-- operador clica “Devolver para IA”;
-- IA continua do ponto correto.
-
-Teste 9 — follow-up
-
-- follow-up pausado durante HUMAN;
-- reavaliado após retorno.
-
-Teste 10 — erro da IA
-
-- estado não fica incorretamente como AI;
-- equipe recebe alerta.
-
-Teste 11 — duas execuções do job
-
-- uma única adquire lock;
-- uma única resposta enviada.
-
-Teste 12 — última mensagem foi do humano
-
-- IA não retoma.
+1. CPF normalizado;
+2. endpoint chamado;
+3. cliente localizado;
+4. customerId retornado;
+5. endpoint de assinaturas chamado;
+6. plano encontrado;
+7. status normalizado;
+8. saldo validado;
+9. serviço mapeado;
+10. serviço resolvido na unidade.
 
 ==================================================
-23. ATIVAÇÃO SEGURA
+24. TESTES AUTOMATIZADOS
 ==================================================
 
-Implementar feature flag:
+Criar testes:
 
-AI_AUTO_RESUME_AFTER_HUMAN_IDLE
-
-Iniciar desativada.
-
-Depois:
-
-1. ativar em homologação;
-2. testar com agente de teste;
-3. ativar em uma unidade;
-4. acompanhar logs;
-5. expandir gradualmente.
-
-Não ativar globalmente durante a implementação.
+1. CPF formatado válido.
+2. CPF somente números.
+3. CPF com zero inicial.
+4. CPF inválido.
+5. cliente não encontrado.
+6. múltiplos clientes.
+7. cliente encontrado sem plano.
+8. plano ativo.
+9. plano vencido.
+10. plano cancelado.
+11. plano suspenso.
+12. plano sem saldo.
+13. plano ilimitado.
+14. resposta aninhada.
+15. resposta inválida.
+16. BEMP 401.
+17. BEMP 429.
+18. BEMP 500.
+19. timeout.
+20. plano ativo em outra unidade.
+21. serviço do plano inexistente na unidade.
+22. mapeamentos Manicure, Escova e Hidratação e Escova.
 
 ==================================================
-24. ENTREGA
+25. ENTREGA
 ==================================================
 
 Ao concluir informar:
 
-1. campos reutilizados ou criados;
-2. migration;
-3. timeout padrão;
-4. job de retomada;
-5. validações;
-6. locks;
-7. controles da interface;
-8. interação com follow-up;
-9. logs;
+1. causa raiz exata;
+2. endpoint real usado para localizar cliente;
+3. nome real do parâmetro do CPF;
+4. endpoint usado para assinaturas;
+5. formato real das respostas;
+6. status reais encontrados;
+7. arquivos alterados;
+8. schemas criados;
+9. logs do teste mascarados;
 10. testes;
 11. build;
 12. typecheck;
 13. lint;
-14. feature flag;
-15. rollback.
-
-Não publicar automaticamente.
+14. não publicar automaticamente.
 
 CRITÉRIO DE CONCLUSÃO
 
-O fluxo só estará concluído quando:
+Não declarar corrigido apenas porque a função retorna sem erro.
 
-- o humano assumir e a IA parar imediatamente;
-- mensagens da cliente continuarem entrando;
-- a IA retomar somente após inatividade real;
-- a última mensagem continuar sem resposta humana;
-- não houver respostas simultâneas;
-- o humano puder bloquear ou devolver a conversa manualmente.
+É obrigatório comprovar, com um CPF de teste conhecido no BEMP, que o cliente e o plano ativo foram encontrados e que o serviço correto foi resolvido.
       */}
+
       <div className="bg-green-600 text-white p-2 text-center text-xs font-medium">
         Sistema otimizado: cache de permissões e credenciais ativado para maior velocidade.
       </div>
