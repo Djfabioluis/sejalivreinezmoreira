@@ -41,6 +41,7 @@ import { useMyPermissions } from "@/hooks/use-my-permissions";
 
 const items = [
   { title: "Painel", url: "/painel", icon: LayoutDashboard, group: "Operação", key: "painel" },
+  { title: "CRM Inteligente", url: "/crm", icon: TrendingUp, group: "Operação", key: "crm" },
   { title: "Secretária virtual", url: "/agendar", icon: MessageCircle, group: "Operação", key: "agendar" },
   { title: "Base de conhecimento", url: "/base-conhecimento", icon: BookOpen, group: "Configuração", key: "base-conhecimento" },
   { title: "Boas-vindas", url: "/boas-vindas", icon: Hand, group: "Configuração", key: "boas-vindas" },
