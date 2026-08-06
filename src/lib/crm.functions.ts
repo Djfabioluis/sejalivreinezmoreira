@@ -71,3 +71,18 @@ export const getCRMDashboardStats = createServerFn({ method: "GET" })
       }, {})
     };
   });
+
+export const listOpportunities = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    
+    const { data, error } = await (supabaseAdmin
+      .from("crm_opportunities" as any) as any)
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) throw new Error(error.message);
+    return data || [];
+  });
+

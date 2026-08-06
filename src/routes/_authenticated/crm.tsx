@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { listCustomerPipeline, getCRMDashboardStats } from "@/lib/crm.functions";
+import { listCustomerPipeline, getCRMDashboardStats, listOpportunities } from "@/lib/crm.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -13,7 +13,7 @@ export const Route = createFileRoute("/_authenticated/crm")({
     meta: [{ title: "CRM Inteligente — Julia" }],
   }),
   loader: async ({ context }) => {
-    const [pipeline, stats] = await Promise.all([
+    const [pipeline, stats, opportunities] = await Promise.all([
       context.queryClient.ensureQueryData({
         queryKey: ["crm-pipeline"],
         queryFn: () => listCustomerPipeline(),
@@ -22,8 +22,12 @@ export const Route = createFileRoute("/_authenticated/crm")({
         queryKey: ["crm-stats"],
         queryFn: () => getCRMDashboardStats(),
       }),
+      context.queryClient.ensureQueryData({
+        queryKey: ["crm-opportunities"],
+        queryFn: () => listOpportunities(),
+      }),
     ]);
-    return { pipeline, stats };
+    return { pipeline, stats, opportunities };
   },
   component: CRMPage,
 });
