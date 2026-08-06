@@ -604,9 +604,7 @@ function Dashboard() {
             </>
           )}
         </Tabs>
-
-
-      </main>
+      </div>
     </div>
   );
 }
