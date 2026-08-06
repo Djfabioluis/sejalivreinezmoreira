@@ -305,16 +305,29 @@ function AgentesWhatsAppPage() {
                 {a.unidade_id && <p className="text-[10px] text-primary flex items-center mt-1"><Building2 className="h-3 w-3 mr-1" /> Unidade: {a.unidade_id}</p>}
               </div>
               <div className="flex flex-col items-end gap-2">
-                <StatusBadge status={a.status} statusConexao={a.status_conexao} />
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className={a.ia_ativa ? "border-primary text-primary" : "text-muted-foreground"}>
+                    {a.ia_ativa ? "IA Ativa" : "IA Inativa"}
+                  </Badge>
+                  <StatusBadge status={a.status} statusConexao={a.status_conexao} />
+                </div>
                 <div className="flex gap-2">
+                  <Button 
+                    size="sm" 
+                    variant="ghost" 
+                    className="h-7 text-[10px]" 
+                    onClick={() => void toggleIAAgente({ data: { id: a.id, enabled: !a.ia_ativa } }).then(() => reload())}
+                  >
+                    {a.ia_ativa ? "Pausar IA" : "Ativar IA"}
+                  </Button>
                   {a.status === "conectado_sem_unidade" && (
                     <Button size="sm" variant="default" className="h-7 text-[10px]" onClick={() => handleOpenUnit(a, "manual")}>Escolher Unidade</Button>
                   )}
-                  {a.status === "ativo" && (
+                  {a.unidade_id && (
                     <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => handleOpenUnit(a, "manual")}>Alterar Unidade</Button>
                   )}
-                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => openQr(a)}><QrCode className="h-3.5 w-3.5" /></Button>
-                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => void removerAgente({data:{id:a.id}}).then(()=>reload())}><Trash2 className="h-3.5 w-3.5" /></Button>
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => openQr(a)} title="QR Code"><QrCode className="h-3.5 w-3.5" /></Button>
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => void removerAgente({data:{id:a.id}}).then(()=>reload())} title="Excluir"><Trash2 className="h-3.5 w-3.5" /></Button>
                 </div>
               </div>
             </CardContent>
