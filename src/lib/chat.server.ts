@@ -2405,10 +2405,13 @@ export async function runAgentWithLogging(params: {
       normalizedText.includes("sou assinante") ||
       normalizedText.includes("plano beauty") ||
       normalizedText.includes("usar meu plano") ||
-      normalizedText.includes("usar meu beneficio");
+      normalizedText.includes("usar meu beneficio") ||
+      normalizedText.includes("tenho assinatura") ||
+      normalizedText.includes("plano de manicure") ||
+      normalizedText.includes("plano de escova") ||
+      normalizedText.includes("plano de hidratacao");
 
-    const subscriptionIntent = detectSubscriptionIntent(params.text);
-    if (subscriptionIntent && !historyData?.customer_context?.subscriptionPhoneValidated && historyData?.customer_context?.subscriptionLookupStage !== "LOOKING_UP_PHONE") {
+    if (isSubscriptionIntent && !historyData?.customer_context?.subscriptionPhoneValidated && historyData?.customer_context?.subscriptionLookupStage !== "LOOKING_UP_PHONE") {
       console.log(`[chat] subscription_intent_detected_deterministic: traceId=${effectiveTraceId}`);
       await patchCustomerContext(conversationKey, {
         subscriptionIntent: true,
@@ -2424,6 +2427,7 @@ export async function runAgentWithLogging(params: {
         skipModel: true
       };
     }
+
 
 
     const intent = detectServiceCategory(params.text);
