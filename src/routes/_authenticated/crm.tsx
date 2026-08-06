@@ -158,7 +158,7 @@ function CRMPage() {
             <div className="space-y-4">
               {opportunities.length > 0 ? (
                 opportunities.map((opp: any) => (
-                  <Card key={opp.id} className={`border-l-4 ${opp.opportunity_type === 'WAITING_LIST' ? 'border-l-purple-500 bg-purple-50/20' : 'border-l-blue-500'}`}>
+                  <Card key={opp.id} className={`border-l-4 ${opp.opportunity_type === 'WAITING_LIST' ? 'border-l-purple-500 bg-purple-50/20' : opp.metadata?.is_premium_decision ? 'border-l-amber-500 bg-amber-50/10' : 'border-l-blue-500'}`}>
                     <CardHeader className="pb-2">
                       <div className="flex justify-between items-start">
                         <div>
