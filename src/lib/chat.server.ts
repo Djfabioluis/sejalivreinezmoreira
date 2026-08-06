@@ -2369,33 +2369,51 @@ export async function runAgentWithLogging(params: {
 
     const currentUnitName = effectiveUnitName || unitName;
 
-    // Detecção de Intenção e Promoção (Determinística)
-    const normalizedText = (params.text || "").toLowerCase();
-    const isSubscriptionIntent = 
-      normalizedText.includes("tenho plano") || 
-      normalizedText.includes("tenho assinante") || 
-      normalizedText.includes("sou assinante") ||
-      normalizedText.includes("plano beauty") ||
-      normalizedText.includes("usar meu plano") ||
-      normalizedText.includes("usar meu beneficio") ||
-      normalizedText.includes("tenho assinatura") ||
-      normalizedText.includes("plano de manicure") ||
-      normalizedText.includes("plano de escova") ||
-      normalizedText.includes("plano de hidratacao");
+    // 8. NORMALIZAR A INTENÇÃO (Requisito 8)
+    const normalizeIntentText = (t: string) => {
+      return t.toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "") // remove acentos
+        .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()]/g, "") // remove pontuação
+        .replace(/\s+/g, " ")
+        .trim();
+    };
 
-    if (isSubscriptionIntent && !historyData?.customer_context?.subscriptionPhoneValidated && historyData?.customer_context?.subscriptionLookupStage !== "LOOKING_UP_PHONE") {
+    const normalizedText = normalizeIntentText(params.text || "");
+    const currentCustomerContext = {
+      ...(historyData?.customer_context || {})
+    };
+
+    const subscriptionKeywords = [
+      "tenho plano", "tenho plano beauty", "sou assinante", "quero usar meu plano",
+      "quero usar meu beneficio", "tenho assinatura", "plano de manicure",
+      "plano de escova", "plano de hidratacao", "quero usar minha assinatura",
+      "sou cliente do plano"
+    ];
+
+    const isSubscriptionIntent = subscriptionKeywords.some(kw => normalizedText.includes(kw));
+
+    // 1. CORRIGIR A INTERCEPTAÇÃO INICIAL (Requisito 1 & 2)
+    if (isSubscriptionIntent && !currentCustomerContext.subscriptionPhoneValidated && currentCustomerContext.subscriptionLookupStage !== "LOOKING_UP_PHONE") {
       console.log(`[chat] subscription_intent_detected: traceId=${effectiveTraceId}`);
-      await patchCustomerContext(conversationKey, {
+      
+      const patch = {
         subscriptionIntent: true,
         subscriptionLookupMethod: "PHONE",
         subscriptionLookupStage: "AWAITING_REGISTERED_PHONE",
+        subscriptionPhoneValidated: false,
         awaitingCpf: false,
         cpfRequested: false,
         cpfValidationPending: false
-      });
+      };
+      
+      await patchCustomerContext(conversationKey, patch);
+      // Atualiza contexto local
+      Object.assign(currentCustomerContext, patch);
 
-      console.log(`[chat] subscription_phone_requested: traceId=${effectiveTraceId}`);
       const phoneRequest = "Perfeito! 💜\n\nQual é o número de telefone cadastrado na assinatura?\n\nPode enviar com DDD.";
+      console.log(`[chat] subscription_phone_requested: traceId=${effectiveTraceId}`);
+      
       const { replyToUser } = await import("./evolution/reply.server");
       await replyToUser({
         instance,
@@ -2404,16 +2422,79 @@ export async function runAgentWithLogging(params: {
         conversationKey,
         messageId
       });
+      
+      await logEvent({
+        instance,
+        messageId,
+        event: "subscription_phone_requested",
+        status: "success",
+        payload: { traceId: effectiveTraceId }
+      });
       return;
     }
 
-    // Processamento de Telefone durante o fluxo de assinatura
-    if (historyData?.customer_context?.subscriptionLookupStage === "AWAITING_REGISTERED_PHONE") {
-       // Tentar extrair telefone da mensagem
-       const digitsOnly = normalizedText.replace(/\D/g, "");
-       if (digitsOnly.length >= 10 && digitsOnly.length <= 11) {
-         console.log(`[chat] subscription_phone_received: traceId=${effectiveTraceId}, length=${digitsOnly.length}`);
-         // Deixa o orquestrador seguir para a IA mas a IA vai preferir chamar a tool de telefone agora
+    // 4. PROCESSAR O TELEFONE DETERMINISTICAMENTE (Requisito 4 & 5)
+    if (currentCustomerContext.subscriptionLookupStage === "AWAITING_REGISTERED_PHONE") {
+       const { normalizeBrazilianPhone } = await import("@/lib/phone");
+       const normalizedPhone = normalizeBrazilianPhone(params.text);
+
+       if (normalizedPhone.success) {
+         console.log(`[chat] subscription_phone_received: traceId=${effectiveTraceId}, phone=${normalizedPhone.fullNumber}`);
+         
+         await patchCustomerContext(conversationKey, {
+           subscriptionLookupStage: "LOOKING_UP_PHONE"
+         });
+         currentCustomerContext.subscriptionLookupStage = "LOOKING_UP_PHONE";
+
+         const { validateSubscriptionByPhone } = await import("@/lib/bemp/phone-validation.server");
+         const result = await validateSubscriptionByPhone(normalizedPhone.fullNumber);
+         const { replyToUser } = await import("./evolution/reply.server");
+
+         if (result.success && result.customer) {
+           const patch = {
+             subscriptionPhoneValidated: true,
+             subscriptionPhoneLast4: result.customer.phoneMasked.slice(-4),
+             bempCustomerId: result.customer.id,
+             subscriptionCheckedAt: new Date().toISOString(),
+             subscriptionLookupStage: "PLAN_FOUND"
+           };
+           await patchCustomerContext(conversationKey, patch);
+           Object.assign(currentCustomerContext, patch);
+           
+           // Agora que validou, deixa seguir para a IA para continuar o agendamento (conforme Requisito 5)
+         } else {
+           let errorText = "Não encontrei uma assinatura vinculada a esse telefone. Pode conferir se esse é o número cadastrado no plano?";
+           let stage = "PHONE_NOT_FOUND";
+
+           if (result.code === "BEMP_UNAVAILABLE" || result.code === "BEMP_UNAUTHORIZED") {
+             errorText = "Não consegui consultar seu plano agora. Vou encaminhar essa validação para nossa equipe.";
+             stage = "BEMP_ERROR";
+           }
+
+           await patchCustomerContext(conversationKey, {
+             subscriptionLookupStage: stage
+           });
+           
+           await replyToUser({
+             instance,
+             phone,
+             text: errorText,
+             conversationKey,
+             messageId
+           });
+           return;
+         }
+       } else if (normalizedText.replace(/\D/g, "").length >= 10) {
+          // Se parece um telefone mas falhou na normalização
+          const { replyToUser } = await import("./evolution/reply.server");
+          await replyToUser({
+            instance,
+            phone,
+            text: "Não consegui validar esse número. Pode enviar novamente com o DDD, por favor?",
+            conversationKey,
+            messageId
+          });
+          return;
        }
     }
 
