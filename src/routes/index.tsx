@@ -115,46 +115,18 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="hidden">
-        Execute esta instrucao no projeto: Implementar Revenue Engine.
+        Execute esta instrucao no projeto: Criar Dashboard Financeiro.
 
-        Sempre que surgir um horário livre:
-        consultar automaticamente:
-        clientes interessados
-        ↓
-        mesmo serviço
-        ↓
-        mesma unidade
-        ↓
-        mesma profissional
-        ↓
-        mesmo período
-        ↓
-        score de conversão
-        ↓
-        última interação
-        ↓
-        probabilidade de aceite
-
-        Ordenar do maior para o menor.
-        Criar ranking.
-        Enviar apenas uma proposta por horário.
-        Esperar resposta.
-
-        Se recusar:
-        oferecer ao próximo cliente.
-
-        Nunca oferecer o mesmo horário para vários clientes simultaneamente.
-
-        Criar tabela:
-        crm_slot_opportunities
-
-        status:
-        pending
-        offered
-        accepted
-        declined
-        expired
-        reserved
+        Mostrar:
+        Receita estimada recuperada
+        Receita perdida por cancelamentos
+        Receita recuperada por Follow-up
+        Receita recuperada pela IA
+        Ticket médio
+        Taxa de ocupação
+        Tempo médio até preencher cancelamentos
+        Receita por unidade
+        Receita por profissional
       </div>
 
       <div className="bg-green-600 text-white p-2 text-center text-xs font-medium">
