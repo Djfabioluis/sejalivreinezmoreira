@@ -2667,6 +2667,14 @@ export async function runAgentWithLogging(params: {
       return;
     }
 
+    // PROTEÇÃO DE SAÍDA #1 (pós-orquestrador): nunca mencionar CPF no fluxo de assinatura.
+    const { enforceNoCpfInSubscriptionFlow } = await import("@/lib/subscription-policy.server");
+    const cpfGuard = enforceNoCpfInSubscriptionFlow(reply, currentCustomerContext as never);
+    if (cpfGuard.blocked) {
+      console.log(`[chat] subscription_cpf_output_blocked: traceId=${effectiveTraceId}, lookupStage=${currentCustomerContext.subscriptionLookupStage || "NONE"}, phoneAttempts=${currentCustomerContext.subscriptionPhoneAttempts || 0}`);
+      reply = cpfGuard.text;
+    }
+
     await logEvent({ instance, messageId, event: "ai_request_completed", status: "success" });
 
     const { replyToUser } = await import("./evolution/reply.server");
@@ -2675,7 +2683,8 @@ export async function runAgentWithLogging(params: {
       phone,
       text: reply,
       conversationKey,
-      messageId
+      messageId,
+      traceId: effectiveTraceId
     });
 
     // CRM: Update stage after successfully replying
