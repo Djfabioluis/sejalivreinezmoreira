@@ -350,7 +350,7 @@ function LandingPage() {
               © {new Date().getFullYear()} Seja Livre AI Platform. Todos os direitos reservados.
             </p>
             <div className="flex gap-6 text-sm text-muted-foreground">
-              <Link to="/auth">Entrar</Link>
+              <Link to="/auth" search={{ next: "/painel" }}>Entrar</Link>
               <a href="#">Privacidade</a>
               <a href="#">Termos</a>
             </div>

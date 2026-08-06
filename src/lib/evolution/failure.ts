@@ -93,15 +93,19 @@ export function classifyFailure(err: unknown): FailureClass {
     customer_not_found: "Não encontrei um cadastro com esse CPF. Pode conferir o número? ✨",
     plan_not_active: "Seu plano foi localizado, mas não há utilização disponível no momento. 😔",
     plan_no_balance: "Seu plano está ativo, mas parece que o saldo de utilizações acabou. 💛",
+    SLOT_EXPIRED: "Esse horário acabou de ficar indisponível. Posso verificar outras opções para você? 💜",
+    APPOINTMENT_CONFLICT: "Parece que já existe um agendamento para este horário. Vamos tentar outro? 😊",
+    INVALID_BOOKING_DATA: "Alguns dados para o agendamento estão incompletos. Pode confirmar os detalhes comigo? ✨",
+    BEMP_INVALID_RESPONSE: "A agenda confirmou o recebimento, mas houve uma falha ao gerar o comprovante. Vou pedir para nossa equipe conferir! 💜",
   };
   if (code && known[code]) {
-    return { code, userMessage: known[code]!, expected: true, escalate: false };
+    return { code, userMessage: known[code]!, expected: true, escalate: code === "BEMP_INVALID_RESPONSE" };
   }
 
   // --- BEMP (HTTP) ---
-  if (/^bemp\s+\d{3}/i.test(raw) || code === "bemp_http_error") {
+  if (/^bemp\s+\d{3}/i.test(raw) || code === "bemp_http_error" || code?.startsWith("BEMP_")) {
     const httpStatus = status ?? Number(raw.match(/bemp\s+(\d{3})/i)?.[1]);
-    if (httpStatus === 404) {
+    if (httpStatus === 404 || code === "NOT_FOUND") {
       return {
         code: "bemp_not_found",
         userMessage:
@@ -110,7 +114,7 @@ export function classifyFailure(err: unknown): FailureClass {
         escalate: false,
       };
     }
-    if (httpStatus === 422) {
+    if (httpStatus === 422 || code === "INVALID_BOOKING_DATA") {
       return {
         code: "bemp_invalid_data",
         userMessage:
@@ -119,7 +123,7 @@ export function classifyFailure(err: unknown): FailureClass {
         escalate: false,
       };
     }
-    if (httpStatus === 401 || httpStatus === 403) {
+    if (httpStatus === 401 || httpStatus === 403 || code === "UNAUTHORIZED") {
       return {
         code: "bemp_unauthorized",
         userMessage: GENERIC_FALLBACK_TEXT,
@@ -128,7 +132,7 @@ export function classifyFailure(err: unknown): FailureClass {
       };
     }
     return {
-      code: `bemp_http_${httpStatus || "error"}`,
+      code: code || `bemp_http_${httpStatus || "error"}`,
       userMessage: GENERIC_FALLBACK_TEXT,
       expected: false,
       escalate: true,
