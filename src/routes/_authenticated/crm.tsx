@@ -162,8 +162,8 @@ function CRMPage() {
                     <CardHeader className="pb-2">
                       <div className="flex justify-between items-start">
                         <div>
-                          <Badge variant={opp.opportunity_type === 'WAITING_LIST' ? 'secondary' : 'outline'} className="mb-1">
-                            {opp.opportunity_type === 'WAITING_LIST' ? 'LISTA DE ESPERA 💜' : opp.opportunity_type.replace(/_/g, ' ')}
+                          <Badge variant={opp.opportunity_type === 'WAITING_LIST' ? 'secondary' : opp.metadata?.is_premium_decision ? 'default' : 'outline'} className={`mb-1 ${opp.metadata?.is_premium_decision ? 'bg-amber-600 hover:bg-amber-700' : ''}`}>
+                            {opp.opportunity_type === 'WAITING_LIST' ? 'LISTA DE ESPERA 💜' : opp.metadata?.is_premium_decision ? 'CAMPANHA PREMIUM ⭐' : opp.opportunity_type.replace(/_/g, ' ')}
                           </Badge>
                           <CardTitle className="text-sm">{opp.customer_id}</CardTitle>
                         </div>
