@@ -17,10 +17,7 @@ import {
   Lock,
   QrCode,
   Brain,
-  
-
-
-
+  TrendingUp,
 } from "lucide-react";
 
 import {
