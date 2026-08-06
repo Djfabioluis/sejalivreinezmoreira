@@ -472,23 +472,11 @@ function Dashboard() {
 
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
-        <div className="mx-auto max-w-6xl px-4 py-4 sm:py-6 grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3 sm:flex sm:items-center">
-          <div className="rounded-lg bg-primary text-primary-foreground p-2 shrink-0">
-            <CalendarClock className="h-5 w-5" />
-          </div>
-          <div className="min-w-0 sm:flex-1">
-            <h1 className="truncate text-lg sm:text-xl font-semibold tracking-tight">
-              Secretária Virtual — Bemp
-            </h1>
-            <p className="text-xs sm:text-sm text-muted-foreground">
-              Painel integrado à sua conta Bemp.
-            </p>
-          </div>
-          <div className="col-span-2 flex flex-wrap items-center gap-2 sm:col-auto">
-            <SandboxToggle />
-            <Link
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="flex flex-col gap-1">
+        <h2 className="text-3xl font-display tracking-tight">Bom dia, Gestor ☀️</h2>
+        <p className="text-muted-foreground">Aqui está o que está acontecendo na sua clínica hoje.</p>
+      </div>
               to="/base-conhecimento"
               className="inline-flex items-center gap-2 rounded-md bg-secondary px-3 py-2 text-sm font-medium text-secondary-foreground hover:bg-secondary/90"
             >
