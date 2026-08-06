@@ -115,185 +115,265 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* 
-        Execute esta instrucao no projeto: SPRINT 1 — TAREFA 1
+        Execute esta instrucao no projeto: GERAR RELATÓRIO OBRIGATÓRIO DA OTIMIZAÇÃO DA SECRETÁRIA VIRTUAL
 
-OTIMIZAÇÃO DA SECRETÁRIA VIRTUAL
+CONTEXTO
 
-OBJETIVO
+A tarefa de otimização da Secretária Virtual foi executada, mas o relatório técnico não foi entregue.
 
-Refatorar a Secretária Virtual para melhorar drasticamente a performance.
-
-Não alterar regras de negócio.
-
-Não alterar a aparência.
-
-Não remover funcionalidades.
+Não realizar novas alterações nesta etapa.
 
 Não publicar automaticamente.
 
-==================================================
+OBJETIVO
 
-ANALISAR
-
-==================================================
-
-Identificar:
-
-• quantidade de queries executadas ao abrir a tela
-
-• quantidade de subscriptions Realtime
-
-• componentes que renderizam mais de uma vez
-
-• hooks repetidos
-
-• consultas duplicadas
-
-• histórico carregado desnecessariamente
-
-• mensagens carregadas desnecessariamente
+Inspecionar o estado atual do código e gerar um relatório completo, com evidências reais do que foi alterado.
 
 ==================================================
-
-LISTA DE CONVERSAS
-
+1. LISTAR ARQUIVOS ALTERADOS
 ==================================================
 
-Não carregar todas as conversas.
+Informar todos os arquivos modificados na tarefa de performance.
 
-Implementar:
+Para cada arquivo, explicar:
 
-- paginação
+- problema anterior;
+- alteração realizada;
+- impacto esperado;
+- risco de regressão.
 
-- carregamento incremental
-
-- virtualização
-
-Mostrar inicialmente apenas:
-
-última mensagem
-
-nome
-
-foto
-
-status
-
-horário
-
-contador de não lidas
+Não usar descrições genéricas.
 
 ==================================================
-
-HISTÓRICO
-
+2. COMPARAR QUERIES
 ==================================================
 
-Não carregar todo o histórico.
+Informar:
 
-Ao abrir uma conversa:
+- quantidade aproximada de queries ao abrir a Secretária Virtual antes;
+- quantidade atual;
+- quais queries foram removidas;
+- quais foram consolidadas;
+- quais continuam sendo executadas;
+- se ainda existe SELECT *.
 
-carregar apenas as últimas 50 mensagens.
-
-Criar botão:
-
-"Carregar mensagens anteriores"
-
-Buscar mais 50 quando necessário.
-
-==================================================
-
-REALTIME
+Mostrar os arquivos e funções responsáveis.
 
 ==================================================
-
-Criar apenas UMA subscription.
-
-Quando chegar uma mensagem:
-
-atualizar somente aquela conversa.
-
-Não recarregar toda a caixa de entrada.
-
+3. REALTIME
 ==================================================
 
-RENDERS
+Informar:
+
+- quantas subscriptions existiam;
+- quantas existem agora;
+- filtros utilizados;
+- onde ocorre unsubscribe;
+- como uma nova mensagem atualiza somente a conversa afetada;
+- se ainda existe refetch completo da caixa de entrada.
+
+Mostrar os componentes ou hooks envolvidos.
 
 ==================================================
-
-Eliminar renderizações desnecessárias.
-
-Aplicar memoização apenas onde houver ganho real.
-
+4. PAGINAÇÃO
 ==================================================
 
-REACT QUERY
+Confirmar se foi implementada paginação real.
+
+Informar:
+
+- tamanho da página;
+- método utilizado;
+- cursor ou offset;
+- query Supabase;
+- comportamento ao carregar mais;
+- como duplicidades são evitadas.
+
+Se não foi implementada, declarar claramente:
+
+“Paginação ainda não implementada.”
 
 ==================================================
-
-Padronizar cache.
-
-Evitar refetch constante.
-
+5. HISTÓRICO DE MENSAGENS
 ==================================================
 
-BANCO
+Confirmar:
+
+- quantidade inicial de mensagens carregadas;
+- método para carregar mensagens anteriores;
+- ordenação;
+- deduplicação;
+- comportamento em conversas longas;
+- se existe virtualização.
+
+Se não existir virtualização, declarar isso claramente.
 
 ==================================================
-
-Eliminar SELECT *
-
-Buscar apenas colunas necessárias.
-
+6. RENDERIZAÇÕES
 ==================================================
 
-PERFORMANCE
+Informar quais componentes foram analisados.
+
+Mostrar:
+
+- componentes memoizados;
+- hooks corrigidos;
+- dependências de useEffect ajustadas;
+- listeners recriados anteriormente;
+- renders desnecessários eliminados.
+
+Não afirmar ganho sem evidência.
 
 ==================================================
-
-Meta:
-
-Abrir conversa em menos de 300 ms após a lista carregada.
-
+7. REACT QUERY
 ==================================================
 
-VALIDAÇÃO
+Informar:
 
+- query keys utilizadas;
+- staleTime;
+- refetchOnWindowFocus;
+- invalidações;
+- atualizações otimistas;
+- queries duplicadas removidas.
+
+==================================================
+8. BANCO
+==================================================
+
+Listar:
+
+- índices usados pela Secretária Virtual;
+- índices criados;
+- índices ainda recomendados;
+- queries críticas;
+- resultado de EXPLAIN ANALYZE, se disponível.
+
+Se EXPLAIN ANALYZE não foi executado, informar isso.
+
+==================================================
+9. MÉTRICAS ANTES E DEPOIS
+==================================================
+
+Medir agora:
+
+- tempo de abertura da página;
+- tempo para listar conversas;
+- tempo para abrir uma conversa;
+- quantidade de requests;
+- tamanho dos dados transferidos;
+- uso aproximado de memória;
+- tempo para uma mensagem nova aparecer.
+
+Se não existirem medições anteriores, não inventar números.
+
+Nesse caso, apresentar:
+
+“Não há baseline anterior disponível.”
+
+E criar uma medição atual como referência.
+
+==================================================
+10. BUILD E TESTES
 ==================================================
 
 Executar:
 
 build
-
 typecheck
-
 lint
+test
 
-testes
+Mostrar:
+
+- comando;
+- resultado;
+- duração;
+- erros;
+- warnings;
+- testes não executados.
+
+Não escrever apenas “OK”.
 
 ==================================================
-
-ENTREGA
-
+11. TESTE FUNCIONAL
 ==================================================
 
-Informar:
+Validar:
 
-- arquivos alterados
+- abrir a Secretária Virtual;
+- carregar lista;
+- abrir conversa;
+- carregar mensagens anteriores;
+- receber nova mensagem;
+- atualizar não lidas;
+- trocar de conversa;
+- enviar mensagem manual;
+- manter Realtime;
+- fechar e reabrir a página.
 
-- queries reduzidas
+Informar resultados por cenário.
 
-- subscriptions reduzidas
+==================================================
+12. ITENS NÃO IMPLEMENTADOS
+==================================================
 
-- tempo antes/depois
+Criar uma seção obrigatória:
 
-- build
+PENDÊNCIAS
 
-- typecheck
+Listar tudo o que foi solicitado e ainda não foi feito.
 
-- lint
+Exemplos:
 
-Não publicar automaticamente.
+- virtualização ausente;
+- paginação incompleta;
+- refetch global ainda existente;
+- índices não criados;
+- métricas sem baseline;
+- teste de carga não executado.
+
+Não omitir pendências.
+
+==================================================
+13. GERAR DOCUMENTO
+==================================================
+
+Criar:
+
+docs/performance-secretaria-virtual.md
+
+Estrutura:
+
+1. Resumo executivo
+2. Arquivos alterados
+3. Arquitetura antes/depois
+4. Queries
+5. Realtime
+6. Paginação
+7. Histórico
+8. Renderizações
+9. Banco
+10. Métricas
+11. Testes
+12. Riscos
+13. Pendências
+14. Próximos passos
+
+==================================================
+14. RESPOSTA FINAL
+==================================================
+
+Na resposta, incluir:
+
+- caminho do relatório;
+- resumo das melhorias;
+- números medidos;
+- itens pendentes;
+- resultado dos testes;
+- confirmação de que nenhuma nova alteração foi feita.
+
+Não declarar concluído se não houver evidências.
       */}
       <div className="bg-green-600 text-white p-2 text-center text-xs font-medium">
         Sistema otimizado: cache de permissões e credenciais ativado para maior velocidade.
