@@ -2431,7 +2431,7 @@ export async function runAgentWithLogging(params: {
       conversationKey,
       messageId,
       memoryBlock,
-      activePromotions, // Passando promoções ativas para o runAgent
+      activePromotions: activePromotions,
     });
 
     let reply = agentResult;
