@@ -2431,7 +2431,7 @@ export async function runAgentWithLogging(params: {
 
     // 1. CORRIGIR A INTERCEPTAÇÃO INICIAL (Requisito 1 & 2)
     if (isSubscriptionIntent && !currentCustomerContext.subscriptionPhoneValidated && currentCustomerContext.subscriptionLookupStage !== "LOOKING_UP_PHONE") {
-      console.log(`[chat] subscription_intent_detected: traceId=${effectiveTraceId}`);
+      logger.info("SUBSCRIPTION_INTENT_DETECTED", `Intenção de assinatura detectada`);
       
       const patch = {
         subscriptionIntent: true,
@@ -2447,7 +2447,7 @@ export async function runAgentWithLogging(params: {
       Object.assign(currentCustomerContext, patch);
 
       const phoneRequest = SUBSCRIPTION_MESSAGES.ASK_PHONE;
-      console.log(`[chat] subscription_phone_requested: traceId=${effectiveTraceId}`);
+      logger.info("SUBSCRIPTION_PHONE_REQUESTED", `Solicitando telefone para validação de plano`);
       
       const { replyToUser } = await import("./evolution/reply.server");
       await replyToUser({
