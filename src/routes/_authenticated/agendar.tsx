@@ -273,23 +273,26 @@ function AgendarPage() {
   };
 
   return (
-    <div className="container mx-auto p-4 max-w-7xl h-[calc(100vh-100px)] flex flex-col gap-4">
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold tracking-tight">Secretária Virtual</h1>
-          <Badge variant="outline" className={`text-[10px] ${realtimeStatus === 'SUBSCRIBED' ? 'text-green-600 border-green-200 bg-green-50' : 'text-amber-600 border-amber-200 bg-amber-50'}`}>
-            {realtimeStatus === 'SUBSCRIBED' ? '● Tempo Real Ativo' : '○ Conectando...'}
-          </Badge>
+    <div className="flex h-[calc(100vh-140px)] gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      {/* Esquerda: Lista de Conversas */}
+      <Card className={`w-full lg:w-[380px] flex flex-col overflow-hidden border-none shadow-xl bg-card/50 backdrop-blur-sm ${selectedPhone ? 'hidden lg:flex' : 'flex'}`}>
+        <div className="p-5 border-b space-y-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-xl font-display font-bold">Conversas</h1>
+            <Badge variant="outline" className={`text-[9px] px-2 py-0.5 rounded-full ${realtimeStatus === 'SUBSCRIBED' ? 'text-emerald-500 border-emerald-500/20 bg-emerald-500/5' : 'text-amber-500 border-amber-500/20 bg-amber-500/5'}`}>
+              {realtimeStatus === 'SUBSCRIBED' ? 'LIVE' : 'CONECTANDO'}
+            </Badge>
+          </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input 
+              placeholder="Buscar por nome ou número..." 
+              className="pl-10 h-10 bg-secondary/50 border-none focus-visible:ring-1 focus-visible:ring-primary/20" 
+              value={search} 
+              onChange={(e) => setSearch(e.target.value)} 
+            />
+          </div>
         </div>
-        <Button variant="outline" size="sm" onClick={() => loadList()}><RefreshCcw className="h-4 w-4 mr-2" /> Atualizar</Button>
-      </div>
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
-        <TabsList className="grid w-[400px] grid-cols-2">
-          <TabsTrigger value="inbox">Caixa de entrada</TabsTrigger>
-          <TabsTrigger value="simulator">Simulador da IA</TabsTrigger>
-        </TabsList>
-        <TabsContent value="inbox" className="flex-1 flex gap-4 overflow-hidden mt-4">
-          <Card className={`w-full md:w-1/3 flex flex-col overflow-hidden ${selectedPhone ? 'hidden md:flex' : 'flex'}`}>
             <div className="p-4 border-b space-y-3 bg-muted/20">
               <div className="relative">
                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
