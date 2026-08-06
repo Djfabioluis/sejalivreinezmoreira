@@ -473,10 +473,26 @@ function Dashboard() {
 
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex flex-col gap-1">
-        <h2 className="text-4xl font-display tracking-tight">Bom dia, Gestor</h2>
-        <p className="text-muted-foreground text-lg">Aqui está o resumo da operação da sua clínica hoje.</p>
+    <div className="space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-border/40">
+        <div className="space-y-2">
+          <Badge className="bg-primary/10 text-primary border-none text-[10px] font-bold uppercase tracking-[0.2em] mb-2 px-3">
+            Gestão Inteligente
+          </Badge>
+          <h2 className="text-5xl font-display tracking-tighter leading-none">Bom dia, Gestor</h2>
+          <p className="text-muted-foreground text-lg font-medium">Aqui está o resumo estratégico da sua operação hoje.</p>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="text-right hidden sm:block">
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">IA Health Score</p>
+            <div className="flex items-center gap-2 mt-1">
+              <div className="h-2 w-24 bg-secondary rounded-full overflow-hidden">
+                <div className="h-full bg-emerald-500 w-[98%]" />
+              </div>
+              <span className="text-sm font-bold text-emerald-600">98%</span>
+            </div>
+          </div>
+        </div>
       </div>
       
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
