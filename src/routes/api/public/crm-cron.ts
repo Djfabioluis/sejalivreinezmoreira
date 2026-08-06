@@ -10,6 +10,7 @@ import { generateManagementBriefing } from '@/lib/crm/management-report.server';
 import { analyzeAgenda } from '@/lib/crm/agenda-analyzer.server';
 import { processWaitingList } from '@/lib/crm/waiting-list.server';
 import { runDailyAnalysis } from '@/lib/crm/daily-analyst.server';
+import { runPredictiveCampaignEngine } from '@/lib/crm/predictive-campaign.server';
 
 
 export const Route = createFileRoute('/api/public/crm-cron')({
