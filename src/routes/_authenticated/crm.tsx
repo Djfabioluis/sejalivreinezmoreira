@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { listCustomerPipeline, getCRMDashboardStats, listOpportunities } from "@/lib/crm.functions";
+import { listCustomerPipeline, getCRMDashboardStats, listOpportunities, listRecommendations } from "@/lib/crm.functions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -13,7 +13,7 @@ export const Route = createFileRoute("/_authenticated/crm")({
     meta: [{ title: "CRM Inteligente — Julia" }],
   }),
   loader: async ({ context }) => {
-    const [pipeline, stats, opportunities] = await Promise.all([
+    const [pipeline, stats, opportunities, recommendations] = await Promise.all([
       context.queryClient.ensureQueryData({
         queryKey: ["crm-pipeline"],
         queryFn: () => listCustomerPipeline(),
@@ -26,8 +26,12 @@ export const Route = createFileRoute("/_authenticated/crm")({
         queryKey: ["crm-opportunities"],
         queryFn: () => listOpportunities(),
       }),
+      context.queryClient.ensureQueryData({
+        queryKey: ["crm-recommendations"],
+        queryFn: () => listRecommendations(),
+      }),
     ]);
-    return { pipeline, stats, opportunities };
+    return { pipeline, stats, opportunities, recommendations };
   },
   component: CRMPage,
 });
@@ -47,6 +51,12 @@ function CRMPage() {
     queryKey: ["crm-opportunities"],
     queryFn: () => listOpportunities(),
   });
+
+  const { data: recommendations } = useSuspenseQuery({
+    queryKey: ["crm-recommendations"],
+    queryFn: () => listRecommendations(),
+  });
+
 
   const getScoreColor = (score: number) => {
     if (score >= 70) return "bg-green-500";
@@ -147,7 +157,36 @@ function CRMPage() {
         </div>
 
         <div className="space-y-4">
-          <h2 className="text-xl font-semibold">Funil de Vendas (Pipeline)</h2>
+          <h2 className="text-xl font-semibold">IA Comercial: Sugestões de Venda</h2>
+          <ScrollArea className="h-[300px] rounded-md border p-4 bg-green-50/5">
+            <div className="space-y-3">
+              {recommendations.length > 0 ? (
+                recommendations.map((rec: any) => (
+                  <Card key={rec.id} className="border-l-4 border-l-green-500">
+                    <CardHeader className="p-3 pb-1">
+                      <div className="flex justify-between items-center">
+                        <Badge className="bg-green-100 text-green-700 hover:bg-green-200 border-none text-[10px]">
+                          {rec.recommendation_type}
+                        </Badge>
+                        <span className="text-[10px] text-muted-foreground">Confiança: {rec.confidence}%</span>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="p-3 pt-1 space-y-2">
+                      <CardTitle className="text-xs">{rec.customer_id}</CardTitle>
+                      <p className="text-[11px] text-muted-foreground italic">"{rec.reason}"</p>
+                      <div className="bg-green-50 p-2 rounded text-[11px] border border-green-100">
+                        {rec.suggested_message}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              ) : (
+                <div className="text-center py-10 text-muted-foreground italic text-sm">Nenhuma recomendação gerada ainda.</div>
+              )}
+            </div>
+          </ScrollArea>
+
+          <h2 className="text-xl font-semibold pt-4">Funil de Vendas (Pipeline)</h2>
           <ScrollArea className="h-[600px] rounded-md border p-4">
             <div className="grid gap-4">
               {customers.map((customer: any) => (
