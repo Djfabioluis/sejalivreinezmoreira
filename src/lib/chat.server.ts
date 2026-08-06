@@ -2537,7 +2537,7 @@ export async function runAgentWithLogging(params: {
       unitName: currentUnitName || undefined,
       contactName: pushName || (historyData?.contact_name as string),
       contactPhone: phone,
-      customerContext: historyData?.customer_context || {},
+      customerContext: currentCustomerContext || {},
       conversationKey,
       messageId,
       memoryBlock,
@@ -2546,9 +2546,8 @@ export async function runAgentWithLogging(params: {
 
     let reply = agentResult;
 
-    // Bloqueio Determinístico de CPF no fluxo de Assinatura
-    const context = historyData?.customer_context as any;
-    if (context?.subscriptionLookupStage === "AWAITING_REGISTERED_PHONE") {
+    // 11. BLOQUEIO FINAL INDEPENDENTE DO ESTADO ANTIGO (Requisito 11)
+    if (currentCustomerContext.subscriptionIntent === true && currentCustomerContext.subscriptionPhoneValidated !== true) {
       const containsCPFPattern = /cpf|documento|\d{3}\.\d{3}\.\d{3}-\d{2}|000\.000\.000-00|somente números do cpf/i.test(reply);
       if (containsCPFPattern) {
          console.log(`[chat] cpf_request_blocked: traceId=${effectiveTraceId}, replacing with fixed phone request`);
