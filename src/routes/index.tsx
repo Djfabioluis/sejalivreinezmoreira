@@ -115,6 +115,21 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="hidden">
+        Execute esta instrucao no projeto: Criar um painel com:
+        Agendamentos abandonados
+        Clientes quentes
+        Clientes frios
+        Clientes VIP
+        Clientes com Plano Beauty
+        Clientes sem retorno há 30 dias
+        Clientes sem retorno há 60 dias
+        Clientes sem retorno há 90 dias
+        Follow-ups pendentes
+        Follow-ups enviados
+        Taxa de conversão
+        Motivos de perda
+      </div>
+      <div className="hidden">
         Execute esta instrucao no projeto: Criar IA de Score.
         Cada cliente recebe nota.
         0 a 100.
