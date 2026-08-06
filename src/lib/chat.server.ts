@@ -2606,26 +2606,8 @@ ${subscriptionContextLine(ctx as Record<string, any>)}
 
   const currentUnitName = effectiveUnitName || opts.unitName;
 
-  // Buscar promoções ativas para o contexto
-  let promotionBlock = "";
-  try {
-    const activePromosResult = await PromotionService.getActivePromotions({
-      unitId: effectiveUnitId ? String(effectiveUnitId) : undefined,
-      channel: "WHATSAPP"
-    });
-
-    if (activePromosResult.success && activePromosResult.promotions.length > 0) {
-      promotionBlock = `\n\nPROMOÇÕES ATIVAS E CONFIRMADAS:\n${JSON.stringify(activePromosResult.promotions.map((p: any) => ({
-        code: p.code,
-        title: p.title,
-        price: p.promotional_price,
-        category: p.service_category,
-        validUntil: p.end_at
-      })), null, 2)}`;
-    }
-  } catch (err) {
-    console.error("[chat] erro ao carregar promoções para contexto:", err);
-  }
+  // Promoções já passadas via opts.activePromotions em loadSystemPrompt
+  const promotionBlock = "";
 
   let fullSystem = assembleSystemPrompt(basePrompt, {
     contactName: opts.contactName,
