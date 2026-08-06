@@ -68,6 +68,11 @@ export const Route = createFileRoute('/api/public/crm-cron')({
             await runDailyAnalysis();
           }
 
+          // 10. Predictive Campaign Engine (Runs daily at 10 AM to plan ahead)
+          if (hour === 10) {
+            await runPredictiveCampaignEngine();
+          }
+
           
           return new Response(JSON.stringify({ ok: true, timestamp: new Date().toISOString() }), {
             headers: { 'Content-Type': 'application/json' }
