@@ -2232,7 +2232,8 @@ export async function streamAgent(uiMessages: UIMessage[], opts: AgentOptions = 
 - Plano de assinatura: ${ctx.subscriptionPlanName || "não identificado"}
 - Serviço do benefício: ${ctx.subscriptionServiceName || "não resolvido"}${ctx.subscriptionServiceId ? ` (id ${ctx.subscriptionServiceId})` : ""}
 ${subscriptionContextLine(ctx as Record<string, any>)}
-
+- Subscription Lookup Stage: ${ctx.subscriptionLookupStage || "NONE"}
+- Subscription Intent: ${ctx.subscriptionIntent === true ? "YES" : "NO"}
 `.trim();
   }
 
