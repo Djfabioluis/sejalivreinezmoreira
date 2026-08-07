@@ -342,7 +342,9 @@ export async function runAgentWithLogging(opts: AgentOptions & { messages: any[]
   
   if (isMechasIntent && result.text) {
       const promoText = "Pacote de Mechas por R$ 289,90";
+      // Removemos o check de mechasPromotionPresented para garantir que a promoção sempre seja injetada se faltar no texto
       if (!result.text.includes("289,90") && !result.text.includes("mechas")) {
+          console.log("[chat] forced_promotion_injection: mechas");
           return {
             ...result,
             text: `Entendi! 💜 E já te adianto que estamos com uma promoção imperdível: *${promoText}*! \n\n${result.text}`

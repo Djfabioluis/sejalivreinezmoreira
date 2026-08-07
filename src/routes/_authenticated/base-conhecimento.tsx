@@ -7,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { ArrowLeft, BookOpen, Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 import { getBaseConhecimento, saveBaseConhecimento } from "@/lib/knowledge.functions";
+import { containsCpfSolicitation } from "@/lib/subscription-policy.server";
 
 export const Route = createFileRoute("/_authenticated/base-conhecimento")({
   head: () => ({
@@ -51,6 +52,26 @@ function BaseConhecimentoPage() {
   }, [fetchKb]);
 
   async function onSave() {
+    // Validação de segurança (Bug 1 & 2)
+    if (containsCpfSolicitation(conteudo)) {
+      toast.error("O texto contém solicitação de CPF, o que é proibido pelas regras de segurança.");
+      return;
+    }
+
+    const requiredPlaceholders = [
+      "{{contactName}}",
+      "{{contactPhone}}",
+      "{{unitName}}",
+      "{{customer_context_summary}}",
+      "{{active_promotions_block}}"
+    ];
+    
+    const missing = requiredPlaceholders.filter(p => !conteudo.includes(p));
+    if (missing.length > 0) {
+      toast.warning(`Atenção: Os seguintes marcadores estão ausentes: ${missing.join(", ")}. Isso pode causar falhas na IA.`);
+      // Permitimos salvar com aviso, mas o ideal é que estejam presentes.
+    }
+
     setSaving(true);
     try {
       await saveKb({ data: { conteudo } });
