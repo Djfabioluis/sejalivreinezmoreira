@@ -314,7 +314,7 @@ function FollowupRuleModal({ isOpen, onClose, rule, onSave }: { isOpen: boolean,
   });
 
   // Update form data when rule prop changes (e.g. for editing)
-  import { useEffect } from "react";
+  
   useEffect(() => {
     if (rule) {
       setFormData(rule);
