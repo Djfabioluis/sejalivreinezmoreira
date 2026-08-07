@@ -75,10 +75,12 @@ function asArray(raw: any, depth = 0): any[] {
   return [];
 }
 
-const INACTIVE_STATUS = /(cancel|inativ|inactive|suspend|suspens|expired|vencid|blocked|bloquead|pending|pendente|overdue)/i;
+const ACTIVE_STATUSES = ["active", "ativo", "vigente"];
+const INACTIVE_STATUSES = ["inactive", "inativo", "canceled", "cancelled", "cancelado", "expired", "vencid", "vencido", "suspended", "suspenso", "bloqueado"];
+const INACTIVE_REGEX = new RegExp(`(${INACTIVE_STATUSES.join("|")})`, "i");
 
 function readStatus(raw: any): string {
-  return String(raw?.status ?? raw?.situacao ?? raw?.state ?? raw?.subscription_status ?? "").trim();
+  return String(raw?.status ?? raw?.situacao ?? raw?.state ?? raw?.subscription_status ?? "").trim().toLowerCase();
 }
 
 function readValidUntil(raw: any): string | null {
@@ -141,12 +143,31 @@ function evaluatePlan(raw: any): CustomerPlan {
   const planType = detectSubscriptionPlanType(name);
 
   let inactiveReason: CustomerPlan["inactiveReason"] = null;
-  if (status && INACTIVE_STATUS.test(status)) inactiveReason = "canceled_or_suspended";
+  
+  // Regra de Status: precisa ser explicitamente ativo ou não estar na lista de inativos
+  const isExplicitlyActive = ACTIVE_STATUSES.includes(status);
+  const isExplicitlyInactive = INACTIVE_REGEX.test(status);
+
+  if (isExplicitlyInactive) {
+    inactiveReason = "canceled_or_suspended";
+  } else if (!isExplicitlyActive && status !== "") {
+    // Se tem status mas não é ativo nem inativo conhecido, tratamos como suspeito
+    // mas deixamos passar se não houver outros bloqueios por enquanto para manter compatibilidade,
+    // EXCEÇÃO: se o status for explicitamente de bloqueio/pendência.
+    if (/(bloquead|pendente|overdue|suspens)/i.test(status)) {
+      inactiveReason = "canceled_or_suspended";
+    }
+  }
+
   if (!inactiveReason && validUntil) {
     const ts = Date.parse(validUntil);
     if (Number.isFinite(ts) && ts < Date.now()) inactiveReason = "expired";
   }
-  if (!inactiveReason && availableUses !== null && availableUses <= 0) inactiveReason = "no_balance";
+
+  // Se o saldo for 0, está inativo por falta de saldo
+  if (!inactiveReason && availableUses !== null && availableUses <= 0) {
+    inactiveReason = "no_balance";
+  }
 
   return {
     id: raw?.id ?? raw?.subscription_id ?? raw?.plan_id ?? null,
@@ -156,7 +177,7 @@ function evaluatePlan(raw: any): CustomerPlan {
     status: status || "desconhecido",
     validUntil,
     availableUses,
-    active: inactiveReason === null,
+    active: inactiveReason === null && (status === "" || isExplicitlyActive || !isExplicitlyInactive),
     inactiveReason,
   };
 }
