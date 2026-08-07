@@ -26,7 +26,7 @@ import { useState, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { 
   Plus, Clock, Zap, MessageSquare, Bot, Sparkles, Settings, History, LayoutDashboard,
-  Play, Edit2, Trash2, Loader2, PlayCircle, Activity
+  Play, Edit2, Trash2, Loader2, PlayCircle, Activity, Info, ChevronRight, CheckCircle2, AlertCircle, XCircle, Phone
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -37,6 +37,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 
 export const Route = createFileRoute("/_authenticated/crm")({
   head: () => ({
@@ -74,6 +75,23 @@ function CRMPage() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<any>(null);
+  const [selectedExecution, setSelectedExecution] = useState<any>(null);
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+
+  const maskPhone = (phone: string) => {
+    if (!phone) return "";
+    return phone.replace(/(\d{2})(\d{2})(\d{5})(\d{4})/, "+$1 ($2) *****-$4");
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'SENT': return <CheckCircle2 className="h-4 w-4 text-emerald-500" />;
+      case 'FAILED': return <XCircle className="h-4 w-4 text-red-500" />;
+      case 'CANCELED': return <AlertCircle className="h-4 w-4 text-amber-500" />;
+      case 'PROCESSING': return <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />;
+      default: return <Clock className="h-4 w-4 text-muted-foreground" />;
+    }
+  };
 
   const handleRunTest = async (ruleId: string) => {
     const phone = prompt("Digite o telefone para teste (formato 5511999999999):");
@@ -182,6 +200,7 @@ function CRMPage() {
                          <th className="px-6 py-4">Agendado</th>
                          <th className="px-6 py-4">Tentativas</th>
                          <th className="px-6 py-4">Status</th>
+                         <th className="px-6 py-4 text-right">Ações</th>
                       </tr>
                    </thead>
                    <tbody className="divide-y divide-border/40">
@@ -195,6 +214,19 @@ function CRMPage() {
                               <Badge variant="outline" className={`text-[9px] uppercase ${e.status === 'PROCESSING' ? 'border-blue-500/20 text-blue-600 animate-pulse' : 'border-amber-500/20 text-amber-600'}`}>
                                  {e.status}
                               </Badge>
+                           </td>
+                           <td className="px-6 py-4 text-right">
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="h-8 gap-2"
+                                onClick={() => {
+                                  setSelectedExecution(e);
+                                  setIsDetailsOpen(true);
+                                }}
+                              >
+                                <Info className="h-3 w-3" /> Detalhes
+                              </Button>
                            </td>
                         </tr>
                       ))}
@@ -217,26 +249,48 @@ function CRMPage() {
              <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
                    <thead className="bg-muted/50 uppercase tracking-widest font-bold text-[10px] text-muted-foreground border-b border-border/40">
-                      <tr>
-                         <th className="px-6 py-4">Telefone</th>
-                         <th className="px-6 py-4">Regra</th>
-                         <th className="px-6 py-4">Mensagem</th>
-                         <th className="px-6 py-4">Concluído</th>
-                         <th className="px-6 py-4">Status</th>
-                      </tr>
+                       <tr>
+                          <th className="px-6 py-4">Telefone</th>
+                          <th className="px-6 py-4">Regra</th>
+                          <th className="px-6 py-4">Motivo</th>
+                          <th className="px-6 py-4">Concluído</th>
+                          <th className="px-6 py-4">Status</th>
+                          <th className="px-6 py-4 text-right">Ações</th>
+                       </tr>
                    </thead>
                    <tbody className="divide-y divide-border/40">
                       {history.map((h: any) => (
                         <tr key={h.id} className="hover:bg-muted/20 transition-colors">
                            <td className="px-6 py-4 font-bold">{h.phone}</td>
-                           <td className="px-6 py-4">{h.rule?.name || 'Manual'}</td>
-                           <td className="px-6 py-4 max-w-xs truncate">{h.message_template}</td>
-                           <td className="px-6 py-4 text-muted-foreground">{format(new Date(h.completed_at || h.created_at), 'dd/MM HH:mm', { locale: ptBR })}</td>
-                           <td className="px-6 py-4">
-                              <Badge variant="outline" className={`text-[9px] uppercase ${h.status === 'SENT' ? 'border-emerald-500/20 text-emerald-600' : 'border-red-500/20 text-red-600'}`}>
-                                 {h.status}
-                              </Badge>
-                           </td>
+                            <td className="px-6 py-4">{h.rule?.name || 'Manual'}</td>
+                            <td className="px-6 py-4 max-w-xs">
+                              {h.status === 'CANCELED' ? (
+                                <Badge variant="secondary" className="text-[9px] bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 border-none">
+                                  {h.cancel_reason || 'Desconhecido'}
+                                </Badge>
+                              ) : (
+                                <span className="text-muted-foreground italic">Sem motivo</span>
+                              )}
+                            </td>
+                            <td className="px-6 py-4 text-muted-foreground">{format(new Date(h.completed_at || h.created_at), 'dd/MM HH:mm', { locale: ptBR })}</td>
+                            <td className="px-6 py-4">
+                               <Badge variant="outline" className={`text-[9px] uppercase ${h.status === 'SENT' ? 'border-emerald-500/20 text-emerald-600' : h.status === 'CANCELED' ? 'border-amber-500/20 text-amber-600' : 'border-red-500/20 text-red-600'}`}>
+                                  {h.status}
+                               </Badge>
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                               <Button 
+                                 variant="ghost" 
+                                 size="sm" 
+                                 className="h-8 gap-2"
+                                 onClick={() => {
+                                   setSelectedExecution(h);
+                                   setIsDetailsOpen(true);
+                                 }}
+                               >
+                                 <Info className="h-3 w-3" /> Ver detalhes
+                               </Button>
+                            </td>
                         </tr>
                       ))}
                       {history.length === 0 && (
@@ -295,6 +349,106 @@ function CRMPage() {
           }
         }}
       />
+
+      <Sheet open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+        <SheetContent className="sm:max-w-md w-full overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              Detalhes da Execução
+              {selectedExecution && (
+                <Badge variant="outline" className="text-[10px] uppercase">
+                  {selectedExecution.status}
+                </Badge>
+              )}
+            </SheetTitle>
+            <SheetDescription>
+              Diagnóstico completo e timeline do follow-up.
+            </SheetDescription>
+          </SheetHeader>
+
+          {selectedExecution && (
+            <div className="mt-8 space-y-8">
+              {/* Timeline Section */}
+              <div className="space-y-4">
+                <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                  <Clock className="h-3 w-3" /> Timeline da Operação
+                </h4>
+                
+                <div className="relative pl-6 space-y-6 border-l border-border ml-2">
+                  {[
+                    { label: 'FOLLOWUP_CREATED', date: selectedExecution.created_at },
+                    { label: 'FOLLOWUP_READY', date: selectedExecution.status !== 'PENDING' ? selectedExecution.updated_at : null },
+                    { label: 'FOLLOWUP_PROCESSING', date: ['PROCESSING', 'SENT', 'FAILED', 'CANCELED'].includes(selectedExecution.status) ? selectedExecution.updated_at : null },
+                    { label: selectedExecution.status === 'CANCELED' ? 'FOLLOWUP_CANCELED' : selectedExecution.status === 'SENT' ? 'FOLLOWUP_SENT' : selectedExecution.status === 'FAILED' ? 'FOLLOWUP_FAILED' : 'FOLLOWUP_WAITING', date: ['SENT', 'FAILED', 'CANCELED'].includes(selectedExecution.status) ? selectedExecution.completed_at || selectedExecution.updated_at : null },
+                  ].map((step, idx) => (
+                    <div key={idx} className="relative">
+                      <div className={`absolute -left-[31px] top-1 p-1 rounded-full border bg-background ${step.date ? 'border-primary' : 'border-muted'}`}>
+                        {step.date ? <CheckCircle2 className="h-3 w-3 text-primary" /> : <div className="h-3 w-3" />}
+                      </div>
+                      <div>
+                        <p className={`text-xs font-bold ${step.date ? 'text-foreground' : 'text-muted-foreground'}`}>{step.label}</p>
+                        {step.date ? (
+                          <p className="text-[10px] text-muted-foreground">
+                            {format(new Date(step.date), "dd MMM, HH:mm:ss", { locale: ptBR })}
+                          </p>
+                        ) : (
+                          <p className="text-[10px] text-muted-foreground italic">Aguardando...</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Data Grid Section */}
+              <div className="space-y-4">
+                <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                  <Info className="h-3 w-3" /> Dados Técnicos
+                </h4>
+                
+                <div className="grid grid-cols-2 gap-4 bg-muted/30 p-4 rounded-xl border border-border/50">
+                  <DataField label="Trigger" value={selectedExecution.rule?.name || selectedExecution.reason || "Manual"} />
+                  <DataField label="Telefone" value={maskPhone(selectedExecution.phone)} icon={<Phone className="h-3 w-3" />} />
+                  <DataField label="Agendado em" value={format(new Date(selectedExecution.scheduled_at), "HH:mm:ss dd/MM")} />
+                  <DataField label="Executado em" value={selectedExecution.completed_at ? format(new Date(selectedExecution.completed_at), "HH:mm:ss dd/MM") : "-"} />
+                  <DataField label="Worker ID" value={selectedExecution.metadata?.worker_id || "Julia Engine v2"} />
+                  <DataField label="Evolution Instance" value={selectedExecution.metadata?.instance_name || "Primary"} />
+                  <DataField label="Message ID" value={selectedExecution.metadata?.message_id || "-"} className="col-span-2" />
+                  
+                  {selectedExecution.status === 'CANCELED' && (
+                    <div className="col-span-2 pt-2 border-t border-border mt-2">
+                      <p className="text-[10px] text-amber-600 font-bold uppercase mb-1">Motivo do Cancelamento</p>
+                      <div className="bg-amber-500/10 text-amber-700 p-2 rounded-lg border border-amber-500/20 font-bold text-xs flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4" />
+                        {selectedExecution.cancel_reason || "UNKNOWN"}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Message Preview */}
+              <div className="space-y-4">
+                <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Conteúdo da Mensagem</h4>
+                <div className="bg-primary/5 p-4 rounded-xl border border-primary/10 text-xs italic text-muted-foreground">
+                  {selectedExecution.message_template || selectedExecution.metadata?.generated_message || "Mensagem não registrada ou gerada dinamicamente."}
+                </div>
+              </div>
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+}
+
+function DataField({ label, value, icon, className }: { label: string, value: string, icon?: React.ReactNode, className?: string }) {
+  return (
+    <div className={className}>
+      <p className="text-[9px] text-muted-foreground uppercase font-bold">{label}</p>
+      <p className="text-xs font-medium flex items-center gap-1 truncate">
+        {icon} {value}
+      </p>
     </div>
   );
 }
