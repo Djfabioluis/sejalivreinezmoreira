@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import { normalizeBrazilianPhone } from "../phone";
 
 describe("Normalização de Telefone (Diagnóstico)", () => {
