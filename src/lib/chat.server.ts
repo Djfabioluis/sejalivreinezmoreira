@@ -232,6 +232,17 @@ function buildTools(
     runTool(label, fn, { conversationKey, effectiveUnitId: fallbackAgentUnitId });
 
   return {
+    validate_subscription_phone: tool({
+      description: "Valida se o cliente possui uma assinatura ativa pesquisando pelo telefone cadastrado.",
+      inputSchema: z.object({
+        phone_number: z.string().describe("Telefone completo com DDD"),
+      }),
+      execute: async ({ phone_number }) =>
+        safeToolLocal("validate_subscription_phone", async () => {
+          const { validateSubscriptionByPhone } = await import("@/lib/bemp/phone-validation.server");
+          return validateSubscriptionByPhone(phone_number);
+        }),
+    }),
     list_units_info: tool({
       description: "Lista as unidades ativas na Bemp.",
       inputSchema: z.object({}),

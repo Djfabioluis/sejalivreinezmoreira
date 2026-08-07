@@ -9,14 +9,36 @@ import {
   type CustomerPlan 
 } from "./subscriptions.server";
 
-const CustomerSchema = z.object({
-  id: z.union([z.string(), z.number()]),
-  name: z.string().optional(),
-  nome: z.string().optional(),
-}).passthrough();
+/**
+ * Parser central para normalizar a resposta de cliente do BEMP.
+ */
+function parseCustomerResponse(response: any) {
+  if (!response) return null;
+  
+  // BEMP pode retornar { customer: {...} }, { data: {...} }, { data: [...] } ou [...]
+  const container = response.customer || response.data || response;
+  const customers = Array.isArray(container) ? container : [container];
+  
+  // Filtrar apenas objetos válidos com ID
+  const validCustomers = customers.filter(c => c && (c.id || c.customer_id));
+  
+  if (validCustomers.length === 0) return null;
+  
+  // Retorna o primeiro (em validateSubscriptionByPhone tratamos múltiplos)
+  const c = validCustomers[0];
+  return {
+    id: c.id || c.customer_id,
+    name: c.name || c.nome || "Cliente",
+    phone: c.phone || c.telefone || c.whatsapp || null,
+    email: c.email || null,
+    raw: c
+  };
+}
 
 export async function validateSubscriptionByPhone(phoneInput: string) {
+  const traceId = Math.random().toString(36).substring(7);
   const normalized = normalizeBrazilianPhone(phoneInput);
+  
   if (!normalized) {
     return {
       success: false,
@@ -27,36 +49,33 @@ export async function validateSubscriptionByPhone(phoneInput: string) {
 
   const { getPhoneVariants } = await import("@/lib/phone");
   const variants = getPhoneVariants(normalized);
-  const logCtx = { phoneMasked: maskPhone(normalized.full) };
-  logger.info("subscription_phone_validation_started", "Iniciando validação por telefone com variantes", logCtx);
+  const phoneLast4 = normalized.number.slice(-4);
+  const logCtx = { traceId, phoneLast4 };
+  
+  logger.info("SUBSCRIPTION_PHONE_LOOKUP_STARTED", "Iniciando busca de assinatura por telefone", logCtx);
 
   try {
-    const phoneVariantsList = variants;
-    let customerResponse = null;
-    let foundNormalized = normalized;
+    let customerData = null;
+    let foundVariant = null;
 
-    for (const variant of phoneVariantsList) {
-      customerResponse = await BempService.findCustomerByPhone({
+    // Tentar variantes do telefone (8 vs 9 dígitos)
+    for (const variant of variants) {
+      const response = await BempService.findCustomerByPhone({
         countryCode: variant.countryCode,
         areaCode: variant.areaCode,
         number: variant.number,
       });
 
-      const container = customerResponse?.customer || customerResponse?.data || customerResponse;
-      const customers = Array.isArray(container) ? container : [container];
-      const valid = customers.filter(c => c && (c.id || c.customer_id));
-      
-      if (valid.length > 0) {
-        foundNormalized = variant;
+      const customer = parseCustomerResponse(response);
+      if (customer) {
+        customerData = customer;
+        foundVariant = variant;
         break;
       }
     }
 
-    const container = customerResponse?.customer || customerResponse?.data || customerResponse;
-    const customers = Array.isArray(container) ? container : [container];
-    const validCustomers = customers.filter(c => c && (c.id || c.customer_id));
-
-    if (validCustomers.length === 0) {
+    if (!customerData) {
+      logger.info("SUBSCRIPTION_NO_PLAN_FOUND", "Cliente não encontrado em nenhuma variante", logCtx);
       return {
         success: false,
         code: "CUSTOMER_NOT_FOUND",
@@ -64,51 +83,80 @@ export async function validateSubscriptionByPhone(phoneInput: string) {
       };
     }
 
-    if (validCustomers.length > 1) {
-      logger.warn("subscription_phone_multiple_customers", "Múltiplos clientes encontrados", logCtx);
-      return {
-        success: false,
-        code: "MULTIPLE_CUSTOMERS_FOUND",
-        message: "Encontrei mais de um cadastro vinculado a esse telefone. Vou pedir ajuda à nossa equipe para confirmar o plano correto. 💜",
-      };
-    }
-
-    const customer = validCustomers[0];
-    const customerId = customer.id || customer.customer_id;
-    const customerName = customer.name || customer.nome || "Cliente";
-
-    // Buscar assinaturas vinculadas
-    const { plans, inactivePlans } = extractPlansFromCustomer(customer);
+    const customerId = customerData.id;
+    const customerIdMasked = String(customerId).replace(/.(?=.{2})/g, "*");
     
-    if (plans.length === 0) {
-      if (inactivePlans.length > 0) {
-        const firstInactive = inactivePlans[0];
-        let reasonMsg = "Encontrei o cadastro, mas não localizei uma assinatura ativa vinculada a ele.";
-        
-        if (firstInactive.inactiveReason === "no_balance") {
-          reasonMsg = "Seu plano está ativo, mas parece que o saldo de utilizações acabou. 💛";
-        } else if (firstInactive.inactiveReason === "expired") {
-          reasonMsg = "Seu plano foi localizado, mas parece que ele está vencido. 😔";
-        }
+    logger.info("SUBSCRIPTION_CUSTOMER_FOUND", "Cliente localizado", { ...logCtx, customerId: customerIdMasked });
 
+    // 1. Verificar planos embutidos no objeto do cliente
+    let evaluatedPlans = extractPlansFromCustomer(customerData.raw);
+    
+    if (evaluatedPlans.evaluated.length > 0) {
+      logger.info("SUBSCRIPTION_EMBEDDED_PLANS_FOUND", "Planos localizados no objeto do cliente", { ...logCtx, count: evaluatedPlans.evaluated.length });
+    } else {
+      logger.info("SUBSCRIPTION_EMBEDDED_PLANS_EMPTY", "Objeto do cliente não contém planos embutidos, consultando endpoint de assinaturas", logCtx);
+      
+      // 2. Consultar endpoint real de assinaturas
+      try {
+        logger.info("SUBSCRIPTION_ENDPOINT_LOOKUP_STARTED", "Consultando listCustomerSubscriptions", { ...logCtx, customerId: customerIdMasked });
+        const subscriptions = await BempService.listCustomerSubscriptions(customerId);
+        
+        logger.info("SUBSCRIPTION_ENDPOINT_LOOKUP_SUCCESS", "Endpoint de assinaturas retornado", { 
+          ...logCtx, 
+          count: Array.isArray(subscriptions) ? subscriptions.length : typeof subscriptions === 'object' ? 'object' : 'unknown'
+        });
+
+        // Normalizar resposta (extractPlansFromCustomer já lida com containers)
+        evaluatedPlans = extractPlansFromCustomer({ subscriptions });
+      } catch (err: any) {
+        logger.error("SUBSCRIPTION_ENDPOINT_LOOKUP_FAILED", err.message, { ...logCtx, customerId: customerIdMasked });
+        // Se falhar a consulta de assinaturas mas o cliente existe, tratamos como falha técnica em vez de "sem plano"
         return {
           success: false,
-          code: "NO_ACTIVE_SUBSCRIPTION",
-          message: reasonMsg,
-          customer: { id: customerId, name: customerName, phoneMasked: logCtx.phoneMasked }
+          code: "BEMP_UNAVAILABLE",
+          message: "Encontrei seu cadastro, mas houve um erro ao carregar suas assinaturas. Vou pedir para nossa equipe verificar. 💜"
         };
       }
+    }
 
+    const { plans, inactivePlans, evaluated } = evaluatedPlans;
+
+    if (evaluated.length === 0) {
+      logger.info("SUBSCRIPTION_NO_PLAN_FOUND", "Nenhuma assinatura vinculada ao cliente", logCtx);
       return {
         success: false,
         code: "NO_SUBSCRIPTION",
-        message: "Encontrei o cadastro, mas não localizei uma assinatura vinculada a ele. 💜",
-        customer: { id: customerId, name: customerName, phoneMasked: logCtx.phoneMasked }
+        message: "Encontrei seu cadastro, mas não localizei nenhuma assinatura vinculada a ele. 💜",
+        customer: { id: customerId, name: customerData.name, phoneMasked: maskPhone(normalized.full) }
       };
     }
 
-    // Mapear serviços para os planos ativos
-    const mappedPlans = plans.map(p => ({
+    if (plans.length === 0) {
+      const firstInactive = inactivePlans[0];
+      let reasonMsg = "Encontrei seu plano, mas ele não parece estar ativo no momento. 💜";
+      let code = "NO_ACTIVE_SUBSCRIPTION";
+
+      if (firstInactive?.inactiveReason === "no_balance") {
+        reasonMsg = "Seu plano está ativo, mas parece que o saldo de utilizações acabou. 💛";
+        code = "SUBSCRIPTION_NO_BALANCE";
+      } else if (firstInactive?.inactiveReason === "expired") {
+        reasonMsg = "Seu plano foi localizado, mas parece que ele está vencido. 😔";
+      }
+
+      logger.info("SUBSCRIPTION_NO_PLAN_FOUND", "Apenas assinaturas inativas encontradas", { ...logCtx, reason: firstInactive?.inactiveReason });
+      
+      return {
+        success: false,
+        code,
+        message: reasonMsg,
+        customer: { id: customerId, name: customerData.name, phoneMasked: maskPhone(normalized.full) }
+      };
+    }
+
+    logger.info("SUBSCRIPTION_ACTIVE_PLAN_FOUND", "Assinatura ativa localizada", { ...logCtx, activeCount: plans.length });
+
+    // Mapear planos para o formato esperado pela IA
+    const activePlans = plans.map(p => ({
       id: p.id,
       name: p.name,
       status: p.status,
@@ -120,10 +168,10 @@ export async function validateSubscriptionByPhone(phoneInput: string) {
       success: true,
       customer: {
         id: customerId,
-        name: customerName,
-        phoneMasked: logCtx.phoneMasked
+        name: customerData.name,
+        phoneMasked: maskPhone(normalized.full)
       },
-      activePlans: mappedPlans
+      activePlans
     };
 
   } catch (error: any) {
