@@ -30,8 +30,13 @@ export async function processPendingFollowups() {
   for (const followup of pending) {
     try {
       // 1.5. Verificar Score antes de processar
-      const customerPipeline = (followup as any).crm_customer_pipeline;
-      const score = customerPipeline?.conversion_score ?? 50; // Default 50 se não houver
+      const { data: pipeline } = await supabaseAdmin
+        .from("crm_customer_pipeline")
+        .select("conversion_score")
+        .eq("phone", followup.phone)
+        .maybeSingle();
+
+      const score = pipeline?.conversion_score ?? 50; 
       
       if (score < 30) {
         console.log(`[followup-processor] Skipping followup for ${followup.phone} due to low score (${score})`);
@@ -41,6 +46,7 @@ export async function processPendingFollowups() {
           .eq("id", followup.id);
         continue;
       }
+
 
       if (followup.reason === 'PRICE') {
         await supabaseAdmin
