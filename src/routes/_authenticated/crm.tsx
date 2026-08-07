@@ -317,10 +317,9 @@ function FollowupRuleModal({ isOpen, onClose, rule, onSave }: { isOpen: boolean,
   useState(() => {
     if (rule) setFormData(rule);
   });
-
   const handleSave = () => {
     if (!formData.name || !formData.message_template) {
-      toast.error("Preencha o nome e a mensagem");
+      toast.error("Preencha o nome e a mensagem base");
       return;
     }
     onSave(formData);
