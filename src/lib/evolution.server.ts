@@ -228,7 +228,11 @@ export async function sendEvolutionText(
   });
   
   if (!res.ok) {
-    logger.error("EVOLUTION_SEND_TEXT_FAILED", `Status: ${res.status}`, { to, textSnippet: text.slice(0, 50) });
+    const errorMsg = res.data?.response?.message || res.data?.message || res.text || "Unknown Evolution Error";
+    logger.error("EVOLUTION_SEND_TEXT_FAILED", `Status: ${res.status} - ${errorMsg}`, { to, textSnippet: text.slice(0, 50), traceId });
+    
+    // Lançar erro real para ser capturado pelo followup-processor
+    throw new Error(`EVOLUTION_HTTP_ERROR: Status ${res.status}. ${errorMsg}`);
   }
   
   return res.ok;

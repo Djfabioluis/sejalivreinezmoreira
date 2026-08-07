@@ -379,8 +379,21 @@ function CRMPage() {
                     { label: 'FOLLOWUP_CREATED', date: selectedExecution.created_at },
                     { label: 'FOLLOWUP_READY', date: selectedExecution.status !== 'PENDING' ? selectedExecution.updated_at : null },
                     { label: 'FOLLOWUP_PROCESSING', date: ['PROCESSING', 'SENT', 'FAILED', 'CANCELED'].includes(selectedExecution.status) ? selectedExecution.updated_at : null },
-                    { label: selectedExecution.status === 'CANCELED' ? 'FOLLOWUP_CANCELED' : selectedExecution.status === 'SENT' ? 'FOLLOWUP_SENT' : selectedExecution.status === 'FAILED' ? 'FOLLOWUP_FAILED' : 'FOLLOWUP_WAITING', date: ['SENT', 'FAILED', 'CANCELED'].includes(selectedExecution.status) ? selectedExecution.completed_at || selectedExecution.updated_at : null },
-                  ].map((step, idx) => (
+                    ...(selectedExecution.metadata?.timeline || []).map((t: any) => ({
+                      label: t.step,
+                      date: t.at
+                    })).filter((t: any) => !['FOLLOWUP_PROCESSING'].includes(t.label)),
+                    { 
+                      label: selectedExecution.status === 'CANCELED' ? 'FOLLOWUP_CANCELED' : selectedExecution.status === 'SENT' ? 'FOLLOWUP_SENT' : selectedExecution.status === 'FAILED' ? 'FOLLOWUP_FAILED' : 'FOLLOWUP_WAITING', 
+                      date: ['SENT', 'FAILED', 'CANCELED'].includes(selectedExecution.status) ? selectedExecution.completed_at || selectedExecution.updated_at : null 
+                    },
+                  ].filter((v, i, a) => a.findIndex(t => t.label === v.label) === i) // Unificar steps
+                  .sort((a, b) => {
+                    if (!a.date) return 1;
+                    if (!b.date) return -1;
+                    return new Date(a.date).getTime() - new Date(b.date).getTime();
+                  })
+                  .map((step, idx) => (
                     <div key={idx} className="relative">
                       <div className={`absolute -left-[31px] top-1 p-1 rounded-full border bg-background ${step.date ? 'border-primary' : 'border-muted'}`}>
                         {step.date ? <CheckCircle2 className="h-3 w-3 text-primary" /> : <div className="h-3 w-3" />}
@@ -416,12 +429,32 @@ function CRMPage() {
                   <DataField label="Message ID" value={selectedExecution.metadata?.message_id || "-"} className="col-span-2" />
                   
                   {selectedExecution.status === 'CANCELED' && (
-                    <div className="col-span-2 pt-2 border-t border-border mt-2">
-                      <p className="text-[10px] text-amber-600 font-bold uppercase mb-1">Motivo do Cancelamento</p>
-                      <div className="bg-amber-500/10 text-amber-700 p-2 rounded-lg border border-amber-500/20 font-bold text-xs flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4" />
-                        {selectedExecution.cancel_reason || "UNKNOWN"}
+                    <div className="col-span-2 pt-2 border-t border-border mt-2 space-y-3">
+                      <div>
+                        <p className="text-[10px] text-amber-600 font-bold uppercase mb-1">Motivo do Cancelamento</p>
+                        <div className="bg-amber-500/10 text-amber-700 p-2 rounded-lg border border-amber-500/20 font-bold text-xs flex items-center gap-2">
+                          <AlertCircle className="h-4 w-4" />
+                          {selectedExecution.cancel_reason || "UNHANDLED_EXCEPTION"}
+                        </div>
                       </div>
+
+                      {selectedExecution.metadata?.last_error && (
+                        <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3 space-y-2">
+                          <p className="text-[10px] text-red-600 font-bold uppercase flex items-center gap-1">
+                            <XCircle className="h-3 w-3" /> Detalhes da Exceção
+                          </p>
+                          <div className="space-y-1 text-[10px] font-mono">
+                            <p className="text-red-700 font-bold">{selectedExecution.metadata.last_error.name}: {selectedExecution.metadata.last_error.message}</p>
+                            <p className="text-muted-foreground whitespace-pre-wrap break-all leading-relaxed bg-black/5 p-2 rounded border border-black/5 max-h-40 overflow-y-auto">
+                              {selectedExecution.metadata.last_error.stack}
+                            </p>
+                            <div className="flex justify-between items-center text-[9px] pt-1">
+                              <span className="text-muted-foreground">Trace: {selectedExecution.metadata.last_error.traceId}</span>
+                              <span className="text-muted-foreground">Worker: {selectedExecution.metadata.last_error.workerId}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
