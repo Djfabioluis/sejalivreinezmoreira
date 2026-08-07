@@ -131,8 +131,6 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
         instance: instance,
         status: 'aguardando',
         contact_name: followup.metadata?.contact_name || 'Cliente',
-        last_interaction_at: new Date().toISOString(),
-        created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         metadata: { created_by: "JuliaFollowupProcessor", traceId }
       };
