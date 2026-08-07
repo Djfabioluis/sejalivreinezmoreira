@@ -388,7 +388,7 @@ function CRMPage() {
                     ...(selectedExecution.metadata?.timeline || []).map((t: any) => ({
                       label: t.step,
                       date: t.at
-                    })).filter((t: any) => !['FOLLOWUP_PROCESSING'].includes(t.label)),
+                    })).filter((t: any) => !['FOLLOWUP_PROCESSING', 'FOLLOWUP_CONVERSATION_LOOKUP'].includes(t.label)),
                     { 
                       label: selectedExecution.status === 'CANCELED' ? 'FOLLOWUP_CANCELED' : selectedExecution.status === 'SENT' ? 'FOLLOWUP_SENT' : selectedExecution.status === 'FAILED' ? 'FOLLOWUP_FAILED' : 'FOLLOWUP_WAITING', 
                       date: ['SENT', 'FAILED', 'CANCELED'].includes(selectedExecution.status) ? selectedExecution.completed_at || selectedExecution.updated_at : null 
