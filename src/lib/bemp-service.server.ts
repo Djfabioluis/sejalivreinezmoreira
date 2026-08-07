@@ -1,4 +1,6 @@
-import { bempFetch, getBempConfig, BEMP_WEBHOOK_BASE, PROFESSIONAL_PREFERENCE_NOTE, tryUpdateBempScheduleNote, withProfessionalPreferenceNote, type JsonValue } from "./bemp.server";
+import { bempFetch, getBempConfig, BEMP_WEBHOOK_BASE, PROFESSIONAL_PREFERENCE_NOTE, tryUpdateBempScheduleNote, withProfessionalPreferenceNote, extractBempAppointmentId, type JsonValue } from "./bemp.server";
+export { extractBempAppointmentId };
+
 import { logger } from "./observability/logger.server";
 import { AppError } from "./core/errors";
 import { z } from "zod";
