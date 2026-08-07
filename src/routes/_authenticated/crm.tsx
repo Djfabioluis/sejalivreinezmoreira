@@ -487,6 +487,25 @@ function CRMPage() {
                           </div>
                         </div>
                       )}
+
+                      {selectedExecution.metadata?.dbError && (
+                        <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-3 space-y-2">
+                          <p className="text-[10px] text-amber-600 font-bold uppercase flex items-center gap-1">
+                            <Database className="h-3 w-3" /> Erro de Banco de Dados
+                          </p>
+                          <div className="space-y-1 text-[10px] font-mono">
+                            <p className="text-amber-700 font-bold">CODE: {selectedExecution.metadata.dbError.code}</p>
+                            <p className="text-amber-700 font-bold">MSG: {selectedExecution.metadata.dbError.message}</p>
+                            {selectedExecution.metadata.dbError.hint && (
+                              <p className="text-muted-foreground">HINT: {selectedExecution.metadata.dbError.hint}</p>
+                            )}
+                            <p className="text-muted-foreground mt-2 block">PAYLOAD:</p>
+                            <pre className="text-[9px] bg-black/5 p-2 rounded max-h-32 overflow-y-auto">
+                              {JSON.stringify(selectedExecution.metadata.dbError.payload, null, 2)}
+                            </pre>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
