@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { generateText } from "ai";
-import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
+import { createLovableAiGatewayProvider, getAiKey } from "@/lib/ai-gateway.server";
+
 
 /**
  * Processa follow-ups agendados.
@@ -12,10 +13,11 @@ export async function processPendingFollowups() {
   // 1. Buscar follow-ups pendentes e agendados para agora ou passado
   const { data: pending, error } = await supabaseAdmin
     .from("crm_followups")
-    .select("*, crm_customer_pipeline(conversion_score)")
-    .eq("status", "PENDENTE")
+    .select("*") // Removed relation that doesn't exist in schema cache
+    .in("status", ["PENDENTE", "PENDING"])
     .lte("scheduled_at", now)
     .lt("attempts", 3);
+
 
   if (error) {
     console.error("[followup-processor] Error fetching followups:", error.message);
@@ -29,17 +31,24 @@ export async function processPendingFollowups() {
   for (const followup of pending) {
     try {
       // 1.5. Verificar Score antes de processar
-      const customerPipeline = (followup as any).crm_customer_pipeline;
-      const score = customerPipeline?.conversion_score ?? 50; // Default 50 se não houver
+      const { data: pipeline } = await supabaseAdmin
+        .from("crm_customer_pipeline")
+        .select("conversion_score")
+        .eq("phone", followup.phone)
+        .maybeSingle();
+
+      const score = pipeline?.conversion_score ?? 50; 
       
       if (score < 30) {
         console.log(`[followup-processor] Skipping followup for ${followup.phone} due to low score (${score})`);
         await supabaseAdmin
           .from("crm_followups")
-          .update({ status: 'CANCELADO', cancelled_at: new Date().toISOString() })
+          .update({ status: followup.status === 'PENDENTE' ? 'CANCELADO' : 'CLOSED', cancelled_at: new Date().toISOString() })
           .eq("id", followup.id);
         continue;
       }
+
+
 
       if (followup.reason === 'PRICE') {
         await supabaseAdmin
@@ -52,8 +61,9 @@ export async function processPendingFollowups() {
       // Marcar como em processamento
       await supabaseAdmin
         .from("crm_followups")
-        .update({ status: 'EM_PROCESSAMENTO' })
+        .update({ status: followup.status === 'PENDENTE' ? 'EM_PROCESSAMENTO' : 'SENDING' })
         .eq("id", followup.id);
+
 
       // 2. Obter contexto da última conversa para a IA
       const { data: conversation } = await supabaseAdmin
@@ -65,10 +75,11 @@ export async function processPendingFollowups() {
       if (!conversation) {
         await supabaseAdmin
           .from("crm_followups")
-          .update({ status: 'CANCELADO' })
+          .update({ status: followup.status === 'EM_PROCESSAMENTO' ? 'CANCELADO' : 'CLOSED' })
           .eq("id", followup.id);
         continue;
       }
+
 
       // 3. IA gera a mensagem humanizada baseada no contexto
       const prompt = `
@@ -90,11 +101,19 @@ export async function processPendingFollowups() {
         - Use emojis moderadamente.
       `;
 
-      const provider = createLovableAiGatewayProvider(process.env.LOVABLE_AI_GATEWAY_KEY || "");
+      const apiKey = await getAiKey();
+      const provider = createLovableAiGatewayProvider(apiKey || "");
       const { text } = await generateText({
         model: provider("gemini-1.5-flash") as any,
         prompt,
+      }).catch(e => {
+
+        console.error("[followup-processor] IA generation failed:", e.message);
+        throw new Error(`IA_GENERATION_FAILED: ${e.message}`);
       });
+
+
+
 
       // 4. Enviar via Evolution API
       const { data: instanceData } = await supabaseAdmin
@@ -133,7 +152,10 @@ export async function processPendingFollowups() {
       await supabaseAdmin
         .from("crm_followups")
         .update({
-          status: newAttempts >= 3 ? 'ENCERRADO' : 'ENVIADO',
+          status: newAttempts >= 3 
+            ? (followup.status === 'EM_PROCESSAMENTO' ? 'ENCERRADO' : 'CLOSED') 
+            : (followup.status === 'EM_PROCESSAMENTO' ? 'ENVIADO' : 'SENT'),
+
           attempts: newAttempts,
           sent_at: new Date().toISOString(),
           message_template: text
@@ -146,7 +168,7 @@ export async function processPendingFollowups() {
       console.error(`[followup-processor] Failed to process followup ${followup.id}:`, err.message);
       await supabaseAdmin
         .from("crm_followups")
-        .update({ status: 'FALHA' })
+        .update({ status: followup.status === 'EM_PROCESSAMENTO' ? 'FALHA' : 'FAILED' })
         .eq("id", followup.id);
     }
   }

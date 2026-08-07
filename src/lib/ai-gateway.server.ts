@@ -10,3 +10,7 @@ export function createLovableAiGatewayProvider(lovableApiKey: string) {
     },
   });
 }
+
+export async function getAiKey() {
+  return process.env['LOVABLE_AI_GATEWAY_KEY'];
+}
