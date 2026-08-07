@@ -60,8 +60,9 @@ export async function processPendingFollowups() {
       // Marcar como em processamento
       await supabaseAdmin
         .from("crm_followups")
-        .update({ status: 'EM_PROCESSAMENTO' })
+        .update({ status: 'SENDING' })
         .eq("id", followup.id);
+
 
       // 2. Obter contexto da última conversa para a IA
       const { data: conversation } = await supabaseAdmin
@@ -73,10 +74,11 @@ export async function processPendingFollowups() {
       if (!conversation) {
         await supabaseAdmin
           .from("crm_followups")
-          .update({ status: 'CANCELADO' })
+          .update({ status: 'CLOSED' })
           .eq("id", followup.id);
         continue;
       }
+
 
       // 3. IA gera a mensagem humanizada baseada no contexto
       const prompt = `
