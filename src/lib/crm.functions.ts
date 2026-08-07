@@ -183,14 +183,32 @@ export const saveFollowupRule = createServerFn({ method: "POST" })
   .validator((data: any) => data)
   .handler(async ({ context, data }: { context: any; data: any }) => {
     await assertAdmin(context);
-    const { steps, recipients, conditions_to_stop, allowed_days, ...rule } = data;
+    const { steps, ...rule } = data;
 
-    // Ensure arrays for V2 fields
-    const formattedRule = {
-      ...rule,
-      recipients: Array.isArray(recipients) ? recipients : (recipients ? [recipients] : []),
-      conditions_to_stop: Array.isArray(conditions_to_stop) ? conditions_to_stop : (conditions_to_stop ? [conditions_to_stop] : []),
-      allowed_days: Array.isArray(allowed_days) ? allowed_days : (allowed_days ? [allowed_days] : []),
+    const toArray = (v: any) => (Array.isArray(v) ? v : v ? [v] : []);
+
+    // Whitelist estrita das colunas existentes em crm_followup_rules
+    const formattedRule: Record<string, any> = {
+      name: rule.name,
+      type: rule.type,
+      enabled: rule.enabled ?? true,
+      delay_amount: rule.delay_amount ?? 30,
+      delay_unit: rule.delay_unit ?? "MINUTES",
+      message_mode: rule.message_mode ?? "AI",
+      fixed_message: rule.fixed_message ?? null,
+      start_time: rule.start_time ?? null,
+      end_time: rule.end_time ?? null,
+      max_attempts: rule.max_attempts ?? 3,
+      unit_id: rule.unit_id ?? null,
+      agent_id: rule.agent_id ?? null,
+      metadata: rule.metadata ?? {},
+      recipients: toArray(rule.recipients),
+      conditions_to_stop: toArray(rule.conditions_to_stop),
+      allowed_days: toArray(rule.allowed_days),
+      ai_goal: rule.ai_goal ?? null,
+      ai_tone: rule.ai_tone ?? null,
+      min_interval_minutes: rule.min_interval_minutes ?? null,
+      allow_promotions: rule.allow_promotions ?? null,
     };
 
     let ruleId = rule.id;
