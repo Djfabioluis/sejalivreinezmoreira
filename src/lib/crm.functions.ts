@@ -181,17 +181,24 @@ export const listFollowupRules = createServerFn({ method: "GET" })
 export const saveFollowupRule = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((data: any) => data)
-  .handler(async ({ context, data }: { context: any, data: any }) => {
-
+  .handler(async ({ context, data }: { context: any; data: any }) => {
     await assertAdmin(context);
-    const { steps, ...rule } = data;
-    
+    const { steps, recipients, conditions_to_stop, allowed_days, ...rule } = data;
+
+    // Ensure arrays for V2 fields
+    const formattedRule = {
+      ...rule,
+      recipients: Array.isArray(recipients) ? recipients : (recipients ? [recipients] : []),
+      conditions_to_stop: Array.isArray(conditions_to_stop) ? conditions_to_stop : (conditions_to_stop ? [conditions_to_stop] : []),
+      allowed_days: Array.isArray(allowed_days) ? allowed_days : (allowed_days ? [allowed_days] : []),
+    };
+
     let ruleId = rule.id;
     if (ruleId) {
-      const { error } = await (supabaseAdmin.from("crm_followup_rules" as any) as any).update(rule).eq("id", ruleId);
+      const { error } = await (supabaseAdmin.from("crm_followup_rules" as any) as any).update(formattedRule).eq("id", ruleId);
       if (error) throw new Error(error.message);
     } else {
-      const { data: inserted, error } = await (supabaseAdmin.from("crm_followup_rules" as any) as any).insert(rule).select("id").single();
+      const { data: inserted, error } = await (supabaseAdmin.from("crm_followup_rules" as any) as any).insert(formattedRule).select("id").single();
       if (error) throw new Error(error.message);
       ruleId = (inserted as any).id;
     }
@@ -205,6 +212,7 @@ export const saveFollowupRule = createServerFn({ method: "POST" })
 
     return { success: true, id: ruleId };
   });
+
 
 export const deleteFollowupRule = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
