@@ -114,7 +114,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     
     await updateFollowupStep(followup.id, "FOLLOWUP_CONVERSATION_LOOKUP", traceId);
     
-    let conversation;
+    let conversation: any;
     try {
       conversation = await ConversationService.findOrCreate({
         instance,

@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { logger } from "../observability/logger.server";
+import { logger } from "./observability/logger.server";
 
 export interface FindOrCreateConversationParams {
   instance: string;
