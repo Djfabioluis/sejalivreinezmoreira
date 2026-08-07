@@ -251,7 +251,7 @@ export const listFollowupHistory = createServerFn({ method: "GET" })
       .from("crm_followups" as any) as any)
       .select("*, rule:crm_followup_rules(name)")
       .in("status", ["SENT", "FAILED", "CANCELED"])
-      .order("created_at", { ascending: false })
+      .order("updated_at", { ascending: false })
       .limit(100);
     if (error) throw new Error(error.message);
     return data || [];
