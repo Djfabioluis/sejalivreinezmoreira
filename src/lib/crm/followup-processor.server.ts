@@ -12,10 +12,11 @@ export async function processPendingFollowups() {
   // 1. Buscar follow-ups pendentes e agendados para agora ou passado
   const { data: pending, error } = await supabaseAdmin
     .from("crm_followups")
-    .select("*, crm_customer_pipeline(conversion_score)")
+    .select("*") // Removed relation that doesn't exist in schema cache
     .eq("status", "PENDENTE")
     .lte("scheduled_at", now)
     .lt("attempts", 3);
+
 
   if (error) {
     console.error("[followup-processor] Error fetching followups:", error.message);
