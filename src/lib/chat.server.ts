@@ -174,7 +174,8 @@ async function resolveEffectiveUnit(params: { conversationKey?: string; agentUni
     } catch {}
   }
 
-  console.log(`[chat] chat_orchestrator_loaded: modulePath=@/lib/chat.server, promptVersion=1.3.0-phone-priority, subscriptionLookupMethod=PHONE_ONLY`);
+  console.log(`[AUDIT_PROMPT] FULL_SYSTEM_PROMPT: ${basePrompt}`);
+console.log(`[chat] chat_orchestrator_loaded: modulePath=@/lib/chat.server, promptVersion=1.3.0-phone-priority, subscriptionLookupMethod=PHONE_ONLY`);
   console.log(`[chat] effective_unit_resolved: unitSource=${conversationUnitId ? "conversation" : "agent"}, conversationKeyAvailable=${!!conversationKey}, effectiveUnitId=${effectiveUnitId}`);
 
   return {
