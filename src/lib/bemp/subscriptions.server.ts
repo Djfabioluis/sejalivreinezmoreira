@@ -174,42 +174,48 @@ export async function getCustomerActivePlans(params: {
   message?: string;
 }> {
   log("subscription_lookup_started");
-  const qs = new URLSearchParams({
-    phone_country_code: params.phoneCountry,
-    phone_area_code: params.phoneArea,
-    phone_number: params.phoneNumber,
-  });
+  
+  const { getPhoneVariants, normalizeBrazilianPhone } = await import("@/lib/phone");
+  const normalized = normalizeBrazilianPhone(`${params.phoneCountry}${params.phoneArea}${params.phoneNumber}`);
+  const variants = normalized ? getPhoneVariants(normalized) : [{ countryCode: params.phoneCountry, areaCode: params.phoneArea, number: params.phoneNumber, full: `${params.phoneCountry}${params.phoneArea}${params.phoneNumber}` }];
 
-  let customer: any = null;
-  try {
-    customer = await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_customer?${qs.toString()}`);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+  let lastError: any = null;
+  for (const variant of variants) {
+    const qs = new URLSearchParams({
+      phone_country_code: variant.countryCode,
+      phone_area_code: variant.areaCode,
+      phone_number: variant.number,
+    });
+
+    try {
+      const customer: any = await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_customer?${qs.toString()}`);
+      const container = customer?.customer && typeof customer.customer === "object" ? customer.customer : customer;
+      const { plans, inactivePlans, evaluated } = extractPlansFromCustomer(container);
+
+      if (evaluated.length > 0) {
+        log("subscription_lookup_completed", { ok: true, active: plans.length, inactive: inactivePlans.length, variant: variant.full });
+        return { success: true, found: true, plans, inactivePlans };
+      }
+    } catch (err) {
+      lastError = err;
+      const message = err instanceof Error ? err.message : String(err);
+      if (!/404|not\s*found|não encontrado/i.test(message)) {
+        log("subscription_lookup_error", { variant: variant.full, error: message });
+      }
+    }
+  }
+
+  if (lastError) {
+    const message = lastError instanceof Error ? lastError.message : String(lastError);
     if (/404|not\s*found|não encontrado/i.test(message)) {
       log("subscription_plan_not_found", { reason: "customer_not_found" });
       return { success: true, found: false, plans: [], inactivePlans: [], message: "Cliente não cadastrado no BEMP." };
     }
-    log("subscription_lookup_completed", { ok: false });
-    throw err;
+    throw lastError;
   }
 
-  const container =
-    customer?.customer && typeof customer.customer === "object" ? customer.customer : customer;
-
-  const { plans, inactivePlans, evaluated } = extractPlansFromCustomer(container);
-
-  log("subscription_lookup_completed", {
-    ok: true,
-    active: plans.length,
-    inactive: inactivePlans.length,
-  });
-  if (plans.length > 0) log("subscription_plan_found", { count: plans.length });
-  else if (inactivePlans.length > 0) {
-    const reason = inactivePlans[0]!.inactiveReason;
-    log(reason === "no_balance" ? "subscription_plan_no_balance" : "subscription_plan_inactive");
-  } else log("subscription_plan_not_found");
-
-  return { success: true, found: evaluated.length > 0, plans, inactivePlans };
+  log("subscription_plan_not_found");
+  return { success: true, found: false, plans: [], inactivePlans: [] };
 }
 
 /** Extrai e avalia os planos a partir do payload do cliente no BEMP. */
