@@ -134,8 +134,13 @@ async function processSingleFollowup(followup: any, parentTraceId: string) {
     let messageText = followup.message_template;
     
     if (!messageText) {
-      messageText = await generateAiFollowup(followup, conversation, traceId);
+      if (followup.reason === 'DEBUG_AUDIT') {
+        messageText = "Teste técnico de follow-up - Julia AI";
+      } else {
+        messageText = await generateAiFollowup(followup, conversation, traceId);
+      }
     }
+
 
     if (!messageText || messageText.trim().length === 0) {
       throw new Error("IA_GENERATION_FAILED");

@@ -12,5 +12,5 @@ export function createLovableAiGatewayProvider(lovableApiKey: string) {
 }
 
 export async function getAiKey() {
-  return process.env['LOVABLE_AI_GATEWAY_KEY'];
+  return process.env['LOVABLE_AI_GATEWAY_KEY'] || process.env['LOVABLE_API_KEY'];
 }
