@@ -1,175 +1,234 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { generateText } from "ai";
 import { createLovableAiGatewayProvider, getAiKey } from "@/lib/ai-gateway.server";
-
+import { logger } from "../observability/logger.server";
+import { z } from "zod";
 
 /**
- * Processa follow-ups agendados.
- * Chamado pelo cron job.
+ * Motor de Follow-up Consolidado (Fase 3 - Auditoria)
  */
 export async function processPendingFollowups() {
-  const now = new Date().toISOString();
-  
-  // 1. Buscar follow-ups pendentes e agendados para agora ou passado
-  const { data: pending, error } = await supabaseAdmin
-    .from("crm_followups")
-    .select("*") // Removed relation that doesn't exist in schema cache
-    .in("status", ["PENDENTE", "PENDING"])
-    .lte("scheduled_at", now)
-    .lt("attempts", 3);
+  const traceId = `fup-proc-${Math.random().toString(36).substring(7)}`;
+  const now = new Date();
+  const nowIso = now.toISOString();
 
+  logger.info("FOLLOWUP_WORKER_STARTED", "Iniciando processamento de follow-ups", { traceId, now: nowIso });
 
-  if (error) {
-    console.error("[followup-processor] Error fetching followups:", error.message);
-    return;
-  }
+  try {
+    // 1. Buscar registros PENDING ou READY vencidos
+    const { data: followups, error: fetchError } = await supabaseAdmin
+      .from("crm_followups")
+      .select("*")
+      .in("status", ["PENDING", "READY", "PENDENTE", "READY_TO_SEND"])
+      .lte("scheduled_at", nowIso)
+      .lt("attempts", 3)
+      .order("scheduled_at", { ascending: true })
+      .limit(20);
 
-  if (!pending || pending.length === 0) return;
-
-  console.log(`[followup-processor] Processing ${pending.length} followups...`);
-
-  for (const followup of pending) {
-    try {
-      // 1.5. Verificar Score antes de processar
-      const { data: pipeline } = await supabaseAdmin
-        .from("crm_customer_pipeline")
-        .select("conversion_score")
-        .eq("phone", followup.phone)
-        .maybeSingle();
-
-      const score = pipeline?.conversion_score ?? 50; 
-      
-      if (score < 30) {
-        console.log(`[followup-processor] Skipping followup for ${followup.phone} due to low score (${score})`);
-        await supabaseAdmin
-          .from("crm_followups")
-          .update({ status: followup.status === 'PENDENTE' ? 'CANCELADO' : 'CLOSED', cancelled_at: new Date().toISOString() })
-          .eq("id", followup.id);
-        continue;
-      }
-
-
-
-      if (followup.reason === 'PRICE') {
-        await supabaseAdmin
-          .from("crm_followups")
-          .update({ status: 'ENCERRADO', cancelled_at: new Date().toISOString() })
-          .eq("id", followup.id);
-        continue;
-      }
-
-      // Marcar como em processamento
-      await supabaseAdmin
-        .from("crm_followups")
-        .update({ status: followup.status === 'PENDENTE' ? 'EM_PROCESSAMENTO' : 'SENDING' })
-        .eq("id", followup.id);
-
-
-      // 2. Obter contexto da última conversa para a IA
-      const { data: conversation } = await supabaseAdmin
-        .from("wa_conversas")
-        .select("*")
-        .eq("phone", followup.phone)
-        .maybeSingle();
-
-      if (!conversation) {
-        await supabaseAdmin
-          .from("crm_followups")
-          .update({ status: followup.status === 'EM_PROCESSAMENTO' ? 'CANCELADO' : 'CLOSED' })
-          .eq("id", followup.id);
-        continue;
-      }
-
-
-      // 3. IA gera a mensagem humanizada baseada no contexto
-      const prompt = `
-        Você é a Julia, secretária do Salão Seja Livre.
-        Precisa enviar um follow-up humanizado para um cliente que parou o atendimento no estágio: ${followup.stage}.
-        
-        CONTEXTO DO CLIENTE:
-        - Nome: ${conversation.contact_name || 'Cliente'}
-        - Último estado: ${followup.reason || 'Interesse em agendamento'}
-        - Histórico recente: ${JSON.stringify((conversation.customer_context || {}))}
-        
-        REGRAS:
-        - Se o motivo do abandono foi PREÇO, NÃO insista e encerre o follow-up.
-        - NUNCA use mensagens genéricas.
-        - Refira-se ao interesse anterior (ex: "Vi que estávamos conversando sobre seu corte de cabelo...").
-        - Seja gentil, acolhedora e NUNCA pressione.
-        - Se for o 3º follow-up, seja mais conclusiva mas educada.
-        - Máximo 2 parágrafos curtos.
-        - Use emojis moderadamente.
-      `;
-
-      const apiKey = await getAiKey();
-      const provider = createLovableAiGatewayProvider(apiKey || "");
-      const { text } = await generateText({
-        model: provider("gemini-1.5-flash") as any,
-        prompt,
-      }).catch(e => {
-
-        console.error("[followup-processor] IA generation failed:", e.message);
-        throw new Error(`IA_GENERATION_FAILED: ${e.message}`);
-      });
-
-
-
-
-      // 4. Enviar via Evolution API
-      const { data: instanceData } = await supabaseAdmin
-        .from("wa_conversas")
-        .select("instance, phone_number")
-        .eq("phone", followup.phone)
-        .single();
-      
-      const conv = instanceData as any;
-      if (conv?.instance && conv?.phone_number) {
-        const { sendEvolutionText } = await import("@/lib/evolution.server");
-
-        await sendEvolutionText(conv.instance, conv.phone_number, text);
-        
-        // Registrar na conversa
-        const { appendIncomingMessage } = await import("@/lib/evolution/conversation.server");
-        // We use a simplified helper or raw RPC to avoid circular deps if needed, 
-        // but append_wa_message RPC is the source of truth.
-        await supabaseAdmin.rpc("append_wa_message" as any, {
-            p_phone: followup.phone,
-            p_message: {
-                id: `fup-${Date.now()}`,
-                role: 'assistant',
-                parts: [{ type: 'text', text }],
-                createdAt: new Date().toISOString()
-            },
-            p_instance: conv.instance,
-            p_phone_number: conv.phone_number,
-            p_increment_unread: false,
-            p_new_status: "aguardando"
-        });
-      }
-
-      // 5. Atualizar status
-      const newAttempts = (followup.attempts || 0) + 1;
-      await supabaseAdmin
-        .from("crm_followups")
-        .update({
-          status: newAttempts >= 3 
-            ? (followup.status === 'EM_PROCESSAMENTO' ? 'ENCERRADO' : 'CLOSED') 
-            : (followup.status === 'EM_PROCESSAMENTO' ? 'ENVIADO' : 'SENT'),
-
-          attempts: newAttempts,
-          sent_at: new Date().toISOString(),
-          message_template: text
-        })
-        .eq("id", followup.id);
-
-      console.log(`[followup-processor] Followup sent to ${followup.phone}`);
-
-    } catch (err: any) {
-      console.error(`[followup-processor] Failed to process followup ${followup.id}:`, err.message);
-      await supabaseAdmin
-        .from("crm_followups")
-        .update({ status: followup.status === 'EM_PROCESSAMENTO' ? 'FALHA' : 'FAILED' })
-        .eq("id", followup.id);
+    if (fetchError) {
+      logger.error("FOLLOWUP_FETCH_FAILED", fetchError.message, { traceId, error: fetchError });
+      return;
     }
+
+    if (!followups || followups.length === 0) {
+      logger.info("FOLLOWUP_WORKER_FINISHED", "Nenhum follow-up pendente encontrado", { traceId });
+      return;
+    }
+
+    logger.info("FOLLOWUP_DETECTED", `Encontrados ${followups.length} follow-ups para processar`, { 
+      traceId, 
+      count: followups.length 
+    });
+
+    for (const followup of followups) {
+      await processSingleFollowup(followup, traceId);
+    }
+
+    logger.info("FOLLOWUP_WORKER_FINISHED", "Processamento concluído", { traceId });
+  } catch (err: any) {
+    logger.critical("FOLLOWUP_WORKER_CRASH", err.message, { traceId, error: err });
+  }
+}
+
+async function processSingleFollowup(followup: any, parentTraceId: string) {
+  const traceId = `${parentTraceId}-${followup.id.split('-')[0]}`;
+  
+  try {
+    // Marcar como PROCESSING imediatamente (Lock)
+    const { error: lockError } = await supabaseAdmin
+      .from("crm_followups")
+      .update({ status: "PROCESSING", updated_at: new Date().toISOString() })
+      .eq("id", followup.id)
+      .eq("status", followup.status);
+
+    if (lockError) {
+      logger.warn("FOLLOWUP_LOCKED", "Não foi possível travar o registro para processamento", { traceId, followupId: followup.id });
+      return;
+    }
+
+    // 2. Elegibilidade e Bloqueios
+    const { data: conversation } = await supabaseAdmin
+      .from("wa_conversas")
+      .select("*")
+      .eq("phone", followup.phone)
+      .maybeSingle();
+
+    if (!conversation) {
+      await blockFollowup(followup.id, "INVALID_PHONE", "Conversa não encontrada para este telefone", traceId);
+      return;
+    }
+
+    // O status e o customer_context podem conter flags de pausa humana
+    const ctx = (conversation.customer_context as any) || {};
+    const attendanceMode = ctx.attendance_mode || (conversation as any).attendance_mode;
+    
+    // Bloqueio: Atendimento Humano Ativo
+    if (attendanceMode === "human" || conversation.status === "atendido_humano") {
+      await blockFollowup(followup.id, "HUMAN_ATTENDING", "Cliente em atendimento humano", traceId);
+      return;
+    }
+
+    // Bloqueio: Cliente respondeu recentemente
+    const lastInteraction = ctx.last_interaction_at;
+    if (lastInteraction && new Date(lastInteraction) > new Date(followup.created_at)) {
+        await blockFollowup(followup.id, "CUSTOMER_REPLIED", "Cliente já interagiu após o agendamento do follow-up", traceId);
+        return;
+    }
+
+    // Bloqueio: Motivo de Preço
+    if (followup.reason === 'PRICE' || ctx.abandon_trigger === 'PRICE') {
+      await blockFollowup(followup.id, "CONVERSATION_CLOSED", "Encerrado por objeção de preço", traceId);
+      return;
+    }
+
+    logger.info("FOLLOWUP_ELIGIBLE", "Registro elegível para envio", { traceId, phone: followup.phone });
+
+    // 3. Geração de IA
+    logger.info("FOLLOWUP_GENERATION_STARTED", "Gerando mensagem com IA", { traceId });
+    
+    let messageText = followup.message_template;
+    
+    if (!messageText) {
+      messageText = await generateAiFollowup(followup, conversation, traceId);
+    }
+
+    if (!messageText || messageText.trim().length === 0) {
+      throw new Error("IA_GENERATION_FAILED");
+    }
+
+    logger.info("FOLLOWUP_GENERATION_COMPLETED", "Mensagem gerada com sucesso", { traceId });
+
+    // 4. Envio via Evolution
+    const instance = conversation.instance;
+    const phoneNumber = conversation.phone_number;
+
+    if (!instance || !phoneNumber) {
+      await blockFollowup(followup.id, "MISSING_INSTANCE", "Dados de instância ou número ausentes", traceId);
+      return;
+    }
+
+    logger.info("FOLLOWUP_SEND_STARTED", "Despachando para Evolution API", { traceId, instance });
+    
+    const { sendEvolutionText } = await import("@/lib/evolution.server");
+    const success = await sendEvolutionText(instance, phoneNumber, messageText);
+
+    if (!success) {
+      throw new Error("EVOLUTION_SEND_FAILED");
+    }
+
+    // 5. Registro e Finalização
+    const now = new Date().toISOString();
+    
+    await supabaseAdmin.rpc("append_wa_message" as any, {
+      p_phone: followup.phone,
+      p_message: {
+          id: `fup-${Date.now()}`,
+          role: 'assistant',
+          parts: [{ type: 'text', text: messageText }],
+          createdAt: now
+      },
+      p_instance: instance,
+      p_phone_number: phoneNumber,
+      p_increment_unread: false,
+      p_new_status: "aguardando"
+    });
+
+    const newAttempts = (followup.attempts || 0) + 1;
+    await supabaseAdmin
+      .from("crm_followups")
+      .update({
+        status: "SENT",
+        attempts: newAttempts,
+        sent_at: now,
+        completed_at: now,
+        message_template: messageText,
+        updated_at: now
+      })
+      .eq("id", followup.id);
+
+    logger.info("FOLLOWUP_SEND_SUCCESS", "Follow-up enviado e registrado", { traceId, phone: followup.phone });
+
+  } catch (err: any) {
+    const isRetryable = ["EVOLUTION_SEND_FAILED", "IA_GENERATION_FAILED", "TIMEOUT"].includes(err.message);
+    const newAttempts = (followup.attempts || 0) + 1;
+    
+    logger.error("FOLLOWUP_SEND_FAILED", err.message, { traceId, followupId: followup.id, retryable: isRetryable });
+
+    await supabaseAdmin
+      .from("crm_followups")
+      .update({
+        status: (isRetryable && newAttempts < 3) ? "READY" : "FAILED",
+        attempts: newAttempts,
+        metadata: { ...(followup.metadata || {}), last_error: err.message },
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", followup.id);
+  }
+}
+
+async function blockFollowup(id: string, reasonCode: string, message: string, traceId: string) {
+  logger.info("FOLLOWUP_BLOCKED", message, { traceId, followupId: id, reasonCode });
+  await supabaseAdmin
+    .from("crm_followups")
+    .update({
+      status: "CANCELED",
+      cancelled_at: new Date().toISOString(),
+      metadata: { blocker: reasonCode, blocker_message: message },
+      updated_at: new Date().toISOString()
+    })
+    .eq("id", id);
+}
+
+async function generateAiFollowup(followup: any, conversation: any, traceId: string): Promise<string> {
+  const prompt = `
+    Você é a Julia, recepcionista do Salão Seja Livre.
+    Precisa enviar um follow-up humanizado para um cliente que parou o atendimento no estágio: ${followup.stage}.
+    
+    CONTEXTO DO CLIENTE:
+    - Nome: ${conversation.contact_name || 'Cliente'}
+    - Motivo do Abandono: ${followup.reason || 'Interesse em agendamento'}
+    - Histórico: ${JSON.stringify(conversation.customer_context || {})}
+    
+    REGRAS:
+    - NUNCA use mensagens genéricas ou robóticas.
+    - Fale como uma pessoa real do salão.
+    - Mencione o que foi conversado anteriormente de forma natural.
+    - Não pressione por venda, apenas mostre que você está disponível para ajudar a finalizar o agendamento.
+    - Máximo 2 parágrafos curtos.
+    - Use emojis de forma sutil.
+    - Idioma: Português do Brasil.
+  `;
+
+  try {
+    const apiKey = await getAiKey();
+    const provider = createLovableAiGatewayProvider(apiKey || "");
+    const { text } = await generateText({
+      model: provider("gemini-1.5-flash") as any,
+      prompt,
+    });
+    return text;
+  } catch (e: any) {
+    logger.error("IA_GENERATION_FAILED", e.message, { traceId });
+    throw new Error("IA_GENERATION_FAILED");
   }
 }

@@ -462,7 +462,265 @@ com evidências.
 
 Não publicar automaticamente.</div>
       <div className="bg-green-600 text-white p-2 text-center text-xs font-medium">
-        Execute esta instrucao no projeto: reiniciar sistema
+        {`Execute esta instrucao no projeto: FASE CRÍTICA 3 — CORRIGIR MOTOR DE FOLLOW-UP
+
+OBJETIVO
+
+Fazer o follow-up sair realmente do banco e chegar ao WhatsApp do cliente.
+
+Não criar um segundo motor paralelo.
+
+Localizar e corrigir o motor atual.
+
+==================================================
+1. INVENTÁRIO
+==================================================
+
+Localizar:
+
+crm_followups
+FollowupService
+followup-processor
+processFollowups
+scheduled_at
+next_attempt_at
+sendFollowup
+worker
+cron
+Edge Function
+job
+
+Documentar fluxo atual.
+
+==================================================
+2. BANCO REAL
+==================================================
+
+Identificar:
+
+PENDING vencidos
+READY vencidos
+SENDING presos
+FAILED
+sem scheduled_at
+sem conversation_id
+sem instance
+sem telefone
+
+Mostrar contagens.
+
+==================================================
+3. WORKER
+==================================================
+
+Confirmar:
+
+- existe;
+- está habilitado;
+- frequência;
+- última execução;
+- próximo disparo;
+- registros encontrados.
+
+Logs:
+
+FOLLOWUP_WORKER_STARTED
+FOLLOWUP_WORKER_FINISHED
+
+==================================================
+4. ELEGIBILIDADE
+==================================================
+
+Cada registro ignorado precisa informar motivo.
+
+FOLLOWUP_BLOCKED reasonCode:
+
+HUMAN_ATTENDING
+CUSTOMER_REPLIED
+CONVERSATION_CLOSED
+AI_DISABLED
+EVOLUTION_OFFLINE
+OUTSIDE_ALLOWED_HOURS
+INVALID_PHONE
+MISSING_INSTANCE
+DUPLICATE
+LOCKED
+NO_MESSAGE
+UNKNOWN
+
+Nenhum return silencioso.
+
+==================================================
+5. FUSO
+==================================================
+
+Persistência:
+
+UTC.
+
+Regras comerciais:
+
+America/Sao_Paulo.
+
+Confirmar que scheduled_at <= now() funciona corretamente.
+
+==================================================
+6. TESTE SEM IA
+==================================================
+
+Criar um follow-up técnico com mensagem fixa.
+
+Executar manualmente o processor.
+
+Esperado:
+
+worker encontra
+→ sendEvolutionText()
+→ HTTP sucesso
+→ messageId
+→ status atualizado
+
+Se isso falhar, não mexer na geração de IA ainda.
+
+==================================================
+7. TESTE EVOLUTION
+==================================================
+
+Com o mesmo instance/telefone, executar envio direto usando o service central.
+
+A auditoria determina que Evolution deve ser consolidada numa fachada única; não usar chamadas HTTP paralelas. :contentReference[oaicite:2]{index=2}
+
+==================================================
+8. GERAÇÃO IA
+==================================================
+
+Somente depois do teste fixo passar:
+
+gerar follow-up com IA.
+
+Validar:
+
+text não vazio
+prompt
+timeout
+erro estruturado
+
+==================================================
+9. PAUSA HUMANA
+==================================================
+
+Quando atendimento humano estiver ativo:
+
+pausar.
+
+Ao retornar para AI:
+
+reavaliar.
+
+Não deixar:
+
+attendance_mode antigo
+ai_paused_at antigo
+human_only indevido
+
+bloquearem para sempre.
+
+==================================================
+10. RETRY
+==================================================
+
+Retry para:
+
+429
+502
+503
+504
+timeout
+
+Backoff.
+
+Limite de tentativas.
+
+==================================================
+11. IDEMPOTÊNCIA
+==================================================
+
+Uma tentativa não pode enviar duas mensagens.
+
+Mas uma chave antiga não pode impedir retry legítimo.
+
+==================================================
+12. STATUS
+==================================================
+
+Padronizar:
+
+PENDING
+READY
+PROCESSING
+SENT
+DELIVERED
+FAILED
+CANCELED
+
+Seguir a futura padronização UPPER_SNAKE_CASE prevista pela auditoria. :contentReference[oaicite:3]{index=3}
+
+==================================================
+13. LOGS
+==================================================
+
+FOLLOWUP_DETECTED
+FOLLOWUP_CREATED
+FOLLOWUP_SCHEDULED
+FOLLOWUP_ELIGIBLE
+FOLLOWUP_BLOCKED
+FOLLOWUP_GENERATION_STARTED
+FOLLOWUP_GENERATION_COMPLETED
+FOLLOWUP_SEND_STARTED
+FOLLOWUP_SEND_SUCCESS
+FOLLOWUP_SEND_FAILED
+FOLLOWUP_RETRY_SCHEDULED
+FOLLOWUP_COMPLETED
+
+==================================================
+14. TESTE REAL
+==================================================
+
+Cliente abandona agendamento.
+
+Comprovar:
+
+registro criado
+scheduled_at
+worker
+mensagem gerada
+Evolution
+messageId
+status final
+cliente recebeu
+
+==================================================
+15. ENTREGA
+==================================================
+
+Informar:
+
+- causa raiz;
+- worker ativo;
+- query de elegibilidade;
+- bloqueios;
+- timezone;
+- teste fixo;
+- teste IA;
+- messageId;
+- build;
+- lint;
+- typecheck;
+- testes.
+
+Atualizar docs/audit-remediation-status.md.
+
+Não considerar concluído até a mensagem chegar a um WhatsApp de teste.`}
       </div>
       <PaymentTestModeBanner />
 
