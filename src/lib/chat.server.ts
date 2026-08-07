@@ -10,19 +10,16 @@ import { classifyFailure, describeError, sanitizeErrorText } from "./evolution/f
 import { updateCustomerPipeline, inferStageFromTool } from "@/lib/crm.server";
 import { normalizeServiceSearchText, SERVICE_CATEGORY_ALIASES, type ServiceCategory } from "./service-utils";
 import { PromotionService, type Promotion } from "./promotion-service.server";
+import { EvolutionService } from "./evolution/evolution-service.server";
+
 
 
 import {
   BempService,
-  extractBempAppointmentId,
 } from "@/lib/bemp-service.server";
-import { 
-  bempFetch, 
-  getBempConfig, 
-  BEMP_WEBHOOK_BASE, 
-  tryUpdateBempScheduleNote, 
-  withProfessionalPreferenceNote 
-} from "@/lib/bemp.server";
+
+const PROFESSIONAL_PREFERENCE_NOTE = "com preferência";
+
 
 
 const PROFESSIONAL_PREFERENCE_NOTE = "com preferência";
