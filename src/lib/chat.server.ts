@@ -13,14 +13,12 @@ import { PromotionService, type Promotion } from "./promotion-service.server";
 
 
 import {
-  bempFetch,
-  getBempConfig,
-  BEMP_WEBHOOK_BASE,
-  PROFESSIONAL_PREFERENCE_NOTE,
+  BempService,
   extractBempAppointmentId,
-  tryUpdateBempScheduleNote,
-  withProfessionalPreferenceNote,
-} from "@/lib/bemp.server";
+} from "@/lib/bemp-service.server";
+
+const PROFESSIONAL_PREFERENCE_NOTE = "com preferência";
+
 
 export const MANDATORY_SYSTEM_RULES = `REGRAS OBRIGATÓRIAS DO SISTEMA (NUNCA IGNORAR):
 - Se "Nome do cliente" estiver preenchido, NUNCA pergunte o nome.
@@ -164,15 +162,14 @@ async function resolveEffectiveUnit(params: { conversationKey?: string; agentUni
   // Se a unidade foi resolvida, tentamos pegar o nome dela para manter o contexto consistente
   if (effectiveUnitId) {
     try {
-      const cfg = await getBempConfig();
-      const salons = (await bempFetch(`${cfg.apiBase}/salons`)) as any;
-      const list = Array.isArray(salons) ? salons : (salons?.data ?? salons?.salons ?? []);
+      const list = await BempService.listSalons();
       const found = list.find((s: any) => String(s?.id) === String(effectiveUnitId));
       if (found?.name || found?.nome) {
         conversationUnitName = String(found.name || found.nome);
       }
     } catch {}
   }
+
 
   // basePrompt log removed to fix ReferenceError
 console.log(`[chat] chat_orchestrator_loaded: modulePath=@/lib/chat.server, promptVersion=1.3.0-phone-priority, subscriptionLookupMethod=PHONE_ONLY`);
@@ -228,9 +225,8 @@ export function subscriptionContextLine(ctx: Record<string, any>): string {
 
 async function resolveServiceForEffectiveUnit(params: { serviceName: string; effectiveUnitId: string }) {
   console.log(`[chat] service_resolution_started: serviceName="${params.serviceName}", unitId=${params.effectiveUnitId}`);
-  const cfg = await getBempConfig();
-  const services = (await bempFetch(`${cfg.apiBase}/salons/${params.effectiveUnitId}/services`)) as any[];
-  const list = Array.isArray(services) ? services : (services as any)?.data ?? (services as any)?.services ?? [];
+  const list = await BempService.listServices(params.effectiveUnitId);
+
   
   const normalize = (s: string) => 
     s.toLowerCase()
@@ -350,9 +346,7 @@ function buildTools(
           // Buscar nome da nova unidade
           let newUnitName = `Unidade ${target_unit_id}`;
           try {
-            const cfg = await getBempConfig();
-            const salons = (await bempFetch(`${cfg.apiBase}/salons`)) as any;
-            const list = Array.isArray(salons) ? salons : (salons?.data ?? salons?.salons ?? []);
+            const list = await BempService.listSalons();
             const found = list.find((s: any) => String(s?.id) === String(target_unit_id));
             if (found?.name || found?.nome) {
               newUnitName = String(found.name || found.nome);
@@ -360,6 +354,7 @@ function buildTools(
               await patchCustomerContext(conversationKey, { currentUnitName: newUnitName });
             }
           } catch {}
+
 
           return { 
             success: true, 
@@ -377,9 +372,8 @@ function buildTools(
       inputSchema: z.object({}),
       execute: async () =>
         safeTool("list_units_info", async () => {
-          const cfg = await getBempConfig();
-          const raw: any = await bempFetch(`${cfg.apiBase}/salons`);
-          const arr: any[] = Array.isArray(raw) ? raw : (raw?.data ?? raw?.salons ?? []);
+          const arr = await BempService.listSalons();
+
           const active = arr.filter((s) => {
             const flag = s?.active ?? s?.ativo ?? s?.is_active ?? s?.status;
             if (flag === undefined || flag === null) return true;
