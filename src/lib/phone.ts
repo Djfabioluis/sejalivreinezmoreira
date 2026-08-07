@@ -11,7 +11,9 @@ export interface NormalizedPhone {
 }
 
 export function normalizeBrazilianPhone(input: string): NormalizedPhone | null {
-  if (!input) return null;
+  if (!input) {
+    return { countryCode: "55", areaCode: "", number: "", full: "", reason: "EMPTY_INPUT" };
+  }
 
   // Remove tudo que não for dígito
   const digits = input.replace(/\D/g, "");
@@ -39,6 +41,8 @@ export function normalizeBrazilianPhone(input: string): NormalizedPhone | null {
     return { countryCode, areaCode: "", number: digits, full: digits, reason: "INVALID_LENGTH_TOO_SHORT" };
   } else if (digits.length > 13) {
     return { countryCode, areaCode: "", number: digits, full: digits, reason: "INVALID_LENGTH_TOO_LONG" };
+  } else {
+    return { countryCode, areaCode: "", number: digits, full: digits, reason: "REGEX_FAILED_OR_UNKNOWN_FORMAT" };
   }
 
   // 2. Validação de DDD (Brasil 11-99)

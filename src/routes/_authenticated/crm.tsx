@@ -444,6 +444,31 @@ function CRMPage() {
                         </div>
                       </div>
 
+                      {/* Phone Diagnosis Metadata */}
+                      {(selectedExecution.metadata?.rawPhone || selectedExecution.metadata?.validatorReason) && (
+                        <div className="bg-muted/50 rounded-lg p-3 border border-border space-y-2">
+                           <p className="text-[10px] text-muted-foreground font-bold uppercase">Auditoria de Telefone</p>
+                           <div className="grid grid-cols-2 gap-2 text-[10px]">
+                              <div>
+                                 <span className="text-muted-foreground block">RAW PHONE:</span>
+                                 <span className="font-mono">{selectedExecution.metadata?.rawPhone || '-'}</span>
+                              </div>
+                              <div>
+                                 <span className="text-muted-foreground block">NORMALIZED:</span>
+                                 <span className="font-mono">{selectedExecution.metadata?.normalizedPhone || '-'}</span>
+                              </div>
+                              <div>
+                                 <span className="text-muted-foreground block">VALIDATOR INPUT:</span>
+                                 <span className="font-mono">{selectedExecution.metadata?.phoneValidatorInput || '-'}</span>
+                              </div>
+                              <div>
+                                 <span className="text-muted-foreground block">REASON:</span>
+                                 <span className="font-bold text-amber-600 uppercase">{selectedExecution.metadata?.validatorReason || '-'}</span>
+                              </div>
+                           </div>
+                        </div>
+                      )}
+
                       {selectedExecution.metadata?.last_error && (
                         <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3 space-y-2">
                           <p className="text-[10px] text-red-600 font-bold uppercase flex items-center gap-1">

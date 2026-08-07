@@ -78,7 +78,14 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
 
     if (lockError) throw new Error(`LOCK_FAILED: ${lockError.message}`);
 
-    // 1. Normalização do Telefone
+    // 1. Logar o telefone bruto recebido
+    logger.info("FOLLOWUP_PHASE_1_START", "Iniciando processamento de telefone", { 
+      traceId, 
+      followupId: followup.id, 
+      rawPhone: followup.phone 
+    });
+
+    // 2. Normalização do Telefone
     const { normalizeBrazilianPhone } = await import("@/lib/phone");
     const normalized = normalizeBrazilianPhone(followup.phone);
     
@@ -91,20 +98,24 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
         {
           rawPhone: followup.phone,
           normalizedPhone: normalized?.full || null,
+          phoneValidatorInput: followup.phone,
+          validatorReason: normalized?.reason || "NULL_OR_UNDEFINED",
           details: normalized
         }
       );
       return;
     }
 
-    // 2. Busca de Conversa usando formato unificado
-    const { data: conversation, error: convError } = await (supabaseAdmin
+    // 3. Busca de Conversa usando formato unificado
+    const { data: convData, error: convError } = await (supabaseAdmin
       .from("wa_conversas" as any) as any)
       .select("*")
-      .eq("phone", `${followup.phone.includes(':') ? followup.phone.split(':')[0] : 'agente'}:${normalized.full}`) // Tentar inferir a instância ou usar o telefone normalizado
+      .eq("phone", `${followup.phone.includes(':') ? followup.phone.split(':')[0] : 'agente'}:${normalized.full}`)
       .maybeSingle();
 
     if (convError) throw new Error(`DATABASE_ERROR_CONVERSATION: ${convError.message}`);
+
+    let conversation = convData;
 
     if (!conversation) {
       // Se não achou pelo prefixo de instância, tenta buscar apenas pelo número nas conversas
@@ -116,11 +127,13 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       
       if (!convFallback) {
         await blockFollowup(followup.id, "INVALID_PHONE", "Conversa não encontrada para este número", traceId, {
-          phoneSearch: normalized.full
+          rawPhone: followup.phone,
+          normalizedPhone: normalized.full,
+          phoneSearch: normalized.full,
+          validatorReason: "CONVERSATION_NOT_FOUND"
         });
         return;
       }
-      // @ts-ignore
       conversation = convFallback;
     }
 
@@ -150,6 +163,15 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     await updateFollowupStep(followup.id, "FOLLOWUP_EVOLUTION_STARTED", traceId);
     
     const { sendEvolutionText } = await import("@/lib/evolution.server");
+    
+    // Logar dados antes de enviar para Evolution para auditoria definitiva
+    await updateFollowupMetadata(followup.id, {
+      phoneBeforeValidation: followup.phone,
+      phoneSentToEvolution: normalized.full,
+      evolutionInstance: conversation.instance,
+      evolutionPhoneNumber: conversation.phone_number
+    });
+
     const success = await sendEvolutionText(conversation.instance, conversation.phone_number, messageText);
 
     if (!success) {
@@ -215,6 +237,19 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       } as any)
       .eq("id", followup.id);
   }
+}
+
+async function updateFollowupMetadata(id: string, newMetadata: any) {
+  const { data: followup } = await supabaseAdmin.from("crm_followups").select("metadata").eq("id", id).single();
+  const metadata = (followup?.metadata as any) || {};
+  
+  await supabaseAdmin
+    .from("crm_followups")
+    .update({ 
+      metadata: { ...metadata, ...newMetadata },
+      updated_at: new Date().toISOString()
+    } as any)
+    .eq("id", id);
 }
 
 async function updateFollowupStep(id: string, step: string, traceId: string) {
