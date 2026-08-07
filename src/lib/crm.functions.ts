@@ -316,6 +316,9 @@ export const runFollowupTest = createServerFn({ method: "POST" })
     
     if (ruleError || !rule) throw new Error("Regra não encontrada");
 
+    // Limpar execuções anteriores deste telefone para a mesma regra para evitar DUPLICATE se implementado
+    await (supabaseAdmin.from("crm_followups" as any) as any).delete().eq("phone", data.phone).eq("rule_id", data.ruleId).in("status", ["CANCELED", "FAILED"]);
+
     const { data: followup, error: fError } = await (supabaseAdmin.from("crm_followups" as any) as any).insert({
       phone: data.phone,
       stage: 'TEST_EXECUTION',
@@ -324,13 +327,20 @@ export const runFollowupTest = createServerFn({ method: "POST" })
       status: 'READY',
       rule_id: data.ruleId,
       message_template: rule.message_mode === 'FIXED' ? rule.fixed_message : null,
-      metadata: { is_test: true, triggered_by: context.userId }
+      metadata: { is_test: true, triggered_by: context.userId, traceId: `test-${Date.now()}` }
     } as any).select("*").single();
 
     if (fError || !followup) throw new Error("Erro ao criar followup de teste: " + fError?.message);
 
     const traceId = `test-${Math.random().toString(36).substring(7)}`;
-    await processSingleFollowup(followup, traceId);
+    
+    // Execução assíncrona ou síncrona dependendo da necessidade de resposta imediata
+    try {
+      await processSingleFollowup(followup, traceId);
+    } catch (err) {
+      // O erro já deve ser tratado dentro do processSingleFollowup e gravado no banco
+      console.error("Erro na execução do teste de followup:", err);
+    }
 
     const { data: result } = await (supabaseAdmin.from("crm_followups" as any) as any)
       .select("*")
