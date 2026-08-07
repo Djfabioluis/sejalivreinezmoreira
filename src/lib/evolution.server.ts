@@ -182,7 +182,9 @@ export async function sendEvolutionText(
   body: string,
   typingMs = 0,
 ): Promise<boolean> {
-  const number = to.replace(/\D/g, "");
+  const { normalizeBrazilianPhone } = await import("./phone");
+  const normalized = normalizeBrazilianPhone(to);
+  const number = normalized?.full || to.replace(/\D/g, "");
   const traceId = `out-${Math.random().toString(36).substring(7)}`;
   
   // INSTRUMENTAÇÃO DE AUDITORIA

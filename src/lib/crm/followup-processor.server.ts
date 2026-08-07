@@ -78,17 +78,50 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
 
     if (lockError) throw new Error(`LOCK_FAILED: ${lockError.message}`);
 
+    // 1. Normalização do Telefone
+    const { normalizeBrazilianPhone } = await import("@/lib/phone");
+    const normalized = normalizeBrazilianPhone(followup.phone);
+    
+    if (!normalized || normalized.reason) {
+      await blockFollowup(
+        followup.id, 
+        "INVALID_PHONE", 
+        `Telefone inválido: ${normalized?.reason || "FORMAT_NOT_RECOGNIZED"}`, 
+        traceId,
+        {
+          rawPhone: followup.phone,
+          normalizedPhone: normalized?.full || null,
+          details: normalized
+        }
+      );
+      return;
+    }
+
+    // 2. Busca de Conversa usando formato unificado
     const { data: conversation, error: convError } = await (supabaseAdmin
       .from("wa_conversas" as any) as any)
       .select("*")
-      .eq("phone", followup.phone)
+      .eq("phone", `${followup.phone.includes(':') ? followup.phone.split(':')[0] : 'agente'}:${normalized.full}`) // Tentar inferir a instância ou usar o telefone normalizado
       .maybeSingle();
 
     if (convError) throw new Error(`DATABASE_ERROR_CONVERSATION: ${convError.message}`);
 
     if (!conversation) {
-      await blockFollowup(followup.id, "INVALID_PHONE", "Conversa não encontrada", traceId);
-      return;
+      // Se não achou pelo prefixo de instância, tenta buscar apenas pelo número nas conversas
+      const { data: convFallback } = await (supabaseAdmin
+        .from("wa_conversas" as any) as any)
+        .select("*")
+        .eq("phone_number", normalized.full)
+        .maybeSingle();
+      
+      if (!convFallback) {
+        await blockFollowup(followup.id, "INVALID_PHONE", "Conversa não encontrada para este número", traceId, {
+          phoneSearch: normalized.full
+        });
+        return;
+      }
+      // @ts-ignore
+      conversation = convFallback;
     }
 
     const ctx = (conversation.customer_context as any) || {};
@@ -199,15 +232,20 @@ async function updateFollowupStep(id: string, step: string, traceId: string) {
     .eq("id", id);
 }
 
-async function blockFollowup(id: string, reasonCode: string, message: string, traceId: string) {
-  logger.info("FOLLOWUP_BLOCKED", message, { traceId, followupId: id, reasonCode });
+async function blockFollowup(id: string, reasonCode: string, message: string, traceId: string, additionalMetadata: any = {}) {
+  logger.info("FOLLOWUP_BLOCKED", message, { traceId, followupId: id, reasonCode, ...additionalMetadata });
   await supabaseAdmin
     .from("crm_followups")
     .update({
       status: "CANCELED",
       cancel_reason: reasonCode,
       cancelled_at: new Date().toISOString(),
-      metadata: { blocker: reasonCode, blocker_message: message, last_step: "FOLLOWUP_BLOCKED" },
+      metadata: { 
+        blocker: reasonCode, 
+        blocker_message: message, 
+        last_step: "FOLLOWUP_BLOCKED",
+        ...additionalMetadata
+      },
       updated_at: new Date().toISOString()
     } as any)
     .eq("id", id);

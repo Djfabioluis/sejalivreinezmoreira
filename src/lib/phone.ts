@@ -1,27 +1,26 @@
 /**
- * Utilitário para normalização de telefones brasileiros.
+ * Utilitário central para normalização de telefones brasileiros.
+ * Usado tanto pelo Follow-up quanto pela Evolution para garantir consistência.
  */
 export interface NormalizedPhone {
   countryCode: string;
   areaCode: string;
   number: string;
   full: string;
+  reason?: string;
 }
 
 export function normalizeBrazilianPhone(input: string): NormalizedPhone | null {
+  if (!input) return null;
+
   // Remove tudo que não for dígito
   const digits = input.replace(/\D/g, "");
-
-  // Formatos aceitos:
-  // 11 dígitos: 55 41 999999999 (com DDI 55) -> total 13
-  // 10 dígitos: 55 41 88888888 (com DDI 55) -> total 12
-  // 11 dígitos: 41 999999999 -> total 11
-  // 10 dígitos: 41 88888888 -> total 10
 
   let countryCode = "55";
   let areaCode = "";
   let number = "";
 
+  // 1. Extração de componentes baseado no tamanho
   if (digits.length === 13 && digits.startsWith("55")) {
     areaCode = digits.slice(2, 4);
     number = digits.slice(4);
@@ -34,19 +33,24 @@ export function normalizeBrazilianPhone(input: string): NormalizedPhone | null {
   } else if (digits.length === 10) {
     areaCode = digits.slice(0, 2);
     number = digits.slice(2);
-  } else if (digits.length === 9) {
-    // Presume-se que o usuário esqueceu o DDD, mas informou o 9
-    return null; 
-  } else if (digits.length === 8) {
-    // Fixo ou antigo sem DDD
-    return null;
-  } else {
-    return null;
+  } else if (digits.length === 9 && digits.startsWith("9")) {
+    return { countryCode, areaCode: "", number: digits, full: digits, reason: "MISSING_AREA_CODE" };
+  } else if (digits.length < 10) {
+    return { countryCode, areaCode: "", number: digits, full: digits, reason: "INVALID_LENGTH_TOO_SHORT" };
+  } else if (digits.length > 13) {
+    return { countryCode, areaCode: "", number: digits, full: digits, reason: "INVALID_LENGTH_TOO_LONG" };
   }
 
-  // Validação básica de DDD (Brasil 11-99)
+  // 2. Validação de DDD (Brasil 11-99)
   const areaInt = parseInt(areaCode, 10);
-  if (isNaN(areaInt) || areaInt < 11 || areaInt > 99) return null;
+  if (isNaN(areaInt) || areaInt < 11 || areaInt > 99) {
+    return { countryCode, areaCode, number, full: digits, reason: "INVALID_AREA_CODE" };
+  }
+
+  // 3. Validação de Número (mínimo 8 dígitos)
+  if (number.length < 8) {
+    return { countryCode, areaCode, number, full: digits, reason: "INVALID_SUBSCRIBER_NUMBER" };
+  }
 
   return {
     countryCode,
@@ -69,6 +73,8 @@ export function maskPhone(phone: string): string {
 export function getPhoneVariants(normalized: NormalizedPhone): NormalizedPhone[] {
   const variants = [normalized];
   const { countryCode, areaCode, number } = normalized;
+
+  if (!areaCode || !number) return variants;
 
   // Se tem 9 dígitos e começa com 9, tenta a variante de 8
   if (number.length === 9 && number.startsWith("9")) {
