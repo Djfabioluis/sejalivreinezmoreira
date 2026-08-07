@@ -10,7 +10,10 @@ import {
   listFollowupHistory,
   getFollowupStats,
   saveFollowupRule,
-  deleteFollowupRule
+  deleteFollowupRule,
+  runFollowupTest,
+  getWorkerStatus
+
 } from "@/lib/crm.functions";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
