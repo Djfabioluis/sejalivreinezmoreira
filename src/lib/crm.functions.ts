@@ -170,8 +170,8 @@ export const listFollowupRules = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context);
-    const { data, error } = await supabaseAdmin
-      .from("crm_followup_rules")
+    const { data, error } = await (supabaseAdmin
+      .from("crm_followup_rules" as any) as any)
       .select("*, steps:crm_followup_steps(*)")
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
@@ -180,25 +180,24 @@ export const listFollowupRules = createServerFn({ method: "GET" })
 
 export const saveFollowupRule = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context, data: ruleData }: { context: any, data: any }) => {
+  .handler(async ({ context, data }: { context: any, data: any }) => {
     await assertAdmin(context);
-    const { steps, ...rule } = ruleData;
+    const { steps, ...rule } = data;
     
     let ruleId = rule.id;
     if (ruleId) {
-      const { error } = await supabaseAdmin.from("crm_followup_rules").update(rule).eq("id", ruleId);
+      const { error } = await (supabaseAdmin.from("crm_followup_rules" as any) as any).update(rule).eq("id", ruleId);
       if (error) throw new Error(error.message);
     } else {
-      const { data, error } = await supabaseAdmin.from("crm_followup_rules").insert(rule).select("id").single();
+      const { data: inserted, error } = await (supabaseAdmin.from("crm_followup_rules" as any) as any).insert(rule).select("id").single();
       if (error) throw new Error(error.message);
-      ruleId = data.id;
+      ruleId = (inserted as any).id;
     }
 
     if (steps && steps.length > 0) {
-      // Refresh steps
-      await supabaseAdmin.from("crm_followup_steps").delete().eq("rule_id", ruleId);
+      await (supabaseAdmin.from("crm_followup_steps" as any) as any).delete().eq("rule_id", ruleId);
       const stepsToInsert = steps.map((s: any, i: number) => ({ ...s, rule_id: ruleId, step_order: i }));
-      const { error: stepsError } = await supabaseAdmin.from("crm_followup_steps").insert(stepsToInsert);
+      const { error: stepsError } = await (supabaseAdmin.from("crm_followup_steps" as any) as any).insert(stepsToInsert);
       if (stepsError) throw new Error(stepsError.message);
     }
 
@@ -207,9 +206,9 @@ export const saveFollowupRule = createServerFn({ method: "POST" })
 
 export const deleteFollowupRule = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context, data: { id } }: { context: any, data: { id: string } }) => {
+  .handler(async ({ context, data }: { context: any, data: { id: string } }) => {
     await assertAdmin(context);
-    const { error } = await supabaseAdmin.from("crm_followup_rules").delete().eq("id", id);
+    const { error } = await (supabaseAdmin.from("crm_followup_rules" as any) as any).delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { success: true };
   });
@@ -218,8 +217,8 @@ export const listFollowupHistory = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context);
-    const { data, error } = await supabaseAdmin
-      .from("crm_followups")
+    const { data, error } = await (supabaseAdmin
+      .from("crm_followups" as any) as any)
       .select("*, rule:crm_followup_rules(name)")
       .order("created_at", { ascending: false })
       .limit(100);
@@ -231,21 +230,18 @@ export const getFollowupStats = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     await assertAdmin(context);
-    const { data: followups, error } = await supabaseAdmin.from("crm_followups").select("status, created_at, metadata");
+    const { data: followups, error } = await (supabaseAdmin.from("crm_followups" as any) as any).select("status, created_at, metadata");
     if (error) throw new Error(error.message);
     
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
     
     const stats = {
-      pending: followups.filter(f => f.status === 'PENDING' || f.status === 'READY').length,
-      sentToday: followups.filter(f => f.status === 'SENT' && f.created_at.startsWith(todayStr)).length,
-      failed: followups.filter(f => f.status === 'FAILED').length,
-      recovered: followups.filter(f => f.status === 'SENT' && (f.metadata as any)?.recovered).length,
+      pending: (followups as any[]).filter(f => f.status === 'PENDING' || f.status === 'READY').length,
+      sentToday: (followups as any[]).filter(f => f.status === 'SENT' && f.created_at?.startsWith(todayStr)).length,
+      failed: (followups as any[]).filter(f => f.status === 'FAILED').length,
+      recovered: (followups as any[]).filter(f => f.status === 'SENT' && (f.metadata as any)?.recovered).length,
     };
     
     return stats;
   });
-
-
-
