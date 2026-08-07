@@ -31,8 +31,9 @@ Este documento rastreia o status das remediações técnicas baseadas na auditor
 
 | Item | Gravidade | Status | Arquivos Relacionados | Migration | Teste | Evidência |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Bemp Service** | Alta | ⏳ Pendente | `src/lib/bemp-service.server.ts` | N/A | N/A | Centralização de chamadas pendente |
-| **Evolution Service** | Alta | ⏳ Pendente | `src/lib/evolution/evolution-service.server.ts` | N/A | N/A | Fachada centralizada pendente |
+| **Bemp Service** | Alta | ✅ Corrigido | `src/lib/bemp-service.server.ts` | N/A | Sim | Centralização de chamadas concluída |
+| **Evolution Service** | Alta | ✅ Corrigido | `src/lib/evolution/evolution-service.server.ts` | N/A | Sim | Fachada centralizada concluída |
+
 | **Webhooks** | Alta | ⏳ Pendente | `src/routes/api/public/*` | N/A | N/A | Auditoria de validação Zod e segredos pendente |
 
 ---

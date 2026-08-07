@@ -44,7 +44,7 @@ SaaS de atendimento automatizado no WhatsApp para salões de beleza, clínicas e
 ### Planos e Assinaturas
 - Integração com **Stripe** para cobrança recorrente.
 - Planos mensal, trimestral, semestral e anual.
-- Validação de planos pelo telefone cadastrado com integração ao BEMP.
+- Validação de Plano Beauty pelo telefone cadastrado com integração ao BEMP.
 - Tela de vendas de assinaturas (SaaS) para revenda do sistema.
 
 ### Dashboard Administrativo

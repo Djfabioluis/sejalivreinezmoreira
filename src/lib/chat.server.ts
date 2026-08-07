@@ -16,6 +16,14 @@ import {
   BempService,
   extractBempAppointmentId,
 } from "@/lib/bemp-service.server";
+import { 
+  bempFetch, 
+  getBempConfig, 
+  BEMP_WEBHOOK_BASE, 
+  tryUpdateBempScheduleNote, 
+  withProfessionalPreferenceNote 
+} from "@/lib/bemp.server";
+
 
 const PROFESSIONAL_PREFERENCE_NOTE = "com preferência";
 

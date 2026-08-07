@@ -461,8 +461,119 @@ docs/audit-remediation-status.md
 com evidências.
 
 Não publicar automaticamente.</div>
-      <div className="bg-green-600 text-white p-2 text-center text-xs font-medium">
-        {`Execute esta instrucao no projeto: FASE CRÍTICA 3 — CORRIGIR MOTOR DE FOLLOW-UP
+      <div className="bg-blue-600 text-white p-2 text-center text-xs font-medium">
+        {`Execute esta instrucao no projeto: FASE CRÍTICA 4 — CONSOLIDAÇÃO PÓS-CORREÇÕES
+
+OBJETIVO
+
+Depois de validar:
+
+- assinatura por telefone;
+- promoção de mechas;
+- follow-up;
+
+consolidar a arquitetura para evitar regressão.
+
+==================================================
+1. BEMPSERVICE
+==================================================
+
+Cumprir a Fase 3 da auditoria:
+
+src/lib/bemp-service.server.ts
+
+deve ser a única camada HTTP do BEMP.
+
+Eliminar fetch direto nos tools e módulos paralelos.
+
+==================================================
+2. EVOLUTIONSERVICE
+==================================================
+
+Usar uma única fachada Evolution.
+
+Todos os envios devem passar por ela.
+
+Não permitir:
+
+fetch direto
+evoFetch direto fora da infraestrutura autorizada
+
+==================================================
+3. ERROS
+==================================================
+
+Executar Fase 6 da auditoria.
+
+Eliminar catch genérico que:
+
+- retorna success false sem código;
+- engole exceções;
+- gera falso sucesso;
+- transforma erro técnico em regra de negócio.
+
+O arquivo recomenda priorizar justamente agendamento e WhatsApp.
+
+==================================================
+4. TESTES DE REGRESSÃO
+==================================================
+
+Adicionar suite permanente:
+
+subscription-phone-flow.test.ts
+mechas-promotion-flow.test.ts
+followup-e2e.test.ts
+outbound-policy.test.ts
+
+Os testes devem falhar se:
+
+- CPF voltar ao fluxo;
+- promoção ativa não aparecer;
+- follow-up elegível não chamar Evolution.
+
+==================================================
+5. DOCUMENTAÇÃO
+==================================================
+
+Atualizar:
+
+README.md
+docs/audit-remediation-status.md
+docs/architecture.md
+
+Remover documentação que diga:
+
+"Validação de planos via CPF"
+
+Substituir:
+
+"Validação de Plano Beauty pelo telefone cadastrado."
+
+==================================================
+6. VALIDAÇÃO
+==================================================
+
+bun run lint
+bun run build
+testes
+
+Não prosseguir se existir erro.
+
+==================================================
+7. ENTREGA
+==================================================
+
+Mostrar:
+
+arquivos removidos
+services consolidados
+imports migrados
+catch corrigidos
+testes adicionados
+riscos residuais
+
+Não publicar automaticamente.`}
+      </div>
 
 OBJETIVO
 
