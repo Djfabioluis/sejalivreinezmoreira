@@ -12,7 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as IndexOldRouteImport } from './routes/index.old'
 import { Route as CheckoutReturnRouteImport } from './routes/checkout/return'
 import { Route as ApiTtsRouteImport } from './routes/api/tts'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
@@ -65,9 +65,9 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const IndexOldRoute = IndexOldRouteImport.update({
+  id: '/index/old',
+  path: '/index/old',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CheckoutReturnRoute = CheckoutReturnRouteImport.update({
@@ -272,7 +272,7 @@ const ApiPublicHooksLearningPatternsRoute =
   } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/mcp': typeof McpRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -299,6 +299,7 @@ export interface FileRoutesByFullPath {
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
   '/checkout/return': typeof CheckoutReturnRoute
+  '/index/old': typeof IndexOldRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/public/bemp-webhook': typeof ApiPublicBempWebhookRoute
@@ -314,7 +315,7 @@ export interface FileRoutesByFullPath {
   '/api/public/whatsapp-evolution/test': typeof ApiPublicWhatsappEvolutionTestRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
+  '/': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/mcp': typeof McpRoute
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
@@ -341,6 +342,7 @@ export interface FileRoutesByTo {
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
   '/checkout/return': typeof CheckoutReturnRoute
+  '/index/old': typeof IndexOldRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/public/bemp-webhook': typeof ApiPublicBempWebhookRoute
@@ -357,7 +359,6 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/mcp': typeof McpRoute
@@ -385,6 +386,7 @@ export interface FileRoutesById {
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
   '/checkout/return': typeof CheckoutReturnRoute
+  '/index/old': typeof IndexOldRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/public/bemp-webhook': typeof ApiPublicBempWebhookRoute
@@ -429,6 +431,7 @@ export interface FileRouteTypes {
     | '/api/transcribe'
     | '/api/tts'
     | '/checkout/return'
+    | '/index/old'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/api/public/bemp-webhook'
@@ -471,6 +474,7 @@ export interface FileRouteTypes {
     | '/api/transcribe'
     | '/api/tts'
     | '/checkout/return'
+    | '/index/old'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/api/public/bemp-webhook'
@@ -486,7 +490,6 @@ export interface FileRouteTypes {
     | '/api/public/whatsapp-evolution/test'
   id:
     | '__root__'
-    | '/'
     | '/_authenticated'
     | '/auth'
     | '/mcp'
@@ -514,6 +517,7 @@ export interface FileRouteTypes {
     | '/api/transcribe'
     | '/api/tts'
     | '/checkout/return'
+    | '/index/old'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/api/public/bemp-webhook'
@@ -530,7 +534,6 @@ export interface FileRouteTypes {
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   McpRoute: typeof McpRoute
@@ -540,6 +543,7 @@ export interface RootRouteChildren {
   ApiTranscribeRoute: typeof ApiTranscribeRoute
   ApiTtsRoute: typeof ApiTtsRoute
   CheckoutReturnRoute: typeof CheckoutReturnRoute
+  IndexOldRoute: typeof IndexOldRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicBempWebhookRoute: typeof ApiPublicBempWebhookRoute
@@ -576,11 +580,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/index/old': {
+      id: '/index/old'
+      path: '/index/old'
+      fullPath: '/index/old'
+      preLoaderRoute: typeof IndexOldRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/checkout/return': {
@@ -909,7 +913,6 @@ const ApiPublicWhatsappEvolutionRouteWithChildren =
   )
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   McpRoute: McpRoute,
@@ -920,6 +923,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiTranscribeRoute: ApiTranscribeRoute,
   ApiTtsRoute: ApiTtsRoute,
   CheckoutReturnRoute: CheckoutReturnRoute,
+  IndexOldRoute: IndexOldRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicBempWebhookRoute: ApiPublicBempWebhookRoute,

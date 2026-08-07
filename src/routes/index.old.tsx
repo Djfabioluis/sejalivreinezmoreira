@@ -21,7 +21,7 @@ import {
   Check,
 } from "lucide-react";
 
-export const Route = createFileRoute("/")({
+export const Route = createFileRoute("/index/old")({
   head: () => ({
     meta: [
       { title: "Seja Livre AI Platform — Gestão Inteligente para Salões" },
