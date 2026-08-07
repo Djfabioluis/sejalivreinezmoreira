@@ -44,6 +44,7 @@ const FORBIDDEN_MEMORY_PATTERNS: RegExp[] = [
   /token/i,
   /\bpix copia e cola\b/i,
   /\bcpf\b/i,
+  /\b[dD]ocumento\b/i,
   /\d{3}\.\d{3}\.\d{3}-\d{2}/,
   /\b\d{13,19}\b/,
 ];

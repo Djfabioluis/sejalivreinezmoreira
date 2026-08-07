@@ -8,7 +8,7 @@ export const ALLOW_SUBSCRIPTION_CPF_FALLBACK = false as const;
 export const SUBSCRIPTION_MAX_PHONE_ATTEMPTS = 2;
 
 export const PHONE_REQUEST_MESSAGE =
-  "Perfeito! 💜\n\nQual é o número de telefone cadastrado na assinatura?\n\nPode enviar com DDD.";
+  "Perfeito! 💜\n\nPara localizar o seu Plano Beauty, qual é o número de telefone cadastrado na assinatura?\n\nPode enviar com DDD.";
 
 export const PHONE_RETRY_MESSAGE =
   "Não encontrei uma assinatura ativa com esse telefone. 💜\n\nPode conferir e me enviar novamente o número cadastrado no plano, com DDD?";

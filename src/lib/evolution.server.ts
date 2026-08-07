@@ -205,11 +205,11 @@ export async function sendEvolutionText(
   });
 
   if (safeText.blocked) {
-    logger.audit("CPF_RESPONSE_GENERATED", "Uma resposta contendo CPF foi bloqueada no transporte final.", {
+    logger.audit("CPF_SOLICITATION_BLOCKED", "Uma solicitação de CPF foi bloqueada e substituída por telefone no transporte final.", {
       instance,
       to: number,
       originalText: body,
-      blockedText: safeText.text
+      replacementText: safeText.text
     });
   }
 
