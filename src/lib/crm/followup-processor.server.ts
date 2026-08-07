@@ -42,7 +42,7 @@ export async function processPendingFollowups() {
         console.log(`[followup-processor] Skipping followup for ${followup.phone} due to low score (${score})`);
         await supabaseAdmin
           .from("crm_followups")
-          .update({ status: 'CLOSED', cancelled_at: new Date().toISOString() })
+          .update({ status: followup.status === 'PENDENTE' ? 'CANCELADO' : 'CLOSED', cancelled_at: new Date().toISOString() })
           .eq("id", followup.id);
         continue;
       }
