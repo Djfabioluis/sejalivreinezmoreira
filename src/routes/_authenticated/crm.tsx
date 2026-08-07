@@ -314,9 +314,25 @@ function FollowupRuleModal({ isOpen, onClose, rule, onSave }: { isOpen: boolean,
   });
 
   // Update form data when rule prop changes (e.g. for editing)
-  useState(() => {
-    if (rule) setFormData(rule);
-  });
+  import { useEffect } from "react";
+  useEffect(() => {
+    if (rule) {
+      setFormData(rule);
+    } else {
+      setFormData({
+        name: "",
+        type: "ABANDONMENT",
+        delay_minutes: 30,
+        message_template: "",
+        is_active: true,
+        recipients: ["NEW_CLIENTS"],
+        stop_conditions: ["REPLY"],
+        ai_goal: "BOOKING",
+        ai_tone: "HUMAN",
+        allowed_hours: ["08:00", "20:00"]
+      });
+    }
+  }, [rule, isOpen]);
   const handleSave = () => {
     if (!formData.name || !formData.message_template) {
       toast.error("Preencha o nome e a mensagem base");
