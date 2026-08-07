@@ -133,13 +133,17 @@ async function processSingleFollowup(followup: any, parentTraceId: string) {
     
     let messageText = followup.message_template;
     
+    console.log(`[AUDIT] GENERATION_START id=${followup.id} reason=${followup.reason} hasTemplate=${!!messageText}`);
+
     if (!messageText) {
-      if (followup.reason === 'DEBUG_AUDIT') {
+      if (followup.reason?.toString().trim().toUpperCase() === 'DEBUG_AUDIT') {
+        console.log(`[AUDIT] DEBUG_AUDIT_DETECTED - Using fixed message`);
         messageText = "Teste técnico de follow-up - Julia AI";
       } else {
         messageText = await generateAiFollowup(followup, conversation, traceId);
       }
     }
+
 
 
     if (!messageText || messageText.trim().length === 0) {
