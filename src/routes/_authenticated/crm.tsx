@@ -300,42 +300,36 @@ function CRMPage() {
 }
 
 function FollowupRuleModal({ isOpen, onClose, rule, onSave }: { isOpen: boolean, onClose: () => void, rule: any, onSave: (data: any) => void }) {
-  const [formData, setFormData] = useState({
+  const emptyRule = {
     name: "",
     type: "ABANDONMENT",
-    delay_minutes: 30,
-    message_template: "",
-    is_active: true,
+    enabled: true,
+    delay_amount: 30,
+    delay_unit: "MINUTES",
+    message_mode: "AI",
+    fixed_message: "",
+    max_attempts: 3,
+    start_time: "08:00",
+    end_time: "20:00",
     recipients: ["NEW_CLIENTS"],
-    stop_conditions: ["REPLY"],
+    conditions_to_stop: ["REPLY"],
     ai_goal: "BOOKING",
     ai_tone: "HUMAN",
-    allowed_hours: ["08:00", "20:00"]
-  });
+  };
 
-  // Update form data when rule prop changes (e.g. for editing)
-  
+  const [formData, setFormData] = useState<any>(emptyRule);
+
   useEffect(() => {
-    if (rule) {
-      setFormData(rule);
-    } else {
-      setFormData({
-        name: "",
-        type: "ABANDONMENT",
-        delay_minutes: 30,
-        message_template: "",
-        is_active: true,
-        recipients: ["NEW_CLIENTS"],
-        stop_conditions: ["REPLY"],
-        ai_goal: "BOOKING",
-        ai_tone: "HUMAN",
-        allowed_hours: ["08:00", "20:00"]
-      });
-    }
+    setFormData(rule ? { ...emptyRule, ...rule } : emptyRule);
   }, [rule, isOpen]);
+
   const handleSave = () => {
-    if (!formData.name || !formData.message_template) {
-      toast.error("Preencha o nome e a mensagem base");
+    if (!formData.name) {
+      toast.error("Preencha o nome da regra");
+      return;
+    }
+    if (formData.message_mode === "FIXED" && !formData.fixed_message) {
+      toast.error("Preencha a mensagem fixa");
       return;
     }
     onSave(formData);
