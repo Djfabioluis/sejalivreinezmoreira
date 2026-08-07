@@ -86,6 +86,7 @@ function CRMPage() {
 
     try {
       await saveRuleFn({ data });
+
       toast.success("Regra salva com sucesso!");
       setIsModalOpen(false);
       queryClient.invalidateQueries({ queryKey: ["followup-rules"] });
