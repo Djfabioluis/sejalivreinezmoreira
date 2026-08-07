@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { 
   Plus, Clock, Zap, MessageSquare, Bot, Sparkles, Settings, History, LayoutDashboard,
@@ -93,7 +93,7 @@ function CRMPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex items-center justify-between p-4 bg-card rounded-xl border border-border/50 shadow-sm">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 bg-card rounded-xl border border-border/50 shadow-sm gap-4">
         <div className="flex items-center gap-4">
            <div className="bg-emerald-500/10 p-2 rounded-full">
              <Activity className="h-5 w-5 text-emerald-600 animate-pulse" />
@@ -102,6 +102,24 @@ function CRMPage() {
              <h3 className="text-sm font-bold">Motor de Follow-up <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-none">ONLINE</Badge></h3>
              <p className="text-[10px] text-muted-foreground">Fila: {workerStatus.queueSize} | Última: {workerStatus.lastRun}</p>
            </div>
+        </div>
+        <div className="flex items-center gap-2 w-full md:w-auto">
+          <Button 
+            onClick={() => {
+              setEditingRule(null);
+              setIsModalOpen(true);
+            }}
+            className="flex-1 md:flex-none gap-2"
+          >
+            <Plus className="h-4 w-4" /> Nova Regra
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={() => queryClient.invalidateQueries()}
+            className="flex-1 md:flex-none gap-2"
+          >
+            <Loader2 className="h-4 w-4" /> Atualizar
+          </Button>
         </div>
       </div>
 
@@ -254,7 +272,170 @@ function CRMPage() {
           </div>
         </ScrollArea>
       </Card>
+
+      <FollowupRuleModal 
+        isOpen={isModalOpen} 
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingRule(null);
+        }}
+        rule={editingRule}
+        onSave={async (ruleData: any) => {
+          toast.loading("Salvando regra...");
+          try {
+            await saveRuleFn({ data: ruleData });
+            toast.dismiss();
+            toast.success("Regra salva com sucesso!");
+            setIsModalOpen(false);
+            setEditingRule(null);
+            queryClient.invalidateQueries({ queryKey: ["followup-rules"] });
+          } catch (err: any) {
+            toast.dismiss();
+            toast.error(err.message || "Erro ao salvar regra");
+          }
+        }}
+      />
     </div>
+  );
+}
+
+function FollowupRuleModal({ isOpen, onClose, rule, onSave }: { isOpen: boolean, onClose: () => void, rule: any, onSave: (data: any) => void }) {
+  const [formData, setFormData] = useState({
+    name: "",
+    type: "ABANDONMENT",
+    delay_minutes: 30,
+    message_template: "",
+    is_active: true,
+    recipients: ["NEW_CLIENTS"],
+    stop_conditions: ["REPLY"],
+    ai_goal: "BOOKING",
+    ai_tone: "HUMAN",
+    allowed_hours: ["08:00", "20:00"]
+  });
+
+  // Update form data when rule prop changes (e.g. for editing)
+  
+  useEffect(() => {
+    if (rule) {
+      setFormData(rule);
+    } else {
+      setFormData({
+        name: "",
+        type: "ABANDONMENT",
+        delay_minutes: 30,
+        message_template: "",
+        is_active: true,
+        recipients: ["NEW_CLIENTS"],
+        stop_conditions: ["REPLY"],
+        ai_goal: "BOOKING",
+        ai_tone: "HUMAN",
+        allowed_hours: ["08:00", "20:00"]
+      });
+    }
+  }, [rule, isOpen]);
+  const handleSave = () => {
+    if (!formData.name || !formData.message_template) {
+      toast.error("Preencha o nome e a mensagem base");
+      return;
+    }
+    onSave(formData);
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{rule ? "Editar Regra" : "Nova Regra de Follow-up"}</DialogTitle>
+          <DialogDescription>Configure o comportamento da Julia para este gatilho.</DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-6 py-4">
+          <div className="grid gap-2">
+            <Label>Nome da Regra</Label>
+            <Input 
+              placeholder="Ex: Abandono de Agendamento" 
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label>Tipo de Gatilho</Label>
+              <Select 
+                value={formData.type} 
+                onValueChange={(v) => setFormData({ ...formData, type: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ABANDONMENT">Abandono de Fluxo</SelectItem>
+                  <SelectItem value="VIP_RECALL">Recall VIP (Inativos)</SelectItem>
+                  <SelectItem value="BIRTHDAY">Aniversário</SelectItem>
+                  <SelectItem value="POST_SERVICE">Pós-Serviço</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Tempo de Espera (minutos)</Label>
+              <Input 
+                type="number" 
+                value={formData.delay_minutes}
+                onChange={(e) => setFormData({ ...formData, delay_minutes: parseInt(e.target.value) })}
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-2">
+            <Label>Mensagem Base / Objetivo da IA</Label>
+            <Textarea 
+              placeholder="Descreva o que a Julia deve dizer ou o tom que ela deve usar..." 
+              className="h-32"
+              value={formData.message_template}
+              onChange={(e) => setFormData({ ...formData, message_template: e.target.value })}
+            />
+            <p className="text-[10px] text-muted-foreground italic">Use {"{nome}"} para personalizar.</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label>Tom de Voz</Label>
+              <Select 
+                value={formData.ai_tone} 
+                onValueChange={(v) => setFormData({ ...formData, ai_tone: v })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="HUMAN">Humanizado & Acolhedor</SelectItem>
+                  <SelectItem value="PROFESSIONAL">Profissional & Direto</SelectItem>
+                  <SelectItem value="ENTHUSIASTIC">Entusiasta & Alegre</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Meta da IA</Label>
+              <Select 
+                value={formData.ai_goal} 
+                onValueChange={(v) => setFormData({ ...formData, ai_goal: v })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="BOOKING">Gerar Agendamento</SelectItem>
+                  <SelectItem value="FEEDBACK">Coletar Feedback</SelectItem>
+                  <SelectItem value="RECOVERY">Recuperar Cliente</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button onClick={handleSave}>Salvar Regra</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
