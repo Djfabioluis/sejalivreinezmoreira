@@ -5,6 +5,25 @@ import { logger } from "../observability/logger.server";
 import { z } from "zod";
 
 /**
+ * Interface para regras de follow-up
+ */
+interface FollowupRule {
+  id: string;
+  name: string;
+  type: string;
+  delay_amount: number;
+  delay_unit: 'MINUTES' | 'HOURS' | 'DAYS';
+  message_mode: 'AI' | 'FIXED';
+  fixed_message?: string;
+  start_time: string;
+  end_time: string;
+  max_attempts: number;
+  unit_id?: string;
+  agent_id?: string;
+}
+
+
+/**
  * Motor de Follow-up Consolidado (Fase 3 - Auditoria)
  */
 export async function processPendingFollowups() {
