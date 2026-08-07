@@ -119,43 +119,46 @@ function LandingPage() {
     <div className="min-h-screen bg-background text-foreground selection:bg-primary/20">
       <PaymentTestModeBanner />
 
-      {/* Navbar Moderno */}
-      <header className="fixed top-0 z-50 w-full border-b border-border/40 bg-background/60 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <Link to="/" className="flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/20">
-              <Flower2 className="h-6 w-6 text-primary-foreground" />
-            </div>
-            <div className="flex flex-col">
-              <span className="font-display text-xl font-semibold leading-none tracking-tight">Seja Livre</span>
-              <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground/80">AI Platform</span>
-            </div>
-          </Link>
+      {/* Navbar Moderno - Floating Glassmorphism */}
+      <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-5xl px-6">
+        <header className="rounded-3xl border border-white/20 bg-background/60 backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.08)]">
+          <div className="flex items-center justify-between px-6 py-4">
+            <Link to="/" className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/20 rotate-3 transition-transform hover:rotate-0">
+                <Flower2 className="h-6 w-6 text-primary-foreground" />
+              </div>
+              <div className="flex flex-col">
+                <span className="font-display text-xl font-bold leading-none tracking-tight">Seja Livre</span>
+                <span className="text-[9px] font-black uppercase tracking-[0.3em] text-primary/80">AI Platform</span>
+              </div>
+            </Link>
 
-          <nav className="hidden items-center gap-8 text-sm font-medium sm:flex">
-            <a href="#recursos" className="text-muted-foreground transition-colors hover:text-primary">Recursos</a>
-            <a href="#planos" className="text-muted-foreground transition-colors hover:text-primary">Planos</a>
-            <a href="#faq" className="text-muted-foreground transition-colors hover:text-primary">FAQ</a>
-          </nav>
+            <nav className="hidden items-center gap-8 text-xs font-black uppercase tracking-widest sm:flex text-muted-foreground/80">
+              <a href="#recursos" className="transition-colors hover:text-primary">Recursos</a>
+              <a href="#planos" className="transition-colors hover:text-primary">Planos</a>
+              <a href="#faq" className="transition-colors hover:text-primary">FAQ</a>
+            </nav>
 
-          <div className="flex items-center gap-3">
-            {session ? (
-              <Button asChild variant="secondary" className="rounded-full px-6">
-                <Link to="/painel">Painel de Controle</Link>
-              </Button>
-            ) : (
-              <>
-                <Button asChild variant="ghost" className="hidden rounded-full px-6 sm:flex">
-                  <Link to="/auth" search={{ next: "/painel" }}>Entrar</Link>
+            <div className="flex items-center gap-3">
+              {session ? (
+                <Button asChild variant="secondary" className="rounded-xl px-6 font-bold text-xs uppercase tracking-widest">
+                  <Link to="/painel">Painel</Link>
                 </Button>
-                <Button asChild className="rounded-full bg-primary px-8 shadow-xl shadow-primary/20 transition-transform active:scale-95">
-                  <a href="#planos">Assinar Agora</a>
-                </Button>
-              </>
-            )}
+              ) : (
+                <>
+                  <Button asChild variant="ghost" className="hidden rounded-xl px-6 font-bold text-xs uppercase tracking-widest sm:flex">
+                    <Link to="/auth" search={{ next: "/painel" }}>Entrar</Link>
+                  </Button>
+                  <Button asChild className="rounded-xl bg-primary px-8 font-bold text-xs uppercase tracking-widest shadow-xl shadow-primary/20 transition-all hover:scale-[1.05] active:scale-95">
+                    <a href="#planos">Assinar</a>
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
+      </div>
+
 
       {/* Hero Section Inovador */}
       <section className="relative overflow-hidden pt-40 pb-24 sm:pt-48 sm:pb-32">
