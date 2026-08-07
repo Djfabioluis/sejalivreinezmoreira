@@ -300,7 +300,7 @@ function CRMPage() {
 }
 
 function FollowupRuleModal({ isOpen, onClose, rule, onSave }: { isOpen: boolean, onClose: () => void, rule: any, onSave: (data: any) => void }) {
-  const [formData, setFormData] = useState(rule || {
+  const [formData, setFormData] = useState({
     name: "",
     type: "ABANDONMENT",
     delay_minutes: 30,
@@ -311,6 +311,11 @@ function FollowupRuleModal({ isOpen, onClose, rule, onSave }: { isOpen: boolean,
     ai_goal: "BOOKING",
     ai_tone: "HUMAN",
     allowed_hours: ["08:00", "20:00"]
+  });
+
+  // Update form data when rule prop changes (e.g. for editing)
+  useState(() => {
+    if (rule) setFormData(rule);
   });
 
   const handleSave = () => {
