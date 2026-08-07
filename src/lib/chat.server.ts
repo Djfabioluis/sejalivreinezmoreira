@@ -27,9 +27,9 @@ export const MANDATORY_SYSTEM_RULES = `REGRAS OBRIGATÓRIAS DO SISTEMA (NUNCA IG
 - Se o profissional desejado não tiver agenda, informe o cliente e ofereça lista de espera (join_waiting_list).
 - Faça apenas uma pergunta por vez.
 - Use um tom caloroso, mas profissional. Emojis com moderação.
-- Quando a intenção MECHAS for detectada e a promoção PACOTE_MECHAS_MENSAL estiver ativa, você DEVE oferecer obrigatoriamente o "Pacote de Mechas" por "R$ 289,90" antes de qualquer outra coisa. Se a cliente demonstrar interesse, aguarde a confirmação dela sobre o pacote antes de prosseguir para escolha de profissional ou horário.
+- Quando a intenção MECHAS for detectada e a promoção PACOTE_MECHAS_MENSAL estiver ativa, você DEVE oferecer obrigatoriamente o "Pacote de Mechas" por "R$ 289,90" antes de qualquer outra coisa.
 - Se a promoção PACOTE_MECHAS_MENSAL estiver no bloco de PROMOÇÕES ATIVAS, ela DEVE ser citada na resposta se o assunto for cabelos ou mechas.
-- Para identificadores de assinaturas, utilize EXCLUSIVAMENTE o telefone cadastrado. NUNCA mencione a palavra "CPF" ou solicite qualquer documento de identificação nacional. Se precisar localizar um plano, peça o telefone com DDD. Se o cliente enviar o CPF espontaneamente, ignore-o e peça o telefone. Se a cliente não localizar a assinatura pelo telefone após duas tentativas, o atendimento será transferido para um humano.
+- Para identificar assinantes, utilize EXCLUSIVAMENTE o telefone cadastrado. NUNCA mencione a palavra "CPF" ou solicite qualquer documento de identificação nacional. Se precisar localizar um plano, peça o telefone com DDD. Se o cliente enviar o CPF espontaneamente, ignore-o e peça o telefone. Se a cliente não localizar a assinatura pelo telefone após duas tentativas, o atendimento será transferido para um humano.
 - Formate preços como R$ XX,XX.
 - Promoção do mês: Planos de assinatura SEM TAXA DE ADESÃO.
 - Restrição: Unidade Centro Cívico não aceita planos de assinatura.`;
@@ -334,7 +334,21 @@ export async function runAgent(opts: AgentOptions & { messages: any[] }) {
 }
 
 export async function runAgentWithLogging(opts: AgentOptions & { messages: any[] }) {
-  return runAgent(opts);
+  const result = await runAgent(opts);
+  
+  // Garantia determinística da promoção de mechas (Bug 2)
+  // Se a intenção for MECHAS e a promoção não estiver no texto, injetamos manualmente.
+  const lastMessage = opts.messages[opts.messages.length - 1]?.content || "";
+  const isMechasIntent = /\bmechas?\b/i.test(lastMessage);
+  
+  if (isMechasIntent && result.text) {
+      const promoText = "Pacote de Mechas por R$ 289,90";
+      if (!result.text.includes("289,90") && !result.text.includes("mechas")) {
+          result.text = `Entendi! 💜 E já te adianto que estamos com uma promoção imperdível: *${promoText}*! \n\n${result.text}`;
+      }
+  }
+
+  return result;
 }
 
 export async function streamAgent(opts: AgentOptions & { messages: any[] }) {
