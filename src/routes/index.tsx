@@ -119,75 +119,83 @@ function LandingPage() {
     <div className="min-h-screen bg-background text-foreground selection:bg-primary/20">
       <PaymentTestModeBanner />
 
-      {/* Navbar Moderno */}
-      <header className="fixed top-0 z-50 w-full border-b border-border/40 bg-background/60 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <Link to="/" className="flex items-center gap-2.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/20">
-              <Flower2 className="h-6 w-6 text-primary-foreground" />
-            </div>
-            <div className="flex flex-col">
-              <span className="font-display text-xl font-semibold leading-none tracking-tight">Seja Livre</span>
-              <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted-foreground/80">AI Platform</span>
-            </div>
-          </Link>
+      {/* Navbar Moderno - Floating Glassmorphism */}
+      <div className="fixed top-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-5xl px-6">
+        <header className="rounded-3xl border border-white/20 bg-background/60 backdrop-blur-2xl shadow-[0_8px_32px_0_rgba(0,0,0,0.08)]">
+          <div className="flex items-center justify-between px-6 py-4">
+            <Link to="/" className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary shadow-lg shadow-primary/20 rotate-3 transition-transform hover:rotate-0">
+                <Flower2 className="h-6 w-6 text-primary-foreground" />
+              </div>
+              <div className="flex flex-col">
+                <span className="font-display text-xl font-bold leading-none tracking-tight">Seja Livre</span>
+                <span className="text-[9px] font-black uppercase tracking-[0.3em] text-primary/80">AI Platform</span>
+              </div>
+            </Link>
 
-          <nav className="hidden items-center gap-8 text-sm font-medium sm:flex">
-            <a href="#recursos" className="text-muted-foreground transition-colors hover:text-primary">Recursos</a>
-            <a href="#planos" className="text-muted-foreground transition-colors hover:text-primary">Planos</a>
-            <a href="#faq" className="text-muted-foreground transition-colors hover:text-primary">FAQ</a>
-          </nav>
+            <nav className="hidden items-center gap-8 text-xs font-black uppercase tracking-widest sm:flex text-muted-foreground/80">
+              <a href="#recursos" className="transition-colors hover:text-primary">Recursos</a>
+              <a href="#planos" className="transition-colors hover:text-primary">Planos</a>
+              <a href="#faq" className="transition-colors hover:text-primary">FAQ</a>
+            </nav>
 
-          <div className="flex items-center gap-3">
-            {session ? (
-              <Button asChild variant="secondary" className="rounded-full px-6">
-                <Link to="/painel">Painel de Controle</Link>
-              </Button>
-            ) : (
-              <>
-                <Button asChild variant="ghost" className="hidden rounded-full px-6 sm:flex">
-                  <Link to="/auth" search={{ next: "/painel" }}>Entrar</Link>
+            <div className="flex items-center gap-3">
+              {session ? (
+                <Button asChild variant="secondary" className="rounded-xl px-6 font-bold text-xs uppercase tracking-widest">
+                  <Link to="/painel">Painel</Link>
                 </Button>
-                <Button asChild className="rounded-full bg-primary px-8 shadow-xl shadow-primary/20 transition-transform active:scale-95">
-                  <a href="#planos">Assinar Agora</a>
-                </Button>
-              </>
-            )}
+              ) : (
+                <>
+                  <Button asChild variant="ghost" className="hidden rounded-xl px-6 font-bold text-xs uppercase tracking-widest sm:flex">
+                    <Link to="/auth" search={{ next: "/painel" }}>Entrar</Link>
+                  </Button>
+                  <Button asChild className="rounded-xl bg-primary px-8 font-bold text-xs uppercase tracking-widest shadow-xl shadow-primary/20 transition-all hover:scale-[1.05] active:scale-95">
+                    <a href="#planos">Assinar</a>
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
+      </div>
+
 
       {/* Hero Section Inovador */}
       <section className="relative overflow-hidden pt-40 pb-24 sm:pt-48 sm:pb-32">
-        {/* Background Gradients */}
-        <div className="absolute left-1/2 top-0 -z-10 h-[600px] w-full -translate-x-1/2 blur-[120px] opacity-20">
-          <div className="absolute inset-0 bg-gradient-to-r from-primary via-accent to-primary" />
-        </div>
-
+        {/* Background Patterns */}
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(45%_40%_at_50%_50%,var(--color-primary)_0%,transparent_100%)] opacity-[0.03]" />
+        <div className="absolute inset-0 -z-10 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
+        
         <div className="mx-auto max-w-7xl px-6">
           <div className="flex flex-col items-center text-center">
-            <Badge variant="secondary" className="mb-8 h-8 rounded-full border border-primary/20 bg-primary/5 px-4 text-sm font-medium text-primary shadow-sm">
-              <Zap className="mr-2 h-3.5 w-3.5 fill-primary" />
-              IA Humanizada • 24h no WhatsApp
-            </Badge>
+            <div className="group mb-8 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary shadow-sm backdrop-blur-md transition-all hover:bg-primary/10">
+              <Zap className="h-3.5 w-3.5 fill-primary animate-pulse" />
+              <span>Inteligência Artificial Humanizada de Vanguarda</span>
+              <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+            </div>
             
-            <h1 className="max-w-4xl font-display text-5xl font-medium tracking-tight sm:text-7xl lg:text-8xl">
-              Julia AI: A recepção que <span className="italic text-primary">nunca dorme</span>.
+            <h1 className="max-w-5xl font-display text-6xl font-medium tracking-tight sm:text-8xl lg:text-9xl">
+              Julia AI: A recepção que <span className="relative inline-block">
+                <span className="relative z-10 italic text-primary">nunca dorme</span>
+                <svg className="absolute -bottom-2 left-0 -z-10 h-3 w-full text-accent/30" viewBox="0 0 100 10" preserveAspectRatio="none">
+                  <path d="M0 5 Q 25 0 50 5 T 100 5" fill="none" stroke="currentColor" strokeWidth="8" strokeLinecap="round" />
+                </svg>
+              </span>.
             </h1>
             
-            <p className="mt-8 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
-              Transforme o atendimento do seu salão com inteligência artificial humanizada. 
+            <p className="mt-10 max-w-2xl text-lg leading-relaxed text-muted-foreground/80 sm:text-xl">
+              Transforme o atendimento do seu salão com IA que realmente entende. 
               Julia agenda, confirma e fideliza clientes direto no WhatsApp, integrada ao Bemp.
             </p>
 
-            <div className="mt-12 flex flex-col items-center gap-4 sm:flex-row sm:gap-6">
-              <Button size="lg" className="h-14 rounded-full px-10 text-lg shadow-2xl shadow-primary/30" asChild>
+            <div className="mt-14 flex flex-col items-center gap-4 sm:flex-row sm:gap-6">
+              <Button size="lg" className="group h-14 rounded-2xl px-10 text-lg shadow-2xl shadow-primary/30 transition-all hover:shadow-primary/40 active:scale-95" asChild>
                 <a href="#planos">
                   Começar Agora
-                  <ArrowRight className="ml-2 h-5 w-5" />
+                  <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
                 </a>
               </Button>
-              <Button size="lg" variant="outline" className="h-14 rounded-full border-border/40 px-10 text-lg backdrop-blur-sm" asChild>
+              <Button size="lg" variant="outline" className="h-14 rounded-2xl border-border/40 px-10 text-lg backdrop-blur-sm transition-all hover:bg-secondary/50 active:scale-95" asChild>
                 <a href="#recursos">
                   <Play className="mr-2 h-4 w-4 fill-current" />
                   Ver Vídeo Demo
@@ -195,17 +203,33 @@ function LandingPage() {
               </Button>
             </div>
 
-            {/* Dashboard Preview Overlay */}
-            <div className="mt-20 relative w-full max-w-6xl rounded-[2.5rem] border border-border/40 bg-card/30 p-2 backdrop-blur-sm shadow-2xl">
-              <div className="aspect-[16/9] w-full rounded-[2rem] bg-gradient-to-br from-muted to-background flex items-center justify-center overflow-hidden">
-                <div className="text-muted-foreground/20 text-9xl font-display font-black opacity-5 uppercase tracking-tighter select-none">
-                  SEJA LIVRE AI
-                </div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                   <div className="flex items-center gap-3 rounded-full bg-background/80 px-6 py-3 shadow-xl backdrop-blur-md">
-                      <div className="h-3 w-3 animate-pulse rounded-full bg-green-500" />
-                      <span className="text-sm font-medium">Julia AI está online no WhatsApp</span>
-                   </div>
+            {/* Dashboard Preview Overlay - Mais Moderno */}
+            <div className="mt-24 relative w-full max-w-6xl overflow-hidden rounded-[3rem] border border-white/10 bg-black/[0.02] p-3 shadow-[0_0_50px_-12px_rgba(0,0,0,0.12)] dark:bg-white/[0.02]">
+              <div className="aspect-[16/10] w-full rounded-[2.2rem] bg-gradient-to-br from-secondary/50 via-background to-secondary/50 p-8 flex flex-col items-center justify-center relative">
+                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay" />
+                
+                <div className="relative z-10 flex flex-col items-center gap-8">
+                  <div className="flex items-center gap-3 rounded-2xl bg-white/80 dark:bg-black/40 px-6 py-4 shadow-2xl backdrop-blur-xl border border-white/20">
+                    <div className="relative h-3 w-3">
+                      <div className="absolute inset-0 animate-ping rounded-full bg-green-500 opacity-75" />
+                      <div className="relative h-3 w-3 rounded-full bg-green-500" />
+                    </div>
+                    <span className="text-sm font-semibold tracking-tight">Julia AI: Online & Atendendo</span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4 w-full max-w-2xl">
+                    {[
+                      { label: "Agendamentos Hoje", value: "24", trend: "+12%" },
+                      { label: "Taxa de Conversão", value: "92%", trend: "+5%" },
+                      { label: "Economia de Tempo", value: "6h", trend: "diário" }
+                    ].map((stat, i) => (
+                      <div key={i} className="rounded-2xl bg-white/40 dark:bg-black/20 p-4 border border-white/20 backdrop-blur-md">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{stat.label}</p>
+                        <p className="text-2xl font-display font-bold mt-1">{stat.value}</p>
+                        <p className="text-[10px] text-green-600 font-bold mt-1">{stat.trend}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
@@ -213,150 +237,180 @@ function LandingPage() {
         </div>
       </section>
 
+
       {/* Recursos Premium Grid */}
-      <section id="recursos" className="py-24 sm:py-32">
+      <section id="recursos" className="py-24 sm:py-32 relative">
         <div className="mx-auto max-w-7xl px-6">
-          <div className="mb-16 max-w-2xl">
-            <h2 className="font-display text-4xl font-medium tracking-tight sm:text-5xl">
-              Tudo o que sua recepção precisa, <span className="text-primary italic">automatizado</span>.
-            </h2>
-            <p className="mt-6 text-lg text-muted-foreground">
-              Desbloqueie o potencial máximo do seu negócio com ferramentas desenhadas para o mercado de beleza.
-            </p>
+          <div className="mb-20 flex flex-col md:flex-row md:items-end md:justify-between gap-8">
+            <div className="max-w-2xl">
+              <h2 className="font-display text-5xl font-medium tracking-tight sm:text-6xl">
+                Recepção Inteligente. <br />
+                <span className="text-primary italic">Resultados Reais</span>.
+              </h2>
+              <p className="mt-6 text-lg text-muted-foreground/80">
+                Desbloqueie o potencial máximo do seu negócio com ferramentas desenhadas para o mercado de beleza premium.
+              </p>
+            </div>
+            <div className="flex items-center gap-4 bg-secondary/30 p-2 rounded-2xl border border-border/40 backdrop-blur-sm">
+              <div className="flex -space-x-3">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="h-10 w-10 rounded-full border-2 border-background bg-muted overflow-hidden">
+                    <img src={`https://i.pravatar.cc/100?img=${i + 10}`} alt="User" className="h-full w-full object-cover grayscale" />
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground pr-4">+500 Salões</p>
+            </div>
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {[
               {
                 icon: MessageCircle,
                 title: "WhatsApp Multimodal",
-                text: "Atende texto e áudio, entende contexto e escala o atendimento com perfeição.",
+                text: "Atende texto e áudio, entende o contexto emocional das clientes e escala o atendimento com perfeição.",
               },
               {
                 icon: CalendarClock,
-                title: "Agenda Inteligente",
-                text: "Consulta horários e cria o agendamento direto no sistema Bemp sem erros.",
+                title: "Agenda Determinística",
+                text: "Consulta horários reais e cria o agendamento direto no Bemp com zero atrito e total precisão.",
               },
               {
                 icon: Sparkles,
                 title: "Motor de Cross-sell",
-                text: "Sugere serviços complementares no final do atendimento para elevar seu ticket médio.",
+                text: "Identifica oportunidades e sugere serviços complementares para elevar seu ticket médio organicamente.",
               },
               {
                 icon: ShieldCheck,
-                title: "Segurança Bancária",
-                text: "Controle RBAC e auditoria completa. Seus dados e da sua cliente estão sempre protegidos.",
+                title: "Blindagem de Dados",
+                text: "Segurança de nível enterprise. Controle RBAC e auditoria completa para total conformidade.",
               },
               {
                 icon: Bot,
-                title: "Persona Julia AI",
-                text: "Treinada para ser a embaixadora da sua marca: acolhedora, eficiente e vendedora.",
+                title: "Persona Especialista",
+                text: "Julia não é apenas um bot. Ela é a embaixadora da sua marca: acolhedora e eficiente.",
               },
               {
                 icon: BarChart3,
-                title: "CRM Estratégico",
-                text: "Indicadores em tempo real para você decidir baseada em dados, não em intuição.",
+                title: "CRM Predict",
+                text: "Dashboards que antecipam comportamentos. Saiba quem vai voltar antes mesmo delas decidirem.",
               },
             ].map((f, i) => (
               <div
                 key={i}
-                className="group relative overflow-hidden rounded-[2rem] border border-border/40 bg-card/20 p-8 transition-all hover:bg-card/40 hover:shadow-2xl hover:shadow-primary/5"
+                className="group relative flex flex-col rounded-[2.5rem] border border-border/40 bg-card/10 p-10 transition-all hover:bg-card/30 hover:-translate-y-1 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)]"
               >
-                <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-transform group-hover:scale-110">
-                  <f.icon className="h-6 w-6" />
+                <div className="mb-8 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-all group-hover:scale-110 group-hover:rotate-3">
+                  <f.icon className="h-7 w-7" />
                 </div>
-                <h3 className="font-display text-2xl font-medium mb-3">{f.title}</h3>
-                <p className="text-muted-foreground leading-relaxed">
+                <h3 className="font-display text-2xl font-medium mb-4">{f.title}</h3>
+                <p className="text-muted-foreground/80 leading-relaxed text-sm">
                   {f.text}
                 </p>
+                <div className="mt-8 flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-widest opacity-0 -translate-x-2 transition-all group-hover:opacity-100 group-hover:translate-x-0">
+                  Saiba Mais <ArrowRight className="h-3 w-3" />
+                </div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Pricing Modernizado */}
-      <section id="planos" className="relative py-24 sm:py-32 bg-secondary/20">
+
+      {/* Pricing Modernizado - Ultra Clean */}
+      <section id="planos" className="relative py-24 sm:py-40 bg-secondary/20 overflow-hidden">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+        
         <div className="mx-auto max-w-7xl px-6">
-          <div className="flex flex-col items-center text-center">
-            <h2 className="font-display text-5xl font-medium tracking-tight sm:text-6xl italic">Preços Simples.</h2>
-            <p className="mt-6 max-w-2xl text-lg text-muted-foreground">
-              Sem taxas escondidas. Cancele quando quiser.
+          <div className="flex flex-col items-center text-center mb-20">
+            <h2 className="font-display text-6xl font-medium tracking-tighter sm:text-7xl">
+              Investimento <span className="italic text-primary">Transparente</span>.
+            </h2>
+            <p className="mt-6 max-w-xl text-lg text-muted-foreground/80 leading-relaxed">
+              Sem contratos complexos. Julia começa a trabalhar para você em minutos.
             </p>
 
-            <div className="mt-12 inline-flex items-center rounded-2xl border border-border/40 bg-background/50 p-1.5 backdrop-blur-sm shadow-sm">
+            <div className="mt-12 inline-flex items-center rounded-2xl border border-border/40 bg-background/50 p-1.5 backdrop-blur-md shadow-inner">
               <button
                 onClick={() => setCycle("monthly")}
-                className={`rounded-xl px-8 py-2.5 text-sm font-semibold transition-all ${
-                  cycle === "monthly" ? "bg-primary text-primary-foreground shadow-lg" : "text-muted-foreground hover:text-foreground"
+                className={`rounded-xl px-10 py-3 text-sm font-bold transition-all ${
+                  cycle === "monthly" ? "bg-primary text-primary-foreground shadow-xl" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 Mensal
               </button>
               <button
                 onClick={() => setCycle("yearly")}
-                className={`rounded-xl px-8 py-2.5 text-sm font-semibold transition-all ${
-                  cycle === "yearly" ? "bg-primary text-primary-foreground shadow-lg" : "text-muted-foreground hover:text-foreground"
+                className={`rounded-xl px-10 py-3 text-sm font-bold transition-all ${
+                  cycle === "yearly" ? "bg-primary text-primary-foreground shadow-xl" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                Anual <span className="ml-2 text-[10px] opacity-80">ECONOMIZE 20%</span>
+                Anual <span className="ml-2 text-[10px] opacity-80 uppercase tracking-widest">Off 20%</span>
               </button>
             </div>
           </div>
 
-          <div className="mt-20 grid gap-8 lg:grid-cols-3">
+          <div className="grid gap-8 lg:grid-cols-3 items-start">
             {filteredPlans.map((plan) => (
               <div 
                 key={plan.id} 
-                className={`relative flex flex-col rounded-[2.5rem] p-10 transition-all hover:scale-[1.02] ${
+                className={`group relative flex flex-col rounded-[3rem] p-12 transition-all duration-500 hover:-translate-y-2 ${
                   plan.highlight 
-                    ? 'bg-primary text-primary-foreground shadow-2xl shadow-primary/20 ring-4 ring-primary/10' 
-                    : 'bg-background border border-border/40 shadow-xl shadow-black/[0.02]'
+                    ? 'bg-primary text-primary-foreground shadow-[0_30px_60px_-15px_rgba(var(--color-primary),0.3)] ring-1 ring-primary-foreground/20' 
+                    : 'bg-background border border-border/40 shadow-2xl shadow-black/[0.03] hover:shadow-black/[0.06]'
                 }`}
               >
                 {plan.highlight && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-accent px-4 py-1 text-[10px] font-black uppercase tracking-widest text-accent-foreground shadow-xl">
-                    Recomendado
+                  <div className="absolute -top-5 left-1/2 -translate-x-1/2 rounded-full bg-accent px-6 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-accent-foreground shadow-2xl ring-4 ring-background">
+                    Mais Popular
                   </div>
                 )}
-                <div className="mb-8">
-                  <h3 className="font-display text-3xl font-medium mb-2">{plan.name}</h3>
-                  <p className={`text-sm ${plan.highlight ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{plan.tagline}</p>
+                
+                <div className="mb-10 text-center">
+                  <h3 className="font-display text-4xl font-medium mb-3 tracking-tight">{plan.name}</h3>
+                  <div className="inline-block px-3 py-1 rounded-full bg-current/10 text-xs font-bold uppercase tracking-widest opacity-80">
+                    {plan.tagline}
+                  </div>
                 </div>
                 
-                <div className="mb-10 flex items-baseline gap-1">
-                  <span className="text-6xl font-bold tracking-tighter">{plan.priceLabel}</span>
-                  <span className={`text-sm font-medium ${plan.highlight ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
-                    /{plan.cycle === 'monthly' ? 'mês' : 'ano'}
-                  </span>
+                <div className="mb-12 text-center">
+                  <div className="flex items-baseline justify-center gap-1">
+                    <span className="text-7xl font-bold tracking-tighter">{plan.priceLabel}</span>
+                    <span className={`text-sm font-bold uppercase tracking-widest opacity-60`}>
+                      /{plan.cycle === 'monthly' ? 'mês' : 'ano'}
+                    </span>
+                  </div>
                 </div>
 
-                <ul className="flex-1 space-y-4 mb-10">
+                <div className={`h-px w-full mb-10 ${plan.highlight ? 'bg-primary-foreground/20' : 'bg-border/50'}`} />
+
+                <ul className="flex-1 space-y-5 mb-12">
                   {plan.features.map((feature, i) => (
-                    <li key={i} className="flex items-start gap-3 text-sm">
-                      <div className={`mt-0.5 rounded-full p-0.5 ${plan.highlight ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-primary/10 text-primary'}`}>
+                    <li key={i} className="flex items-center gap-4 text-sm font-medium">
+                      <div className={`h-5 w-5 rounded-full flex items-center justify-center shrink-0 ${plan.highlight ? 'bg-primary-foreground text-primary' : 'bg-primary/10 text-primary'}`}>
                         <Check className="h-3 w-3" />
                       </div>
-                      <span className={plan.highlight ? 'opacity-90' : 'text-muted-foreground'}>{feature}</span>
+                      <span className={plan.highlight ? 'text-primary-foreground/90' : 'text-muted-foreground'}>{feature}</span>
                     </li>
                   ))}
                 </ul>
 
                 <Button
                   onClick={() => handleSubscribe(plan.id)}
-                  className={`h-14 w-full rounded-2xl text-lg font-bold transition-all active:scale-[0.98] ${
+                  className={`h-16 w-full rounded-2xl text-xl font-black transition-all active:scale-[0.97] ${
                     plan.highlight 
-                      ? 'bg-primary-foreground text-primary hover:bg-primary-foreground/90' 
-                      : 'bg-primary shadow-xl shadow-primary/20'
+                      ? 'bg-primary-foreground text-primary hover:bg-white hover:scale-[1.02]' 
+                      : 'bg-primary shadow-xl shadow-primary/20 hover:scale-[1.02]'
                   }`}
                 >
-                  Começar agora
+                  Começar Agora
                 </Button>
               </div>
             ))}
           </div>
         </div>
       </section>
+
 
       {/* Checkout Section */}
       {selectedPrice && (
