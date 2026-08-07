@@ -180,7 +180,9 @@ export const listFollowupRules = createServerFn({ method: "GET" })
 
 export const saveFollowupRule = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
+  .validator((data: any) => data)
   .handler(async ({ context, data }: { context: any, data: any }) => {
+
     await assertAdmin(context);
     const { steps, ...rule } = data;
     
