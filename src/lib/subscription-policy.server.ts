@@ -66,6 +66,7 @@ export interface SubscriptionFlowContext {
 }
 
 const CPF_SOLICITATION_PATTERNS = [
+  /\bcpf\b/i,
   /\binforme(?:\s+o)?\s+seu\s+cpf\b/i,
   /\bpreciso(?:\s+realmente)?(?:\s+do)?\s+seu\s+cpf\b/i,
   /\bqual(?:\s+é)?\s+o\s+seu\s+cpf\b/i,
@@ -74,7 +75,9 @@ const CPF_SOLICITATION_PATTERNS = [
   /000\.000\.000-00/i,
   /somente números ou no formato.*cpf/i,
   /localizar.*(?:plano|assinatura).*cpf/i,
-  /verificar.*plano.*cpf/i
+  /verificar.*plano.*cpf/i,
+  /informar.*cpf/i,
+  /solicitar.*cpf/i
 ];
 
 export function containsCpfSolicitation(text: string): boolean {

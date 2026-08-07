@@ -2614,35 +2614,34 @@ export async function runAgentWithLogging(params: {
       }
     }
 
-    const intent = detectServiceCategory(params.text);
+    // CARREGAMENTO UNCONDICIONAL DE PROMOÇÕES (Correção Requisito Promoção)
     let mandatoryPromo: any = null;
     let activePromotions: any[] = [];
-
-    if (intent?.category === "MECHAS" || params.text.toLowerCase().includes("mecha")) {
-      logger.info("MECHAS_INTENT_DETECTED", `Intenção de mechas detectada`, { 
-        textSnippet: params.text.slice(0, 50) 
-      });
-      
+    
+    try {
       const promoResult = await PromotionService.getActivePromotions({
         unitId: effectiveUnitId || undefined,
-        channel: "WHATSAPP",
-        category: "MECHAS"
+        channel: "WHATSAPP"
       });
 
       if (promoResult.success) {
         activePromotions = promoResult.promotions;
-        const mechasPromo = activePromotions.find(p => p.code === 'PACOTE_MECHAS_MENSAL');
-        if (mechasPromo) {
-          mandatoryPromo = mechasPromo;
-          logger.info("PROMOTION_SELECTED", `Promoção de mechas selecionada`, { 
-            promo: mechasPromo.code 
-          });
+        
+        // Se houver intenção de mechas, identificamos a promoção mandatória para injeção
+        const intent = detectServiceCategory(params.text);
+        if (intent?.category === "MECHAS" || params.text.toLowerCase().includes("mecha")) {
+          const mechasPromo = activePromotions.find((p: any) => p.code === 'PACOTE_MECHAS_MENSAL');
+          if (mechasPromo) {
+            mandatoryPromo = mechasPromo;
+            logger.info("PROMOTION_SELECTED", `Promoção de mechas identificada por intenção`, { 
+              promo: mechasPromo.code,
+              traceId: effectiveTraceId
+            });
+          }
         }
-      } else {
-        logger.error("PROMOTION_LOOKUP_FAILED", `Falha ao buscar promoções`, { 
-          code: promoResult.code 
-        });
       }
+    } catch (err) {
+      logger.error("PROMOTION_LOAD_FAILED", `Erro crítico ao carregar promoções`, { error: err, traceId: effectiveTraceId });
     }
 
     // Memória permanente do cliente (aprendizado contínuo) — nunca bloqueia o atendimento.
@@ -2821,12 +2820,26 @@ ${subscriptionContextLine(ctx as Record<string, any>)}
 `.trim();
   }
 
+  // CARREGAMENTO UNCONDICIONAL DE PROMOÇÕES (Correção Requisito Promoção)
+  let activePromotions: any[] = [];
+  try {
+    const promoResult = await PromotionService.getActivePromotions({
+      unitId: opts.unidadeId || undefined,
+      channel: "WHATSAPP"
+    });
+    if (promoResult.success) {
+      activePromotions = promoResult.promotions;
+    }
+  } catch (err) {
+    console.error("[chat] load_promos_failed in runAgent:", err);
+  }
+
   const basePrompt = await loadSystemPrompt({
     contactName: opts.contactName || undefined,
     contactPhone: opts.contactPhone || undefined,
     unitName: opts.unitName || undefined,
     customerContext: opts.customerContext,
-    activePromotions: opts.activePromotions
+    activePromotions: activePromotions
   });
 
   const { effectiveUnitId, effectiveUnitName, source } = await resolveEffectiveUnit({ 
@@ -2836,7 +2849,7 @@ ${subscriptionContextLine(ctx as Record<string, any>)}
 
   const currentUnitName = effectiveUnitName || opts.unitName;
 
-  // Promoções já passadas via opts.activePromotions em loadSystemPrompt
+  // Promoções já passadas via activePromotions em loadSystemPrompt
   const promotionBlock = "";
 
   let fullSystem = assembleSystemPrompt(basePrompt, {
