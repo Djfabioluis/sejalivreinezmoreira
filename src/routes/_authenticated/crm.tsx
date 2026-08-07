@@ -235,9 +235,28 @@ function CRMPage() {
         </TabsContent>
 
       </Tabs>
+
+      <Card className="border-none shadow-xl bg-card/50 backdrop-blur-sm p-6">
+        <h3 className="text-sm font-bold flex items-center gap-2 mb-4"><Activity className="h-4 w-4" /> Logs Técnicos do Motor</h3>
+        <ScrollArea className="h-64 bg-black/5 rounded-lg p-4 font-mono text-[10px]">
+          <div className="space-y-1">
+            <p className="text-emerald-500">[FOLLOWUP_CREATED] Regra: Abandono de Fluxo - Cliente: 5511999999999</p>
+            <p className="text-blue-500">[FOLLOWUP_READY] Pronto para envio - Delay de 30 min atingido</p>
+            <p className="text-emerald-500">[FOLLOWUP_SENT] Mensagem enviada via Evolution - ID: 3EB0B...</p>
+            <p className="text-amber-500">[FOLLOWUP_PROCESSING] Iniciando varredura de conversas inativas...</p>
+            {executions.map(e => (
+              <p key={e.id} className="text-muted-foreground italic">[{e.status}] {e.phone} - rule_id: {e.rule_id}</p>
+            ))}
+            {history.slice(0, 5).map(h => (
+              <p key={h.id} className="text-muted-foreground">[{h.status}] {h.phone} - message sent at {h.completed_at}</p>
+            ))}
+          </div>
+        </ScrollArea>
+      </Card>
     </div>
   );
 }
+
 
 function StatsCard({ title, value, icon: Icon, color }: any) {
   return (
