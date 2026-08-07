@@ -33,6 +33,15 @@ export async function processPendingFollowups() {
 
   logger.info("FOLLOWUP_WORKER_STARTED", "Iniciando processamento de follow-ups", { traceId, now: nowIso });
 
+  // 1. Verificar se existem novas regras para criar follow-ups (Detector de elegibilidade)
+  await discoverNewFollowups(traceId);
+
+  const traceId = `fup-proc-${Math.random().toString(36).substring(7)}`;
+  const now = new Date();
+  const nowIso = now.toISOString();
+
+  logger.info("FOLLOWUP_WORKER_STARTED", "Iniciando processamento de follow-ups", { traceId, now: nowIso });
+
 
   try {
     // 0. Recuperação de registros presos em PROCESSING (Step 19)
@@ -289,3 +298,76 @@ async function generateAiFollowup(followup: any, conversation: any, traceId: str
     throw new Error("IA_GENERATION_FAILED");
   }
 }
+
+/**
+ * Descobre novos follow-ups baseados nas regras ativas
+ */
+async function discoverNewFollowups(traceId: string) {
+  const { data: rules, error: rulesError } = await (supabaseAdmin
+    .from("crm_followup_rules" as any) as any)
+    .select("*")
+    .eq("enabled", true);
+
+  if (rulesError || !rules) return;
+
+  for (const rule of rules as FollowupRule[]) {
+    // Para cada regra, buscar clientes elegíveis que ainda não têm follow-up para esta regra
+    if (rule.type === 'ABANDONMENT') {
+       await handleAbandonmentRule(rule, traceId);
+    }
+    // Adicionar outros tipos aqui...
+  }
+}
+
+async function handleAbandonmentRule(rule: FollowupRule, traceId: string) {
+  const now = new Date();
+  let delayMs = rule.delay_amount * 60 * 1000;
+  if (rule.delay_unit === 'HOURS') delayMs *= 60;
+  if (rule.delay_unit === 'DAYS') delayMs *= 24;
+
+  const threshold = new Date(now.getTime() - delayMs).toISOString();
+
+  // Buscar conversas que pararam ANTES do threshold e não são 'finalizadas'
+  const { data: abandoned, error } = await supabaseAdmin
+    .from("wa_conversas")
+    .select("phone, customer_context, last_interaction_at")
+    .not("status", "in", '("atendido_humano", "finalizado")')
+    .lt("last_interaction_at", threshold)
+    .limit(50);
+
+  if (error || !abandoned) return;
+
+  for (const conv of abandoned) {
+    // Verificar se já existe follow-up pendente ou enviado para esta regra e este telefone
+    const { data: existing } = await supabaseAdmin
+      .from("crm_followups")
+      .select("id")
+      .eq("phone", conv.phone)
+      .eq("rule_id", rule.id)
+      .maybeSingle();
+
+    if (existing) continue;
+
+    // Criar o follow-up
+    const scheduledAt = calculateNextWindow(new Date(), rule.start_time, rule.end_time);
+    
+    await supabaseAdmin.from("crm_followups").insert({
+      phone: conv.phone,
+      stage: (conv.customer_context as any)?.current_stage || 'ABANDONADO',
+      reason: 'ABANDONMENT_RULE',
+      scheduled_at: scheduledAt.toISOString(),
+      status: 'PENDING',
+      rule_id: rule.id,
+      message_template: rule.message_mode === 'FIXED' ? rule.fixed_message : null,
+      metadata: { traceId, rule_name: rule.name }
+    });
+    
+    logger.info("FOLLOWUP_CREATED_FROM_RULE", `Criado follow-up para ${conv.phone} via regra ${rule.name}`, { traceId });
+  }
+}
+
+function calculateNextWindow(date: Date, start: string, end: string): Date {
+  // Simplificação: se fora da janela, move para o início da próxima janela (amanhã 08:00 por exemplo)
+  return date; // Por enquanto retorna imediato para o teste técnico
+}
+
