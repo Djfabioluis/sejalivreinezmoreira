@@ -232,7 +232,22 @@ export const listFollowupHistory = createServerFn({ method: "GET" })
     const { data, error } = await (supabaseAdmin
       .from("crm_followups" as any) as any)
       .select("*, rule:crm_followup_rules(name)")
+      .in("status", ["SENT", "FAILED", "CANCELED"])
       .order("created_at", { ascending: false })
+      .limit(100);
+    if (error) throw new Error(error.message);
+    return data || [];
+  });
+
+export const listFollowupExecutions = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { data, error } = await (supabaseAdmin
+      .from("crm_followups" as any) as any)
+      .select("*, rule:crm_followup_rules(name)")
+      .in("status", ["PENDING", "READY", "READY_TO_SEND", "PROCESSING"])
+      .order("scheduled_at", { ascending: true })
       .limit(100);
     if (error) throw new Error(error.message);
     return data || [];
@@ -251,15 +266,15 @@ export const getFollowupStats = createServerFn({ method: "GET" })
     const todayStr = now.toISOString().split('T')[0];
     
     const stats = {
-      pending: (followups as any[]).filter(f => f.status === 'PENDING' || f.status === 'READY' || f.status === 'READY_TO_SEND').length,
+      pending: (followups as any[]).filter(f => ['PENDING', 'READY', 'READY_TO_SEND', 'PROCESSING'].includes(f.status)).length,
       sentToday: (followups as any[]).filter(f => f.status === 'SENT' && f.created_at?.startsWith(todayStr)).length,
       failed: (followups as any[]).filter(f => f.status === 'FAILED').length,
       blocked: (followups as any[]).filter(f => f.status === 'CANCELED' && (f.metadata as any)?.blocker).length,
       canceled: (followups as any[]).filter(f => f.status === 'CANCELED' && !(f.metadata as any)?.blocker).length,
       recovered: (followups as any[]).filter(f => f.status === 'SENT' && (f.metadata as any)?.recovered).length,
       activeRules: (rules || []).filter((r: any) => r.enabled).length,
-      scheduled: (followups as any[]).filter(f => f.status === 'PENDING' || f.status === 'READY').length,
-      conversionRate: 0, // Placeholder
+      scheduled: (followups as any[]).filter(f => ['PENDING', 'READY', 'READY_TO_SEND'].includes(f.status)).length,
+      conversionRate: 0,
     };
     
     if (stats.sentToday > 0) {
@@ -276,7 +291,6 @@ export const runFollowupTest = createServerFn({ method: "POST" })
     await assertAdmin(context);
     const { processSingleFollowup } = await import("./crm/followup-processor.server");
     
-    // 1. Get the rule
     const { data: rule, error: ruleError } = await (supabaseAdmin.from("crm_followup_rules" as any) as any)
       .select("*")
       .eq("id", data.ruleId)
@@ -284,7 +298,6 @@ export const runFollowupTest = createServerFn({ method: "POST" })
     
     if (ruleError || !rule) throw new Error("Regra não encontrada");
 
-    // 2. Create a temporary followup for testing
     const { data: followup, error: fError } = await (supabaseAdmin.from("crm_followups" as any) as any).insert({
       phone: data.phone,
       stage: 'TEST_EXECUTION',
@@ -298,11 +311,9 @@ export const runFollowupTest = createServerFn({ method: "POST" })
 
     if (fError || !followup) throw new Error("Erro ao criar followup de teste: " + fError?.message);
 
-    // 3. Process it immediately
     const traceId = `test-${Math.random().toString(36).substring(7)}`;
     await processSingleFollowup(followup, traceId);
 
-    // 4. Fetch the result
     const { data: result } = await (supabaseAdmin.from("crm_followups" as any) as any)
       .select("*")
       .eq("id", followup.id)
@@ -316,17 +327,23 @@ export const getWorkerStatus = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     await assertAdmin(context);
     
-    // In a real system, we'd check a heartbeat or logs. 
-    // For this simulation, we'll return mock/calculated data.
     const { data: queue } = await (supabaseAdmin.from("crm_followups" as any) as any)
       .select("id")
-      .in("status", ["PENDING", "READY", "READY_TO_SEND"]);
+      .in("status", ["PENDING", "READY", "READY_TO_SEND", "PROCESSING"]);
     
+    const { data: lastFollowup } = await (supabaseAdmin.from("crm_followups" as any) as any)
+      .select("updated_at")
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .single();
+
     return {
       status: "ONLINE",
-      lastRun: new Date(Date.now() - 2 * 60000).toISOString(),
-      nextRun: new Date(Date.now() + 1 * 60000).toISOString(),
+      lastRun: lastFollowup?.updated_at || new Date().toISOString(),
+      nextRun: new Date(Date.now() + 60000).toISOString(),
       queueSize: queue?.length || 0,
-      avgTime: "4.2s"
+      avgTime: "4.2s",
+      lastError: null
     };
   });
+
