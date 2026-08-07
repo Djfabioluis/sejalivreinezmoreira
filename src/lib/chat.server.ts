@@ -2691,18 +2691,6 @@ export async function runAgentWithLogging(params: {
         promotionCode: mandatoryPromo.code,
         promotionPresentedAt: new Date().toISOString()
       });
-    });
-      
-      if (validatedReply !== reply) {
-        logger.info("PROMOTION_INJECTED", `Promoção injetada na resposta final [${effectiveTraceId}]`, { promo: mandatoryPromo.code });
-        reply = validatedReply;
-      }
-
-      await patchCustomerContext(conversationKey, {
-        mechasPromotionPresented: true,
-        promotionCode: mandatoryPromo.code,
-        promotionPresentedAt: new Date().toISOString()
-      });
     }
 
     if (!reply || reply.trim().length === 0) {
