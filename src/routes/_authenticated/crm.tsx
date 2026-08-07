@@ -371,25 +371,70 @@ function FollowupRuleModal({ isOpen, onClose, rule, onSave }: { isOpen: boolean,
                 </SelectContent>
               </Select>
             </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="grid gap-2">
+                <Label>Tempo de Espera</Label>
+                <Input 
+                  type="number" 
+                  value={formData.delay_amount}
+                  onChange={(e) => setFormData({ ...formData, delay_amount: parseInt(e.target.value) || 0 })}
+                />
+              </div>
+              <div className="grid gap-2">
+                <Label>Unidade</Label>
+                <Select value={formData.delay_unit} onValueChange={(v) => setFormData({ ...formData, delay_unit: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="MINUTES">Minutos</SelectItem>
+                    <SelectItem value="HOURS">Horas</SelectItem>
+                    <SelectItem value="DAYS">Dias</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div className="grid gap-2">
-              <Label>Tempo de Espera (minutos)</Label>
+              <Label>Modo da Mensagem</Label>
+              <Select value={formData.message_mode} onValueChange={(v) => setFormData({ ...formData, message_mode: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="AI">Gerada pela Julia (IA)</SelectItem>
+                  <SelectItem value="FIXED">Mensagem Fixa</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Máximo de Tentativas</Label>
               <Input 
                 type="number" 
-                value={formData.delay_minutes}
-                onChange={(e) => setFormData({ ...formData, delay_minutes: parseInt(e.target.value) })}
+                value={formData.max_attempts}
+                onChange={(e) => setFormData({ ...formData, max_attempts: parseInt(e.target.value) || 1 })}
               />
             </div>
           </div>
 
           <div className="grid gap-2">
-            <Label>Mensagem Base / Objetivo da IA</Label>
+            <Label>{formData.message_mode === "FIXED" ? "Mensagem Fixa" : "Instrução para a Julia (opcional)"}</Label>
             <Textarea 
-              placeholder="Descreva o que a Julia deve dizer ou o tom que ela deve usar..." 
-              className="h-32"
-              value={formData.message_template}
-              onChange={(e) => setFormData({ ...formData, message_template: e.target.value })}
+              placeholder="Descreva o que a Julia deve dizer ou escreva a mensagem fixa..." 
+              className="h-28"
+              value={formData.fixed_message || ""}
+              onChange={(e) => setFormData({ ...formData, fixed_message: e.target.value })}
             />
             <p className="text-[10px] text-muted-foreground italic">Use {"{nome}"} para personalizar.</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label>Janela de Envio (início)</Label>
+              <Input type="time" value={formData.start_time || "08:00"} onChange={(e) => setFormData({ ...formData, start_time: e.target.value })} />
+            </div>
+            <div className="grid gap-2">
+              <Label>Janela de Envio (fim)</Label>
+              <Input type="time" value={formData.end_time || "20:00"} onChange={(e) => setFormData({ ...formData, end_time: e.target.value })} />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
