@@ -159,35 +159,40 @@ function LandingPage() {
 
       {/* Hero Section Inovador */}
       <section className="relative overflow-hidden pt-40 pb-24 sm:pt-48 sm:pb-32">
-        {/* Background Gradients */}
-        <div className="absolute left-1/2 top-0 -z-10 h-[600px] w-full -translate-x-1/2 blur-[120px] opacity-20">
-          <div className="absolute inset-0 bg-gradient-to-r from-primary via-accent to-primary" />
-        </div>
-
+        {/* Background Patterns */}
+        <div className="absolute inset-0 -z-10 bg-[radial-gradient(45%_40%_at_50%_50%,var(--color-primary)_0%,transparent_100%)] opacity-[0.03]" />
+        <div className="absolute inset-0 -z-10 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]" />
+        
         <div className="mx-auto max-w-7xl px-6">
           <div className="flex flex-col items-center text-center">
-            <Badge variant="secondary" className="mb-8 h-8 rounded-full border border-primary/20 bg-primary/5 px-4 text-sm font-medium text-primary shadow-sm">
-              <Zap className="mr-2 h-3.5 w-3.5 fill-primary" />
-              IA Humanizada • 24h no WhatsApp
-            </Badge>
+            <div className="group mb-8 inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-sm font-medium text-primary shadow-sm backdrop-blur-md transition-all hover:bg-primary/10">
+              <Zap className="h-3.5 w-3.5 fill-primary animate-pulse" />
+              <span>Inteligência Artificial Humanizada de Vanguarda</span>
+              <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
+            </div>
             
-            <h1 className="max-w-4xl font-display text-5xl font-medium tracking-tight sm:text-7xl lg:text-8xl">
-              Julia AI: A recepção que <span className="italic text-primary">nunca dorme</span>.
+            <h1 className="max-w-5xl font-display text-6xl font-medium tracking-tight sm:text-8xl lg:text-9xl">
+              Julia AI: A recepção que <span className="relative inline-block">
+                <span className="relative z-10 italic text-primary">nunca dorme</span>
+                <svg className="absolute -bottom-2 left-0 -z-10 h-3 w-full text-accent/30" viewBox="0 0 100 10" preserveAspectRatio="none">
+                  <path d="M0 5 Q 25 0 50 5 T 100 5" fill="none" stroke="currentColor" strokeWidth="8" strokeLinecap="round" />
+                </svg>
+              </span>.
             </h1>
             
-            <p className="mt-8 max-w-2xl text-lg leading-relaxed text-muted-foreground sm:text-xl">
-              Transforme o atendimento do seu salão com inteligência artificial humanizada. 
+            <p className="mt-10 max-w-2xl text-lg leading-relaxed text-muted-foreground/80 sm:text-xl">
+              Transforme o atendimento do seu salão com IA que realmente entende. 
               Julia agenda, confirma e fideliza clientes direto no WhatsApp, integrada ao Bemp.
             </p>
 
-            <div className="mt-12 flex flex-col items-center gap-4 sm:flex-row sm:gap-6">
-              <Button size="lg" className="h-14 rounded-full px-10 text-lg shadow-2xl shadow-primary/30" asChild>
+            <div className="mt-14 flex flex-col items-center gap-4 sm:flex-row sm:gap-6">
+              <Button size="lg" className="group h-14 rounded-2xl px-10 text-lg shadow-2xl shadow-primary/30 transition-all hover:shadow-primary/40 active:scale-95" asChild>
                 <a href="#planos">
                   Começar Agora
-                  <ArrowRight className="ml-2 h-5 w-5" />
+                  <ArrowRight className="ml-2 h-5 w-5 transition-transform group-hover:translate-x-1" />
                 </a>
               </Button>
-              <Button size="lg" variant="outline" className="h-14 rounded-full border-border/40 px-10 text-lg backdrop-blur-sm" asChild>
+              <Button size="lg" variant="outline" className="h-14 rounded-2xl border-border/40 px-10 text-lg backdrop-blur-sm transition-all hover:bg-secondary/50 active:scale-95" asChild>
                 <a href="#recursos">
                   <Play className="mr-2 h-4 w-4 fill-current" />
                   Ver Vídeo Demo
@@ -195,23 +200,40 @@ function LandingPage() {
               </Button>
             </div>
 
-            {/* Dashboard Preview Overlay */}
-            <div className="mt-20 relative w-full max-w-6xl rounded-[2.5rem] border border-border/40 bg-card/30 p-2 backdrop-blur-sm shadow-2xl">
-              <div className="aspect-[16/9] w-full rounded-[2rem] bg-gradient-to-br from-muted to-background flex items-center justify-center overflow-hidden">
-                <div className="text-muted-foreground/20 text-9xl font-display font-black opacity-5 uppercase tracking-tighter select-none">
-                  SEJA LIVRE AI
-                </div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                   <div className="flex items-center gap-3 rounded-full bg-background/80 px-6 py-3 shadow-xl backdrop-blur-md">
-                      <div className="h-3 w-3 animate-pulse rounded-full bg-green-500" />
-                      <span className="text-sm font-medium">Julia AI está online no WhatsApp</span>
-                   </div>
+            {/* Dashboard Preview Overlay - Mais Moderno */}
+            <div className="mt-24 relative w-full max-w-6xl overflow-hidden rounded-[3rem] border border-white/10 bg-black/[0.02] p-3 shadow-[0_0_50px_-12px_rgba(0,0,0,0.12)] dark:bg-white/[0.02]">
+              <div className="aspect-[16/10] w-full rounded-[2.2rem] bg-gradient-to-br from-secondary/50 via-background to-secondary/50 p-8 flex flex-col items-center justify-center relative">
+                <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-overlay" />
+                
+                <div className="relative z-10 flex flex-col items-center gap-8">
+                  <div className="flex items-center gap-3 rounded-2xl bg-white/80 dark:bg-black/40 px-6 py-4 shadow-2xl backdrop-blur-xl border border-white/20">
+                    <div className="relative h-3 w-3">
+                      <div className="absolute inset-0 animate-ping rounded-full bg-green-500 opacity-75" />
+                      <div className="relative h-3 w-3 rounded-full bg-green-500" />
+                    </div>
+                    <span className="text-sm font-semibold tracking-tight">Julia AI: Online & Atendendo</span>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4 w-full max-w-2xl">
+                    {[
+                      { label: "Agendamentos Hoje", value: "24", trend: "+12%" },
+                      { label: "Taxa de Conversão", value: "92%", trend: "+5%" },
+                      { label: "Economia de Tempo", value: "6h", trend: "diário" }
+                    ].map((stat, i) => (
+                      <div key={i} className="rounded-2xl bg-white/40 dark:bg-black/20 p-4 border border-white/20 backdrop-blur-md">
+                        <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">{stat.label}</p>
+                        <p className="text-2xl font-display font-bold mt-1">{stat.value}</p>
+                        <p className="text-[10px] text-green-600 font-bold mt-1">{stat.trend}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
       </section>
+
 
       {/* Recursos Premium Grid */}
       <section id="recursos" className="py-24 sm:py-32">
