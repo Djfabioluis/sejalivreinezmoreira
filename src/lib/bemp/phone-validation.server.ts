@@ -25,12 +25,13 @@ export async function validateSubscriptionByPhone(phoneInput: string) {
     };
   }
 
-  const variants = import("@/lib/phone").then(m => m.getPhoneVariants(normalized));
+  const { getPhoneVariants } = await import("@/lib/phone");
+  const variants = getPhoneVariants(normalized);
   const logCtx = { phoneMasked: maskPhone(normalized.full) };
   logger.info("subscription_phone_validation_started", "Iniciando validação por telefone com variantes", logCtx);
 
   try {
-    const phoneVariantsList = (await variants);
+    const phoneVariantsList = variants;
     let customerResponse = null;
     let foundNormalized = normalized;
 
