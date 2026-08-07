@@ -316,8 +316,8 @@ export const runFollowupTest = createServerFn({ method: "POST" })
     
     if (ruleError || !rule) throw new Error("Regra não encontrada");
 
-    // Limpar execuções anteriores deste telefone para a mesma regra para evitar DUPLICATE se implementado
-    await (supabaseAdmin.from("crm_followups" as any) as any).delete().eq("phone", data.phone).eq("rule_id", data.ruleId).in("status", ["CANCELED", "FAILED"]);
+    // Limpar execuções anteriores deste telefone para a mesma regra para evitar conflitos no teste
+    await (supabaseAdmin.from("crm_followups" as any) as any).delete().eq("phone", data.phone).eq("rule_id", data.ruleId);
 
     const { data: followup, error: fError } = await (supabaseAdmin.from("crm_followups" as any) as any).insert({
       phone: data.phone,
