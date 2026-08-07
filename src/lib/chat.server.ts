@@ -2615,6 +2615,9 @@ export async function runAgentWithLogging(params: {
     }
 
     // CARREGAMENTO UNCONDICIONAL DE PROMOÇÕES (Correção Requisito Promoção)
+    let mandatoryPromo: any = null;
+    let activePromotions: any[] = [];
+    
     try {
       const promoResult = await PromotionService.getActivePromotions({
         unitId: effectiveUnitId || undefined,
@@ -2627,7 +2630,7 @@ export async function runAgentWithLogging(params: {
         // Se houver intenção de mechas, identificamos a promoção mandatória para injeção
         const intent = detectServiceCategory(params.text);
         if (intent?.category === "MECHAS" || params.text.toLowerCase().includes("mecha")) {
-          const mechasPromo = activePromotions.find(p => p.code === 'PACOTE_MECHAS_MENSAL');
+          const mechasPromo = activePromotions.find((p: any) => p.code === 'PACOTE_MECHAS_MENSAL');
           if (mechasPromo) {
             mandatoryPromo = mechasPromo;
             logger.info("PROMOTION_SELECTED", `Promoção de mechas identificada por intenção`, { 
