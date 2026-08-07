@@ -337,14 +337,16 @@ export async function runAgentWithLogging(opts: AgentOptions & { messages: any[]
   const result = await runAgent(opts);
   
   // Garantia determinística da promoção de mechas (Bug 2)
-  // Se a intenção for MECHAS e a promoção não estiver no texto, injetamos manualmente.
   const lastMessage = opts.messages[opts.messages.length - 1]?.content || "";
   const isMechasIntent = /\bmechas?\b/i.test(lastMessage);
   
   if (isMechasIntent && result.text) {
       const promoText = "Pacote de Mechas por R$ 289,90";
       if (!result.text.includes("289,90") && !result.text.includes("mechas")) {
-          result.text = `Entendi! 💜 E já te adianto que estamos com uma promoção imperdível: *${promoText}*! \n\n${result.text}`;
+          return {
+            ...result,
+            text: `Entendi! 💜 E já te adianto que estamos com uma promoção imperdível: *${promoText}*! \n\n${result.text}`
+          };
       }
   }
 
