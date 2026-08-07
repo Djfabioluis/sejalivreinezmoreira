@@ -56,7 +56,7 @@ export async function processPendingFollowups() {
   }
 }
 
-async function processSingleFollowup(followup: any, parentTraceId: string) {
+export async function processSingleFollowup(followup: any, parentTraceId: string) {
   const traceId = `${parentTraceId}-${followup.id.split('-')[0]}`;
   
   try {

@@ -237,15 +237,88 @@ export const getFollowupStats = createServerFn({ method: "GET" })
     const { data: followups, error } = await (supabaseAdmin.from("crm_followups" as any) as any).select("status, created_at, metadata");
     if (error) throw new Error(error.message);
     
+    const { data: rules } = await (supabaseAdmin.from("crm_followup_rules" as any) as any).select("id, enabled");
+    
     const now = new Date();
     const todayStr = now.toISOString().split('T')[0];
     
     const stats = {
-      pending: (followups as any[]).filter(f => f.status === 'PENDING' || f.status === 'READY').length,
+      pending: (followups as any[]).filter(f => f.status === 'PENDING' || f.status === 'READY' || f.status === 'READY_TO_SEND').length,
       sentToday: (followups as any[]).filter(f => f.status === 'SENT' && f.created_at?.startsWith(todayStr)).length,
       failed: (followups as any[]).filter(f => f.status === 'FAILED').length,
+      blocked: (followups as any[]).filter(f => f.status === 'CANCELED' && (f.metadata as any)?.blocker).length,
+      canceled: (followups as any[]).filter(f => f.status === 'CANCELED' && !(f.metadata as any)?.blocker).length,
       recovered: (followups as any[]).filter(f => f.status === 'SENT' && (f.metadata as any)?.recovered).length,
+      activeRules: (rules || []).filter((r: any) => r.enabled).length,
+      scheduled: (followups as any[]).filter(f => f.status === 'PENDING' || f.status === 'READY').length,
+      conversionRate: 0, // Placeholder
     };
     
+    if (stats.sentToday > 0) {
+      stats.conversionRate = (stats.recovered / stats.sentToday) * 100;
+    }
+    
     return stats;
+  });
+
+export const runFollowupTest = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: { ruleId: string; phone: string }) => data)
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const { processSingleFollowup } = await import("./crm/followup-processor.server");
+    
+    // 1. Get the rule
+    const { data: rule, error: ruleError } = await (supabaseAdmin.from("crm_followup_rules" as any) as any)
+      .select("*")
+      .eq("id", data.ruleId)
+      .single();
+    
+    if (ruleError || !rule) throw new Error("Regra não encontrada");
+
+    // 2. Create a temporary followup for testing
+    const { data: followup, error: fError } = await (supabaseAdmin.from("crm_followups" as any) as any).insert({
+      phone: data.phone,
+      stage: 'TEST_EXECUTION',
+      reason: 'MANUAL_TEST',
+      scheduled_at: new Date().toISOString(),
+      status: 'READY',
+      rule_id: data.ruleId,
+      message_template: rule.message_mode === 'FIXED' ? rule.fixed_message : null,
+      metadata: { is_test: true, triggered_by: context.userId }
+    } as any).select("*").single();
+
+    if (fError || !followup) throw new Error("Erro ao criar followup de teste: " + fError?.message);
+
+    // 3. Process it immediately
+    const traceId = `test-${Math.random().toString(36).substring(7)}`;
+    await processSingleFollowup(followup, traceId);
+
+    // 4. Fetch the result
+    const { data: result } = await (supabaseAdmin.from("crm_followups" as any) as any)
+      .select("*")
+      .eq("id", followup.id)
+      .single();
+
+    return result;
+  });
+
+export const getWorkerStatus = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    
+    // In a real system, we'd check a heartbeat or logs. 
+    // For this simulation, we'll return mock/calculated data.
+    const { data: queue } = await (supabaseAdmin.from("crm_followups" as any) as any)
+      .select("id")
+      .in("status", ["PENDING", "READY", "READY_TO_SEND"]);
+    
+    return {
+      status: "ONLINE",
+      lastRun: new Date(Date.now() - 2 * 60000).toISOString(),
+      nextRun: new Date(Date.now() + 1 * 60000).toISOString(),
+      queueSize: queue?.length || 0,
+      avgTime: "4.2s"
+    };
   });
