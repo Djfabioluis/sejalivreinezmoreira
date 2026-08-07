@@ -4,6 +4,9 @@ Este documento rastreia o status das remediações técnicas baseadas na auditor
 
 ## Lote A — Confiabilidade
 
+| **Promoção Mechas** | Crítica | ✅ Corrigido | `src/lib/promotion-service.server.ts`, `src/lib/chat.server.ts` | N/A | Sim | Promoção determinística implementada |
+
+
 | Item | Gravidade | Status | Arquivos Relacionados | Migration | Teste | Evidência |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **Ponto de Restauração** | Crítica | ✅ Corrigido | `docs/consolidation_report.md` | N/A | N/A | Relatório criado |
@@ -33,4 +36,4 @@ Este documento rastreia o status das remediações técnicas baseadas na auditor
 | **Webhooks** | Alta | ⏳ Pendente | `src/routes/api/public/*` | N/A | N/A | Auditoria de validação Zod e segredos pendente |
 
 ---
-*Última atualização: 06/08/2026 01:50 UTC*
+*Última atualização: 07/08/2026 01:06 UTC*

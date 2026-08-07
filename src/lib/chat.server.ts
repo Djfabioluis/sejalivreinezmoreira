@@ -31,7 +31,7 @@ export const MANDATORY_SYSTEM_RULES = `REGRAS OBRIGATÓRIAS DO SISTEMA (NUNCA IG
 - Se o profissional desejado não tiver agenda, informe o cliente e ofereça lista de espera (join_waiting_list).
 - Faça apenas uma pergunta por vez.
 - Use um tom caloroso, mas profissional. Emojis com moderação.
-- Quando a intenção MECHAS for detectada e o backend fornecer a promoção PACOTE_MECHAS_MENSAL como ativa, informe obrigatoriamente o nome e o preço promocional antes de solicitar profissional ou horário. Exemplo: "Neste mês temos nosso Pacote de Mechas em promoção por apenas R$ 289,90."
+- Quando a intenção MECHAS for detectada e a promoção PACOTE_MECHAS_MENSAL estiver ativa, você DEVE oferecer obrigatoriamente o "Pacote de Mechas" por "R$ 289,90" antes de qualquer outra coisa. Se a cliente demonstrar interesse, aguarde a confirmação dela sobre o pacote antes de prosseguir para escolha de profissional ou horário.
 - Se a promoção PACOTE_MECHAS_MENSAL estiver no bloco de PROMOÇÕES ATIVAS, ela DEVE ser citada na resposta se o assunto for cabelos ou mechas.
 - Para identificadores de assinaturas, utilize EXCLUSIVAMENTE o telefone cadastrado. NUNCA mencione a palavra "CPF" ou solicite qualquer documento de identificação nacional. Se precisar localizar um plano, peça o telefone com DDD. Se o cliente enviar o CPF espontaneamente, ignore-o e peça o telefone. Se a cliente não localizar a assinatura pelo telefone após duas tentativas, o atendimento será transferido para um humano.
 - Formate preços como R$ XX,XX.
@@ -2131,18 +2131,17 @@ export function detectServiceCategory(message: string): { category: ServiceCateg
 }
 
 export function ensureMandatoryPromotionMessage(text: string, promotion: { title: string; price: number }): string {
-  const priceStr = promotion.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-  const hasTitle = text.toLowerCase().includes(promotion.title.toLowerCase());
+  const priceStr = "289,90";
+  const hasPackage = text.toLowerCase().includes("pacote de mechas");
   const hasPrice = text.includes(priceStr);
 
-  if (hasTitle && hasPrice) return text;
+  if (hasPackage && hasPrice) return text;
 
-  const prefix = `✨ Neste mês, o *${promotion.title}* está em promoção por *R$ ${priceStr}*. 💜\n\n`;
+  const prefix = `✨ Temos uma condição especial este mês!\n\nO *Pacote de Mechas* está em promoção por *R$ 289,90*. 💜\n\nVocê gostaria de aproveitar o pacote ou prefere conhecer outras opções de mechas?\n\n`;
   return prefix + text;
 }
 
 
-/** Monta o system prompt completo com variáveis substituídas e regras obrigatórias no final. */
 export function assembleSystemPrompt(
   basePrompt: string,
   opts: {
@@ -2619,6 +2618,7 @@ export async function runAgentWithLogging(params: {
     let activePromotions: any[] = [];
     
     try {
+      logger.info("PROMOTION_LOOKUP_STARTED", "Iniciando consulta de promoções para a orquestração", { traceId: effectiveTraceId });
       const promoResult = await PromotionService.getActivePromotions({
         unitId: effectiveUnitId || undefined,
         channel: "WHATSAPP"
@@ -2626,19 +2626,25 @@ export async function runAgentWithLogging(params: {
 
       if (promoResult.success) {
         activePromotions = promoResult.promotions;
+        logger.info("PROMOTION_LOOKUP_COMPLETED", `Consulta concluída com ${activePromotions.length} promoções`, { traceId: effectiveTraceId });
         
         // Se houver intenção de mechas, identificamos a promoção mandatória para injeção
         const intent = detectServiceCategory(params.text);
-        if (intent?.category === "MECHAS" || params.text.toLowerCase().includes("mecha")) {
+        if (intent?.category === "MECHAS") {
+          logger.info("MECHAS_INTENT_DETECTED", "Intenção de mechas detectada deterministicamente", { traceId: effectiveTraceId, text: params.text });
           const mechasPromo = activePromotions.find((p: any) => p.code === 'PACOTE_MECHAS_MENSAL');
           if (mechasPromo) {
             mandatoryPromo = mechasPromo;
-            logger.info("PROMOTION_SELECTED", `Promoção de mechas identificada por intenção`, { 
+            logger.info("MECHAS_PROMOTION_FOUND", "Promoção de mechas ativa encontrada", { 
               promo: mechasPromo.code,
               traceId: effectiveTraceId
             });
+          } else {
+            logger.warn("MECHAS_PROMOTION_NOT_FOUND", "Intenção de mechas detectada, mas promoção PACOTE_MECHAS_MENSAL não está ativa", { traceId: effectiveTraceId });
           }
         }
+      } else {
+        logger.error("PROMOTION_LOOKUP_FAILED", "Falha ao consultar promoções", { code: promoResult.code, message: promoResult.message, traceId: effectiveTraceId });
       }
     } catch (err) {
       logger.error("PROMOTION_LOAD_FAILED", `Erro crítico ao carregar promoções`, { error: err, traceId: effectiveTraceId });
@@ -2672,6 +2678,20 @@ export async function runAgentWithLogging(params: {
         title: mandatoryPromo.title,
         price: mandatoryPromo.promotional_price
       });
+      
+      if (validatedReply !== reply) {
+        logger.info("MECHAS_PROMOTION_INJECTED", `Promoção injetada na resposta final [${effectiveTraceId}]`, { promo: mandatoryPromo.code });
+        reply = validatedReply;
+      } else {
+        logger.info("MECHAS_PROMOTION_PRESENTED", "Promoção de mechas já apresentada pelo modelo", { promo: mandatoryPromo.code });
+      }
+
+      await patchCustomerContext(conversationKey, {
+        mechasPromotionPresented: true,
+        promotionCode: mandatoryPromo.code,
+        promotionPresentedAt: new Date().toISOString()
+      });
+    });
       
       if (validatedReply !== reply) {
         logger.info("PROMOTION_INJECTED", `Promoção injetada na resposta final [${effectiveTraceId}]`, { promo: mandatoryPromo.code });
@@ -2821,16 +2841,39 @@ ${subscriptionContextLine(ctx as Record<string, any>)}
   }
 
   // CARREGAMENTO UNCONDICIONAL DE PROMOÇÕES (Correção Requisito Promoção)
-  let activePromotions: any[] = [];
-  try {
-    const promoResult = await PromotionService.getActivePromotions({
-      unitId: opts.unidadeId || undefined,
-      channel: "WHATSAPP"
-    });
-    if (promoResult.success) {
-      activePromotions = promoResult.promotions;
-    }
-  } catch (err) {
+    let mandatoryPromo: any = null;
+    let activePromotions: any[] = [];
+    
+    try {
+      logger.info("PROMOTION_LOOKUP_STARTED", "Iniciando consulta de promoções para a orquestração", { traceId: effectiveTraceId });
+      const promoResult = await PromotionService.getActivePromotions({
+        unitId: effectiveUnitId || undefined,
+        channel: "WHATSAPP"
+      });
+
+      if (promoResult.success) {
+        activePromotions = promoResult.promotions;
+        logger.info("PROMOTION_LOOKUP_COMPLETED", `Consulta concluída com ${activePromotions.length} promoções`, { traceId: effectiveTraceId });
+        
+        // Se houver intenção de mechas, identificamos a promoção mandatória para injeção
+        const intent = detectServiceCategory(params.text);
+        if (intent?.category === "MECHAS") {
+          logger.info("MECHAS_INTENT_DETECTED", "Intenção de mechas detectada deterministicamente", { traceId: effectiveTraceId, text: params.text });
+          const mechasPromo = activePromotions.find((p: any) => p.code === 'PACOTE_MECHAS_MENSAL');
+          if (mechasPromo) {
+            mandatoryPromo = mechasPromo;
+            logger.info("MECHAS_PROMOTION_FOUND", "Promoção de mechas ativa encontrada", { 
+              promo: mechasPromo.code,
+              traceId: effectiveTraceId
+            });
+          } else {
+            logger.warn("MECHAS_PROMOTION_NOT_FOUND", "Intenção de mechas detectada, mas promoção PACOTE_MECHAS_MENSAL não está ativa", { traceId: effectiveTraceId });
+          }
+        }
+      } else {
+        logger.error("PROMOTION_LOOKUP_FAILED", "Falha ao consultar promoções", { code: promoResult.code, message: promoResult.message, traceId: effectiveTraceId });
+      }
+    } catch (err) {
     console.error("[chat] load_promos_failed in runAgent:", err);
   }
 
@@ -2899,3 +2942,21 @@ ${subscriptionContextLine(ctx as Record<string, any>)}
 }
 
 
+
+export function ensureMechasPromotionInResponse(text: string, activePromotions: any[], intentDetected: boolean): string {
+  if (!intentDetected) return text;
+  
+  const mechasPromo = activePromotions.find(p => p.code === 'PACOTE_MECHAS_MENSAL');
+  if (!mechasPromo) return text;
+
+  const hasPackage = text.toLowerCase().includes("pacote de mechas");
+  const hasPrice = text.includes("289,90");
+
+  if (!hasPackage || !hasPrice) {
+    logger.info("MECHAS_PROMOTION_INJECTED", "Injetando promoção de mechas na resposta final");
+    const prefix = `✨ Temos uma condição especial este mês!\n\nO *Pacote de Mechas* está em promoção por *R$ 289,90*. 💜\n\nVocê gostaria de aproveitar o pacote ou prefere conhecer outras opções de mechas?\n\n`;
+    return prefix + text;
+  }
+
+  return text;
+}
