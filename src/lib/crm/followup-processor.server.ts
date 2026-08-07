@@ -2,7 +2,6 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { generateText } from "ai";
 import { createLovableAiGatewayProvider, getAiKey } from "@/lib/ai-gateway.server";
 import { logger } from "../observability/logger.server";
-import { z } from "zod";
 
 /**
  * Interface para regras de follow-up
@@ -22,7 +21,6 @@ interface FollowupRule {
   agent_id?: string;
 }
 
-
 /**
  * Motor de Follow-up Consolidado (Fase 3 - Auditoria)
  */
@@ -33,21 +31,13 @@ export async function processPendingFollowups() {
 
   logger.info("FOLLOWUP_WORKER_STARTED", "Iniciando processamento de follow-ups", { traceId, now: nowIso });
 
-  // 1. Verificar se existem novas regras para criar follow-ups (Detector de elegibilidade)
-  await discoverNewFollowups(traceId);
-
-  const traceId = `fup-proc-${Math.random().toString(36).substring(7)}`;
-  const now = new Date();
-  const nowIso = now.toISOString();
-
-  logger.info("FOLLOWUP_WORKER_STARTED", "Iniciando processamento de follow-ups", { traceId, now: nowIso });
-
-
   try {
-    // 0. Recuperação de registros presos em PROCESSING (Step 19)
-    // Se está em PROCESSING há mais de 15 minutos, volta para READY ou falha
+    // 1. Verificar se existem novas regras para criar follow-ups (Detector de elegibilidade)
+    await discoverNewFollowups(traceId);
+
+    // 2. Recuperação de registros presos em PROCESSING (Step 19)
     const fifteenMinsAgo = new Date(now.getTime() - 15 * 60 * 1000).toISOString();
-    const { data: stuck, error: stuckError } = await supabaseAdmin
+    const { data: stuck } = await supabaseAdmin
       .from("crm_followups")
       .update({ 
         status: "READY", 
@@ -62,10 +52,9 @@ export async function processPendingFollowups() {
       logger.warn("FOLLOWUP_STUCK_RECOVERED", `Recuperados ${stuck.length} registros presos`, { traceId });
     }
 
-
-    // 1. Buscar registros PENDING ou READY vencidos
-    const { data: followups, error: fetchError } = await supabaseAdmin
-      .from("crm_followups")
+    // 3. Buscar registros PENDING ou READY vencidos
+    const { data: followups, error: fetchError } = await (supabaseAdmin
+      .from("crm_followups" as any) as any)
       .select("*")
       .in("status", ["PENDING", "READY", "PENDENTE", "READY_TO_SEND"])
       .lte("scheduled_at", nowIso)
@@ -74,7 +63,6 @@ export async function processPendingFollowups() {
       .limit(20);
 
     if (fetchError) {
-      console.error(`[AUDIT] FOLLOWUP_FETCH_FAILED error=${fetchError.message}`);
       logger.error("FOLLOWUP_FETCH_FAILED", fetchError.message, { traceId, error: fetchError });
       return;
     }
@@ -88,7 +76,6 @@ export async function processPendingFollowups() {
       traceId, 
       count: followups.length 
     });
-
 
     for (const followup of followups) {
       await processSingleFollowup(followup, traceId);
@@ -116,11 +103,9 @@ async function processSingleFollowup(followup: any, parentTraceId: string) {
       return;
     }
 
-
-
     // 2. Elegibilidade e Bloqueios
-    const { data: conversation } = await supabaseAdmin
-      .from("wa_conversas")
+    const { data: conversation } = await (supabaseAdmin
+      .from("wa_conversas" as any) as any)
       .select("*")
       .eq("phone", followup.phone)
       .maybeSingle();
@@ -130,34 +115,23 @@ async function processSingleFollowup(followup: any, parentTraceId: string) {
       return;
     }
 
-    // O status e o customer_context podem conter flags de pausa humana
     const ctx = (conversation.customer_context as any) || {};
     const attendanceMode = ctx.attendance_mode || (conversation as any).attendance_mode;
     
-    // Bloqueio: Atendimento Humano Ativo
     if (attendanceMode === "human" || conversation.status === "atendido_humano") {
       await blockFollowup(followup.id, "HUMAN_ATTENDING", "Cliente em atendimento humano", traceId);
       return;
     }
 
-    // Bloqueio: Cliente respondeu recentemente
     const lastInteraction = ctx.last_interaction_at;
     if (lastInteraction && new Date(lastInteraction) > new Date(followup.created_at)) {
         await blockFollowup(followup.id, "CUSTOMER_REPLIED", "Cliente já interagiu após o agendamento do follow-up", traceId);
         return;
     }
 
-    // Bloqueio: Motivo de Preço
-    if (followup.reason === 'PRICE' || ctx.abandon_trigger === 'PRICE') {
-      await blockFollowup(followup.id, "CONVERSATION_CLOSED", "Encerrado por objeção de preço", traceId);
-      return;
-    }
-
     logger.info("FOLLOWUP_ELIGIBLE", "Registro elegível para envio", { traceId, phone: followup.phone });
 
-    // 3. Geração de IA
-    logger.info("FOLLOWUP_GENERATION_STARTED", "Gerando mensagem com IA", { traceId });
-    
+    // 3. Geração de Mensagem
     let messageText = followup.message_template;
     
     if (!messageText) {
@@ -168,14 +142,9 @@ async function processSingleFollowup(followup: any, parentTraceId: string) {
       }
     }
 
-
-
-
     if (!messageText || messageText.trim().length === 0) {
       throw new Error("IA_GENERATION_FAILED");
     }
-
-    logger.info("FOLLOWUP_GENERATION_COMPLETED", "Mensagem gerada com sucesso", { traceId });
 
     // 4. Envio via Evolution
     const instance = conversation.instance;
@@ -186,8 +155,6 @@ async function processSingleFollowup(followup: any, parentTraceId: string) {
       return;
     }
 
-    logger.info("FOLLOWUP_SEND_STARTED", "Despachando para Evolution API", { traceId, instance });
-    
     const { sendEvolutionText } = await import("@/lib/evolution.server");
     const success = await sendEvolutionText(instance, phoneNumber, messageText);
 
@@ -198,7 +165,7 @@ async function processSingleFollowup(followup: any, parentTraceId: string) {
     // 5. Registro e Finalização
     const now = new Date().toISOString();
     
-    await supabaseAdmin.rpc("append_wa_message" as any, {
+    await (supabaseAdmin.rpc("append_wa_message" as any, {
       p_phone: followup.phone,
       p_message: {
           id: `fup-${Date.now()}`,
@@ -210,7 +177,7 @@ async function processSingleFollowup(followup: any, parentTraceId: string) {
       p_phone_number: phoneNumber,
       p_increment_unread: false,
       p_new_status: "aguardando"
-    });
+    } as any) as any);
 
     const newAttempts = (followup.attempts || 0) + 1;
     await supabaseAdmin
@@ -230,15 +197,7 @@ async function processSingleFollowup(followup: any, parentTraceId: string) {
   } catch (err: any) {
     const isRetryable = ["EVOLUTION_SEND_FAILED", "IA_GENERATION_FAILED", "TIMEOUT"].includes(err.message);
     const newAttempts = (followup.attempts || 0) + 1;
-    
-    logger.error("FOLLOWUP_SEND_FAILED", err.message, { traceId, followupId: followup.id, retryable: isRetryable });
-
-    // Step 20: Retry logic
     const nextStatus = (isRetryable && newAttempts < 3) ? "READY" : "FAILED";
-    if (nextStatus === "READY") {
-       logger.info("FOLLOWUP_RETRY_SCHEDULED", "Agendando nova tentativa", { traceId, attempt: newAttempts });
-    }
-
 
     await supabaseAdmin
       .from("crm_followups")
@@ -268,21 +227,9 @@ async function blockFollowup(id: string, reasonCode: string, message: string, tr
 async function generateAiFollowup(followup: any, conversation: any, traceId: string): Promise<string> {
   const prompt = `
     Você é a Julia, recepcionista do Salão Seja Livre.
-    Precisa enviar um follow-up humanizado para um cliente que parou o atendimento no estágio: ${followup.stage}.
-    
-    CONTEXTO DO CLIENTE:
-    - Nome: ${conversation.contact_name || 'Cliente'}
-    - Motivo do Abandono: ${followup.reason || 'Interesse em agendamento'}
-    - Histórico: ${JSON.stringify(conversation.customer_context || {})}
-    
-    REGRAS:
-    - NUNCA use mensagens genéricas ou robóticas.
-    - Fale como uma pessoa real do salão.
-    - Mencione o que foi conversado anteriormente de forma natural.
-    - Não pressione por venda, apenas mostre que você está disponível para ajudar a finalizar o agendamento.
-    - Máximo 2 parágrafos curtos.
-    - Use emojis de forma sutil.
-    - Idioma: Português do Brasil.
+    Enviar um follow-up humanizado para um cliente que parou o atendimento no estágio: ${followup.stage}.
+    Nome: ${conversation.contact_name || 'Cliente'}
+    Motivo: ${followup.reason || 'Interesse em agendamento'}
   `;
 
   try {
@@ -299,23 +246,18 @@ async function generateAiFollowup(followup: any, conversation: any, traceId: str
   }
 }
 
-/**
- * Descobre novos follow-ups baseados nas regras ativas
- */
 async function discoverNewFollowups(traceId: string) {
-  const { data: rules, error: rulesError } = await (supabaseAdmin
+  const { data: rules } = await (supabaseAdmin
     .from("crm_followup_rules" as any) as any)
     .select("*")
     .eq("enabled", true);
 
-  if (rulesError || !rules) return;
+  if (!rules) return;
 
   for (const rule of rules as FollowupRule[]) {
-    // Para cada regra, buscar clientes elegíveis que ainda não têm follow-up para esta regra
     if (rule.type === 'ABANDONMENT') {
        await handleAbandonmentRule(rule, traceId);
     }
-    // Adicionar outros tipos aqui...
   }
 }
 
@@ -327,18 +269,16 @@ async function handleAbandonmentRule(rule: FollowupRule, traceId: string) {
 
   const threshold = new Date(now.getTime() - delayMs).toISOString();
 
-  // Buscar conversas que pararam ANTES do threshold e não são 'finalizadas'
-  const { data: abandoned, error } = await supabaseAdmin
-    .from("wa_conversas")
+  const { data: abandoned } = await (supabaseAdmin
+    .from("wa_conversas" as any) as any)
     .select("phone, customer_context, last_interaction_at")
     .not("status", "in", '("atendido_humano", "finalizado")')
     .lt("last_interaction_at", threshold)
     .limit(50);
 
-  if (error || !abandoned) return;
+  if (!abandoned) return;
 
-  for (const conv of abandoned) {
-    // Verificar se já existe follow-up pendente ou enviado para esta regra e este telefone
+  for (const conv of (abandoned as any[])) {
     const { data: existing } = await supabaseAdmin
       .from("crm_followups")
       .select("id")
@@ -348,26 +288,15 @@ async function handleAbandonmentRule(rule: FollowupRule, traceId: string) {
 
     if (existing) continue;
 
-    // Criar o follow-up
-    const scheduledAt = calculateNextWindow(new Date(), rule.start_time, rule.end_time);
-    
-    await supabaseAdmin.from("crm_followups").insert({
+    await (supabaseAdmin.from("crm_followups" as any) as any).insert({
       phone: conv.phone,
       stage: (conv.customer_context as any)?.current_stage || 'ABANDONADO',
       reason: 'ABANDONMENT_RULE',
-      scheduled_at: scheduledAt.toISOString(),
+      scheduled_at: now.toISOString(),
       status: 'PENDING',
       rule_id: rule.id,
       message_template: rule.message_mode === 'FIXED' ? rule.fixed_message : null,
       metadata: { traceId, rule_name: rule.name }
-    });
-    
-    logger.info("FOLLOWUP_CREATED_FROM_RULE", `Criado follow-up para ${conv.phone} via regra ${rule.name}`, { traceId });
+    } as any);
   }
 }
-
-function calculateNextWindow(date: Date, start: string, end: string): Date {
-  // Simplificação: se fora da janela, move para o início da próxima janela (amanhã 08:00 por exemplo)
-  return date; // Por enquanto retorna imediato para o teste técnico
-}
-
