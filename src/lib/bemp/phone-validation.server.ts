@@ -25,20 +25,33 @@ export async function validateSubscriptionByPhone(phoneInput: string) {
     };
   }
 
+  const variants = import("@/lib/phone").then(m => m.getPhoneVariants(normalized));
   const logCtx = { phoneMasked: maskPhone(normalized.full) };
-  logger.info("subscription_phone_validation_started", "Iniciando validação por telefone", logCtx);
+  logger.info("subscription_phone_validation_started", "Iniciando validação por telefone com variantes", logCtx);
 
   try {
-    const customerResponse = await BempService.findCustomerByPhone({
-      countryCode: normalized.countryCode,
-      areaCode: normalized.areaCode,
-      number: normalized.number,
-    });
+    const phoneVariantsList = (await variants);
+    let customerResponse = null;
+    let foundNormalized = normalized;
 
-    // O BEMP pode retornar o cliente direto ou dentro de uma chave 'customer' ou 'data'
+    for (const variant of phoneVariantsList) {
+      customerResponse = await BempService.findCustomerByPhone({
+        countryCode: variant.countryCode,
+        areaCode: variant.areaCode,
+        number: variant.number,
+      });
+
+      const container = customerResponse?.customer || customerResponse?.data || customerResponse;
+      const customers = Array.isArray(container) ? container : [container];
+      const valid = customers.filter(c => c && (c.id || c.customer_id));
+      
+      if (valid.length > 0) {
+        foundNormalized = variant;
+        break;
+      }
+    }
+
     const container = customerResponse?.customer || customerResponse?.data || customerResponse;
-    
-    // Se for uma lista, validar se há ambiguidade
     const customers = Array.isArray(container) ? container : [container];
     const validCustomers = customers.filter(c => c && (c.id || c.customer_id));
 
