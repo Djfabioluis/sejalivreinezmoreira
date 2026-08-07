@@ -50,6 +50,15 @@ export class PromotionService {
     });
 
     try {
+      if (!supabaseAdmin) {
+         logger.error("PROMOTION_QUERY_FAILED", "Supabase Admin não inicializado", { traceId });
+         return {
+           success: false,
+           code: "PROMOTION_QUERY_FAILED",
+           message: "Serviço de banco de dados indisponível."
+         };
+      }
+
       const query = (supabaseAdmin
         .from('promotions' as any)
         .select(`
@@ -75,7 +84,7 @@ export class PromotionService {
         query.eq('service_category', params.category);
       }
 
-      const { data, error, count } = await query;
+      const { data, error } = await query;
 
       logger.audit("PROMOTION_SQL_EXECUTED", "SQL de consulta de promoções executado", {
         traceId,
@@ -94,15 +103,10 @@ export class PromotionService {
         };
       }
 
-      logger.info("PROMOTION_LOOKUP_RESULT", `Consulta retornou ${data?.length || 0} promoções [${traceId}]`, { 
-        data_count: data?.length || 0
-      });
-
       const parsedPromotions: Promotion[] = [];
       for (const item of (data || [])) {
         const validation = PromotionSchema.safeParse(item);
         if (validation.success) {
-          // Filtra por unidade (global ou específica)
           if (!validation.data.unit_id || validation.data.unit_id === params.unitId) {
             parsedPromotions.push(validation.data);
           }
@@ -116,7 +120,7 @@ export class PromotionService {
         }
       }
 
-      logger.info("PROMOTION_SELECTED", `Promoções válidas selecionadas: ${parsedPromotions.length} [${traceId}]`, { 
+      logger.info("PROMOTION_LOOKUP_COMPLETED", `Consulta concluída com ${parsedPromotions.length} promoções válidas [${traceId}]`, { 
         promotion_codes: parsedPromotions.map(p => p.code)
       });
 
