@@ -462,7 +462,7 @@ com evidências.
 
 Não publicar automaticamente.</div>
       <div className="bg-green-600 text-white p-2 text-center text-xs font-medium">
-Execute esta instrucao no projeto: FASE CRÍTICA 3 — CORRIGIR MOTOR DE FOLLOW-UP
+        {`Execute esta instrucao no projeto: FASE CRÍTICA 3 — CORRIGIR MOTOR DE FOLLOW-UP
 
 OBJETIVO
 
@@ -720,7 +720,7 @@ Informar:
 
 Atualizar docs/audit-remediation-status.md.
 
-Não considerar concluído até a mensagem chegar a um WhatsApp de teste.
+Não considerar concluído até a mensagem chegar a um WhatsApp de teste.`}
       </div>
       <PaymentTestModeBanner />
 
