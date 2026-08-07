@@ -53,8 +53,9 @@ function BaseConhecimentoPage() {
 
   async function onSave() {
     // Validação de segurança (Bug 1 & 2)
-    if (containsCpfSolicitation(conteudo)) {
-      toast.error("O texto contém solicitação de CPF, o que é proibido pelas regras de segurança.");
+    const normalized = conteudo.toLowerCase();
+    if (normalized.includes("cpf") && !normalized.includes("nunca") && !normalized.includes("não") && !normalized.includes("proibido") && !normalized.includes("ignorar")) {
+      toast.error("O texto contém menção a CPF sem negação explícita. Por segurança, utilize apenas telefone.");
       return;
     }
 
@@ -68,8 +69,8 @@ function BaseConhecimentoPage() {
     
     const missing = requiredPlaceholders.filter(p => !conteudo.includes(p));
     if (missing.length > 0) {
-      toast.warning(`Atenção: Os seguintes marcadores estão ausentes: ${missing.join(", ")}. Isso pode causar falhas na IA.`);
-      // Permitimos salvar com aviso, mas o ideal é que estejam presentes.
+      toast.error(`Atenção: Os placeholders ${missing.join(", ")} são obrigatórios para o funcionamento da Julia.`);
+      return;
     }
 
     setSaving(true);
