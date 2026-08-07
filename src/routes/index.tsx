@@ -113,205 +113,354 @@ function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="hidden">Execute esta instrucao no projeto: AUDITORIA DE EXECUÇÃO EM TEMPO REAL
+      <div className="hidden">Execute esta instrucao no projeto: FASE CRÍTICA 1 — IDENTIFICAÇÃO DE ASSINANTE EXCLUSIVAMENTE POR TELEFONE
 
-NÃO ALTERAR MAIS PROMPTS.
+PROJETO
 
-NÃO ALTERAR MAIS CHAT.SERVER.
-
-NÃO ALTERAR MAIS SUBSCRIPTION POLICY.
-
-OS SINTOMAS SÃO:
-
-1.
-Ainda responde:
-
-"Informe seu CPF"
-
-2.
-Não informa o Pacote de Mechas por R$ 289,90.
-
-Isso demonstra que o fluxo corrigido NÃO está sendo executado.
-
-==================================================
+Julia — Seja Livre AI Platform
 
 OBJETIVO
 
-Descobrir QUAL CÓDIGO realmente respondeu ao WhatsApp.
+Eliminar definitivamente o CPF do fluxo de identificação de Plano Beauty no atendimento WhatsApp.
+
+REGRA DE NEGÓCIO
+
+Quando a cliente mencionar:
+
+- plano;
+- Plano Beauty;
+- assinatura;
+- benefício;
+- Plano de Manicure;
+- Plano de Escova;
+- Plano de Hidratação e Escova;
+
+a identificação deve ocorrer pelo TELEFONE CADASTRADO NA ASSINATURA.
+
+CPF não deve ser solicitado nesse fluxo.
+
+Não alterar outras funcionalidades.
+Não publicar automaticamente.
 
 ==================================================
-
-Adicionar um traceId único desde a chegada da mensagem até a resposta.
-
-Registrar obrigatoriamente:
-
-arquivo
-
-função
-
-agente
-
-workflow
-
-prompt
-
-modelo
-
-tools
-
-resposta da IA
-
-resposta enviada
-
+1. VARREDURA COMPLETA
 ==================================================
 
-Quando chegar:
+Pesquisar em todo o projeto:
 
-"Quero usar meu plano"
+CPF
+cpf
+validate_subscription_cpf
+getCustomerByCPF
+extractCPFFromText
+awaitingCpf
+cpfRequested
+cpfValidationPending
+AWAITING_CPF
+AWAITING_CPF_FALLBACK
+CPF_FALLBACK
+REQUEST_CPF
+CPF_NOT_PROVIDED
+000.000.000-00
+"informe seu CPF"
+"preciso do seu CPF"
+"peça o CPF"
 
-registrar:
+Pesquisar em:
 
-SUBSCRIPTION_TRACE
+src/
+supabase/functions/
+supabase/migrations/
+prompts
+templates
+configurações
+base_conhecimento
+Edge Functions
+webhooks
+arquivos compilados
 
-com:
+Gerar lista de todas as ocorrências.
 
-arquivo
+Classificar:
 
-função
+ACTIVE
+LEGACY
+TEST
+DOCUMENTATION
+DATABASE
 
-linha
-
-stack
-
-==================================================
-
-Quando chegar:
-
-"Quero fazer mechas"
-
-registrar:
-
-MECHAS_TRACE
-
-com:
-
-PromotionService chamado?
-
-SQL executado?
-
-quantas promoções retornaram?
-
-qual categoria?
-
-qual unidade?
-
-==================================================
-
-Registrar também:
-
-qual arquivo chamou:
-
-sendEvolutionText()
+Nenhuma ocorrência ACTIVE pode permanecer no fluxo de WhatsApp para assinatura.
 
 ==================================================
-
-Mostrar:
-
-qual prompt foi realmente enviado ao modelo.
-
-Não mostrar o prompt esperado.
-
-Mostrar o prompt REAL.
-
+2. ARQUIVOS DUPLICADOS
 ==================================================
 
-Listar todos os agentes existentes.
+O relatório de auditoria confirma arquivos .js obsoletos coexistindo com .ts.
 
-Mostrar qual agente respondeu essa conversa.
+Realizar primeiro a Fase 1 do audit-remediation:
 
-==================================================
+- localizar pares nome.js + nome.ts;
+- migrar imports;
+- excluir .js obsoletos;
+- garantir que chat.server.js não seja carregado;
+- garantir que apenas chat.server.ts seja usado.
 
-Listar todos os webhooks Evolution.
-
-Mostrar qual webhook recebeu essa conversa.
-
-==================================================
-
-Listar todos os endpoints que respondem WhatsApp.
+Não excluir JS sem equivalente TypeScript ou ainda necessário ao runtime.
 
 ==================================================
+3. POLÍTICA CENTRAL
+==================================================
+
+Criar ou consolidar:
+
+src/lib/subscription-policy.server.ts
+
+Definir:
+
+SUBSCRIPTION_PRIMARY_LOOKUP = "PHONE"
+ALLOW_SUBSCRIPTION_CPF_FALLBACK = false
+
+Estados permitidos:
+
+AWAITING_REGISTERED_PHONE
+LOOKING_UP_PHONE
+AWAITING_REGISTERED_PHONE_RETRY
+PLAN_FOUND
+HUMAN_HANDOFF
+
+Não usar estado relacionado a CPF.
+
+==================================================
+4. PRIMEIRA PERGUNTA DETERMINÍSTICA
+==================================================
+
+Ao detectar intenção de plano e não existir telefone validado:
+
+NÃO usar o LLM para decidir qual dado pedir.
+
+Responder diretamente:
+
+"Perfeito! 💜
+
+Para localizar o seu Plano Beauty, qual é o número de telefone cadastrado na assinatura?
+
+Pode enviar com DDD."
+
+Salvar:
+
+subscriptionIntent = true
+subscriptionLookupMethod = "PHONE"
+subscriptionLookupStage = "AWAITING_REGISTERED_PHONE"
+subscriptionPhoneAttempts = 0
+
+==================================================
+5. NÃO CONFUNDIR WHATSAPP COM TELEFONE DA ASSINATURA
+==================================================
+
+Separar:
+
+whatsappPhone
+subscriptionRegisteredPhone
+
+O WhatsApp atual pode ser diferente do número cadastrado no plano.
+
+Quando a cliente informar o telefone do plano, salvar:
+
+subscriptionRegisteredPhoneCountry
+subscriptionRegisteredPhoneArea
+subscriptionRegisteredPhoneNumber
+subscriptionPhoneLast4
+subscriptionPhoneValidated
+
+Não sobrescrever whatsappPhone.
+
+==================================================
+6. VALIDAÇÃO
+==================================================
+
+Durante:
+
+AWAITING_REGISTERED_PHONE
+AWAITING_REGISTERED_PHONE_RETRY
+
+uma mensagem como:
+
+41999999999
+
+é TELEFONE.
+
+Não executar parser de CPF.
 
 Executar:
 
-grep -R "Para localizar seu plano"
-
-em todo o projeto.
-
-Mostrar TODAS as ocorrências.
+normalizeBrazilianPhone()
+validate_subscription_phone
 
 ==================================================
-
-Executar:
-
-grep -R "000.000.000-00"
-
-Mostrar TODAS as ocorrências.
-
+7. PRIMEIRA FALHA
 ==================================================
 
-Executar:
+Se não localizar:
 
-grep -R "Pacote de Mechas"
+subscriptionPhoneAttempts = 1
+subscriptionLookupStage =
+"AWAITING_REGISTERED_PHONE_RETRY"
 
-Mostrar TODAS as ocorrências.
+Responder:
+
+"Não encontrei uma assinatura ativa com esse telefone. 💜
+
+Pode conferir e me enviar novamente o número cadastrado no plano, com DDD?"
 
 ==================================================
+8. SEGUNDA FALHA
+==================================================
 
-Executar um teste real.
+Não pedir CPF.
+
+Criar handoff:
+
+subscriptionLookupStage = "HUMAN_HANDOFF"
+attendance_mode = "HUMAN"
+ai_pause_reason =
+"SUBSCRIPTION_NOT_FOUND_BY_PHONE"
 
 Mensagem:
 
-"Quero usar meu plano"
+"Não consegui localizar sua assinatura pelos telefones informados. 💜
 
-Mostrar:
-
-arquivo
-
-função
-
-prompt
-
-stack
-
-resposta bruta
-
-resposta enviada.
+Vou encaminhar seu atendimento para nossa equipe verificar o cadastro e continuar com você por aqui."
 
 ==================================================
-
-Mensagem:
-
-"Quero fazer mechas"
-
-Mostrar:
-
-arquivo
-
-função
-
-consulta SQL
-
-promoção encontrada
-
-resposta enviada.
-
+9. BARREIRA DE TRANSPORTE
 ==================================================
 
-Não responder "corrigido".
+Nenhum texto automático pedindo CPF pode chegar à Evolution.
 
-Responder somente com evidências.
+Criar:
 
-Enquanto não for possível identificar exatamente qual arquivo respondeu ao WhatsApp, não fazer novas alterações.</div>
+containsCpfSolicitation(text)
+
+e:
+
+enforceNoCpfInSubscriptionFlow(text, context)
+
+Bloquear solicitações como:
+
+informe seu CPF
+preciso do seu CPF
+qual é o seu CPF
+número do CPF
+000.000.000-00
+localizar plano + CPF
+validar plano + CPF
+
+Aplicar:
+
+chat.server.ts
+evolution/reply.server.ts
+evolution.server.ts
+
+A última proteção deve ocorrer dentro de sendEvolutionText(), imediatamente antes da Evolution API.
+
+FAIL-CLOSED:
+
+mesmo sem customer_context ou com Supabase indisponível, uma solicitação de CPF deve ser substituída pela pergunta do telefone.
+
+==================================================
+10. BEMP
+==================================================
+
+Centralizar no BempService conforme a Fase 3 da auditoria.
+
+Fluxo:
+
+telefone cadastrado
+→ findCustomerByPhone
+→ customerId
+→ listCustomerSubscriptions(customerId)
+→ plano ativo
+→ saldo
+→ serviço
+
+Não assumir que subscriptions sempre vêm dentro do objeto customer.
+
+==================================================
+11. SERVIÇOS DOS PLANOS
+==================================================
+
+Plano de Manicure
+→ Manicure Plano Beauty
+
+Plano de Escova
+→ Escova Plano Beauty
+
+Plano de Hidratação e Escova
+→ Hidratação e Escova
+
+==================================================
+12. BASE DE CONHECIMENTO
+==================================================
+
+Pesquisar CPF no banco real.
+
+Remover apenas instruções relacionadas a identificação de Plano Beauty por CPF.
+
+Não remover CPF de fluxos administrativos legítimos sem analisar sua finalidade.
+
+Atualizar a regra para:
+
+"Assinantes do Plano Beauty são identificados pelo telefone cadastrado na assinatura."
+
+==================================================
+13. TESTES
+==================================================
+
+Teste:
+
+"Tenho Plano de Manicure."
+
+Deve pedir telefone.
+
+Primeiro telefone inexistente:
+pedir telefone novamente.
+
+Segundo inexistente:
+handoff.
+
+Testar também:
+
+context = null
+Supabase indisponível
+resposta do modelo contendo CPF
+follow-up contendo CPF
+
+Em nenhum caso Evolution pode receber solicitação de CPF.
+
+==================================================
+14. ENTREGA
+==================================================
+
+Informar:
+
+- causa raiz encontrada;
+- ocorrências ativas removidas;
+- arquivos .js removidos;
+- tools registradas;
+- consulta BEMP;
+- teste Evolution;
+- build;
+- lint;
+- typecheck;
+- testes.
+
+Atualizar:
+
+docs/audit-remediation-status.md
+
+com evidências.
+
+Não publicar automaticamente.</div>
       <div className="bg-green-600 text-white p-2 text-center text-xs font-medium">
         Execute esta instrucao no projeto: reiniciar sistema
       </div>
