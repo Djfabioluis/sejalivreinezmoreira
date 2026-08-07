@@ -48,7 +48,9 @@ export const Route = createFileRoute("/_authenticated/crm")({
       context.queryClient.ensureQueryData({ queryKey: ["crm-stats"], queryFn: () => getCRMDashboardStats() }),
       context.queryClient.ensureQueryData({ queryKey: ["followup-rules"], queryFn: () => listFollowupRules() }),
       context.queryClient.ensureQueryData({ queryKey: ["followup-history"], queryFn: () => listFollowupHistory() }),
+      context.queryClient.ensureQueryData({ queryKey: ["followup-executions"], queryFn: () => listFollowupExecutions() }),
       context.queryClient.ensureQueryData({ queryKey: ["followup-stats"], queryFn: () => getFollowupStats() }),
+
       context.queryClient.ensureQueryData({ queryKey: ["worker-status"], queryFn: () => getWorkerStatus() }),
     ]);
   },
@@ -64,6 +66,8 @@ function CRMPage() {
   const { data: pipeline } = useSuspenseQuery({ queryKey: ["crm-pipeline"], queryFn: () => listCustomerPipeline() });
   const { data: rules } = useSuspenseQuery({ queryKey: ["followup-rules"], queryFn: () => listFollowupRules() });
   const { data: history } = useSuspenseQuery({ queryKey: ["followup-history"], queryFn: () => listFollowupHistory() });
+  const { data: executions } = useSuspenseQuery({ queryKey: ["followup-executions"], queryFn: () => listFollowupExecutions() });
+
   const { data: fStats } = useSuspenseQuery({ queryKey: ["followup-stats"], queryFn: () => getFollowupStats() });
   const { data: workerStatus } = useSuspenseQuery({ queryKey: ["worker-status"], queryFn: () => getWorkerStatus() });
 
@@ -109,32 +113,86 @@ function CRMPage() {
           <TabsTrigger value="history" className="rounded-lg gap-2"><History className="h-4 w-4" /> Histórico</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="dashboard" className="space-y-6">
-           <div className="grid gap-6 md:grid-cols-4">
-            <StatsCard title="Pendentes" value={fStats.pending} icon={Clock} color="text-amber-500" />
-            <StatsCard title="Hoje" value={fStats.sentToday} icon={Zap} color="text-primary" />
-            <StatsCard title="Falhas" value={fStats.failed} icon={Loader2} color="text-red-500" />
-            <StatsCard title="Recuperados" value={fStats.recovered} icon={Sparkles} color="text-emerald-500" />
-           </div>
+        <TabsContent value="executions" className="space-y-4">
+           <Card className="border-none shadow-xl bg-card/50 backdrop-blur-sm overflow-hidden">
+             <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                   <thead className="bg-muted/50 uppercase tracking-widest font-bold text-[10px] text-muted-foreground border-b border-border/40">
+                      <tr>
+                         <th className="px-6 py-4">Telefone</th>
+                         <th className="px-6 py-4">Regra</th>
+                         <th className="px-6 py-4">Agendado</th>
+                         <th className="px-6 py-4">Tentativas</th>
+                         <th className="px-6 py-4">Status</th>
+                      </tr>
+                   </thead>
+                   <tbody className="divide-y divide-border/40">
+                      {executions.map((e: any) => (
+                        <tr key={e.id} className="hover:bg-muted/20 transition-colors">
+                           <td className="px-6 py-4 font-bold">{e.phone}</td>
+                           <td className="px-6 py-4">{e.rule?.name || 'Manual'}</td>
+                           <td className="px-6 py-4 text-muted-foreground">{format(new Date(e.scheduled_at), 'dd/MM HH:mm', { locale: ptBR })}</td>
+                           <td className="px-6 py-4">{e.attempts || 0}/3</td>
+                           <td className="px-6 py-4">
+                              <Badge variant="outline" className={`text-[9px] uppercase ${e.status === 'PROCESSING' ? 'border-blue-500/20 text-blue-600 animate-pulse' : 'border-amber-500/20 text-amber-600'}`}>
+                                 {e.status}
+                              </Badge>
+                           </td>
+                        </tr>
+                      ))}
+                      {executions.length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground italic">
+                            Nenhuma execução pendente na fila.
+                          </td>
+                        </tr>
+                      )}
+                   </tbody>
+                </table>
+             </div>
+           </Card>
         </TabsContent>
-        
-        <TabsContent value="rules" className="space-y-4">
-            {rules.map((rule: any) => (
-              <Card key={rule.id} className="p-6 flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                   <div className="bg-primary/10 p-3 rounded-lg"><Bot className="h-6 w-6 text-primary" /></div>
-                   <div>
-                     <p className="font-bold">{rule.name}</p>
-                     <p className="text-xs text-muted-foreground uppercase">{rule.type}</p>
-                   </div>
-                </div>
-                <div className="flex gap-2">
-                   <Button variant="outline" size="sm" onClick={() => handleRunTest(rule.id)}><Play className="h-3 w-3 mr-2" /> Testar</Button>
-                   <Button variant="ghost" size="icon" onClick={() => { setEditingRule(rule); setIsModalOpen(true); }}><Edit2 className="h-4 w-4" /></Button>
-                </div>
-              </Card>
-            ))}
+
+        <TabsContent value="history" className="space-y-4">
+          <Card className="border-none shadow-xl bg-card/50 backdrop-blur-sm overflow-hidden">
+             <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                   <thead className="bg-muted/50 uppercase tracking-widest font-bold text-[10px] text-muted-foreground border-b border-border/40">
+                      <tr>
+                         <th className="px-6 py-4">Telefone</th>
+                         <th className="px-6 py-4">Regra</th>
+                         <th className="px-6 py-4">Mensagem</th>
+                         <th className="px-6 py-4">Concluído</th>
+                         <th className="px-6 py-4">Status</th>
+                      </tr>
+                   </thead>
+                   <tbody className="divide-y divide-border/40">
+                      {history.map((h: any) => (
+                        <tr key={h.id} className="hover:bg-muted/20 transition-colors">
+                           <td className="px-6 py-4 font-bold">{h.phone}</td>
+                           <td className="px-6 py-4">{h.rule?.name || 'Manual'}</td>
+                           <td className="px-6 py-4 max-w-xs truncate">{h.message_template}</td>
+                           <td className="px-6 py-4 text-muted-foreground">{format(new Date(h.completed_at || h.created_at), 'dd/MM HH:mm', { locale: ptBR })}</td>
+                           <td className="px-6 py-4">
+                              <Badge variant="outline" className={`text-[9px] uppercase ${h.status === 'SENT' ? 'border-emerald-500/20 text-emerald-600' : 'border-red-500/20 text-red-600'}`}>
+                                 {h.status}
+                              </Badge>
+                           </td>
+                        </tr>
+                      ))}
+                      {history.length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground italic">
+                            Nenhum registro no histórico.
+                          </td>
+                        </tr>
+                      )}
+                   </tbody>
+                </table>
+             </div>
+          </Card>
         </TabsContent>
+
       </Tabs>
     </div>
   );
