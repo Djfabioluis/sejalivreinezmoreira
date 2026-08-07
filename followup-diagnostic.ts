@@ -1,6 +1,6 @@
-import { supabaseAdmin } from "./integrations/supabase/client.server";
+import { supabaseAdmin } from "./src/integrations/supabase/client.server";
 import { processPendingFollowups } from "./src/lib/crm/followup-processor.server";
-import { logger } from "./src/lib/crm/observability/logger.server";
+import { logger } from "./src/lib/observability/logger.server";
 
 async function runDiagnostic() {
   console.log("=== INICIANDO DIAGNÓSTICO DE FOLLOW-UP ===");
@@ -11,12 +11,12 @@ async function runDiagnostic() {
     .select("*", { count: 'exact' })
     .eq("status", "PENDENTE");
   
-  console.log(`Follow-ups PENDENTES no banco: ${count}`);
+  console.log(`Follow-ups PENDENTES no banco: ${count || 0}`);
   if (pendentes && pendentes.length > 0) {
     console.log("Exemplo de PENDENTE:", JSON.stringify(pendentes[0], null, 2));
   }
 
-  // 2. Verificar registros elegíveis (agendados para agora ou passado)
+  // 2. Verificar registros elegíveis
   const now = new Date().toISOString();
   const { data: elegiveis } = await supabaseAdmin
     .from("crm_followups")
@@ -34,11 +34,11 @@ async function runDiagnostic() {
     .limit(5);
   console.log("Amostra de wa_conversas:", JSON.stringify(conversas, null, 2));
 
-  // 4. Executar o processador e capturar logs
+  // 4. Executar o processador
   console.log("Executando processPendingFollowups()...");
   try {
     await processPendingFollowups();
-    console.log("Processador finalizado sem erros fatais.");
+    console.log("Processador finalizado.");
   } catch (err) {
     console.error("Erro na execução do processador:", err);
   }
