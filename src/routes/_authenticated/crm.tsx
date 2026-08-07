@@ -244,12 +244,13 @@ function CRMPage() {
             <p className="text-blue-500">[FOLLOWUP_READY] Pronto para envio - Delay de 30 min atingido</p>
             <p className="text-emerald-500">[FOLLOWUP_SENT] Mensagem enviada via Evolution - ID: 3EB0B...</p>
             <p className="text-amber-500">[FOLLOWUP_PROCESSING] Iniciando varredura de conversas inativas...</p>
-            {executions.map(e => (
+            {executions.map((e: any) => (
               <p key={e.id} className="text-muted-foreground italic">[{e.status}] {e.phone} - rule_id: {e.rule_id}</p>
             ))}
-            {history.slice(0, 5).map(h => (
+            {history.slice(0, 5).map((h: any) => (
               <p key={h.id} className="text-muted-foreground">[{h.status}] {h.phone} - message sent at {h.completed_at}</p>
             ))}
+
           </div>
         </ScrollArea>
       </Card>
