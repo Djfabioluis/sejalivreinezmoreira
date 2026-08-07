@@ -388,7 +388,7 @@ function CRMPage() {
                     ...(selectedExecution.metadata?.timeline || []).map((t: any) => ({
                       label: t.step,
                       date: t.at
-                    })).filter((t: any) => !['FOLLOWUP_PROCESSING'].includes(t.label)),
+                    })).filter((t: any) => !['FOLLOWUP_PROCESSING', 'FOLLOWUP_CONVERSATION_LOOKUP'].includes(t.label)),
                     { 
                       label: selectedExecution.status === 'CANCELED' ? 'FOLLOWUP_CANCELED' : selectedExecution.status === 'SENT' ? 'FOLLOWUP_SENT' : selectedExecution.status === 'FAILED' ? 'FOLLOWUP_FAILED' : 'FOLLOWUP_WAITING', 
                       date: ['SENT', 'FAILED', 'CANCELED'].includes(selectedExecution.status) ? selectedExecution.completed_at || selectedExecution.updated_at : null 
@@ -431,7 +431,8 @@ function CRMPage() {
                   <DataField label="Agendado em" value={format(new Date(selectedExecution.scheduled_at), "HH:mm:ss dd/MM")} />
                   <DataField label="Executado em" value={selectedExecution.completed_at ? format(new Date(selectedExecution.completed_at), "HH:mm:ss dd/MM") : "-"} />
                   <DataField label="Worker ID" value={selectedExecution.metadata?.worker_id || "Julia Engine v2"} />
-                  <DataField label="Evolution Instance" value={selectedExecution.metadata?.instance_name || "Primary"} />
+                  <DataField label="Evolution Instance" value={selectedExecution.metadata?.instance_name || selectedExecution.metadata?.evolutionInstance || "Primary"} />
+                  <DataField label="Conversation ID" value={selectedExecution.metadata?.conversationId || (selectedExecution.metadata?.conversationCreated ? "Created" : (selectedExecution.metadata?.conversationFound ? "Found" : "-"))} />
                   <DataField label="Message ID" value={selectedExecution.metadata?.message_id || "-"} className="col-span-2" />
                   
                   {selectedExecution.status === 'CANCELED' && (

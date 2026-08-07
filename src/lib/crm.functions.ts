@@ -327,7 +327,7 @@ export const runFollowupTest = createServerFn({ method: "POST" })
       status: 'READY',
       rule_id: data.ruleId,
       message_template: rule.message_mode === 'FIXED' ? rule.fixed_message : null,
-      metadata: { is_test: true, triggered_by: context.userId, traceId: `test-${Date.now()}` }
+      metadata: { is_test: true, triggered_by: context.userId, traceId: `test-${Date.now()}`, instance: rule.agent_id || "agente-01" }
     } as any).select("*").single();
 
     if (fError || !followup) throw new Error("Erro ao criar followup de teste: " + fError?.message);
