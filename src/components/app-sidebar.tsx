@@ -45,7 +45,8 @@ const items = [
   { title: "Conversas", url: "/agendar", icon: MessageCircle, group: "Operação", key: "agendar" },
   { title: "Clientes", url: "/usuarios", icon: Users, group: "Operação", key: "usuarios" },
   { title: "CRM Inteligente", url: "/crm", icon: TrendingUp, group: "Estratégico", key: "crm" },
-  { title: "Follow-ups", url: "/auditoria-sugestoes", icon: ClipboardList, group: "Estratégico", key: "auditoria-sugestoes" },
+  { title: "Follow-up", url: "/crm", icon: ClipboardList, group: "Estratégico", key: "crm" },
+
   { title: "Oportunidades", url: "/crm", icon: Sparkles, group: "Estratégico", key: "crm" },
   { title: "Campanhas", url: "/crm", icon: TrendingUp, group: "Estratégico", key: "crm" },
   { title: "Beauty Club", url: "/assinatura", icon: Flower2, group: "Fidelização", key: "__always" },
