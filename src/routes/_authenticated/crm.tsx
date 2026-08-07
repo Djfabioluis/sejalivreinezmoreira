@@ -78,9 +78,15 @@ function CRMPage() {
   const [selectedExecution, setSelectedExecution] = useState<any>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
-  const maskPhone = (phone: string) => {
+  const formatPhone = (phone: string) => {
     if (!phone) return "";
-    return phone.replace(/(\d{2})(\d{2})(\d{5})(\d{4})/, "+$1 ($2) *****-$4");
+    // Se for um JID ou chave composta, pega só o final
+    const clean = phone.includes(':') ? phone.split(':')[1] : phone;
+    // Formato E.164 brasileiro (55DD9...)
+    if (clean.startsWith('55') && clean.length >= 12) {
+      return `+${clean.slice(0, 2)} (${clean.slice(2, 4)}) ${clean.slice(4, 9)}-${clean.slice(9)}`;
+    }
+    return clean;
   };
 
   const getStatusIcon = (status: string) => {
@@ -206,7 +212,7 @@ function CRMPage() {
                    <tbody className="divide-y divide-border/40">
                       {executions.map((e: any) => (
                         <tr key={e.id} className="hover:bg-muted/20 transition-colors">
-                           <td className="px-6 py-4 font-bold">{e.phone}</td>
+                           <td className="px-6 py-4 font-bold">{formatPhone(e.phone)}</td>
                            <td className="px-6 py-4">{e.rule?.name || 'Manual'}</td>
                            <td className="px-6 py-4 text-muted-foreground">{format(new Date(e.scheduled_at), 'dd/MM HH:mm', { locale: ptBR })}</td>
                            <td className="px-6 py-4">{e.attempts || 0}/3</td>
@@ -261,7 +267,7 @@ function CRMPage() {
                    <tbody className="divide-y divide-border/40">
                       {history.map((h: any) => (
                         <tr key={h.id} className="hover:bg-muted/20 transition-colors">
-                           <td className="px-6 py-4 font-bold">{h.phone}</td>
+                           <td className="px-6 py-4 font-bold">{formatPhone(h.phone)}</td>
                             <td className="px-6 py-4">{h.rule?.name || 'Manual'}</td>
                             <td className="px-6 py-4 max-w-xs">
                               {h.status === 'CANCELED' ? (
@@ -421,7 +427,7 @@ function CRMPage() {
                 
                 <div className="grid grid-cols-2 gap-4 bg-muted/30 p-4 rounded-xl border border-border/50">
                   <DataField label="Trigger" value={selectedExecution.rule?.name || selectedExecution.reason || "Manual"} />
-                  <DataField label="Telefone" value={maskPhone(selectedExecution.phone)} icon={<Phone className="h-3 w-3" />} />
+                  <DataField label="Telefone" value={formatPhone(selectedExecution.phone)} icon={<Phone className="h-3 w-3" />} />
                   <DataField label="Agendado em" value={format(new Date(selectedExecution.scheduled_at), "HH:mm:ss dd/MM")} />
                   <DataField label="Executado em" value={selectedExecution.completed_at ? format(new Date(selectedExecution.completed_at), "HH:mm:ss dd/MM") : "-"} />
                   <DataField label="Worker ID" value={selectedExecution.metadata?.worker_id || "Julia Engine v2"} />
