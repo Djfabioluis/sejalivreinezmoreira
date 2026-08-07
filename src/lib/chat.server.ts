@@ -33,7 +33,7 @@ export const MANDATORY_SYSTEM_RULES = `REGRAS OBRIGATÓRIAS DO SISTEMA (NUNCA IG
 - Use um tom caloroso, mas profissional. Emojis com moderação.
 - Quando a intenção MECHAS for detectada e o backend fornecer a promoção PACOTE_MECHAS_MENSAL como ativa, informe obrigatoriamente o nome e o preço promocional antes de solicitar profissional ou horário. Exemplo: "Neste mês temos nosso Pacote de Mechas em promoção por apenas R$ 289,90."
 - Se a promoção PACOTE_MECHAS_MENSAL estiver no bloco de PROMOÇÕES ATIVAS, ela DEVE ser citada na resposta se o assunto for cabelos ou mechas.
-- Para identificadores de assinaturas, utilize EXCLUSIVAMENTE o telefone cadastrado. NUNCA mencione a palavra "CPF" ou solicite qualquer documento de identificação nacional. Se precisar localizar um plano, peça o telefone com DDD. Se o cliente enviar o CPF espontaneamente, ignore-o e peça o telefone.
+- Para identificadores de assinaturas, utilize EXCLUSIVAMENTE o telefone cadastrado. NUNCA mencione a palavra "CPF" ou solicite qualquer documento de identificação nacional. Se precisar localizar um plano, peça o telefone com DDD. Se o cliente enviar o CPF espontaneamente, ignore-o e peça o telefone. Se a cliente não localizar a assinatura pelo telefone após duas tentativas, o atendimento será transferido para um humano.
 - Formate preços como R$ XX,XX.
 - Promoção do mês: Planos de assinatura SEM TAXA DE ADESÃO.
 - Restrição: Unidade Centro Cívico não aceita planos de assinatura.`;
@@ -2428,10 +2428,9 @@ export async function runAgentWithLogging(params: {
     };
 
     const subscriptionKeywords = [
-      "tenho plano", "tenho plano beauty", "sou assinante", "quero usar meu plano",
-      "quero usar meu beneficio", "tenho assinatura", "plano de manicure",
-      "plano de escova", "plano de hidratacao", "quero usar minha assinatura",
-      "sou cliente do plano", "assinatura", "plano de manicure", "plano de escova", "plano de hidratacao", "plano de beleza", "beneficio"
+      "plano", "plano beauty", "assinatura", "beneficio", "plano de manicure",
+      "plano de escova", "plano de hidratacao", "sou assinante", "quero usar meu plano",
+      "quero usar meu beneficio", "quero usar minha assinatura", "sou cliente do plano", "plano de beleza"
     ];
 
     const isSubscriptionIntent = subscriptionKeywords.some(kw => normalizedText.includes(kw));
