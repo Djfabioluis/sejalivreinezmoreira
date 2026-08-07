@@ -2,20 +2,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { generateText } from "ai";
 import { createLovableAiGatewayProvider, getAiKey } from "@/lib/ai-gateway.server";
 import { logger } from "../observability/logger.server";
-import { AppError } from "../core/errors";
 import { z } from "zod";
-
-const FollowupStatus = z.enum([
-  "PENDING",
-  "READY",
-  "PROCESSING",
-  "SENT",
-  "DELIVERED",
-  "FAILED",
-  "CANCELED"
-]);
-
-type FollowupStatus = z.infer<typeof FollowupStatus>;
 
 /**
  * Motor de Follow-up Consolidado (Fase 3 - Auditoria)
@@ -29,11 +16,10 @@ export async function processPendingFollowups() {
 
   try {
     // 1. Buscar registros PENDING ou READY vencidos
-    // Filtramos por scheduled_at <= now
     const { data: followups, error: fetchError } = await supabaseAdmin
       .from("crm_followups")
       .select("*")
-      .in("status", ["PENDING", "READY", "PENDENTE"]) // Compatibilidade legada
+      .in("status", ["PENDING", "READY", "PENDENTE", "READY_TO_SEND"])
       .lte("scheduled_at", nowIso)
       .lt("attempts", 3)
       .order("scheduled_at", { ascending: true })
@@ -73,7 +59,7 @@ async function processSingleFollowup(followup: any, parentTraceId: string) {
       .from("crm_followups")
       .update({ status: "PROCESSING", updated_at: new Date().toISOString() })
       .eq("id", followup.id)
-      .eq("status", followup.status); // Garantir que não mudou
+      .eq("status", followup.status);
 
     if (lockError) {
       logger.warn("FOLLOWUP_LOCKED", "Não foi possível travar o registro para processamento", { traceId, followupId: followup.id });
@@ -83,7 +69,7 @@ async function processSingleFollowup(followup: any, parentTraceId: string) {
     // 2. Elegibilidade e Bloqueios
     const { data: conversation } = await supabaseAdmin
       .from("wa_conversas")
-      .select("instance, phone_number, status, attendance_mode, customer_context")
+      .select("*")
       .eq("phone", followup.phone)
       .maybeSingle();
 
@@ -92,22 +78,25 @@ async function processSingleFollowup(followup: any, parentTraceId: string) {
       return;
     }
 
+    // O status e o customer_context podem conter flags de pausa humana
+    const ctx = (conversation.customer_context as any) || {};
+    const attendanceMode = ctx.attendance_mode || (conversation as any).attendance_mode;
+    
     // Bloqueio: Atendimento Humano Ativo
-    if (conversation.attendance_mode === "human" || conversation.status === "atendido_humano") {
+    if (attendanceMode === "human" || conversation.status === "atendido_humano") {
       await blockFollowup(followup.id, "HUMAN_ATTENDING", "Cliente em atendimento humano", traceId);
       return;
     }
 
-    // Bloqueio: Cliente respondeu recentemente (dentro da janela do follow-up)
-    // Se a última mensagem for do usuário e posterior à criação do follow-up
-    const lastInteraction = conversation.customer_context?.last_interaction_at;
+    // Bloqueio: Cliente respondeu recentemente
+    const lastInteraction = ctx.last_interaction_at;
     if (lastInteraction && new Date(lastInteraction) > new Date(followup.created_at)) {
         await blockFollowup(followup.id, "CUSTOMER_REPLIED", "Cliente já interagiu após o agendamento do follow-up", traceId);
         return;
     }
 
-    // Bloqueio: Motivo de Preço (Regra comercial específica)
-    if (followup.reason === 'PRICE') {
+    // Bloqueio: Motivo de Preço
+    if (followup.reason === 'PRICE' || ctx.abandon_trigger === 'PRICE') {
       await blockFollowup(followup.id, "CONVERSATION_CLOSED", "Encerrado por objeção de preço", traceId);
       return;
     }
@@ -124,16 +113,24 @@ async function processSingleFollowup(followup: any, parentTraceId: string) {
     }
 
     if (!messageText || messageText.trim().length === 0) {
-      throw new Error("GENERATION_EMPTY_RESULT");
+      throw new Error("IA_GENERATION_FAILED");
     }
 
     logger.info("FOLLOWUP_GENERATION_COMPLETED", "Mensagem gerada com sucesso", { traceId });
 
     // 4. Envio via Evolution
-    logger.info("FOLLOWUP_SEND_STARTED", "Despachando para Evolution API", { traceId, instance: conversation.instance });
+    const instance = conversation.instance;
+    const phoneNumber = conversation.phone_number;
+
+    if (!instance || !phoneNumber) {
+      await blockFollowup(followup.id, "MISSING_INSTANCE", "Dados de instância ou número ausentes", traceId);
+      return;
+    }
+
+    logger.info("FOLLOWUP_SEND_STARTED", "Despachando para Evolution API", { traceId, instance });
     
     const { sendEvolutionText } = await import("@/lib/evolution.server");
-    const success = await sendEvolutionText(conversation.instance, conversation.phone_number, messageText);
+    const success = await sendEvolutionText(instance, phoneNumber, messageText);
 
     if (!success) {
       throw new Error("EVOLUTION_SEND_FAILED");
@@ -142,7 +139,6 @@ async function processSingleFollowup(followup: any, parentTraceId: string) {
     // 5. Registro e Finalização
     const now = new Date().toISOString();
     
-    // Registrar na conversa para o operador ver
     await supabaseAdmin.rpc("append_wa_message" as any, {
       p_phone: followup.phone,
       p_message: {
@@ -151,8 +147,8 @@ async function processSingleFollowup(followup: any, parentTraceId: string) {
           parts: [{ type: 'text', text: messageText }],
           createdAt: now
       },
-      p_instance: conversation.instance,
-      p_phone_number: conversation.phone_number,
+      p_instance: instance,
+      p_phone_number: phoneNumber,
       p_increment_unread: false,
       p_new_status: "aguardando"
     });
