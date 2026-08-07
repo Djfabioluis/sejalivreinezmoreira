@@ -314,88 +314,100 @@ function LandingPage() {
       </section>
 
 
-      {/* Pricing Modernizado */}
-      <section id="planos" className="relative py-24 sm:py-32 bg-secondary/20">
+      {/* Pricing Modernizado - Ultra Clean */}
+      <section id="planos" className="relative py-24 sm:py-40 bg-secondary/20 overflow-hidden">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+        
         <div className="mx-auto max-w-7xl px-6">
-          <div className="flex flex-col items-center text-center">
-            <h2 className="font-display text-5xl font-medium tracking-tight sm:text-6xl italic">Preços Simples.</h2>
-            <p className="mt-6 max-w-2xl text-lg text-muted-foreground">
-              Sem taxas escondidas. Cancele quando quiser.
+          <div className="flex flex-col items-center text-center mb-20">
+            <h2 className="font-display text-6xl font-medium tracking-tighter sm:text-7xl">
+              Investimento <span className="italic text-primary">Transparente</span>.
+            </h2>
+            <p className="mt-6 max-w-xl text-lg text-muted-foreground/80 leading-relaxed">
+              Sem contratos complexos. Julia começa a trabalhar para você em minutos.
             </p>
 
-            <div className="mt-12 inline-flex items-center rounded-2xl border border-border/40 bg-background/50 p-1.5 backdrop-blur-sm shadow-sm">
+            <div className="mt-12 inline-flex items-center rounded-2xl border border-border/40 bg-background/50 p-1.5 backdrop-blur-md shadow-inner">
               <button
                 onClick={() => setCycle("monthly")}
-                className={`rounded-xl px-8 py-2.5 text-sm font-semibold transition-all ${
-                  cycle === "monthly" ? "bg-primary text-primary-foreground shadow-lg" : "text-muted-foreground hover:text-foreground"
+                className={`rounded-xl px-10 py-3 text-sm font-bold transition-all ${
+                  cycle === "monthly" ? "bg-primary text-primary-foreground shadow-xl" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 Mensal
               </button>
               <button
                 onClick={() => setCycle("yearly")}
-                className={`rounded-xl px-8 py-2.5 text-sm font-semibold transition-all ${
-                  cycle === "yearly" ? "bg-primary text-primary-foreground shadow-lg" : "text-muted-foreground hover:text-foreground"
+                className={`rounded-xl px-10 py-3 text-sm font-bold transition-all ${
+                  cycle === "yearly" ? "bg-primary text-primary-foreground shadow-xl" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                Anual <span className="ml-2 text-[10px] opacity-80">ECONOMIZE 20%</span>
+                Anual <span className="ml-2 text-[10px] opacity-80 uppercase tracking-widest">Off 20%</span>
               </button>
             </div>
           </div>
 
-          <div className="mt-20 grid gap-8 lg:grid-cols-3">
+          <div className="grid gap-8 lg:grid-cols-3 items-start">
             {filteredPlans.map((plan) => (
               <div 
                 key={plan.id} 
-                className={`relative flex flex-col rounded-[2.5rem] p-10 transition-all hover:scale-[1.02] ${
+                className={`group relative flex flex-col rounded-[3rem] p-12 transition-all duration-500 hover:-translate-y-2 ${
                   plan.highlight 
-                    ? 'bg-primary text-primary-foreground shadow-2xl shadow-primary/20 ring-4 ring-primary/10' 
-                    : 'bg-background border border-border/40 shadow-xl shadow-black/[0.02]'
+                    ? 'bg-primary text-primary-foreground shadow-[0_30px_60px_-15px_rgba(var(--color-primary),0.3)] ring-1 ring-primary-foreground/20' 
+                    : 'bg-background border border-border/40 shadow-2xl shadow-black/[0.03] hover:shadow-black/[0.06]'
                 }`}
               >
                 {plan.highlight && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2 rounded-full bg-accent px-4 py-1 text-[10px] font-black uppercase tracking-widest text-accent-foreground shadow-xl">
-                    Recomendado
+                  <div className="absolute -top-5 left-1/2 -translate-x-1/2 rounded-full bg-accent px-6 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-accent-foreground shadow-2xl ring-4 ring-background">
+                    Mais Popular
                   </div>
                 )}
-                <div className="mb-8">
-                  <h3 className="font-display text-3xl font-medium mb-2">{plan.name}</h3>
-                  <p className={`text-sm ${plan.highlight ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>{plan.tagline}</p>
+                
+                <div className="mb-10 text-center">
+                  <h3 className="font-display text-4xl font-medium mb-3 tracking-tight">{plan.name}</h3>
+                  <div className="inline-block px-3 py-1 rounded-full bg-current/10 text-xs font-bold uppercase tracking-widest opacity-80">
+                    {plan.tagline}
+                  </div>
                 </div>
                 
-                <div className="mb-10 flex items-baseline gap-1">
-                  <span className="text-6xl font-bold tracking-tighter">{plan.priceLabel}</span>
-                  <span className={`text-sm font-medium ${plan.highlight ? 'text-primary-foreground/60' : 'text-muted-foreground'}`}>
-                    /{plan.cycle === 'monthly' ? 'mês' : 'ano'}
-                  </span>
+                <div className="mb-12 text-center">
+                  <div className="flex items-baseline justify-center gap-1">
+                    <span className="text-7xl font-bold tracking-tighter">{plan.priceLabel}</span>
+                    <span className={`text-sm font-bold uppercase tracking-widest opacity-60`}>
+                      /{plan.cycle === 'monthly' ? 'mês' : 'ano'}
+                    </span>
+                  </div>
                 </div>
 
-                <ul className="flex-1 space-y-4 mb-10">
+                <div className={`h-px w-full mb-10 ${plan.highlight ? 'bg-primary-foreground/20' : 'bg-border/50'}`} />
+
+                <ul className="flex-1 space-y-5 mb-12">
                   {plan.features.map((feature, i) => (
-                    <li key={i} className="flex items-start gap-3 text-sm">
-                      <div className={`mt-0.5 rounded-full p-0.5 ${plan.highlight ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-primary/10 text-primary'}`}>
+                    <li key={i} className="flex items-center gap-4 text-sm font-medium">
+                      <div className={`h-5 w-5 rounded-full flex items-center justify-center shrink-0 ${plan.highlight ? 'bg-primary-foreground text-primary' : 'bg-primary/10 text-primary'}`}>
                         <Check className="h-3 w-3" />
                       </div>
-                      <span className={plan.highlight ? 'opacity-90' : 'text-muted-foreground'}>{feature}</span>
+                      <span className={plan.highlight ? 'text-primary-foreground/90' : 'text-muted-foreground'}>{feature}</span>
                     </li>
                   ))}
                 </ul>
 
                 <Button
                   onClick={() => handleSubscribe(plan.id)}
-                  className={`h-14 w-full rounded-2xl text-lg font-bold transition-all active:scale-[0.98] ${
+                  className={`h-16 w-full rounded-2xl text-xl font-black transition-all active:scale-[0.97] ${
                     plan.highlight 
-                      ? 'bg-primary-foreground text-primary hover:bg-primary-foreground/90' 
-                      : 'bg-primary shadow-xl shadow-primary/20'
+                      ? 'bg-primary-foreground text-primary hover:bg-white hover:scale-[1.02]' 
+                      : 'bg-primary shadow-xl shadow-primary/20 hover:scale-[1.02]'
                   }`}
                 >
-                  Começar agora
+                  Começar Agora
                 </Button>
               </div>
             ))}
           </div>
         </div>
       </section>
+
 
       {/* Checkout Section */}
       {selectedPrice && (
