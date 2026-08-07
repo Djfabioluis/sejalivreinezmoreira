@@ -2,6 +2,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { generateText } from "ai";
 import { createLovableAiGatewayProvider, getAiKey } from "@/lib/ai-gateway.server";
 import { logger } from "../observability/logger.server";
+import { ConversationService } from "../conversation-service.server";
 
 interface FollowupRule {
   id: string;
@@ -109,79 +110,41 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     // 3. Busca ou Criação de Conversa
     await updateFollowupStep(followup.id, "FOLLOWUP_CONVERSATION_LOOKUP", traceId);
     
-    const { data: convData, error: convError } = await (supabaseAdmin
-      .from("wa_conversas" as any) as any)
-      .select("*")
-      .eq("phone_number", normalized.full)
-      .maybeSingle();
-
-    if (convError) throw new Error(`DATABASE_ERROR_CONVERSATION: ${convError.message}`);
-
-    let conversation = convData;
-
-    if (!conversation) {
-      logger.info("FOLLOWUP_CONVERSATION_MISSING", "Conversa não encontrada, tentando criar...", { traceId, phone: normalized.full });
-      
-      // Se não existe a conversa, criamos uma para permitir o envio do follow-up (Cold Start)
-      const instance = followup.metadata?.instance || "agente-01"; // Fallback para uma instância padrão
-      
-      const newConv: any = {
-        phone: `${instance}:${normalized.full}`,
+    const instance = followup.metadata?.instance || "agente-01";
+    
+    await updateFollowupStep(followup.id, "FOLLOWUP_CONVERSATION_LOOKUP", traceId);
+    
+    let conversation;
+    try {
+      conversation = await ConversationService.findOrCreate({
+        instance,
         phone_number: normalized.full,
-        instance: instance,
-        status: 'aguardando',
         contact_name: followup.metadata?.contact_name || 'Cliente',
-        updated_at: new Date().toISOString(),
-        metadata: { created_by: "JuliaFollowupProcessor", traceId }
-      };
-
-      // REGISTRAR PAYLOAD COMPLETO ANTES DO INSERT
-      logger.info("FOLLOWUP_CONVERSATION_CREATE_PAYLOAD", "Preparando criação de conversa", { 
-        traceId, 
-        payload: newConv 
+        metadata: { traceId, followupId: followup.id }
       });
-
-      const { data: createdConv, error: createError } = await (supabaseAdmin
-        .from("wa_conversas" as any) as any)
-        .insert(newConv)
-        .select("*")
-        .single();
-
-      if (createError) {
-        // REGISTRAR ERRO DETALHADO DO BANCO
-        const dbErrorInfo = {
-          code: createError.code,
-          message: createError.message,
-          details: (createError as any).details || null,
-          hint: (createError as any).hint || null,
-          table: "wa_conversas",
-          payload: newConv,
-          traceId
-        };
-        
-        logger.error("FOLLOWUP_CONVERSATION_CREATION_FAILED_DB", createError.message, dbErrorInfo);
-
-        await blockFollowup(followup.id, "CONVERSATION_CREATION_FAILED", `Erro no banco ao criar conversa: ${createError.message}`, traceId, {
-          dbError: dbErrorInfo,
-          last_sql_op: "INSERT INTO wa_conversas"
-        });
-        return;
-      }
       
-      conversation = createdConv;
-      logger.info("FOLLOWUP_CONVERSATION_CREATED", "Conversa criada com sucesso", { 
-        traceId, 
-        conversationId: conversation.id, 
-        status: conversation.status 
-      });
-      await updateFollowupStep(followup.id, "FOLLOWUP_CONVERSATION_CREATED", traceId);
       await updateFollowupMetadata(followup.id, { 
-        conversationCreated: true, 
         conversationId: conversation.id,
-        instanceUsed: instance
+        instanceUsed: instance,
+        conversationStatus: conversation.status
       });
-    } else {
-      await updateFollowupMetadata(followup.id, { conversationFound: true, conversationId: conversation.id });
+      
+      if (conversation.created_at && new Date(conversation.created_at).getTime() > Date.now() - 10000) {
+        await updateFollowupStep(followup.id, "FOLLOWUP_CONVERSATION_CREATED", traceId);
+      }
+    } catch (convErr: any) {
+      const dbErrorInfo = {
+        code: convErr.code,
+        message: convErr.message,
+        details: convErr.details || null,
+        hint: convErr.hint || null,
+        traceId
+      };
+      
+      await blockFollowup(followup.id, "CONVERSATION_CREATION_FAILED", `Erro ao resolver conversa: ${convErr.message}`, traceId, {
+        dbError: dbErrorInfo
+      });
+      return;
     }
 
     const ctx = (conversation.customer_context as any) || {};
