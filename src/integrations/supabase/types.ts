@@ -347,6 +347,115 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_followup_rules: {
+        Row: {
+          agent_id: string | null
+          created_at: string
+          delay_amount: number
+          delay_unit: string
+          enabled: boolean
+          end_time: string | null
+          fixed_message: string | null
+          id: string
+          max_attempts: number
+          message_mode: string
+          metadata: Json
+          name: string
+          start_time: string | null
+          type: string
+          unit_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          agent_id?: string | null
+          created_at?: string
+          delay_amount?: number
+          delay_unit?: string
+          enabled?: boolean
+          end_time?: string | null
+          fixed_message?: string | null
+          id?: string
+          max_attempts?: number
+          message_mode?: string
+          metadata?: Json
+          name: string
+          start_time?: string | null
+          type?: string
+          unit_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string | null
+          created_at?: string
+          delay_amount?: number
+          delay_unit?: string
+          enabled?: boolean
+          end_time?: string | null
+          fixed_message?: string | null
+          id?: string
+          max_attempts?: number
+          message_mode?: string
+          metadata?: Json
+          name?: string
+          start_time?: string | null
+          type?: string
+          unit_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_followup_rules_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "wa_agentes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_followup_steps: {
+        Row: {
+          created_at: string
+          delay_amount: number
+          delay_unit: string
+          fixed_message: string | null
+          id: string
+          message_mode: string
+          rule_id: string
+          step_order: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          delay_amount?: number
+          delay_unit?: string
+          fixed_message?: string | null
+          id?: string
+          message_mode?: string
+          rule_id: string
+          step_order?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          delay_amount?: number
+          delay_unit?: string
+          fixed_message?: string | null
+          id?: string
+          message_mode?: string
+          rule_id?: string
+          step_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_followup_steps_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "crm_followup_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_followups: {
         Row: {
           attempts: number | null
@@ -357,13 +466,16 @@ export type Database = {
           id: string
           message_template: string | null
           metadata: Json | null
+          next_attempt_at: string | null
           phone: string
           priority: number | null
           reason: string | null
+          rule_id: string | null
           scheduled_at: string
           sent_at: string | null
           stage: string
           status: string | null
+          step_id: string | null
           updated_at: string | null
         }
         Insert: {
@@ -375,13 +487,16 @@ export type Database = {
           id?: string
           message_template?: string | null
           metadata?: Json | null
+          next_attempt_at?: string | null
           phone: string
           priority?: number | null
           reason?: string | null
+          rule_id?: string | null
           scheduled_at: string
           sent_at?: string | null
           stage: string
           status?: string | null
+          step_id?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -393,16 +508,34 @@ export type Database = {
           id?: string
           message_template?: string | null
           metadata?: Json | null
+          next_attempt_at?: string | null
           phone?: string
           priority?: number | null
           reason?: string | null
+          rule_id?: string | null
           scheduled_at?: string
           sent_at?: string | null
           stage?: string
           status?: string | null
+          step_id?: string | null
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "crm_followups_rule_id_fkey"
+            columns: ["rule_id"]
+            isOneToOne: false
+            referencedRelation: "crm_followup_rules"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_followups_step_id_fkey"
+            columns: ["step_id"]
+            isOneToOne: false
+            referencedRelation: "crm_followup_steps"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       crm_opportunities: {
         Row: {
