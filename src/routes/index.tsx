@@ -461,7 +461,7 @@ function LandingPage() {
               <ul className="space-y-4 text-sm text-muted-foreground">
                 <li><a href="#recursos" className="hover:text-primary transition-colors">Recursos</a></li>
                 <li><a href="#planos" className="hover:text-primary transition-colors">Planos</a></li>
-                <li><Link to="/auth" search={{}} className="hover:text-primary transition-colors">Acesso Administrativo</Link></li>
+                <li><Link to="/auth" className="hover:text-primary transition-colors">Acesso Administrativo</Link></li>
               </ul>
             </div>
             <div>
