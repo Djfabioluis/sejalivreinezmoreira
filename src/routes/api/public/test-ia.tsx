@@ -20,16 +20,14 @@ export const Route = createFileRoute("/api/public/test-ia")({
         if (type === "runAgent") {
           const { message, contactName, contactPhone, instance, unidadeId } = params;
           try {
-            const reply = await runAgent(
-              [{ id: "test-1", role: "user", parts: [{ type: "text", text: message }] } as any],
-              {
-                contactName,
-                contactPhone,
-                unidadeId,
-                unitName: "Unidade Teste",
-                customerContext: {}
-              }
-            );
+            const reply = await runAgent({
+              messages: [{ id: "test-1", role: "user", parts: [{ type: "text", text: message }] } as any],
+              contactName,
+              contactPhone,
+              unidadeId,
+              unitName: "Unidade Teste",
+              customerContext: {}
+            });
             return new Response(JSON.stringify({ ok: true, reply }), {
               headers: { "Content-Type": "application/json" }
             });

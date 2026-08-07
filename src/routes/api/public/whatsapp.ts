@@ -255,15 +255,15 @@ export const Route = createFileRoute("/api/public/whatsapp")({
                   // Se houver agente configurado com Evolution, o Cloud API deve ser ignorado ou delegar
                   // Para manter compatibilidade, usamos runAgentWithLogging que já tem toda a instrumentação
                   await runAgentWithLogging({
+                    messages: history,
                     instance: (agent as any)?.instancia || "cloud-api",
-                    remoteJid: `${phone}@s.whatsapp.net`,
                     messageId: msg.id,
-                    phone: phone,
+                    contactPhone: phone,
                     conversationKey: conversationKey,
                     text: userText,
-                    unidadeId: (agent as any)?.unidade_id || "5258", // Fallback para Ventura se não identificado
-                    pushName: "Cliente"
-                  });
+                    unidadeId: (agent as any)?.unidade_id || "5258",
+                    contactName: "Cliente"
+                  } as any);
 
                 } catch (err) {
                   console.error("[whatsapp] erro processando mensagem:", err);

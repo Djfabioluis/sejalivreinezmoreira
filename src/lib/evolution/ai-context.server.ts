@@ -18,7 +18,8 @@ export async function executeAI(context: AIContext) {
   });
 
   try {
-    const aiResponse = await runAgent(context.history, { 
+    const aiResponse = await runAgent({ 
+      messages: context.history,
       sandbox: false,
       unidadeId: context.unidadeId,
       unitName: context.unitName,

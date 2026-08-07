@@ -110,15 +110,14 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     const { runAgentWithLogging } = await import("@/lib/chat.server");
     await runAgentWithLogging({
       instance,
-      remoteJid: msg.remoteJid,
       messageId,
-      pushName: msg.pushName || undefined,
+      contactName: msg.pushName || undefined,
       text,
       unidadeId: agent.unidade_id,
-      phone,
+      contactPhone: phone,
       conversationKey,
       traceId
-    });
+    } as any);
 
     await logEvent({ instance, messageId, event: "agent_flow_completed", status: "success", payload: { traceId } });
   } catch (error) {
