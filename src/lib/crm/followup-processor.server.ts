@@ -239,6 +239,19 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
   }
 }
 
+async function updateFollowupMetadata(id: string, newMetadata: any) {
+  const { data: followup } = await supabaseAdmin.from("crm_followups").select("metadata").eq("id", id).single();
+  const metadata = (followup?.metadata as any) || {};
+  
+  await supabaseAdmin
+    .from("crm_followups")
+    .update({ 
+      metadata: { ...metadata, ...newMetadata },
+      updated_at: new Date().toISOString()
+    } as any)
+    .eq("id", id);
+}
+
 async function updateFollowupStep(id: string, step: string, traceId: string) {
   const { data: followup } = await supabaseAdmin.from("crm_followups").select("metadata").eq("id", id).single();
   const metadata = (followup?.metadata as any) || {};
