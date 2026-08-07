@@ -2820,12 +2820,26 @@ ${subscriptionContextLine(ctx as Record<string, any>)}
 `.trim();
   }
 
+  // CARREGAMENTO UNCONDICIONAL DE PROMOÇÕES (Correção Requisito Promoção)
+  let activePromotions: any[] = [];
+  try {
+    const promoResult = await PromotionService.getActivePromotions({
+      unitId: opts.unidadeId || undefined,
+      channel: "WHATSAPP"
+    });
+    if (promoResult.success) {
+      activePromotions = promoResult.promotions;
+    }
+  } catch (err) {
+    console.error("[chat] load_promos_failed in runAgent:", err);
+  }
+
   const basePrompt = await loadSystemPrompt({
     contactName: opts.contactName || undefined,
     contactPhone: opts.contactPhone || undefined,
     unitName: opts.unitName || undefined,
     customerContext: opts.customerContext,
-    activePromotions: opts.activePromotions
+    activePromotions: activePromotions
   });
 
   const { effectiveUnitId, effectiveUnitName, source } = await resolveEffectiveUnit({ 
@@ -2835,7 +2849,7 @@ ${subscriptionContextLine(ctx as Record<string, any>)}
 
   const currentUnitName = effectiveUnitName || opts.unitName;
 
-  // Promoções já passadas via opts.activePromotions em loadSystemPrompt
+  // Promoções já passadas via activePromotions em loadSystemPrompt
   const promotionBlock = "";
 
   let fullSystem = assembleSystemPrompt(basePrompt, {
