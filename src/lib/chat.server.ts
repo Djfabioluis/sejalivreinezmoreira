@@ -2132,31 +2132,16 @@ export function detectServiceCategory(message: string): { category: ServiceCateg
 
 export function ensureMandatoryPromotionMessage(text: string, promotion: { title: string; price: number }): string {
   const priceStr = "289,90";
-  const hasTitle = text.toLowerCase().includes("pacote de mechas");
+  const hasPackage = text.toLowerCase().includes("pacote de mechas");
   const hasPrice = text.includes(priceStr);
 
-  if (hasTitle && hasPrice) return text;
+  if (hasPackage && hasPrice) return text;
 
-  const prefix = `✨ Temos uma condição especial este mês!
-
-O *Pacote de Mechas* está em promoção por *R$ 289,90*. 💜
-
-Você gostaria de aproveitar o pacote ou prefere conhecer outras opções de mechas?
-
-`;
-  return prefix + text;
-});
-  const hasTitle = text.toLowerCase().includes(promotion.title.toLowerCase());
-  const hasPrice = text.includes(priceStr);
-
-  if (hasTitle && hasPrice) return text;
-
-  const prefix = `✨ Neste mês, o *${promotion.title}* está em promoção por *R$ ${priceStr}*. 💜\n\n`;
+  const prefix = `✨ Temos uma condição especial este mês!\n\nO *Pacote de Mechas* está em promoção por *R$ 289,90*. 💜\n\nVocê gostaria de aproveitar o pacote ou prefere conhecer outras opções de mechas?\n\n`;
   return prefix + text;
 }
 
 
-/** Monta o system prompt completo com variáveis substituídas e regras obrigatórias no final. */
 export function assembleSystemPrompt(
   basePrompt: string,
   opts: {
