@@ -106,11 +106,13 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       return;
     }
 
-    // 3. Busca de Conversa usando formato unificado
+    // 3. Busca ou Criação de Conversa
+    await updateFollowupStep(followup.id, "FOLLOWUP_CONVERSATION_LOOKUP", traceId);
+    
     const { data: convData, error: convError } = await (supabaseAdmin
       .from("wa_conversas" as any) as any)
       .select("*")
-      .eq("phone", `${followup.phone.includes(':') ? followup.phone.split(':')[0] : 'agente'}:${normalized.full}`)
+      .eq("phone_number", normalized.full)
       .maybeSingle();
 
     if (convError) throw new Error(`DATABASE_ERROR_CONVERSATION: ${convError.message}`);
@@ -118,23 +120,40 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     let conversation = convData;
 
     if (!conversation) {
-      // Se não achou pelo prefixo de instância, tenta buscar apenas pelo número nas conversas
-      const { data: convFallback } = await (supabaseAdmin
-        .from("wa_conversas" as any) as any)
-        .select("*")
-        .eq("phone_number", normalized.full)
-        .maybeSingle();
+      logger.info("FOLLOWUP_CONVERSATION_MISSING", "Conversa não encontrada, tentando criar...", { traceId, phone: normalized.full });
       
-      if (!convFallback) {
-        await blockFollowup(followup.id, "INVALID_PHONE", "Conversa não encontrada para este número", traceId, {
-          rawPhone: followup.phone,
-          normalizedPhone: normalized.full,
-          phoneSearch: normalized.full,
-          validatorReason: "CONVERSATION_NOT_FOUND"
+      // Se não existe a conversa, criamos uma para permitir o envio do follow-up (Cold Start)
+      const instance = followup.metadata?.instance || "agente-01"; // Fallback para uma instância padrão se não houver no metadata
+      const newConv = {
+        phone: `${instance}:${normalized.full}`,
+        phone_number: normalized.full,
+        instance: instance,
+        status: 'aguardando',
+        contact_name: followup.metadata?.contact_name || 'Cliente',
+        last_interaction_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        metadata: { created_by: "JuliaFollowupProcessor", traceId }
+      };
+
+      const { data: createdConv, error: createError } = await (supabaseAdmin
+        .from("wa_conversas" as any) as any)
+        .insert(newConv)
+        .select("*")
+        .single();
+
+      if (createError) {
+        await blockFollowup(followup.id, "CONVERSATION_CREATION_FAILED", `Erro ao criar conversa: ${createError.message}`, traceId, {
+          dbError: createError
         });
         return;
       }
-      conversation = convFallback;
+      
+      conversation = createdConv;
+      await updateFollowupStep(followup.id, "FOLLOWUP_CONVERSATION_CREATED", traceId);
+      await updateFollowupMetadata(followup.id, { conversationCreated: true, conversationId: conversation.id });
+    } else {
+      await updateFollowupMetadata(followup.id, { conversationFound: true, conversationId: conversation.id });
     }
 
     const ctx = (conversation.customer_context as any) || {};
