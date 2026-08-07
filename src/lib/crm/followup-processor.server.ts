@@ -123,8 +123,9 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       logger.info("FOLLOWUP_CONVERSATION_MISSING", "Conversa não encontrada, tentando criar...", { traceId, phone: normalized.full });
       
       // Se não existe a conversa, criamos uma para permitir o envio do follow-up (Cold Start)
-      const instance = followup.metadata?.instance || "agente-01"; // Fallback para uma instância padrão se não houver no metadata
-      const newConv = {
+      const instance = followup.metadata?.instance || "agente-01"; // Fallback para uma instância padrão
+      
+      const newConv: any = {
         phone: `${instance}:${normalized.full}`,
         phone_number: normalized.full,
         instance: instance,
@@ -136,6 +137,12 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
         metadata: { created_by: "JuliaFollowupProcessor", traceId }
       };
 
+      // REGISTRAR PAYLOAD COMPLETO ANTES DO INSERT
+      logger.info("FOLLOWUP_CONVERSATION_CREATE_PAYLOAD", "Preparando criação de conversa", { 
+        traceId, 
+        payload: newConv 
+      });
+
       const { data: createdConv, error: createError } = await (supabaseAdmin
         .from("wa_conversas" as any) as any)
         .insert(newConv)
@@ -143,15 +150,38 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
         .single();
 
       if (createError) {
-        await blockFollowup(followup.id, "CONVERSATION_CREATION_FAILED", `Erro ao criar conversa: ${createError.message}`, traceId, {
-          dbError: createError
+        // REGISTRAR ERRO DETALHADO DO BANCO
+        const dbErrorInfo = {
+          code: createError.code,
+          message: createError.message,
+          details: (createError as any).details || null,
+          hint: (createError as any).hint || null,
+          table: "wa_conversas",
+          payload: newConv,
+          traceId
+        };
+        
+        logger.error("FOLLOWUP_CONVERSATION_CREATION_FAILED_DB", createError.message, dbErrorInfo);
+
+        await blockFollowup(followup.id, "CONVERSATION_CREATION_FAILED", `Erro no banco ao criar conversa: ${createError.message}`, traceId, {
+          dbError: dbErrorInfo,
+          last_sql_op: "INSERT INTO wa_conversas"
         });
         return;
       }
       
       conversation = createdConv;
+      logger.info("FOLLOWUP_CONVERSATION_CREATED", "Conversa criada com sucesso", { 
+        traceId, 
+        conversationId: conversation.id, 
+        status: conversation.status 
+      });
       await updateFollowupStep(followup.id, "FOLLOWUP_CONVERSATION_CREATED", traceId);
-      await updateFollowupMetadata(followup.id, { conversationCreated: true, conversationId: conversation.id });
+      await updateFollowupMetadata(followup.id, { 
+        conversationCreated: true, 
+        conversationId: conversation.id,
+        instanceUsed: instance
+      });
     } else {
       await updateFollowupMetadata(followup.id, { conversationFound: true, conversationId: conversation.id });
     }
