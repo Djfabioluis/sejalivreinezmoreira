@@ -14,7 +14,27 @@ export async function processPendingFollowups() {
 
   logger.info("FOLLOWUP_WORKER_STARTED", "Iniciando processamento de follow-ups", { traceId, now: nowIso });
 
+
   try {
+    // 0. Recuperação de registros presos em PROCESSING (Step 19)
+    // Se está em PROCESSING há mais de 15 minutos, volta para READY ou falha
+    const fifteenMinsAgo = new Date(now.getTime() - 15 * 60 * 1000).toISOString();
+    const { data: stuck, error: stuckError } = await supabaseAdmin
+      .from("crm_followups")
+      .update({ 
+        status: "READY", 
+        updated_at: nowIso,
+        metadata: { recovery: "stuck_processing_reset", reset_at: nowIso }
+      })
+      .in("status", ["PROCESSING", "EM_PROCESSAMENTO"])
+      .lt("updated_at", fifteenMinsAgo)
+      .select();
+
+    if (stuck && stuck.length > 0) {
+      logger.warn("FOLLOWUP_STUCK_RECOVERED", `Recuperados ${stuck.length} registros presos`, { traceId });
+    }
+
+
     // 1. Buscar registros PENDING ou READY vencidos
     const { data: followups, error: fetchError } = await supabaseAdmin
       .from("crm_followups")
@@ -26,6 +46,7 @@ export async function processPendingFollowups() {
       .limit(20);
 
     if (fetchError) {
+      console.error(`[AUDIT] FOLLOWUP_FETCH_FAILED error=${fetchError.message}`);
       logger.error("FOLLOWUP_FETCH_FAILED", fetchError.message, { traceId, error: fetchError });
       return;
     }
@@ -39,6 +60,7 @@ export async function processPendingFollowups() {
       traceId, 
       count: followups.length 
     });
+
 
     for (const followup of followups) {
       await processSingleFollowup(followup, traceId);
@@ -59,12 +81,14 @@ async function processSingleFollowup(followup: any, parentTraceId: string) {
       .from("crm_followups")
       .update({ status: "PROCESSING", updated_at: new Date().toISOString() })
       .eq("id", followup.id)
-      .eq("status", followup.status);
+      .in("status", ["PENDING", "READY", "PENDENTE", "READY_TO_SEND"]);
 
     if (lockError) {
       logger.warn("FOLLOWUP_LOCKED", "Não foi possível travar o registro para processamento", { traceId, followupId: followup.id });
       return;
     }
+
+
 
     // 2. Elegibilidade e Bloqueios
     const { data: conversation } = await supabaseAdmin
@@ -109,8 +133,15 @@ async function processSingleFollowup(followup: any, parentTraceId: string) {
     let messageText = followup.message_template;
     
     if (!messageText) {
-      messageText = await generateAiFollowup(followup, conversation, traceId);
+      if (followup.reason?.toString().trim().toUpperCase() === 'DEBUG_AUDIT') {
+        messageText = "Teste técnico de follow-up - Julia AI";
+      } else {
+        messageText = await generateAiFollowup(followup, conversation, traceId);
+      }
     }
+
+
+
 
     if (!messageText || messageText.trim().length === 0) {
       throw new Error("IA_GENERATION_FAILED");
@@ -174,10 +205,17 @@ async function processSingleFollowup(followup: any, parentTraceId: string) {
     
     logger.error("FOLLOWUP_SEND_FAILED", err.message, { traceId, followupId: followup.id, retryable: isRetryable });
 
+    // Step 20: Retry logic
+    const nextStatus = (isRetryable && newAttempts < 3) ? "READY" : "FAILED";
+    if (nextStatus === "READY") {
+       logger.info("FOLLOWUP_RETRY_SCHEDULED", "Agendando nova tentativa", { traceId, attempt: newAttempts });
+    }
+
+
     await supabaseAdmin
       .from("crm_followups")
       .update({
-        status: (isRetryable && newAttempts < 3) ? "READY" : "FAILED",
+        status: nextStatus,
         attempts: newAttempts,
         metadata: { ...(followup.metadata || {}), last_error: err.message },
         updated_at: new Date().toISOString()
