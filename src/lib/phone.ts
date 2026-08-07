@@ -62,3 +62,34 @@ export function maskPhone(phone: string): string {
   if (digits.length < 4) return "****";
   return `******${digits.slice(-4)}`;
 }
+
+/**
+ * Gera variantes do telefone para lidar com o 9º dígito.
+ */
+export function getPhoneVariants(normalized: NormalizedPhone): NormalizedPhone[] {
+  const variants = [normalized];
+  const { countryCode, areaCode, number } = normalized;
+
+  // Se tem 9 dígitos e começa com 9, tenta a variante de 8
+  if (number.length === 9 && number.startsWith("9")) {
+    const withoutNine = number.slice(1);
+    variants.push({
+      countryCode,
+      areaCode,
+      number: withoutNine,
+      full: `${countryCode}${areaCode}${withoutNine}`
+    });
+  } 
+  // Se tem 8 dígitos, tenta a variante de 9 adicionando o 9 na frente
+  else if (number.length === 8) {
+    const withNine = `9${number}`;
+    variants.push({
+      countryCode,
+      areaCode,
+      number: withNine,
+      full: `${countryCode}${areaCode}${withNine}`
+    });
+  }
+
+  return variants;
+}
