@@ -166,4 +166,86 @@ export const triggerCampaignGeneration = createServerFn({ method: "POST" })
     return await runPredictiveCampaignEngine();
   });
 
+export const listFollowupRules = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { data, error } = await (supabaseAdmin
+      .from("crm_followup_rules" as any) as any)
+      .select("*, steps:crm_followup_steps(*)")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return data || [];
+  });
 
+export const saveFollowupRule = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: any) => data)
+  .handler(async ({ context, data }: { context: any, data: any }) => {
+
+    await assertAdmin(context);
+    const { steps, ...rule } = data;
+    
+    let ruleId = rule.id;
+    if (ruleId) {
+      const { error } = await (supabaseAdmin.from("crm_followup_rules" as any) as any).update(rule).eq("id", ruleId);
+      if (error) throw new Error(error.message);
+    } else {
+      const { data: inserted, error } = await (supabaseAdmin.from("crm_followup_rules" as any) as any).insert(rule).select("id").single();
+      if (error) throw new Error(error.message);
+      ruleId = (inserted as any).id;
+    }
+
+    if (steps && steps.length > 0) {
+      await (supabaseAdmin.from("crm_followup_steps" as any) as any).delete().eq("rule_id", ruleId);
+      const stepsToInsert = steps.map((s: any, i: number) => ({ ...s, rule_id: ruleId, step_order: i }));
+      const { error: stepsError } = await (supabaseAdmin.from("crm_followup_steps" as any) as any).insert(stepsToInsert);
+      if (stepsError) throw new Error(stepsError.message);
+    }
+
+    return { success: true, id: ruleId };
+  });
+
+export const deleteFollowupRule = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: { id: string }) => data)
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const { error } = await (supabaseAdmin.from("crm_followup_rules" as any) as any).delete().eq("id", data.id);
+    if (error) throw new Error(error.message);
+    return { success: true };
+  });
+
+
+export const listFollowupHistory = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { data, error } = await (supabaseAdmin
+      .from("crm_followups" as any) as any)
+      .select("*, rule:crm_followup_rules(name)")
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (error) throw new Error(error.message);
+    return data || [];
+  });
+
+export const getFollowupStats = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await assertAdmin(context);
+    const { data: followups, error } = await (supabaseAdmin.from("crm_followups" as any) as any).select("status, created_at, metadata");
+    if (error) throw new Error(error.message);
+    
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    
+    const stats = {
+      pending: (followups as any[]).filter(f => f.status === 'PENDING' || f.status === 'READY').length,
+      sentToday: (followups as any[]).filter(f => f.status === 'SENT' && f.created_at?.startsWith(todayStr)).length,
+      failed: (followups as any[]).filter(f => f.status === 'FAILED').length,
+      recovered: (followups as any[]).filter(f => f.status === 'SENT' && (f.metadata as any)?.recovered).length,
+    };
+    
+    return stats;
+  });
