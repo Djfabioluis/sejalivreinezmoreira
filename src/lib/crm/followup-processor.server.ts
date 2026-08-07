@@ -12,8 +12,8 @@ export async function processPendingFollowups() {
   const now = new Date();
   const nowIso = now.toISOString();
 
-  console.log(`[AUDIT] FOLLOWUP_WORKER_STARTED traceId=${traceId} now=${nowIso}`);
   logger.info("FOLLOWUP_WORKER_STARTED", "Iniciando processamento de follow-ups", { traceId, now: nowIso });
+
 
   try {
     // 0. Recuperação de registros presos em PROCESSING (Step 19)
@@ -31,9 +31,9 @@ export async function processPendingFollowups() {
       .select();
 
     if (stuck && stuck.length > 0) {
-      console.log(`[AUDIT] FOLLOWUP_STUCK_RECOVERED count=${stuck.length}`);
       logger.warn("FOLLOWUP_STUCK_RECOVERED", `Recuperados ${stuck.length} registros presos`, { traceId });
     }
+
 
     // 1. Buscar registros PENDING ou READY vencidos
     const { data: followups, error: fetchError } = await supabaseAdmin
@@ -52,16 +52,15 @@ export async function processPendingFollowups() {
     }
 
     if (!followups || followups.length === 0) {
-      console.log(`[AUDIT] FOLLOWUP_WORKER_FINISHED - No pendings found.`);
       logger.info("FOLLOWUP_WORKER_FINISHED", "Nenhum follow-up pendente encontrado", { traceId });
       return;
     }
 
-    console.log(`[AUDIT] FOLLOWUP_DETECTED count=${followups.length} TraceId=${traceId}`);
     logger.info("FOLLOWUP_DETECTED", `Encontrados ${followups.length} follow-ups para processar`, { 
       traceId, 
       count: followups.length 
     });
+
 
     for (const followup of followups) {
       await processSingleFollowup(followup, traceId);
@@ -85,10 +84,10 @@ async function processSingleFollowup(followup: any, parentTraceId: string) {
       .in("status", ["PENDING", "READY", "PENDENTE", "READY_TO_SEND"]);
 
     if (lockError) {
-      console.warn(`[AUDIT] FOLLOWUP_LOCKED id=${followup.id} traceId=${traceId}`);
       logger.warn("FOLLOWUP_LOCKED", "Não foi possível travar o registro para processamento", { traceId, followupId: followup.id });
       return;
     }
+
 
 
     // 2. Elegibilidade e Bloqueios
@@ -133,16 +132,14 @@ async function processSingleFollowup(followup: any, parentTraceId: string) {
     
     let messageText = followup.message_template;
     
-    console.log(`[AUDIT] GENERATION_START id=${followup.id} reason=${followup.reason} hasTemplate=${!!messageText}`);
-
     if (!messageText) {
       if (followup.reason?.toString().trim().toUpperCase() === 'DEBUG_AUDIT') {
-        console.log(`[AUDIT] DEBUG_AUDIT_DETECTED - Using fixed message`);
         messageText = "Teste técnico de follow-up - Julia AI";
       } else {
         messageText = await generateAiFollowup(followup, conversation, traceId);
       }
     }
+
 
 
 
@@ -206,15 +203,14 @@ async function processSingleFollowup(followup: any, parentTraceId: string) {
     const isRetryable = ["EVOLUTION_SEND_FAILED", "IA_GENERATION_FAILED", "TIMEOUT"].includes(err.message);
     const newAttempts = (followup.attempts || 0) + 1;
     
-    console.error(`[AUDIT] FOLLOWUP_SEND_FAILED id=${followup.id} error=${err.message} retryable=${isRetryable}`);
     logger.error("FOLLOWUP_SEND_FAILED", err.message, { traceId, followupId: followup.id, retryable: isRetryable });
 
     // Step 20: Retry logic
     const nextStatus = (isRetryable && newAttempts < 3) ? "READY" : "FAILED";
     if (nextStatus === "READY") {
-       console.log(`[AUDIT] FOLLOWUP_RETRY_SCHEDULED id=${followup.id} attempt=${newAttempts}`);
        logger.info("FOLLOWUP_RETRY_SCHEDULED", "Agendando nova tentativa", { traceId, attempt: newAttempts });
     }
+
 
     await supabaseAdmin
       .from("crm_followups")
