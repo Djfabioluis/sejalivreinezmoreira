@@ -280,7 +280,7 @@ function CRMPage() {
           setEditingRule(null);
         }}
         rule={editingRule}
-        onSave={async (ruleData) => {
+        onSave={async (ruleData: any) => {
           toast.loading("Salvando regra...");
           try {
             await saveRuleFn({ data: ruleData });
