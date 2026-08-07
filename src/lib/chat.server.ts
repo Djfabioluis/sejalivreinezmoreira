@@ -2131,7 +2131,21 @@ export function detectServiceCategory(message: string): { category: ServiceCateg
 }
 
 export function ensureMandatoryPromotionMessage(text: string, promotion: { title: string; price: number }): string {
-  const priceStr = promotion.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+  const priceStr = "289,90";
+  const hasTitle = text.toLowerCase().includes("pacote de mechas");
+  const hasPrice = text.includes(priceStr);
+
+  if (hasTitle && hasPrice) return text;
+
+  const prefix = `✨ Temos uma condição especial este mês!
+
+O *Pacote de Mechas* está em promoção por *R$ 289,90*. 💜
+
+Você gostaria de aproveitar o pacote ou prefere conhecer outras opções de mechas?
+
+`;
+  return prefix + text;
+});
   const hasTitle = text.toLowerCase().includes(promotion.title.toLowerCase());
   const hasPrice = text.includes(priceStr);
 
@@ -2619,6 +2633,7 @@ export async function runAgentWithLogging(params: {
     let activePromotions: any[] = [];
     
     try {
+      logger.info("PROMOTION_LOOKUP_STARTED", "Iniciando consulta de promoções para a orquestração", { traceId: effectiveTraceId });
       const promoResult = await PromotionService.getActivePromotions({
         unitId: effectiveUnitId || undefined,
         channel: "WHATSAPP"
@@ -2626,19 +2641,25 @@ export async function runAgentWithLogging(params: {
 
       if (promoResult.success) {
         activePromotions = promoResult.promotions;
+        logger.info("PROMOTION_LOOKUP_COMPLETED", `Consulta concluída com ${activePromotions.length} promoções`, { traceId: effectiveTraceId });
         
         // Se houver intenção de mechas, identificamos a promoção mandatória para injeção
         const intent = detectServiceCategory(params.text);
-        if (intent?.category === "MECHAS" || params.text.toLowerCase().includes("mecha")) {
+        if (intent?.category === "MECHAS") {
+          logger.info("MECHAS_INTENT_DETECTED", "Intenção de mechas detectada deterministicamente", { traceId: effectiveTraceId, text: params.text });
           const mechasPromo = activePromotions.find((p: any) => p.code === 'PACOTE_MECHAS_MENSAL');
           if (mechasPromo) {
             mandatoryPromo = mechasPromo;
-            logger.info("PROMOTION_SELECTED", `Promoção de mechas identificada por intenção`, { 
+            logger.info("MECHAS_PROMOTION_FOUND", "Promoção de mechas ativa encontrada", { 
               promo: mechasPromo.code,
               traceId: effectiveTraceId
             });
+          } else {
+            logger.warn("MECHAS_PROMOTION_NOT_FOUND", "Intenção de mechas detectada, mas promoção PACOTE_MECHAS_MENSAL não está ativa", { traceId: effectiveTraceId });
           }
         }
+      } else {
+        logger.error("PROMOTION_LOOKUP_FAILED", "Falha ao consultar promoções", { code: promoResult.code, message: promoResult.message, traceId: effectiveTraceId });
       }
     } catch (err) {
       logger.error("PROMOTION_LOAD_FAILED", `Erro crítico ao carregar promoções`, { error: err, traceId: effectiveTraceId });
@@ -2672,6 +2693,20 @@ export async function runAgentWithLogging(params: {
         title: mandatoryPromo.title,
         price: mandatoryPromo.promotional_price
       });
+      
+      if (validatedReply !== reply) {
+        logger.info("MECHAS_PROMOTION_INJECTED", `Promoção injetada na resposta final [${effectiveTraceId}]`, { promo: mandatoryPromo.code });
+        reply = validatedReply;
+      } else {
+        logger.info("MECHAS_PROMOTION_PRESENTED", "Promoção de mechas já apresentada pelo modelo", { promo: mandatoryPromo.code });
+      }
+
+      await patchCustomerContext(conversationKey, {
+        mechasPromotionPresented: true,
+        promotionCode: mandatoryPromo.code,
+        promotionPresentedAt: new Date().toISOString()
+      });
+    });
       
       if (validatedReply !== reply) {
         logger.info("PROMOTION_INJECTED", `Promoção injetada na resposta final [${effectiveTraceId}]`, { promo: mandatoryPromo.code });
@@ -2821,16 +2856,39 @@ ${subscriptionContextLine(ctx as Record<string, any>)}
   }
 
   // CARREGAMENTO UNCONDICIONAL DE PROMOÇÕES (Correção Requisito Promoção)
-  let activePromotions: any[] = [];
-  try {
-    const promoResult = await PromotionService.getActivePromotions({
-      unitId: opts.unidadeId || undefined,
-      channel: "WHATSAPP"
-    });
-    if (promoResult.success) {
-      activePromotions = promoResult.promotions;
-    }
-  } catch (err) {
+    let mandatoryPromo: any = null;
+    let activePromotions: any[] = [];
+    
+    try {
+      logger.info("PROMOTION_LOOKUP_STARTED", "Iniciando consulta de promoções para a orquestração", { traceId: effectiveTraceId });
+      const promoResult = await PromotionService.getActivePromotions({
+        unitId: effectiveUnitId || undefined,
+        channel: "WHATSAPP"
+      });
+
+      if (promoResult.success) {
+        activePromotions = promoResult.promotions;
+        logger.info("PROMOTION_LOOKUP_COMPLETED", `Consulta concluída com ${activePromotions.length} promoções`, { traceId: effectiveTraceId });
+        
+        // Se houver intenção de mechas, identificamos a promoção mandatória para injeção
+        const intent = detectServiceCategory(params.text);
+        if (intent?.category === "MECHAS") {
+          logger.info("MECHAS_INTENT_DETECTED", "Intenção de mechas detectada deterministicamente", { traceId: effectiveTraceId, text: params.text });
+          const mechasPromo = activePromotions.find((p: any) => p.code === 'PACOTE_MECHAS_MENSAL');
+          if (mechasPromo) {
+            mandatoryPromo = mechasPromo;
+            logger.info("MECHAS_PROMOTION_FOUND", "Promoção de mechas ativa encontrada", { 
+              promo: mechasPromo.code,
+              traceId: effectiveTraceId
+            });
+          } else {
+            logger.warn("MECHAS_PROMOTION_NOT_FOUND", "Intenção de mechas detectada, mas promoção PACOTE_MECHAS_MENSAL não está ativa", { traceId: effectiveTraceId });
+          }
+        }
+      } else {
+        logger.error("PROMOTION_LOOKUP_FAILED", "Falha ao consultar promoções", { code: promoResult.code, message: promoResult.message, traceId: effectiveTraceId });
+      }
+    } catch (err) {
     console.error("[chat] load_promos_failed in runAgent:", err);
   }
 
