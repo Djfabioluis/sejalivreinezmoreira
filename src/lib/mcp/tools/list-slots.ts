@@ -1,6 +1,6 @@
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
-import { bempFetch, getBempConfig } from "@/lib/bemp.server";
+import { BempService } from "@/lib/bemp-service.server";
 
 export default defineTool({
   name: "list_slots",
@@ -15,11 +15,12 @@ export default defineTool({
   },
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   handler: async ({ salon_id, service_id, date, professional_id }) => {
-    const cfg = await getBempConfig();
-    const url = professional_id
-      ? `${cfg.apiBase}/salons/${salon_id}/services/${service_id}/professionals/${professional_id}/slots/${date}`
-      : `${cfg.apiBase}/salons/${salon_id}/services/${service_id}/slots/${date}`;
-    const data = await bempFetch(url);
+    const data = await BempService.listAvailableSlots({
+      salonId: salon_id,
+      serviceId: service_id,
+      date,
+      professionalId: professional_id
+    });
     return {
       content: [{ type: "text", text: JSON.stringify(data) }],
       structuredContent: { slots: data as unknown },
