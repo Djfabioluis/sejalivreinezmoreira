@@ -330,7 +330,7 @@ export async function runAgent(opts: AgentOptions & { messages: any[] }) {
     messages: modelMessages,
     tools: tools as any,
     maxSteps: 5,
-  });
+  } as any);
 }
 
 export async function runAgentWithLogging(opts: AgentOptions & { messages: any[] }) {
@@ -362,5 +362,5 @@ export async function streamAgent(opts: AgentOptions & { messages: any[] }) {
     messages: modelMessages,
     tools: tools as any,
     maxSteps: 5,
-  });
+  } as any);
 }
