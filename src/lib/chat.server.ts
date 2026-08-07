@@ -59,9 +59,9 @@ MODO SANDBOX ATIVO:
 - Ao chamar create_appointment, o sistema devolverá um comprovante SIMULADO.
 - Ao final, deixe claro para o cliente que se trata de uma simulação de teste.`;
 
-type ToolCtx = { conversationKey?: string; effectiveUnitId?: string | null };
+export type ToolCtx = { conversationKey?: string; effectiveUnitId?: string | null };
 
-function runTool<T>(label: string, fn: () => Promise<T>, ctx: ToolCtx = {}) {
+export function runTool<T>(label: string, fn: () => Promise<T>, ctx: ToolCtx = {}) {
   const startedAt = Date.now();
   const traceId = Math.random().toString(36).substring(7);
   const base = `traceId=${traceId}, tool=${label}, conversationKey=${ctx.conversationKey ?? "n/a"}`;
@@ -117,11 +117,11 @@ function runTool<T>(label: string, fn: () => Promise<T>, ctx: ToolCtx = {}) {
     });
 }
 
-function safeTool<T>(label: string, fn: () => Promise<T>, ctx: ToolCtx = {}) {
+export function safeTool<T>(label: string, fn: () => Promise<T>, ctx: ToolCtx = {}) {
   return runTool(label, fn, ctx);
 }
 
-async function resolveEffectiveUnit(params: { conversationKey?: string; agentUnitId?: string | null }) {
+export async function resolveEffectiveUnit(params: { conversationKey?: string; agentUnitId?: string | null }) {
   const { conversationKey, agentUnitId } = params;
   let conversationUnitId: string | null = null;
   let conversationUnitName: string | null = null;
@@ -160,7 +160,7 @@ async function resolveEffectiveUnit(params: { conversationKey?: string; agentUni
   };
 }
 
-async function patchCustomerContext(
+export async function patchCustomerContext(
   conversationKey: string | undefined,
   patch: Record<string, unknown>,
 ) {
@@ -190,26 +190,36 @@ export function subscriptionContextLine(ctx: Record<string, any>): string {
   return "- Plano validado nesta conversa: NÃO — valide o telefone da assinatura antes de prosseguir com benefícios.";
 }
 
-async function resolveServiceForEffectiveUnit(params: { serviceName: string; effectiveUnitId: string }) {
-  const list = await BempService.listServices(params.effectiveUnitId);
-  
-  const normalize = (s: string) => 
-    s.toLowerCase()
-     .trim()
-     .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-     .replace(/\s+/g, " ");
-
-  const target = normalize(params.serviceName);
-  
-  let found = list.find((s: any) => normalize(s?.name || s?.nome || "") === target);
-  if (!found) {
-    const matches = list.filter((s: any) => {
-      const name = normalize(s?.name || s?.nome || "");
-      return name.includes(target) || target.includes(name);
-    });
-    if (matches.length === 1) found = matches[0];
+export function replacePromptVariables(prompt: string, vars: Record<string, string>) {
+  let res = prompt;
+  for (const [k, v] of Object.entries(vars)) {
+    res = res.replace(new RegExp(`{{${k}}}`, "g"), v || "");
   }
-  return found || null;
+  return res;
+}
+
+export function assembleSystemPrompt(opts: {
+  contactName?: string | null;
+  contactPhone?: string | null;
+  unitName?: string | null;
+  traceId?: string;
+  customer_context?: any;
+  activePromotions?: any[];
+}) {
+  const promoBlock = opts.activePromotions?.length
+    ? opts.activePromotions.map(p => `- ${p.name}: ${p.description}`).join("\n")
+    : "Nenhuma promoção ativa no momento.";
+
+  const summary = subscriptionContextLine(opts.customer_context || {});
+
+  return replacePromptVariables(DEFAULT_SYSTEM_PROMPT, {
+    contactName: opts.contactName || "Cliente",
+    contactPhone: opts.contactPhone || "Desconhecido",
+    unitName: opts.unitName || "Não selecionada",
+    traceId: opts.traceId || "n/a",
+    customer_context_summary: summary,
+    active_promotions_block: promoBlock
+  });
 }
 
 function buildTools(
@@ -218,47 +228,15 @@ function buildTools(
   conversationKey?: string,
   currentMessageId?: string | null,
 ) {
-  const safeTool = <T,>(label: string, fn: () => Promise<T>) =>
+  const safeToolLocal = <T,>(label: string, fn: () => Promise<T>) =>
     runTool(label, fn, { conversationKey, effectiveUnitId: fallbackAgentUnitId });
 
   return {
-    transfer_conversation_unit: tool({
-      description: "Transfere a conversa para outra unidade operacional.",
-      inputSchema: z.object({
-        target_unit_id: z.string(),
-        reason: z.string().optional(),
-        confirmed: z.boolean(),
-      }),
-      execute: async ({ target_unit_id, reason, confirmed }) =>
-        safeTool("transfer_conversation_unit", async () => {
-          if (!conversationKey) throw new Error("Chave da conversa não fornecida.");
-          if (!confirmed) return { success: false, message: "Transferência não confirmada." };
-          
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          const { error } = await supabaseAdmin.rpc("transfer_conversation_unit", {
-            p_conversation_phone: conversationKey,
-            p_target_unit_id: target_unit_id,
-            p_reason: reason || "IA",
-          });
-          
-          if (error) return { success: false, code: "transfer_failed", message: error.message };
-
-          let newUnitName = `Unidade ${target_unit_id}`;
-          try {
-            const list = await BempService.listSalons();
-            const found = list.find((s: any) => String(s?.id) === String(target_unit_id));
-            if (found?.name || found?.nome) newUnitName = String(found.name || found.nome);
-            await patchCustomerContext(conversationKey, { currentUnitName: newUnitName });
-          } catch {}
-
-          return { success: true, message: `Transferido para *${newUnitName}*.`, new_unit_id: target_unit_id };
-        }),
-    }),
     list_units_info: tool({
       description: "Lista as unidades ativas na Bemp.",
       inputSchema: z.object({}),
       execute: async () =>
-        safeTool("list_units_info", async () => {
+        safeToolLocal("list_units_info", async () => {
           const arr = await BempService.listSalons();
           return arr.map(s => ({ id: s.id, name: s.name || s.nome, address: s.address || s.endereco }));
         }),
@@ -267,7 +245,7 @@ function buildTools(
       description: "Lista serviços de uma unidade.",
       inputSchema: z.object({ salon_id: z.string().optional() }),
       execute: async ({ salon_id }) =>
-        safeTool("list_services", async () => {
+        safeToolLocal("list_services", async () => {
           const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: salon_id || fallbackAgentUnitId });
           if (!effectiveUnitId) throw new Error("Unidade não resolvida.");
           return BempService.listServices(effectiveUnitId);
@@ -277,7 +255,7 @@ function buildTools(
       description: "Lista profissionais para um serviço.",
       inputSchema: z.object({ salon_id: z.number(), service_id: z.number() }),
       execute: async ({ salon_id, service_id }) =>
-        safeTool("list_professionals", async () => BempService.listProfessionals(salon_id, service_id)),
+        safeToolLocal("list_professionals", async () => BempService.listProfessionals(salon_id, service_id)),
     }),
     list_slots: tool({
       description: "Lista horários disponíveis.",
@@ -288,7 +266,7 @@ function buildTools(
         professional_id: z.number().optional()
       }),
       execute: async (input) =>
-        safeTool("list_slots", async () => BempService.listAvailableSlots({
+        safeToolLocal("list_slots", async () => BempService.listAvailableSlots({
           salonId: input.salon_id,
           serviceId: input.service_id,
           date: input.date,
@@ -309,7 +287,7 @@ function buildTools(
         phone_number: z.string(),
       }),
       execute: async (input) =>
-        safeTool("create_appointment", async () => {
+        safeToolLocal("create_appointment", async () => {
           if (sandbox) return { success: true, sandbox: true, simulated: true, id: `SIM-${Date.now()}` };
           return BempService.createAppointment(input);
         }),
@@ -322,30 +300,63 @@ function buildTools(
         phone_number: z.string(),
       }),
       execute: async (input) =>
-        safeTool("list_customer_appointments", async () => BempService.listCustomerAppointments(input)),
+        safeToolLocal("list_customer_appointments", async () => BempService.listCustomerAppointments(input)),
     }),
   };
 }
 
-export async function orchestrateChat(opts: AgentOptions) {
-  const { messages, conversationKey, agentUnitId, sandbox, customer_context } = opts;
-  const { effectiveUnitId, effectiveUnitName } = await resolveEffectiveUnit({ conversationKey, agentUnitId });
+export async function runAgent(opts: AgentOptions & { messages: any[] }) {
+  const { messages, conversationKey, unidadeId, sandbox, customerContext, activePromotions } = opts;
+  const { effectiveUnitId, effectiveUnitName } = await resolveEffectiveUnit({ conversationKey, agentUnitId: unidadeId });
   
   const provider = createLovableAiGatewayProvider(process.env.LOVABLE_AI_GATEWAY_KEY || "");
   const model = provider("gemini-1.5-flash");
 
-  const systemPrompt = DEFAULT_SYSTEM_PROMPT
-    .replace("{{contactName}}", customer_context?.name || "Cliente")
-    .replace("{{contactPhone}}", customer_context?.phone || "Desconhecido")
-    .replace("{{unitName}}", effectiveUnitName || "Não selecionada")
-    .replace("{{traceId}}", opts.traceId || "n/a")
-    .replace("{{customer_context_summary}}", subscriptionContextLine(customer_context || {}));
+  const system = assembleSystemPrompt({
+    contactName: opts.contactName,
+    contactPhone: opts.contactPhone,
+    unitName: effectiveUnitName,
+    traceId: opts.traceId,
+    customer_context: customerContext,
+    activePromotions: activePromotions
+  });
 
-  const tools = buildTools(!!sandbox, effectiveUnitId, conversationKey, opts.currentMessageId);
+  const tools = buildTools(!!sandbox, effectiveUnitId, conversationKey, opts.messageId);
 
   return generateText({
     model: model as any,
-    system: systemPrompt + (sandbox ? SANDBOX_NOTE : ""),
+    system: system + (sandbox ? SANDBOX_NOTE : ""),
+    messages: convertToModelMessages(messages),
+    tools: tools as any,
+    maxSteps: 5,
+  });
+}
+
+export async function runAgentWithLogging(opts: AgentOptions & { messages: any[] }) {
+  return runAgent(opts);
+}
+
+export async function streamAgent(opts: AgentOptions & { messages: any[] }) {
+  const { messages, conversationKey, unidadeId, sandbox, customerContext, activePromotions } = opts;
+  const { effectiveUnitId, effectiveUnitName } = await resolveEffectiveUnit({ conversationKey, agentUnitId: unidadeId });
+  
+  const provider = createLovableAiGatewayProvider(process.env.LOVABLE_AI_GATEWAY_KEY || "");
+  const model = provider("gemini-1.5-flash");
+
+  const system = assembleSystemPrompt({
+    contactName: opts.contactName,
+    contactPhone: opts.contactPhone,
+    unitName: effectiveUnitName,
+    traceId: opts.traceId,
+    customer_context: customerContext,
+    activePromotions: activePromotions
+  });
+
+  const tools = buildTools(!!sandbox, effectiveUnitId, conversationKey, opts.messageId);
+
+  return streamText({
+    model: model as any,
+    system: system + (sandbox ? SANDBOX_NOTE : ""),
     messages: convertToModelMessages(messages),
     tools: tools as any,
     maxSteps: 5,
