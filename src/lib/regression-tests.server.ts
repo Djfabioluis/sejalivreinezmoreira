@@ -22,12 +22,11 @@ async function testSubscriptionPhoneFlow() {
 async function testMechasPromotionFlow() {
   logger.info("TEST_MECHAS_PROMOTION_FLOW_STARTED", "Iniciando teste de promoção de mechas");
   try {
-    const results = await BempService.searchServicesByCategory({
-      effectiveUnitId: "1",
-      category: "MECHAS",
-      query: "mechas"
-    });
-    logger.info("TEST_MECHAS_PROMOTION_FLOW_SUCCESS", "Busca de mechas concluída", { count: results.data?.length });
+    const results = await BempService.listServices("1");
+    const hasMechas = results.some((s: any) => 
+      (s.name || "").toUpperCase().includes("MECHAS")
+    );
+    logger.info("TEST_MECHAS_PROMOTION_FLOW_SUCCESS", "Busca de mechas concluída", { found: hasMechas });
   } catch (err: any) {
     logger.error("TEST_MECHAS_PROMOTION_FLOW_FAILED", err.message);
     throw err;

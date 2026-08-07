@@ -25,7 +25,7 @@ Este documento rastreia o status das remediações técnicas baseadas na auditor
 | **Centralização de IA** | Alta | ✅ Corrigido | `src/lib/ai/ai-service.server.ts` | N/A | N/A | `getAiProvider` e `AI_MODELS` centralizados |
 | **RLS Tables** | Crítica | ⏳ Pendente | `supabase/migrations/*` | N/A | N/A | Auditoria completa de RLS pendente |
 | **Permissões (RBAC)** | Alta | ⏳ Pendente | `src/lib/roles.ts`, `src/lib/permissions.functions.ts` | N/A | N/A | Helpers `requireRole` centralizados pendentes |
-| **Proteção de CPF** | Alta | ⏳ Pendente | `src/lib/cpf.ts` | N/A | N/A | Mascaramento e sanitização pendentes |
+| **Proteção de CPF** | Alta | ✅ Corrigido | `src/lib/subscription-policy.server.ts` | N/A | Sim | CPF eliminado; identificação por telefone validada |
 
 ## Lote C — Integrações
 
