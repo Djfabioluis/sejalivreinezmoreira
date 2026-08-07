@@ -26,7 +26,8 @@ import { useState, useEffect } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { 
   Plus, Clock, Zap, MessageSquare, Bot, Sparkles, Settings, History, LayoutDashboard,
-  Play, Edit2, Trash2, Loader2, PlayCircle, Activity, Info, ChevronRight, CheckCircle2, AlertCircle, XCircle, Phone
+  Play, Edit2, Trash2, Loader2, PlayCircle, Activity, Info, ChevronRight, CheckCircle2, AlertCircle, XCircle, Phone,
+  Database
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
