@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { generateText } from "ai";
-import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
+import { createLovableAiGatewayProvider, getAiKey } from "@/lib/ai-gateway.server";
+
 
 /**
  * Processa follow-ups agendados.
@@ -100,12 +101,13 @@ export async function processPendingFollowups() {
         - Use emojis moderadamente.
       `;
 
-      const apiKey = process.env['LOVABLE_AI_GATEWAY_KEY'] || "";
-      const provider = createLovableAiGatewayProvider(apiKey);
+      const apiKey = await getAiKey();
+      const provider = createLovableAiGatewayProvider(apiKey || "");
       const { text } = await generateText({
         model: provider("gemini-1.5-flash") as any,
         prompt,
       }).catch(e => {
+
         console.error("[followup-processor] IA generation failed:", e.message);
         throw new Error(`IA_GENERATION_FAILED: ${e.message}`);
       });
