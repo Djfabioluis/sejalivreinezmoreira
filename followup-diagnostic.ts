@@ -14,10 +14,11 @@ async function runDiagnostic() {
   const now = new Date().toISOString();
   const { data: elegiveis } = await supabaseAdmin
     .from("crm_followups")
-    .select("*, crm_customer_pipeline(conversion_score)")
+    .select("*")
     .eq("status", "PENDENTE")
     .lte("scheduled_at", now)
     .lt("attempts", 3);
+
   
   console.log(`Follow-ups ELEGÍVEIS agora: ${elegiveis?.length || 0}`);
 
