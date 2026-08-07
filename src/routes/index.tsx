@@ -113,11 +113,6 @@ function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="hidden">
-        {`Execute esta instrucao no projeto: FASE CRÍTICA 1 — IDENTIFICAÇÃO DE ASSINANTE EXCLUSIVAMENTE POR TELEFONE
-...
-Não considerar concluído até a mensagem chegar a um WhatsApp de teste.`}
-      </div>
       <div className="bg-blue-600 text-white p-2 text-center text-xs font-medium">
         {`Execute esta instrucao no projeto: FASE CRÍTICA 4 — CONSOLIDAÇÃO PÓS-CORREÇÕES
 
