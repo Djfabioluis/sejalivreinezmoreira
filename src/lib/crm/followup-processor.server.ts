@@ -60,19 +60,31 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
   const traceId = `${parentTraceId}-${followup.id.split('-')[0]}`;
   
   try {
+    const now = new Date().toISOString();
     const { error: lockError } = await supabaseAdmin
       .from("crm_followups")
-      .update({ status: "PROCESSING", updated_at: new Date().toISOString() } as any)
+      .update({ 
+        status: "PROCESSING", 
+        updated_at: now,
+        metadata: { 
+          ...(followup.metadata || {}), 
+          traceId, 
+          last_step: "FOLLOWUP_PROCESSING",
+          started_at: now
+        }
+      } as any)
       .eq("id", followup.id)
       .in("status", ["PENDING", "READY", "PENDENTE", "READY_TO_SEND"]);
 
-    if (lockError) return;
+    if (lockError) throw new Error(`LOCK_FAILED: ${lockError.message}`);
 
-    const { data: conversation } = await (supabaseAdmin
+    const { data: conversation, error: convError } = await (supabaseAdmin
       .from("wa_conversas" as any) as any)
       .select("*")
       .eq("phone", followup.phone)
       .maybeSingle();
+
+    if (convError) throw new Error(`DATABASE_ERROR_CONVERSATION: ${convError.message}`);
 
     if (!conversation) {
       await blockFollowup(followup.id, "INVALID_PHONE", "Conversa não encontrada", traceId);
@@ -83,26 +95,41 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     const attendanceMode = ctx.attendance_mode || (conversation as any).attendance_mode;
     
     if (attendanceMode === "human" || conversation.status === "atendido_humano") {
-      await blockFollowup(followup.id, "HUMAN_ATTENDING", "Cliente em atendimento humano", traceId);
+      await blockFollowup(followup.id, "HUMAN_TAKEOVER", "Cliente em atendimento humano", traceId);
       return;
     }
+
+    // Adiciona log de início de geração
+    await updateFollowupStep(followup.id, "FOLLOWUP_GENERATION_STARTED", traceId);
 
     let messageText = followup.message_template;
     if (!messageText) {
        messageText = await generateAiFollowup(followup, conversation, traceId);
     }
 
-    if (!messageText) throw new Error("IA_GENERATION_FAILED");
+    if (!messageText) {
+      throw new Error("MESSAGE_GENERATION_FAILED: O retorno da IA ou template fixo está vazio.");
+    }
 
+    await updateFollowupStep(followup.id, "FOLLOWUP_GENERATION_COMPLETED", traceId);
+
+    // Envio para Evolution
+    await updateFollowupStep(followup.id, "FOLLOWUP_EVOLUTION_STARTED", traceId);
+    
     const { sendEvolutionText } = await import("@/lib/evolution.server");
     const success = await sendEvolutionText(conversation.instance, conversation.phone_number, messageText);
 
-    if (!success) throw new Error("EVOLUTION_SEND_FAILED");
+    if (!success) {
+      await updateFollowupStep(followup.id, "FOLLOWUP_EVOLUTION_FAILED", traceId);
+      throw new Error("EVOLUTION_HTTP_ERROR: Falha ao enviar mensagem via Evolution API.");
+    }
 
-    const now = new Date().toISOString();
+    await updateFollowupStep(followup.id, "FOLLOWUP_EVOLUTION_SUCCESS", traceId);
+
+    const completionTime = new Date().toISOString();
     await (supabaseAdmin.rpc("append_wa_message" as any, {
       p_phone: followup.phone,
-      p_message: { id: `fup-${Date.now()}`, role: 'assistant', parts: [{ type: 'text', text: messageText }], createdAt: now },
+      p_message: { id: `fup-${Date.now()}`, role: 'assistant', parts: [{ type: 'text', text: messageText }], createdAt: completionTime },
       p_instance: conversation.instance,
       p_phone_number: conversation.phone_number,
       p_increment_unread: false,
@@ -114,23 +141,62 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       .update({
         status: "SENT",
         attempts: (followup.attempts || 0) + 1,
-        sent_at: now,
-        completed_at: now,
+        sent_at: completionTime,
+        completed_at: completionTime,
         message_template: messageText,
-        updated_at: now
+        updated_at: completionTime,
+        metadata: {
+          ...(followup.metadata || {}),
+          last_step: "FOLLOWUP_SENT",
+          evolution_success: true
+        }
       } as any)
       .eq("id", followup.id);
 
   } catch (err: any) {
+    const errorInfo = {
+      name: err.name,
+      message: err.message,
+      stack: err.stack,
+      traceId,
+      followupId: followup.id,
+      workerId: "JuliaFollowupProcessorV2"
+    };
+
+    logger.error("FOLLOWUP_EXECUTION_FAILED", err.message, errorInfo);
+
+    const isFinalAttempt = (followup.attempts || 0) >= 2;
+    
     await supabaseAdmin
       .from("crm_followups")
       .update({
-        status: (followup.attempts || 0) < 2 ? "READY" : "FAILED",
+        status: isFinalAttempt ? "CANCELED" : "READY",
         attempts: (followup.attempts || 0) + 1,
-        updated_at: new Date().toISOString()
+        cancel_reason: isFinalAttempt ? "UNHANDLED_EXCEPTION" : null,
+        updated_at: new Date().toISOString(),
+        metadata: {
+          ...(followup.metadata || {}),
+          last_error: errorInfo,
+          last_step: "FOLLOWUP_ERROR"
+        }
       } as any)
       .eq("id", followup.id);
   }
+}
+
+async function updateFollowupStep(id: string, step: string, traceId: string) {
+  const { data: followup } = await supabaseAdmin.from("crm_followups").select("metadata").eq("id", id).single();
+  const metadata = (followup?.metadata as any) || {};
+  const timeline = metadata.timeline || [];
+  timeline.push({ step, at: new Date().toISOString(), traceId });
+
+  await supabaseAdmin
+    .from("crm_followups")
+    .update({ 
+      metadata: { ...metadata, timeline, last_step: step },
+      updated_at: new Date().toISOString()
+    } as any)
+    .eq("id", id);
 }
 
 async function blockFollowup(id: string, reasonCode: string, message: string, traceId: string) {
@@ -139,8 +205,9 @@ async function blockFollowup(id: string, reasonCode: string, message: string, tr
     .from("crm_followups")
     .update({
       status: "CANCELED",
+      cancel_reason: reasonCode,
       cancelled_at: new Date().toISOString(),
-      metadata: { blocker: reasonCode, blocker_message: message },
+      metadata: { blocker: reasonCode, blocker_message: message, last_step: "FOLLOWUP_BLOCKED" },
       updated_at: new Date().toISOString()
     } as any)
     .eq("id", id);
