@@ -379,8 +379,21 @@ function CRMPage() {
                     { label: 'FOLLOWUP_CREATED', date: selectedExecution.created_at },
                     { label: 'FOLLOWUP_READY', date: selectedExecution.status !== 'PENDING' ? selectedExecution.updated_at : null },
                     { label: 'FOLLOWUP_PROCESSING', date: ['PROCESSING', 'SENT', 'FAILED', 'CANCELED'].includes(selectedExecution.status) ? selectedExecution.updated_at : null },
-                    { label: selectedExecution.status === 'CANCELED' ? 'FOLLOWUP_CANCELED' : selectedExecution.status === 'SENT' ? 'FOLLOWUP_SENT' : selectedExecution.status === 'FAILED' ? 'FOLLOWUP_FAILED' : 'FOLLOWUP_WAITING', date: ['SENT', 'FAILED', 'CANCELED'].includes(selectedExecution.status) ? selectedExecution.completed_at || selectedExecution.updated_at : null },
-                  ].map((step, idx) => (
+                    ...(selectedExecution.metadata?.timeline || []).map((t: any) => ({
+                      label: t.step,
+                      date: t.at
+                    })).filter((t: any) => !['FOLLOWUP_PROCESSING'].includes(t.label)),
+                    { 
+                      label: selectedExecution.status === 'CANCELED' ? 'FOLLOWUP_CANCELED' : selectedExecution.status === 'SENT' ? 'FOLLOWUP_SENT' : selectedExecution.status === 'FAILED' ? 'FOLLOWUP_FAILED' : 'FOLLOWUP_WAITING', 
+                      date: ['SENT', 'FAILED', 'CANCELED'].includes(selectedExecution.status) ? selectedExecution.completed_at || selectedExecution.updated_at : null 
+                    },
+                  ].filter((v, i, a) => a.findIndex(t => t.label === v.label) === i) // Unificar steps
+                  .sort((a, b) => {
+                    if (!a.date) return 1;
+                    if (!b.date) return -1;
+                    return new Date(a.date).getTime() - new Date(b.date).getTime();
+                  })
+                  .map((step, idx) => (
                     <div key={idx} className="relative">
                       <div className={`absolute -left-[31px] top-1 p-1 rounded-full border bg-background ${step.date ? 'border-primary' : 'border-muted'}`}>
                         {step.date ? <CheckCircle2 className="h-3 w-3 text-primary" /> : <div className="h-3 w-3" />}
