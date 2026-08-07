@@ -113,615 +113,125 @@ function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <div className="hidden">Execute esta instrucao no projeto: FASE CRÍTICA 1 — IDENTIFICAÇÃO DE ASSINANTE EXCLUSIVAMENTE POR TELEFONE
-
-PROJETO
-
-Julia — Seja Livre AI Platform
+      <div className="hidden">
+        {`Execute esta instrucao no projeto: FASE CRÍTICA 1 — IDENTIFICAÇÃO DE ASSINANTE EXCLUSIVAMENTE POR TELEFONE
+...
+Não considerar concluído até a mensagem chegar a um WhatsApp de teste.`}
+      </div>
+      <div className="bg-blue-600 text-white p-2 text-center text-xs font-medium">
+        {`Execute esta instrucao no projeto: FASE CRÍTICA 4 — CONSOLIDAÇÃO PÓS-CORREÇÕES
 
 OBJETIVO
 
-Eliminar definitivamente o CPF do fluxo de identificação de Plano Beauty no atendimento WhatsApp.
+Depois de validar:
 
-REGRA DE NEGÓCIO
+- assinatura por telefone;
+- promoção de mechas;
+- follow-up;
 
-Quando a cliente mencionar:
-
-- plano;
-- Plano Beauty;
-- assinatura;
-- benefício;
-- Plano de Manicure;
-- Plano de Escova;
-- Plano de Hidratação e Escova;
-
-a identificação deve ocorrer pelo TELEFONE CADASTRADO NA ASSINATURA.
-
-CPF não deve ser solicitado nesse fluxo.
-
-Não alterar outras funcionalidades.
-Não publicar automaticamente.
+consolidar a arquitetura para evitar regressão.
 
 ==================================================
-1. VARREDURA COMPLETA
+1. BEMPSERVICE
 ==================================================
 
-Pesquisar em todo o projeto:
+Cumprir a Fase 3 da auditoria:
 
-CPF
-cpf
-validate_subscription_cpf
-getCustomerByCPF
-extractCPFFromText
-awaitingCpf
-cpfRequested
-cpfValidationPending
-AWAITING_CPF
-AWAITING_CPF_FALLBACK
-CPF_FALLBACK
-REQUEST_CPF
-CPF_NOT_PROVIDED
-000.000.000-00
-"informe seu CPF"
-"preciso do seu CPF"
-"peça o CPF"
+src/lib/bemp-service.server.ts
 
-Pesquisar em:
+deve ser a única camada HTTP do BEMP.
 
-src/
-supabase/functions/
-supabase/migrations/
-prompts
-templates
-configurações
-base_conhecimento
-Edge Functions
-webhooks
-arquivos compilados
-
-Gerar lista de todas as ocorrências.
-
-Classificar:
-
-ACTIVE
-LEGACY
-TEST
-DOCUMENTATION
-DATABASE
-
-Nenhuma ocorrência ACTIVE pode permanecer no fluxo de WhatsApp para assinatura.
+Eliminar fetch direto nos tools e módulos paralelos.
 
 ==================================================
-2. ARQUIVOS DUPLICADOS
+2. EVOLUTIONSERVICE
 ==================================================
 
-O relatório de auditoria confirma arquivos .js obsoletos coexistindo com .ts.
+Usar uma única fachada Evolution.
 
-Realizar primeiro a Fase 1 do audit-remediation:
+Todos os envios devem passar por ela.
 
-- localizar pares nome.js + nome.ts;
-- migrar imports;
-- excluir .js obsoletos;
-- garantir que chat.server.js não seja carregado;
-- garantir que apenas chat.server.ts seja usado.
+Não permitir:
 
-Não excluir JS sem equivalente TypeScript ou ainda necessário ao runtime.
+fetch direto
+evoFetch direto fora da infraestrutura autorizada
 
 ==================================================
-3. POLÍTICA CENTRAL
+3. ERROS
 ==================================================
 
-Criar ou consolidar:
+Executar Fase 6 da auditoria.
 
-src/lib/subscription-policy.server.ts
+Eliminar catch genérico que:
 
-Definir:
+- retorna success false sem código;
+- engole exceções;
+- gera falso sucesso;
+- transforma erro técnico em regra de negócio.
 
-SUBSCRIPTION_PRIMARY_LOOKUP = "PHONE"
-ALLOW_SUBSCRIPTION_CPF_FALLBACK = false
-
-Estados permitidos:
-
-AWAITING_REGISTERED_PHONE
-LOOKING_UP_PHONE
-AWAITING_REGISTERED_PHONE_RETRY
-PLAN_FOUND
-HUMAN_HANDOFF
-
-Não usar estado relacionado a CPF.
+O arquivo recomenda priorizar justamente agendamento e WhatsApp.
 
 ==================================================
-4. PRIMEIRA PERGUNTA DETERMINÍSTICA
+4. TESTES DE REGRESSÃO
 ==================================================
 
-Ao detectar intenção de plano e não existir telefone validado:
+Adicionar suite permanente:
 
-NÃO usar o LLM para decidir qual dado pedir.
+subscription-phone-flow.test.ts
+mechas-promotion-flow.test.ts
+followup-e2e.test.ts
+outbound-policy.test.ts
 
-Responder diretamente:
+Os testes devem falhar se:
 
-"Perfeito! 💜
-
-Para localizar o seu Plano Beauty, qual é o número de telefone cadastrado na assinatura?
-
-Pode enviar com DDD."
-
-Salvar:
-
-subscriptionIntent = true
-subscriptionLookupMethod = "PHONE"
-subscriptionLookupStage = "AWAITING_REGISTERED_PHONE"
-subscriptionPhoneAttempts = 0
+- CPF voltar ao fluxo;
+- promoção ativa não aparecer;
+- follow-up elegível não chamar Evolution.
 
 ==================================================
-5. NÃO CONFUNDIR WHATSAPP COM TELEFONE DA ASSINATURA
+5. DOCUMENTAÇÃO
 ==================================================
 
-Separar:
+Atualizar:
 
-whatsappPhone
-subscriptionRegisteredPhone
+README.md
+docs/audit-remediation-status.md
+docs/architecture.md
 
-O WhatsApp atual pode ser diferente do número cadastrado no plano.
+Remover documentação que diga:
 
-Quando a cliente informar o telefone do plano, salvar:
+"Validação de planos via CPF"
 
-subscriptionRegisteredPhoneCountry
-subscriptionRegisteredPhoneArea
-subscriptionRegisteredPhoneNumber
-subscriptionPhoneLast4
-subscriptionPhoneValidated
+Substituir:
 
-Não sobrescrever whatsappPhone.
+"Validação de Plano Beauty pelo telefone cadastrado."
 
 ==================================================
 6. VALIDAÇÃO
 ==================================================
 
-Durante:
+bun run lint
+bun run build
+testes
 
-AWAITING_REGISTERED_PHONE
-AWAITING_REGISTERED_PHONE_RETRY
-
-uma mensagem como:
-
-41999999999
-
-é TELEFONE.
-
-Não executar parser de CPF.
-
-Executar:
-
-normalizeBrazilianPhone()
-validate_subscription_phone
+Não prosseguir se existir erro.
 
 ==================================================
-7. PRIMEIRA FALHA
+7. ENTREGA
 ==================================================
 
-Se não localizar:
-
-subscriptionPhoneAttempts = 1
-subscriptionLookupStage =
-"AWAITING_REGISTERED_PHONE_RETRY"
-
-Responder:
-
-"Não encontrei uma assinatura ativa com esse telefone. 💜
-
-Pode conferir e me enviar novamente o número cadastrado no plano, com DDD?"
-
-==================================================
-8. SEGUNDA FALHA
-==================================================
-
-Não pedir CPF.
-
-Criar handoff:
-
-subscriptionLookupStage = "HUMAN_HANDOFF"
-attendance_mode = "HUMAN"
-ai_pause_reason =
-"SUBSCRIPTION_NOT_FOUND_BY_PHONE"
-
-Mensagem:
-
-"Não consegui localizar sua assinatura pelos telefones informados. 💜
-
-Vou encaminhar seu atendimento para nossa equipe verificar o cadastro e continuar com você por aqui."
-
-==================================================
-9. BARREIRA DE TRANSPORTE
-==================================================
-
-Nenhum texto automático pedindo CPF pode chegar à Evolution.
-
-Criar:
-
-containsCpfSolicitation(text)
-
-e:
-
-enforceNoCpfInSubscriptionFlow(text, context)
-
-Bloquear solicitações como:
-
-informe seu CPF
-preciso do seu CPF
-qual é o seu CPF
-número do CPF
-000.000.000-00
-localizar plano + CPF
-validar plano + CPF
-
-Aplicar:
-
-chat.server.ts
-evolution/reply.server.ts
-evolution.server.ts
-
-A última proteção deve ocorrer dentro de sendEvolutionText(), imediatamente antes da Evolution API.
-
-FAIL-CLOSED:
-
-mesmo sem customer_context ou com Supabase indisponível, uma solicitação de CPF deve ser substituída pela pergunta do telefone.
-
-==================================================
-10. BEMP
-==================================================
-
-Centralizar no BempService conforme a Fase 3 da auditoria.
-
-Fluxo:
-
-telefone cadastrado
-→ findCustomerByPhone
-→ customerId
-→ listCustomerSubscriptions(customerId)
-→ plano ativo
-→ saldo
-→ serviço
-
-Não assumir que subscriptions sempre vêm dentro do objeto customer.
-
-==================================================
-11. SERVIÇOS DOS PLANOS
-==================================================
-
-Plano de Manicure
-→ Manicure Plano Beauty
-
-Plano de Escova
-→ Escova Plano Beauty
-
-Plano de Hidratação e Escova
-→ Hidratação e Escova
-
-==================================================
-12. BASE DE CONHECIMENTO
-==================================================
-
-Pesquisar CPF no banco real.
-
-Remover apenas instruções relacionadas a identificação de Plano Beauty por CPF.
-
-Não remover CPF de fluxos administrativos legítimos sem analisar sua finalidade.
-
-Atualizar a regra para:
-
-"Assinantes do Plano Beauty são identificados pelo telefone cadastrado na assinatura."
-
-==================================================
-13. TESTES
-==================================================
-
-Teste:
-
-"Tenho Plano de Manicure."
-
-Deve pedir telefone.
-
-Primeiro telefone inexistente:
-pedir telefone novamente.
-
-Segundo inexistente:
-handoff.
-
-Testar também:
-
-context = null
-Supabase indisponível
-resposta do modelo contendo CPF
-follow-up contendo CPF
-
-Em nenhum caso Evolution pode receber solicitação de CPF.
-
-==================================================
-14. ENTREGA
-==================================================
-
-Informar:
-
-- causa raiz encontrada;
-- ocorrências ativas removidas;
-- arquivos .js removidos;
-- tools registradas;
-- consulta BEMP;
-- teste Evolution;
-- build;
-- lint;
-- typecheck;
-- testes.
-
-Atualizar:
-
-docs/audit-remediation-status.md
-
-com evidências.
-
-Não publicar automaticamente.</div>
-      <div className="bg-green-600 text-white p-2 text-center text-xs font-medium">
-        {`Execute esta instrucao no projeto: FASE CRÍTICA 3 — CORRIGIR MOTOR DE FOLLOW-UP
-
-OBJETIVO
-
-Fazer o follow-up sair realmente do banco e chegar ao WhatsApp do cliente.
-
-Não criar um segundo motor paralelo.
-
-Localizar e corrigir o motor atual.
-
-==================================================
-1. INVENTÁRIO
-==================================================
-
-Localizar:
-
-crm_followups
-FollowupService
-followup-processor
-processFollowups
-scheduled_at
-next_attempt_at
-sendFollowup
-worker
-cron
-Edge Function
-job
-
-Documentar fluxo atual.
-
-==================================================
-2. BANCO REAL
-==================================================
-
-Identificar:
-
-PENDING vencidos
-READY vencidos
-SENDING presos
-FAILED
-sem scheduled_at
-sem conversation_id
-sem instance
-sem telefone
-
-Mostrar contagens.
-
-==================================================
-3. WORKER
-==================================================
-
-Confirmar:
-
-- existe;
-- está habilitado;
-- frequência;
-- última execução;
-- próximo disparo;
-- registros encontrados.
-
-Logs:
-
-FOLLOWUP_WORKER_STARTED
-FOLLOWUP_WORKER_FINISHED
-
-==================================================
-4. ELEGIBILIDADE
-==================================================
-
-Cada registro ignorado precisa informar motivo.
-
-FOLLOWUP_BLOCKED reasonCode:
-
-HUMAN_ATTENDING
-CUSTOMER_REPLIED
-CONVERSATION_CLOSED
-AI_DISABLED
-EVOLUTION_OFFLINE
-OUTSIDE_ALLOWED_HOURS
-INVALID_PHONE
-MISSING_INSTANCE
-DUPLICATE
-LOCKED
-NO_MESSAGE
-UNKNOWN
-
-Nenhum return silencioso.
-
-==================================================
-5. FUSO
-==================================================
-
-Persistência:
-
-UTC.
-
-Regras comerciais:
-
-America/Sao_Paulo.
-
-Confirmar que scheduled_at <= now() funciona corretamente.
-
-==================================================
-6. TESTE SEM IA
-==================================================
-
-Criar um follow-up técnico com mensagem fixa.
-
-Executar manualmente o processor.
-
-Esperado:
-
-worker encontra
-→ sendEvolutionText()
-→ HTTP sucesso
-→ messageId
-→ status atualizado
-
-Se isso falhar, não mexer na geração de IA ainda.
-
-==================================================
-7. TESTE EVOLUTION
-==================================================
-
-Com o mesmo instance/telefone, executar envio direto usando o service central.
-
-A auditoria determina que Evolution deve ser consolidada numa fachada única; não usar chamadas HTTP paralelas. :contentReference[oaicite:2]{index=2}
-
-==================================================
-8. GERAÇÃO IA
-==================================================
-
-Somente depois do teste fixo passar:
-
-gerar follow-up com IA.
-
-Validar:
-
-text não vazio
-prompt
-timeout
-erro estruturado
-
-==================================================
-9. PAUSA HUMANA
-==================================================
-
-Quando atendimento humano estiver ativo:
-
-pausar.
-
-Ao retornar para AI:
-
-reavaliar.
-
-Não deixar:
-
-attendance_mode antigo
-ai_paused_at antigo
-human_only indevido
-
-bloquearem para sempre.
-
-==================================================
-10. RETRY
-==================================================
-
-Retry para:
-
-429
-502
-503
-504
-timeout
-
-Backoff.
-
-Limite de tentativas.
-
-==================================================
-11. IDEMPOTÊNCIA
-==================================================
-
-Uma tentativa não pode enviar duas mensagens.
-
-Mas uma chave antiga não pode impedir retry legítimo.
-
-==================================================
-12. STATUS
-==================================================
-
-Padronizar:
-
-PENDING
-READY
-PROCESSING
-SENT
-DELIVERED
-FAILED
-CANCELED
-
-Seguir a futura padronização UPPER_SNAKE_CASE prevista pela auditoria. :contentReference[oaicite:3]{index=3}
-
-==================================================
-13. LOGS
-==================================================
-
-FOLLOWUP_DETECTED
-FOLLOWUP_CREATED
-FOLLOWUP_SCHEDULED
-FOLLOWUP_ELIGIBLE
-FOLLOWUP_BLOCKED
-FOLLOWUP_GENERATION_STARTED
-FOLLOWUP_GENERATION_COMPLETED
-FOLLOWUP_SEND_STARTED
-FOLLOWUP_SEND_SUCCESS
-FOLLOWUP_SEND_FAILED
-FOLLOWUP_RETRY_SCHEDULED
-FOLLOWUP_COMPLETED
-
-==================================================
-14. TESTE REAL
-==================================================
-
-Cliente abandona agendamento.
-
-Comprovar:
-
-registro criado
-scheduled_at
-worker
-mensagem gerada
-Evolution
-messageId
-status final
-cliente recebeu
-
-==================================================
-15. ENTREGA
-==================================================
-
-Informar:
-
-- causa raiz;
-- worker ativo;
-- query de elegibilidade;
-- bloqueios;
-- timezone;
-- teste fixo;
-- teste IA;
-- messageId;
-- build;
-- lint;
-- typecheck;
-- testes.
-
-Atualizar docs/audit-remediation-status.md.
-
-Não considerar concluído até a mensagem chegar a um WhatsApp de teste.`}
+Mostrar:
+
+arquivos removidos
+services consolidados
+imports migrados
+catch corrigidos
+testes adicionados
+riscos residuais
+
+Não publicar automaticamente.`}
       </div>
+
       <PaymentTestModeBanner />
 
       <header className="sticky top-0 z-30 border-b border-border/60 bg-background/80 backdrop-blur">

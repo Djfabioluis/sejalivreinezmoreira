@@ -25,14 +25,15 @@ Este documento rastreia o status das remediações técnicas baseadas na auditor
 | **Centralização de IA** | Alta | ✅ Corrigido | `src/lib/ai/ai-service.server.ts` | N/A | N/A | `getAiProvider` e `AI_MODELS` centralizados |
 | **RLS Tables** | Crítica | ⏳ Pendente | `supabase/migrations/*` | N/A | N/A | Auditoria completa de RLS pendente |
 | **Permissões (RBAC)** | Alta | ⏳ Pendente | `src/lib/roles.ts`, `src/lib/permissions.functions.ts` | N/A | N/A | Helpers `requireRole` centralizados pendentes |
-| **Proteção de CPF** | Alta | ⏳ Pendente | `src/lib/cpf.ts` | N/A | N/A | Mascaramento e sanitização pendentes |
+| **Proteção de CPF** | Alta | ✅ Corrigido | `src/lib/subscription-policy.server.ts` | N/A | Sim | CPF eliminado; identificação por telefone validada |
 
 ## Lote C — Integrações
 
 | Item | Gravidade | Status | Arquivos Relacionados | Migration | Teste | Evidência |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Bemp Service** | Alta | ⏳ Pendente | `src/lib/bemp-service.server.ts` | N/A | N/A | Centralização de chamadas pendente |
-| **Evolution Service** | Alta | ⏳ Pendente | `src/lib/evolution/evolution-service.server.ts` | N/A | N/A | Fachada centralizada pendente |
+| **Bemp Service** | Alta | ✅ Corrigido | `src/lib/bemp-service.server.ts` | N/A | Sim | Centralização de chamadas concluída |
+| **Evolution Service** | Alta | ✅ Corrigido | `src/lib/evolution/evolution-service.server.ts` | N/A | Sim | Fachada centralizada concluída |
+
 | **Webhooks** | Alta | ⏳ Pendente | `src/routes/api/public/*` | N/A | N/A | Auditoria de validação Zod e segredos pendente |
 
 ---

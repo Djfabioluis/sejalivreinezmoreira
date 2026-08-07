@@ -27,7 +27,7 @@ export const Route = createFileRoute("/api/chat")({
         const uiMessages = body.messages as UIMessage[];
         const sandbox = body.sandbox === true;
         try {
-          const result = await streamAgent(uiMessages, { sandbox });
+          const result = await streamAgent({ messages: uiMessages, sandbox });
           return result.toUIMessageStreamResponse({
             originalMessages: uiMessages,
             onError: (err) => {

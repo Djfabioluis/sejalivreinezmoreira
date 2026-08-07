@@ -1,8 +1,11 @@
-import { bempFetch, getBempConfig, type JsonValue } from "./bemp.server";
+import { bempFetch, getBempConfig, BEMP_WEBHOOK_BASE, PROFESSIONAL_PREFERENCE_NOTE, tryUpdateBempScheduleNote, withProfessionalPreferenceNote, extractBempAppointmentId, type JsonValue } from "./bemp.server";
+export { extractBempAppointmentId };
+
 import { logger } from "./observability/logger.server";
 import { AppError } from "./core/errors";
 import { z } from "zod";
 import { normalizeServiceSearchText, SERVICE_CATEGORY_ALIASES, type ServiceCategory } from "./service-utils";
+
 
 
 export type BempResult<T> = {
@@ -76,12 +79,14 @@ export class BempService {
     date: string;
   }): Promise<any[]> {
     const cfg = await getBempConfig();
-    let url = `${cfg.apiBase}/salons/${params.salonId}/services/${params.serviceId}/slots?date=${params.date}`;
-    if (params.professionalId) url += `&professional_id=${params.professionalId}`;
+    let url = params.professionalId
+      ? `${cfg.apiBase}/salons/${params.salonId}/services/${params.serviceId}/professionals/${params.professionalId}/slots/${params.date}`
+      : `${cfg.apiBase}/salons/${params.salonId}/services/${params.serviceId}/slots/${params.date}`;
     
     const result = await this.fetch<any>(url, undefined, "bemp-slots");
     return Array.isArray(result) ? result : (result?.data || []);
   }
+
   static async findCustomerByPhone(params: {
     countryCode: string;
     areaCode: string;
@@ -98,9 +103,34 @@ export class BempService {
 
   static async listCustomerSubscriptions(customerId: string | number): Promise<any[]> {
     const cfg = await getBempConfig();
-    // Reutiliza o endpoint que retorna dados do cliente incluindo assinaturas
     const result = await this.fetch<any>(`${cfg.apiBase}/customers/${customerId}/subscriptions`, undefined, "bemp-customer-subscriptions");
     return Array.isArray(result) ? result : (result?.data || []);
+  }
+
+  static async listCustomerAppointments(params: {
+    phone_country_code: string;
+    phone_area_code: string;
+    phone_number: string;
+  }): Promise<any[]> {
+    const result = await this.fetch<any>(`${BEMP_WEBHOOK_BASE}/whatsapp_appointments`, {
+      method: "POST",
+      body: JSON.stringify(params),
+    }, "bemp-customer-appointments");
+    return Array.isArray(result) ? result : (result?.data || []);
+  }
+
+  static async createAppointment(input: any): Promise<any> {
+    const payload = withProfessionalPreferenceNote(input);
+    const data = await this.fetch<any>(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }, "bemp-create-appointment");
+
+    if (input.professional_id != null) {
+      await tryUpdateBempScheduleNote(data, PROFESSIONAL_PREFERENCE_NOTE);
+    }
+
+    return data;
   }
 
   static async searchServicesByCategory(params: {
@@ -119,33 +149,21 @@ export class BempService {
       const normalizedQuery = params.query ? normalizeServiceSearchText(params.query) : "";
 
       const matches = services.filter((s: any) => {
-        // Campos para pesquisa conforme requisito 6
         const name = normalizeServiceSearchText(s?.name || s?.service_name || s?.title || "");
         const cat = normalizeServiceSearchText(s?.category || s?.group || "");
         const desc = normalizeServiceSearchText(s?.description || "");
         const tags = Array.isArray(s?.tags) ? s.tags.map((t: any) => normalizeServiceSearchText(String(t))) : [];
 
-        // Regras de correspondência conforme requisito 7
-        // 1. Nome exato normalizado (maior prioridade)
         if (normalizedQuery && name === normalizedQuery) return true;
-        
-        // 2. Categoria exata
         if (cat === normalizeServiceSearchText(params.category)) return true;
-
-        // 3. Nome contém "mecha" (para categoria MECHAS)
         if (params.category === "MECHAS" && name.includes("mecha")) return true;
-
-        // 4. Nome contém alias relacionado
         if (aliases.some(alias => name.includes(normalizeServiceSearchText(alias)))) return true;
-
-        // 5. Descrição ou tag relacionada
         if (aliases.some(alias => desc.includes(normalizeServiceSearchText(alias)))) return true;
         if (tags.some((tag: string) => aliases.some(alias => tag.includes(normalizeServiceSearchText(alias))))) return true;
 
         return false;
       });
 
-      // Ordenação e priorização conforme requisito 7
       const sortedMatches = matches.sort((a: any, b: any) => {
         const nameA = normalizeServiceSearchText(a?.name || "");
         const nameB = normalizeServiceSearchText(b?.name || "");
@@ -157,7 +175,6 @@ export class BempService {
         return nameA.localeCompare(nameB);
       });
 
-      // Remover duplicidades (baseado no ID)
       const uniqueMatches = Array.from(new Map(sortedMatches.map((s: any) => [s.id, s])).values());
 
       logger.info("service_category_search_completed", "Busca de serviços concluída", { ...logCtx, resultsCount: uniqueMatches.length });
@@ -172,7 +189,7 @@ export class BempService {
           price: s.price || s.valor,
           unitId: String(params.effectiveUnitId),
           category: s.category || s.group,
-          active: true // Já filtrado por listServices
+          active: true
         }))
       };
     } catch (error: any) {
@@ -185,6 +202,7 @@ export class BempService {
     }
   }
 }
+
 
 
 

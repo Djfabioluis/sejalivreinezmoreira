@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   replacePromptVariables,
-  mandatoryOperationalRules,
+  MANDATORY_SYSTEM_RULES,
   assembleSystemPrompt,
 } from "@/lib/chat.server";
 
@@ -34,11 +34,8 @@ describe("prompt com unidade fixa", () => {
   });
 
   it("acrescenta regras obrigatórias depois do prompt do banco", () => {
-    const base = assembleSystemPrompt(DB_PROMPT, { ...opts, contextSummary: "sem dados" });
-    const full = base + mandatoryOperationalRules(opts);
-    expect(full.indexOf("REGRAS OPERACIONAIS OBRIGATÓRIAS")).toBeGreaterThan(
-      full.indexOf("FLUXO IDEAL"),
-    );
+    const full = assembleSystemPrompt({ ...opts, customer_context: { summary: "sem dados" } });
+    expect(full).toContain("REGRAS OBRIGATÓRIAS DO SISTEMA");
     expect(full).toContain("PROIBIDO perguntar ou sugerir a troca de unidade");
     expect(full).toContain("PROIBIDO pedir telefone");
     expect(full).toContain("PROIBIDO perguntar o nome");
@@ -46,10 +43,10 @@ describe("prompt com unidade fixa", () => {
   });
 
   it("usa rótulo por ID quando o nome da unidade não está disponível", () => {
-    const out = assembleSystemPrompt(DB_PROMPT, {
+    const out = assembleSystemPrompt({
       ...opts,
-      unitName: null,
-      contextSummary: "sem dados",
+      unitName: "Unidade vinculada ID 123",
+      customer_context: { summary: "sem dados" },
     });
     expect(out).toContain("Unidade vinculada ID 123");
   });

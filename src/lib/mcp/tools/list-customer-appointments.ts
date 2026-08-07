@@ -1,6 +1,6 @@
 import { defineTool } from "@lovable.dev/mcp-js";
 import { z } from "zod";
-import { bempFetch, BEMP_WEBHOOK_BASE } from "@/lib/bemp.server";
+import { BempService } from "@/lib/bemp-service.server";
 import { checkMcpPermission, deniedResult } from "../permissions";
 
 export default defineTool({
@@ -16,10 +16,7 @@ export default defineTool({
   handler: async (input, ctx) => {
     const denied = await checkMcpPermission(ctx, "bemp");
     if (denied) return deniedResult(denied);
-    const data = await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_appointments`, {
-      method: "POST",
-      body: JSON.stringify(input),
-    });
+    const data = await BempService.listCustomerAppointments(input);
     return {
       content: [{ type: "text", text: JSON.stringify(data) }],
       structuredContent: { appointments: data as unknown },
