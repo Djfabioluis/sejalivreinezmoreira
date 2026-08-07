@@ -299,7 +299,7 @@ function CRMPage() {
   );
 }
 
-function FollowupRuleModal({ isOpen, onClose, rule, onSave }: any) {
+function FollowupRuleModal({ isOpen, onClose, rule, onSave }: { isOpen: boolean, onClose: () => void, rule: any, onSave: (data: any) => void }) {
   const [formData, setFormData] = useState(rule || {
     name: "",
     type: "ABANDONMENT",
