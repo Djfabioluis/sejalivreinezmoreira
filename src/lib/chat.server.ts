@@ -323,10 +323,11 @@ export async function runAgent(opts: AgentOptions & { messages: any[] }) {
 
   const tools = buildTools(!!sandbox, effectiveUnitId, conversationKey, opts.messageId);
 
+  const modelMessages = await convertToModelMessages(messages);
   return generateText({
     model: model as any,
     system: system + (sandbox ? SANDBOX_NOTE : ""),
-    messages: convertToModelMessages(messages),
+    messages: modelMessages,
     tools: tools as any,
     maxSteps: 5,
   });
@@ -354,10 +355,11 @@ export async function streamAgent(opts: AgentOptions & { messages: any[] }) {
 
   const tools = buildTools(!!sandbox, effectiveUnitId, conversationKey, opts.messageId);
 
+  const modelMessages = await convertToModelMessages(messages);
   return streamText({
     model: model as any,
     system: system + (sandbox ? SANDBOX_NOTE : ""),
-    messages: convertToModelMessages(messages),
+    messages: modelMessages,
     tools: tools as any,
     maxSteps: 5,
   });
