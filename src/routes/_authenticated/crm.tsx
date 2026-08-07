@@ -272,7 +272,150 @@ function CRMPage() {
           </div>
         </ScrollArea>
       </Card>
+
+      <FollowupRuleModal 
+        isOpen={isModalOpen} 
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingRule(null);
+        }}
+        rule={editingRule}
+        onSave={async (ruleData) => {
+          toast.loading("Salvando regra...");
+          try {
+            await saveRuleFn({ data: ruleData });
+            toast.dismiss();
+            toast.success("Regra salva com sucesso!");
+            setIsModalOpen(false);
+            setEditingRule(null);
+            queryClient.invalidateQueries({ queryKey: ["followup-rules"] });
+          } catch (err: any) {
+            toast.dismiss();
+            toast.error(err.message || "Erro ao salvar regra");
+          }
+        }}
+      />
     </div>
+  );
+}
+
+function FollowupRuleModal({ isOpen, onClose, rule, onSave }: any) {
+  const [formData, setFormData] = useState(rule || {
+    name: "",
+    type: "ABANDONMENT",
+    delay_minutes: 30,
+    message_template: "",
+    is_active: true,
+    recipients: ["NEW_CLIENTS"],
+    stop_conditions: ["REPLY"],
+    ai_goal: "BOOKING",
+    ai_tone: "HUMAN",
+    allowed_hours: ["08:00", "20:00"]
+  });
+
+  const handleSave = () => {
+    if (!formData.name || !formData.message_template) {
+      toast.error("Preencha o nome e a mensagem");
+      return;
+    }
+    onSave(formData);
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{rule ? "Editar Regra" : "Nova Regra de Follow-up"}</DialogTitle>
+          <DialogDescription>Configure o comportamento da Julia para este gatilho.</DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-6 py-4">
+          <div className="grid gap-2">
+            <Label>Nome da Regra</Label>
+            <Input 
+              placeholder="Ex: Abandono de Agendamento" 
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label>Tipo de Gatilho</Label>
+              <Select 
+                value={formData.type} 
+                onValueChange={(v) => setFormData({ ...formData, type: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ABANDONMENT">Abandono de Fluxo</SelectItem>
+                  <SelectItem value="VIP_RECALL">Recall VIP (Inativos)</SelectItem>
+                  <SelectItem value="BIRTHDAY">Aniversário</SelectItem>
+                  <SelectItem value="POST_SERVICE">Pós-Serviço</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Tempo de Espera (minutos)</Label>
+              <Input 
+                type="number" 
+                value={formData.delay_minutes}
+                onChange={(e) => setFormData({ ...formData, delay_minutes: parseInt(e.target.value) })}
+              />
+            </div>
+          </div>
+
+          <div className="grid gap-2">
+            <Label>Mensagem Base / Objetivo da IA</Label>
+            <Textarea 
+              placeholder="Descreva o que a Julia deve dizer ou o tom que ela deve usar..." 
+              className="h-32"
+              value={formData.message_template}
+              onChange={(e) => setFormData({ ...formData, message_template: e.target.value })}
+            />
+            <p className="text-[10px] text-muted-foreground italic">Use {"{nome}"} para personalizar.</p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-2">
+              <Label>Tom de Voz</Label>
+              <Select 
+                value={formData.ai_tone} 
+                onValueChange={(v) => setFormData({ ...formData, ai_tone: v })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="HUMAN">Humanizado & Acolhedor</SelectItem>
+                  <SelectItem value="PROFESSIONAL">Profissional & Direto</SelectItem>
+                  <SelectItem value="ENTHUSIASTIC">Entusiasta & Alegre</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Meta da IA</Label>
+              <Select 
+                value={formData.ai_goal} 
+                onValueChange={(v) => setFormData({ ...formData, ai_goal: v })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="BOOKING">Gerar Agendamento</SelectItem>
+                  <SelectItem value="FEEDBACK">Coletar Feedback</SelectItem>
+                  <SelectItem value="RECOVERY">Recuperar Cliente</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancelar</Button>
+          <Button onClick={handleSave}>Salvar Regra</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
