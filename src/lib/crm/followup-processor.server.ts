@@ -13,7 +13,7 @@ export async function processPendingFollowups() {
   const { data: pending, error } = await supabaseAdmin
     .from("crm_followups")
     .select("*") // Removed relation that doesn't exist in schema cache
-    .eq("status", "PENDING")
+    .in("status", ["PENDENTE", "PENDING"])
     .lte("scheduled_at", now)
     .lt("attempts", 3);
 
