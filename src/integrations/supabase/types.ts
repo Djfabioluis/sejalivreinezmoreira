@@ -350,6 +350,11 @@ export type Database = {
       crm_followup_rules: {
         Row: {
           agent_id: string | null
+          ai_goal: string | null
+          ai_tone: string | null
+          allow_promotions: boolean | null
+          allowed_days: string[] | null
+          conditions_to_stop: string[] | null
           created_at: string
           delay_amount: number
           delay_unit: string
@@ -360,7 +365,9 @@ export type Database = {
           max_attempts: number
           message_mode: string
           metadata: Json
+          min_interval_minutes: number | null
           name: string
+          recipients: string[] | null
           start_time: string | null
           type: string
           unit_id: string | null
@@ -368,6 +375,11 @@ export type Database = {
         }
         Insert: {
           agent_id?: string | null
+          ai_goal?: string | null
+          ai_tone?: string | null
+          allow_promotions?: boolean | null
+          allowed_days?: string[] | null
+          conditions_to_stop?: string[] | null
           created_at?: string
           delay_amount?: number
           delay_unit?: string
@@ -378,7 +390,9 @@ export type Database = {
           max_attempts?: number
           message_mode?: string
           metadata?: Json
+          min_interval_minutes?: number | null
           name: string
+          recipients?: string[] | null
           start_time?: string | null
           type?: string
           unit_id?: string | null
@@ -386,6 +400,11 @@ export type Database = {
         }
         Update: {
           agent_id?: string | null
+          ai_goal?: string | null
+          ai_tone?: string | null
+          allow_promotions?: boolean | null
+          allowed_days?: string[] | null
+          conditions_to_stop?: string[] | null
           created_at?: string
           delay_amount?: number
           delay_unit?: string
@@ -396,7 +415,9 @@ export type Database = {
           max_attempts?: number
           message_mode?: string
           metadata?: Json
+          min_interval_minutes?: number | null
           name?: string
+          recipients?: string[] | null
           start_time?: string | null
           type?: string
           unit_id?: string | null
