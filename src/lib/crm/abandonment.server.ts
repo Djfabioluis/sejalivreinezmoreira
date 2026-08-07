@@ -12,7 +12,7 @@ export async function detectConversationAbandonment() {
   const { data: activePipelines, error } = await supabaseAdmin
     .from("crm_customer_pipeline")
     .select("*")
-    .not("current_stage", "in", '("AGENDADO","ATENDIDO","CANCELADO","ABANDONADO","CONVERTIDO")');
+    .not("current_stage", "in", '("SCHEDULED","ATTENDED","CANCELED","ABANDONED","CONVERTED")');
 
   if (error) {
     console.error("[crm-abandonment] Failed to fetch pipelines:", error.message);

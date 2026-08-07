@@ -13,7 +13,7 @@ export async function processPendingFollowups() {
   const { data: pending, error } = await supabaseAdmin
     .from("crm_followups")
     .select("*") // Removed relation that doesn't exist in schema cache
-    .eq("status", "PENDENTE")
+    .eq("status", "PENDING")
     .lte("scheduled_at", now)
     .lt("attempts", 3);
 
@@ -42,10 +42,11 @@ export async function processPendingFollowups() {
         console.log(`[followup-processor] Skipping followup for ${followup.phone} due to low score (${score})`);
         await supabaseAdmin
           .from("crm_followups")
-          .update({ status: 'CANCELADO', cancelled_at: new Date().toISOString() })
+          .update({ status: 'CLOSED', cancelled_at: new Date().toISOString() })
           .eq("id", followup.id);
         continue;
       }
+
 
 
       if (followup.reason === 'PRICE') {
@@ -147,7 +148,7 @@ export async function processPendingFollowups() {
       await supabaseAdmin
         .from("crm_followups")
         .update({
-          status: newAttempts >= 3 ? 'ENCERRADO' : 'ENVIADO',
+          status: newAttempts >= 3 ? 'CLOSED' : 'SENT',
           attempts: newAttempts,
           sent_at: new Date().toISOString(),
           message_template: text
@@ -160,7 +161,7 @@ export async function processPendingFollowups() {
       console.error(`[followup-processor] Failed to process followup ${followup.id}:`, err.message);
       await supabaseAdmin
         .from("crm_followups")
-        .update({ status: 'FALHA' })
+        .update({ status: 'FAILED' })
         .eq("id", followup.id);
     }
   }
