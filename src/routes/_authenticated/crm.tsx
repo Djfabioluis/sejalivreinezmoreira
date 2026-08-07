@@ -113,6 +113,46 @@ function CRMPage() {
           <TabsTrigger value="history" className="rounded-lg gap-2"><History className="h-4 w-4" /> Histórico</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="dashboard" className="space-y-6">
+           <div className="grid gap-6 md:grid-cols-4">
+            <StatsCard title="Pendentes" value={fStats.pending} icon={Clock} color="text-amber-500" />
+            <StatsCard title="Hoje" value={fStats.sentToday} icon={Zap} color="text-primary" />
+            <StatsCard title="Falhas" value={fStats.failed} icon={Loader2} color="text-red-500" />
+            <StatsCard title="Recuperados" value={fStats.recovered} icon={Sparkles} color="text-emerald-500" />
+           </div>
+        </TabsContent>
+
+        <TabsContent value="rules" className="space-y-4">
+            {rules.map((rule: any) => (
+              <Card key={rule.id} className="p-6 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                   <div className="bg-primary/10 p-3 rounded-lg"><Bot className="h-6 w-6 text-primary" /></div>
+                   <div>
+                     <p className="font-bold">{rule.name}</p>
+                     <p className="text-xs text-muted-foreground uppercase">{rule.type}</p>
+                   </div>
+                </div>
+                <div className="flex gap-2">
+                   <Button variant="outline" size="sm" onClick={() => handleRunTest(rule.id)}><Play className="h-3 w-3 mr-2" /> Testar</Button>
+                   <Button variant="ghost" size="icon" onClick={() => { setEditingRule(rule); setIsModalOpen(true); }}><Edit2 className="h-4 w-4" /></Button>
+                   <Button variant="ghost" size="icon" className="text-destructive" onClick={() => {
+                     if (confirm("Excluir regra?")) {
+                       deleteRuleFn({ data: { id: rule.id } }).then(() => {
+                         toast.success("Regra excluída");
+                         queryClient.invalidateQueries({ queryKey: ["followup-rules"] });
+                       });
+                     }
+                   }}><Trash2 className="h-4 w-4" /></Button>
+                </div>
+              </Card>
+            ))}
+            {rules.length === 0 && (
+              <div className="p-12 text-center text-muted-foreground bg-muted/20 rounded-xl border border-dashed">
+                Nenhuma regra ativa encontrada.
+              </div>
+            )}
+        </TabsContent>
+
         <TabsContent value="executions" className="space-y-4">
            <Card className="border-none shadow-xl bg-card/50 backdrop-blur-sm overflow-hidden">
              <div className="overflow-x-auto">
@@ -148,6 +188,7 @@ function CRMPage() {
                         </tr>
                       )}
                    </tbody>
+
                 </table>
              </div>
            </Card>
