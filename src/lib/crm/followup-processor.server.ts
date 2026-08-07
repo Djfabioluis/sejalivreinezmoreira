@@ -60,7 +60,7 @@ export async function processPendingFollowups() {
       // Marcar como em processamento
       await supabaseAdmin
         .from("crm_followups")
-        .update({ status: 'SENDING' })
+        .update({ status: followup.status === 'PENDENTE' ? 'EM_PROCESSAMENTO' : 'SENDING' })
         .eq("id", followup.id);
 
 
@@ -74,7 +74,7 @@ export async function processPendingFollowups() {
       if (!conversation) {
         await supabaseAdmin
           .from("crm_followups")
-          .update({ status: 'CLOSED' })
+          .update({ status: followup.status === 'EM_PROCESSAMENTO' ? 'CANCELADO' : 'CLOSED' })
           .eq("id", followup.id);
         continue;
       }
@@ -150,7 +150,10 @@ export async function processPendingFollowups() {
       await supabaseAdmin
         .from("crm_followups")
         .update({
-          status: newAttempts >= 3 ? 'CLOSED' : 'SENT',
+          status: newAttempts >= 3 
+            ? (followup.status === 'EM_PROCESSAMENTO' ? 'ENCERRADO' : 'CLOSED') 
+            : (followup.status === 'EM_PROCESSAMENTO' ? 'ENVIADO' : 'SENT'),
+
           attempts: newAttempts,
           sent_at: new Date().toISOString(),
           message_template: text
@@ -163,7 +166,7 @@ export async function processPendingFollowups() {
       console.error(`[followup-processor] Failed to process followup ${followup.id}:`, err.message);
       await supabaseAdmin
         .from("crm_followups")
-        .update({ status: 'FAILED' })
+        .update({ status: followup.status === 'EM_PROCESSAMENTO' ? 'FALHA' : 'FAILED' })
         .eq("id", followup.id);
     }
   }
