@@ -97,13 +97,13 @@ export async function processPendingFollowups() {
         - Use emojis moderadamente.
       `;
 
-      const { getAiKey } = await import("@/lib/ai-gateway.server");
-      const apiKey = await getAiKey();
-      const provider = createLovableAiGatewayProvider(apiKey || "");
+      const apiKey = process.env['LOVABLE_AI_GATEWAY_KEY'] || "";
+      const provider = createLovableAiGatewayProvider(apiKey);
       const { text } = await generateText({
         model: provider("gemini-1.5-flash") as any,
         prompt,
       });
+
 
 
       // 4. Enviar via Evolution API
