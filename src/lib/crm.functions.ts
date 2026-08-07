@@ -206,12 +206,14 @@ export const saveFollowupRule = createServerFn({ method: "POST" })
 
 export const deleteFollowupRule = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context, data }: { context: any, data: { id: string } }) => {
+  .validator((data: { id: string }) => data)
+  .handler(async ({ context, data }) => {
     await assertAdmin(context);
     const { error } = await (supabaseAdmin.from("crm_followup_rules" as any) as any).delete().eq("id", data.id);
     if (error) throw new Error(error.message);
     return { success: true };
   });
+
 
 export const listFollowupHistory = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
