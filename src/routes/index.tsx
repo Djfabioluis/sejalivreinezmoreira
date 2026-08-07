@@ -236,66 +236,83 @@ function LandingPage() {
 
 
       {/* Recursos Premium Grid */}
-      <section id="recursos" className="py-24 sm:py-32">
+      <section id="recursos" className="py-24 sm:py-32 relative">
         <div className="mx-auto max-w-7xl px-6">
-          <div className="mb-16 max-w-2xl">
-            <h2 className="font-display text-4xl font-medium tracking-tight sm:text-5xl">
-              Tudo o que sua recepção precisa, <span className="text-primary italic">automatizado</span>.
-            </h2>
-            <p className="mt-6 text-lg text-muted-foreground">
-              Desbloqueie o potencial máximo do seu negócio com ferramentas desenhadas para o mercado de beleza.
-            </p>
+          <div className="mb-20 flex flex-col md:flex-row md:items-end md:justify-between gap-8">
+            <div className="max-w-2xl">
+              <h2 className="font-display text-5xl font-medium tracking-tight sm:text-6xl">
+                Recepção Inteligente. <br />
+                <span className="text-primary italic">Resultados Reais</span>.
+              </h2>
+              <p className="mt-6 text-lg text-muted-foreground/80">
+                Desbloqueie o potencial máximo do seu negócio com ferramentas desenhadas para o mercado de beleza premium.
+              </p>
+            </div>
+            <div className="flex items-center gap-4 bg-secondary/30 p-2 rounded-2xl border border-border/40 backdrop-blur-sm">
+              <div className="flex -space-x-3">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="h-10 w-10 rounded-full border-2 border-background bg-muted overflow-hidden">
+                    <img src={`https://i.pravatar.cc/100?img=${i + 10}`} alt="User" className="h-full w-full object-cover grayscale" />
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground pr-4">+500 Salões</p>
+            </div>
           </div>
 
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {[
               {
                 icon: MessageCircle,
                 title: "WhatsApp Multimodal",
-                text: "Atende texto e áudio, entende contexto e escala o atendimento com perfeição.",
+                text: "Atende texto e áudio, entende o contexto emocional das clientes e escala o atendimento com perfeição.",
               },
               {
                 icon: CalendarClock,
-                title: "Agenda Inteligente",
-                text: "Consulta horários e cria o agendamento direto no sistema Bemp sem erros.",
+                title: "Agenda Determinística",
+                text: "Consulta horários reais e cria o agendamento direto no Bemp com zero atrito e total precisão.",
               },
               {
                 icon: Sparkles,
                 title: "Motor de Cross-sell",
-                text: "Sugere serviços complementares no final do atendimento para elevar seu ticket médio.",
+                text: "Identifica oportunidades e sugere serviços complementares para elevar seu ticket médio organicamente.",
               },
               {
                 icon: ShieldCheck,
-                title: "Segurança Bancária",
-                text: "Controle RBAC e auditoria completa. Seus dados e da sua cliente estão sempre protegidos.",
+                title: "Blindagem de Dados",
+                text: "Segurança de nível enterprise. Controle RBAC e auditoria completa para total conformidade.",
               },
               {
                 icon: Bot,
-                title: "Persona Julia AI",
-                text: "Treinada para ser a embaixadora da sua marca: acolhedora, eficiente e vendedora.",
+                title: "Persona Especialista",
+                text: "Julia não é apenas um bot. Ela é a embaixadora da sua marca: acolhedora e eficiente.",
               },
               {
                 icon: BarChart3,
-                title: "CRM Estratégico",
-                text: "Indicadores em tempo real para você decidir baseada em dados, não em intuição.",
+                title: "CRM Predict",
+                text: "Dashboards que antecipam comportamentos. Saiba quem vai voltar antes mesmo delas decidirem.",
               },
             ].map((f, i) => (
               <div
                 key={i}
-                className="group relative overflow-hidden rounded-[2rem] border border-border/40 bg-card/20 p-8 transition-all hover:bg-card/40 hover:shadow-2xl hover:shadow-primary/5"
+                className="group relative flex flex-col rounded-[2.5rem] border border-border/40 bg-card/10 p-10 transition-all hover:bg-card/30 hover:-translate-y-1 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.05)]"
               >
-                <div className="mb-6 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-transform group-hover:scale-110">
-                  <f.icon className="h-6 w-6" />
+                <div className="mb-8 inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary transition-all group-hover:scale-110 group-hover:rotate-3">
+                  <f.icon className="h-7 w-7" />
                 </div>
-                <h3 className="font-display text-2xl font-medium mb-3">{f.title}</h3>
-                <p className="text-muted-foreground leading-relaxed">
+                <h3 className="font-display text-2xl font-medium mb-4">{f.title}</h3>
+                <p className="text-muted-foreground/80 leading-relaxed text-sm">
                   {f.text}
                 </p>
+                <div className="mt-8 flex items-center gap-2 text-primary font-bold text-xs uppercase tracking-widest opacity-0 -translate-x-2 transition-all group-hover:opacity-100 group-hover:translate-x-0">
+                  Saiba Mais <ArrowRight className="h-3 w-3" />
+                </div>
               </div>
             ))}
           </div>
         </div>
       </section>
+
 
       {/* Pricing Modernizado */}
       <section id="planos" className="relative py-24 sm:py-32 bg-secondary/20">
