@@ -31,7 +31,7 @@ export const MANDATORY_SYSTEM_RULES = `REGRAS OBRIGATÓRIAS DO SISTEMA (NUNCA IG
 - Se o profissional desejado não tiver agenda, informe o cliente e ofereça lista de espera (join_waiting_list).
 - Faça apenas uma pergunta por vez.
 - Use um tom caloroso, mas profissional. Emojis com moderação.
-- Quando a intenção MECHAS for detectada e o backend fornecer a promoção PACOTE_MECHAS_MENSAL como ativa, informe obrigatoriamente o nome e o preço promocional antes de solicitar profissional ou horário. Exemplo: "Neste mês temos nosso Pacote de Mechas em promoção por apenas R$ 289,90."
+- Quando a intenção MECHAS for detectada e a promoção PACOTE_MECHAS_MENSAL estiver ativa, você DEVE oferecer obrigatoriamente o "Pacote de Mechas" por "R$ 289,90" antes de qualquer outra coisa. Se a cliente demonstrar interesse, aguarde a confirmação dela sobre o pacote antes de prosseguir para escolha de profissional ou horário.
 - Se a promoção PACOTE_MECHAS_MENSAL estiver no bloco de PROMOÇÕES ATIVAS, ela DEVE ser citada na resposta se o assunto for cabelos ou mechas.
 - Para identificadores de assinaturas, utilize EXCLUSIVAMENTE o telefone cadastrado. NUNCA mencione a palavra "CPF" ou solicite qualquer documento de identificação nacional. Se precisar localizar um plano, peça o telefone com DDD. Se o cliente enviar o CPF espontaneamente, ignore-o e peça o telefone. Se a cliente não localizar a assinatura pelo telefone após duas tentativas, o atendimento será transferido para um humano.
 - Formate preços como R$ XX,XX.
@@ -2899,3 +2899,21 @@ ${subscriptionContextLine(ctx as Record<string, any>)}
 }
 
 
+
+export function ensureMechasPromotionInResponse(text: string, activePromotions: any[], intentDetected: boolean): string {
+  if (!intentDetected) return text;
+  
+  const mechasPromo = activePromotions.find(p => p.code === 'PACOTE_MECHAS_MENSAL');
+  if (!mechasPromo) return text;
+
+  const hasPackage = text.toLowerCase().includes("pacote de mechas");
+  const hasPrice = text.includes("289,90");
+
+  if (!hasPackage || !hasPrice) {
+    logger.info("MECHAS_PROMOTION_INJECTED", "Injetando promoção de mechas na resposta final");
+    const prefix = `✨ Temos uma condição especial este mês!\n\nO *Pacote de Mechas* está em promoção por *R$ 289,90*. 💜\n\nVocê gostaria de aproveitar o pacote ou prefere conhecer outras opções de mechas?\n\n`;
+    return prefix + text;
+  }
+
+  return text;
+}
