@@ -2614,35 +2614,31 @@ export async function runAgentWithLogging(params: {
       }
     }
 
-    const intent = detectServiceCategory(params.text);
-    let mandatoryPromo: any = null;
-    let activePromotions: any[] = [];
-
-    if (intent?.category === "MECHAS" || params.text.toLowerCase().includes("mecha")) {
-      logger.info("MECHAS_INTENT_DETECTED", `Intenção de mechas detectada`, { 
-        textSnippet: params.text.slice(0, 50) 
-      });
-      
+    // CARREGAMENTO UNCONDICIONAL DE PROMOÇÕES (Correção Requisito Promoção)
+    try {
       const promoResult = await PromotionService.getActivePromotions({
         unitId: effectiveUnitId || undefined,
-        channel: "WHATSAPP",
-        category: "MECHAS"
+        channel: "WHATSAPP"
       });
 
       if (promoResult.success) {
         activePromotions = promoResult.promotions;
-        const mechasPromo = activePromotions.find(p => p.code === 'PACOTE_MECHAS_MENSAL');
-        if (mechasPromo) {
-          mandatoryPromo = mechasPromo;
-          logger.info("PROMOTION_SELECTED", `Promoção de mechas selecionada`, { 
-            promo: mechasPromo.code 
-          });
+        
+        // Se houver intenção de mechas, identificamos a promoção mandatória para injeção
+        const intent = detectServiceCategory(params.text);
+        if (intent?.category === "MECHAS" || params.text.toLowerCase().includes("mecha")) {
+          const mechasPromo = activePromotions.find(p => p.code === 'PACOTE_MECHAS_MENSAL');
+          if (mechasPromo) {
+            mandatoryPromo = mechasPromo;
+            logger.info("PROMOTION_SELECTED", `Promoção de mechas identificada por intenção`, { 
+              promo: mechasPromo.code,
+              traceId: effectiveTraceId
+            });
+          }
         }
-      } else {
-        logger.error("PROMOTION_LOOKUP_FAILED", `Falha ao buscar promoções`, { 
-          code: promoResult.code 
-        });
       }
+    } catch (err) {
+      logger.error("PROMOTION_LOAD_FAILED", `Erro crítico ao carregar promoções`, { error: err, traceId: effectiveTraceId });
     }
 
     // Memória permanente do cliente (aprendizado contínuo) — nunca bloqueia o atendimento.

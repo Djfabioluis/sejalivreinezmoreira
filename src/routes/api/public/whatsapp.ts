@@ -2,7 +2,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createHmac, timingSafeEqual } from "crypto";
 import { type UIMessage } from "ai";
-import { runAgent } from "@/lib/chat.server";
+import { runAgent, runAgentWithLogging } from "@/lib/chat.server";
 import { transcribeAudio, synthesizeSpeechMp3 } from "@/lib/ai-audio.server";
 import { getWhatsAppConfig } from "@/lib/whatsapp-config.server";
 import { sanitizeCustomerText } from "@/lib/text-sanitize";
@@ -242,33 +242,31 @@ export const Route = createFileRoute("/api/public/whatsapp")({
 
                 try {
                   const history = await loadHistory(phone);
-                  const nextIn = [...history, textMessage("user", userText)];
-                  const reply = await runAgent(nextIn);
-                  const nextOut = [...nextIn, textMessage("assistant", reply)];
-                  await saveHistory(phone, nextOut);
-                  if (wasVoice) {
-                    try {
-                      const mp3 = await synthesizeSpeechMp3(reply);
-                      const mediaId = await uploadWaAudioMp3(mp3);
-                      if (mediaId) {
-                        await sendWhatsAppAudio(phone, mediaId);
-                      } else {
-                        // Fallback para texto se upload falhar
-                        await sendWhatsAppText(phone, reply);
-                      }
-                    } catch (err) {
-                      console.error("[whatsapp] TTS/upload falhou, enviando texto:", err);
-                      await sendWhatsAppText(phone, reply);
-                    }
-                  } else {
-                    await sendWhatsAppText(phone, reply);
-                  }
+                  const conversationKey = `cloud:${phone}`;
+                  
+                  // Identificar o agente/unidade para o número (se houver)
+                  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+                  const { data: agent } = await supabaseAdmin
+                    .from("wa_agentes" as never)
+                    .select("unidade_id, instancia")
+                    .eq("telefone", phone)
+                    .maybeSingle();
+
+                  // Se houver agente configurado com Evolution, o Cloud API deve ser ignorado ou delegar
+                  // Para manter compatibilidade, usamos runAgentWithLogging que já tem toda a instrumentação
+                  await runAgentWithLogging({
+                    instance: (agent as any)?.instancia || "cloud-api",
+                    remoteJid: `${phone}@s.whatsapp.net`,
+                    messageId: msg.id,
+                    phone: phone,
+                    conversationKey: conversationKey,
+                    text: userText,
+                    unidadeId: (agent as any)?.unidade_id || "5258", // Fallback para Ventura se não identificado
+                    pushName: "Cliente"
+                  });
+
                 } catch (err) {
                   console.error("[whatsapp] erro processando mensagem:", err);
-                  await sendWhatsAppText(
-                    phone,
-                    "Desculpe, tivemos uma instabilidade aqui. Pode enviar de novo em instantes?",
-                  );
                 }
               }
             }
