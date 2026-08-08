@@ -341,7 +341,12 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
 
   const tools = buildTools(!!sandbox, effectiveUnitId, conversationKey, opts.messageId);
 
-  const modelMessages = Array.isArray(messages) && messages[0]?.role ? messages : await convertToModelMessages(messages);
+  // Aceita tanto UIMessages (com parts) quanto ModelMessages (com content).
+  const needsConversion = messages.some((m: any) => Array.isArray(m?.parts));
+  const modelMessages = needsConversion
+    ? await convertToModelMessages(messages as any)
+    : messages;
+
   return generateText({
     model: model as any,
     system: system + (sandbox ? SANDBOX_NOTE : ""),
