@@ -490,12 +490,12 @@ async function resolveFollowupCustomerName(followup: any, conversation: any, tra
   if (!fullName && followup.customer_id) {
     const { data: crmCustomer } = await supabaseAdmin
       .from("crm_customer_pipeline")
-      .select("name")
+      .select("customer_name")
       .eq("id", followup.customer_id)
       .maybeSingle();
     
-    if (crmCustomer?.name) {
-      fullName = crmCustomer.name;
+    if (crmCustomer?.customer_name) {
+      fullName = crmCustomer.customer_name;
       source = "CRM";
     }
   }
