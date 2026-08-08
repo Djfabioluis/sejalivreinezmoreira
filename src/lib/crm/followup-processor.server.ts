@@ -360,7 +360,7 @@ async function resolveFollowupCustomerName(followup: any, conversation: any, tra
 
 async function generateAiFollowup(followup: any, nameData: any) {
   const providerName = "google";
-  const modelName = "gemini-1.5-flash"; // Nome padrão suportado pelo gateway
+  const modelName = "gemini-1.5-flash";
   const startTime = Date.now();
   
   try {
@@ -376,9 +376,12 @@ async function generateAiFollowup(followup: any, nameData: any) {
     
     const prompt = `Aja como Julia, uma assistente humanizada de um salão de beleza. O cliente se chama ${nameData.fullName} (primeiro nome: ${nameData.firstName || 'cliente'}). Gere uma mensagem curta, acolhedora e personalizada de follow-up para este cliente. Nunca use a palavra "Cliente" como se fosse o nome dele.`;
     
+    // Usando apenas os parâmetros básicos e garantindo que o gateway receba a estrutura esperada
     const { text } = await generateText({
       model,
-      prompt,
+      messages: [
+        { role: 'user', content: prompt }
+      ]
     });
     
     return text;
