@@ -386,11 +386,12 @@ async function generateAiFollowup(followup: any, nameData: any) {
     const prompt = `Aja como Julia, uma assistente humanizada de um salão de beleza. O cliente se chama ${nameData.fullName} (primeiro nome: ${nameData.firstName || 'cliente'}). Gere uma mensagem curta, acolhedora e personalizada de follow-up para este cliente. Nunca use a palavra "Cliente" como se fosse o nome dele.`;
     
     // Fallback para fetch direto se o provider estiver dando 400
+    console.log("Julia AI: Chamando Gateway Lovable (fetch direto)...");
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Lovable-API-Key": apiKey,
+        "Authorization": `Bearer ${apiKey}`, // Usar Authorization: Bearer para o Gateway
         "X-Lovable-AIG-SDK": "fetch-raw"
       },
       body: JSON.stringify({
@@ -399,6 +400,7 @@ async function generateAiFollowup(followup: any, nameData: any) {
         temperature: 0.7
       })
     });
+
 
     if (!response.ok) {
       const errorBody = await response.json().catch(() => ({}));
