@@ -442,27 +442,48 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       payload: updatePayload
     });
 
+    // Diagnóstico obrigatório: SQL simulado e parâmetros
+    const updateQuery = `UPDATE crm_followups SET status = 'SENT', ... WHERE id = '${followup.id}' RETURNING *`;
+    
     const { data: updateData, error: updateError, status: updateStatus } = await supabaseAdmin
       .from("crm_followups")
       .update(updatePayload as any)
       .eq("id", followup.id)
-      .select('id, status, sent_at, completed_at');
+      .select('*'); // Usar * para o RETURNING completo
 
-    if (updateError) {
-      logger.error("FOLLOWUP_DB_UPDATE_FAILED", "Erro no UPDATE final do followup", {
+    const rowCount = updateData?.length || 0;
+
+    if (updateError || rowCount === 0) {
+      const errorMsg = updateError ? updateError.message : "RowCount 0: O UPDATE não afetou nenhuma linha. Verifique se o registro ainda existe ou se houve rollback silencioso.";
+      logger.error("FOLLOWUP_DB_UPDATE_FAILED", errorMsg, {
         traceId,
         job_id: followup.id,
+        rowCount,
         error: updateError,
-        status: updateStatus
+        sql: updateQuery,
+        params: updatePayload
       });
+      
+      if (rowCount === 0 && !updateError) {
+         throw new Error(`DB_PERSISTENCE_ERROR: rowCount=0 para o Job ${followup.id}. UPDATE ignorado pelo banco.`);
+      }
       throw updateError;
     }
 
-    logger.info("FOLLOWUP_DB_UPDATE_SUCCESS", "UPDATE final concluído com sucesso", {
+    // Consulta de validação imediata pós-update
+    const { data: verificationData } = await supabaseAdmin
+      .from("crm_followups")
+      .select("id, status, conversation_id, message_id, sent_at, completed_at, metadata")
+      .eq("id", followup.id)
+      .single();
+
+    logger.info("FOLLOWUP_DB_UPDATE_SUCCESS", "UPDATE final concluído e verificado", {
       traceId,
       job_id: followup.id,
-      rowsAffected: updateData?.length || 0,
-      responseData: updateData
+      rowCount,
+      returning: updateData[0],
+      verifiedRecord: verificationData,
+      sql: updateQuery
     });
 
     // LOG OBRIGATÓRIO: JOB_FINISHED
