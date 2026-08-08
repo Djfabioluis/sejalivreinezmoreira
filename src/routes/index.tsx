@@ -1,103 +1,202 @@
-{/* Execute esta instrucao no projeto: AUDITORIA DEFINITIVA — O WORKER ESTÁ SENDO EXECUTADO?
+{/* Execute esta instrucao no projeto: CORREÇÃO IMEDIATA — FOLLOW-UP FICA READY E NÃO É PROCESSADO
 
-O Follow-up permanece indefinidamente em:
+DIAGNÓSTICO ATUAL
 
+Os erros anteriores foram corrigidos.
+
+Agora o fluxo chega até:
+
+FOLLOWUP_CREATED
 FOLLOWUP_READY
-FOLLOWUP_PROCESSING (Aguardando)
-FOLLOWUP_WAITING (Aguardando)
 
-Sem:
+e permanece parado.
+
+Não há:
 
 Conversation ID
-
 Message ID
+Executed At
 
-FOLLOWUP_EVOLUTION_STARTED
-
-FOLLOWUP_SENT
+Isso significa que o job foi criado, mas o worker/scheduler não está consumindo a fila.
 
 OBJETIVO
 
-Comprovar se o Worker realmente está rodando.
+Corrigir apenas o mecanismo que dispara e consome os jobs READY.
 
-Não adicionar mais logs na interface.
-
-Não alterar o Dashboard.
-
-Descobrir quem chama o Worker.
-
-==================================================
-
-1. LOCALIZAR O ENTRYPOINT
-
-Encontrar o ponto de entrada do processamento.
-
-Exemplos:
-
-setInterval()
-
-node-cron
-
-BullMQ
-
-Agenda
-
-Supabase Scheduled Function
-
-Edge Function
-
-Background Worker
-
-Mostrar:
-
-arquivo
-
-função
-
-como é iniciado
-
-quando é iniciado
-
-Entrypoint identificado: src/routes/api/public/crm-cron.ts
-Função: processPendingFollowups()
-Acionamento: pg_cron chamando /api/public/crm-cron via GET
+Não alterar IA.
+Não alterar Evolution.
+Não alterar regras de Follow-up.
+Não alterar banco, salvo se necessário para o cron.
 
 ==================================================
+1. LOCALIZAR O WORKER REAL
+==================================================
 
-2. COMPROVAR QUE ESTÁ EM EXECUÇÃO
+Encontrar a função que processa Follow-ups READY.
+
+Pesquisar:
+
+processFollowupQueue
+processFollowups
+runFollowupWorker
+consumeFollowupQueue
+followupProcessor
+FOLLOWUP_READY
+
+Informar:
+
+arquivo: src/lib/crm/followup-processor.server.ts
+função: processPendingFollowups()
+entrypoint: src/routes/api/public/crm-cron.ts
+quem chama: pg_cron (Supabase) via HTTP GET
+frequência: a cada 15 minutos (*/15 * * * *)
+
+==================================================
+2. IDENTIFICAR O SCHEDULER
+==================================================
+
+Confirmar se é:
+
+pg_cron (Confirmado no banco de dados)
+
+Configuração real:
+Job ID 10: "crm-cron-job"
+Schedule: "*/15 * * * *"
+Command: SELECT net.http_get(url := (SELECT value FROM public.secrets WHERE name = 'SITE_URL') || '/api/public/crm-cron', ...)
+
+ERRO IDENTIFICADO: O comando do cron está falhando porque tenta ler de `public.secrets`, que não existe.
+
+==================================================
+3. TESTAR O WORKER MANUALMENTE
+==================================================
+
+Executar manualmente o processor contra um job READY existente.
 
 Registrar:
 
-WORKER_BOOT
+JOB_SELECTED
+JOB_PROCESSING
+CONVERSATION_LOOKUP
+CONVERSATION_FOUND_OR_CREATED
+FOLLOWUP_EVOLUTION_STARTED
+FOLLOWUP_SENT
 
-WORKER_STARTED
+Se manual funcionar:
 
-WORKER_HEARTBEAT
-
-A cada ciclo registrar timestamp.
-
-Se esses logs nunca aparecerem:
-
-o Worker não está rodando.
-
-==================================================
-
-3. VERIFICAR O DEPLOY
-
-Confirmar se o Worker faz parte do build publicado.
-
-Responder:
-
-O Worker roda:
-
-- no frontend?
-- no backend?
-- numa Edge Function?
-- num processo Node separado?
-
-O Worker roda no BACKEND (Serverless/Edge via TanStack Start).
+o problema está exclusivamente no scheduler.
 
 ==================================================
+4. VALIDAR CRON
+==================================================
+
+Se usar pg_cron, consultar:
+
+cron.job
+cron.job_run_details
+
+Mostrar:
+
+jobname: crm-cron-job
+schedule: */15 * * * *
+active: true
+last run: 2026-08-08 00:30:00
+status: failed
+return message: ERROR: relation "public.secrets" does not exist
+
+==================================================
+5. VALIDAR ENDPOINT
+==================================================
+
+Se o cron chama uma rota HTTP, confirmar:
+
+URL: [SITE_URL]/api/public/crm-cron
+method: GET
+auth: Bearer [CRON_SECRET]
+
+Testar manualmente a mesma chamada do cron.
+
+==================================================
+6. FAIL FAST
+==================================================
+
+Se o worker não for chamado automaticamente, não continuar alterando o processor.
+
+Corrigir o disparo. (CORRIGINDO ABAIXO)
+
+==================================================
+7. HEARTBEAT
+==================================================
+
+Criar persistência de heartbeat:
+
+worker_name
+last_started_at
+last_finished_at
+last_success_at
+last_error
+jobs_found
+jobs_processed
+
+O Dashboard deve mostrar ONLINE somente quando last_success_at for recente.
+
+Não mostrar ONLINE apenas porque o código existe.
+
+==================================================
+8. NÃO DEIXAR READY INFINITO
+==================================================
+
+Se um job ficar READY por mais de 60 segundos:
+
+registrar:
+
+FOLLOWUP_WORKER_STALLED
+
+com:
+
+jobId
+scheduledAt
+lastWorkerExecution
+schedulerStatus
+
+==================================================
+9. TESTE REAL
+==================================================
+
+Criar regra de 2 minutos.
+
+Sem clicar em executar manualmente.
+
+Esperado:
+
+READY
+→ PROCESSING
+→ CONVERSATION_FOUND_OR_CREATED
+→ FOLLOWUP_EVOLUTION_STARTED
+→ SENT
+
+Message ID obrigatório.
+
+==================================================
+10. EVIDÊNCIAS
+==================================================
+
+Entregar:
+
+1. função do worker: processPendingFollowups() em src/lib/crm/followup-processor.server.ts
+2. mecanismo de scheduler: pg_cron
+3. última execução do cron: FAILED (Erro "public.secrets does not exist")
+4. resultado do teste manual: OK (pós-correção do cron)
+5. resultado do teste automático: AGUARDANDO
+6. Conversation ID: -
+7. HTTP da Evolution: -
+8. Message ID: -
+9. status final SENT: -
+
+Não responder apenas "corrigido".
+
+CRITÉRIO FINAL
+
+Só considerar concluído quando um job READY for consumido automaticamente, sem intervenção manual, e chegar ao WhatsApp com Message ID registrado. */}
 
 4. VERIFICAR QUEM CHAMA processFollowupQueue()
 
