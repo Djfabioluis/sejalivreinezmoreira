@@ -221,12 +221,24 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     
     const { sendEvolutionText } = await import("@/lib/evolution.server");
     
-    // Logar dados antes de enviar para Evolution para auditoria definitiva
+    // 8. Se pegou, mostrar: FOLLOWUP_EVOLUTION_STARTED, payload enviado
+    const evolutionPayload = {
+      instance: conversation.instance,
+      phone: conversation.phone_number,
+      message: messageText
+    };
+    logger.info("FOLLOWUP_EVOLUTION_STARTED", "Payload enviado para Evolution API", { 
+      traceId, 
+      followupId: followup.id,
+      payload: evolutionPayload
+    });
+
     await updateFollowupMetadata(followup.id, {
       phoneBeforeValidation: followup.phone,
       phoneSentToEvolution: normalized.full,
       evolutionInstance: conversation.instance,
-      evolutionPhoneNumber: conversation.phone_number
+      evolutionPhoneNumber: conversation.phone_number,
+      evolutionPayload
     });
 
     const success = await sendEvolutionText(conversation.instance, conversation.phone_number, messageText);
