@@ -372,7 +372,7 @@ async function resolveFollowupCustomerName(followup: any, conversation: any, tra
 
 async function generateAiFollowup(followup: any, nameData: any) {
   const providerName = "google";
-  const modelName = "gemini-2.5-flash"; // Using the updated 2026 default
+  const modelName = "google/gemini-2.5-flash"; // Using the updated 2026 default
   const startTime = Date.now();
   
   try {
