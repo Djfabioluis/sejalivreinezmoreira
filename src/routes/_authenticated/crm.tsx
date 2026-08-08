@@ -497,16 +497,24 @@ function CRMPage() {
                   .map((step, idx) => (
                     <div key={idx} className="relative">
                       <div className={`absolute -left-[31px] top-1 p-1 rounded-full border bg-background ${step.date ? 'border-primary' : 'border-muted'}`}>
-                        {step.date ? <CheckCircle2 className="h-3 w-3 text-primary" /> : <div className="h-3 w-3" />}
+                        {step.date || (step.label === 'SENT' && selectedExecution.status === 'SENT') ? (
+                          <CheckCircle2 className={`h-3 w-3 ${step.date ? 'text-primary' : 'text-blue-500'}`} />
+                        ) : (
+                          <div className="h-3 w-3" />
+                        )}
                       </div>
                       <div>
-                        <p className={`text-xs font-bold ${step.date ? 'text-foreground' : 'text-muted-foreground'}`}>{step.label}</p>
+                        <p className={`text-[10px] font-bold ${(step.date || (step.label === 'SENT' && selectedExecution.status === 'SENT')) ? 'text-foreground' : 'text-muted-foreground'}`}>
+                          {step.label}
+                        </p>
                         {step.date ? (
-                          <p className="text-[10px] text-muted-foreground">
-                            {format(new Date(step.date), "dd MMM, HH:mm:ss", { locale: ptBR })}
+                          <p className="text-[9px] text-muted-foreground">
+                            {format(new Date(step.date), "HH:mm:ss", { locale: ptBR })}
                           </p>
                         ) : (
-                          <p className="text-[10px] text-muted-foreground italic">Aguardando...</p>
+                          <p className="text-[9px] text-muted-foreground italic">
+                            {step.label === 'SENT' && selectedExecution.status === 'SENT' ? 'Confirmado' : 'Aguardando...'}
+                          </p>
                         )}
                       </div>
                     </div>
