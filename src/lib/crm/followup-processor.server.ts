@@ -460,16 +460,35 @@ async function blockFollowup(id: string, reasonCode: string, message: string, tr
 }
 
 async function generateAiFollowup(followup: any, conversation: any, traceId: string): Promise<string> {
-  const prompt = `Julia, Salão Seja Livre. Follow-up: ${followup.stage}. Nome: ${conversation.contact_name || 'Cliente'}`;
+  const stage = followup.stage || followup.metadata?.stage || 'Geral';
+  const prompt = `Você é Julia, a assistente inteligente do Salão Seja Livre.
+Escreva uma mensagem de WhatsApp curta e humanizada para o cliente ${conversation.contact_name || 'Cliente'}.
+Contexto: Este é um contato de follow-up do tipo "${stage}".
+Objetivo: Ser gentil, profissional e incentivar o retorno ao salão.
+Não use emojis em excesso. Não use linguajar formal demais.
+Mensagem:`;
+
   try {
     const apiKey = await getAiKey();
-    const provider = createLovableAiGatewayProvider(apiKey || "");
+    if (!apiKey) {
+      logger.error("AI_KEY_MISSING", "Chave de IA não encontrada para follow-up", { traceId });
+      return "";
+    }
+
+    const provider = createLovableAiGatewayProvider(apiKey);
     const { text } = await generateText({
       model: provider("gemini-1.5-flash") as any,
       prompt,
+      maxTokens: 300,
     });
+    
+    if (!text) {
+      logger.warn("AI_EMPTY_RESPONSE", "IA retornou texto vazio", { traceId, prompt });
+    }
+    
     return text;
-  } catch (e) {
+  } catch (e: any) {
+    logger.error("AI_GENERATION_ERROR", e.message, { traceId, error: e, prompt });
     return "";
   }
 }
