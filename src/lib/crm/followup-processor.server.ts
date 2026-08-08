@@ -369,7 +369,8 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
 
     if (!success) {
       await updateFollowupStep(followup.id, "FOLLOWUP_EVOLUTION_FAILED", traceId);
-      throw new Error("EVOLUTION_HTTP_ERROR: Falha ao enviar mensagem via Evolution API.");
+      // logger.error já ocorreu dentro de sendEvolutionText
+      throw new Error(`EVOLUTION_HTTP_ERROR: Falha ao enviar mensagem via Evolution API. MessageID: ${messageId || 'N/A'}`);
     }
 
     // LOG OBRIGATÓRIO: MESSAGE_ID_SAVED
@@ -482,14 +483,21 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       stack: err.stack,
       traceId,
       followupId: followup.id,
-      workerId: "JuliaFollowupProcessorV2"
+      workerId: "JuliaFollowupProcessorV2",
+      errorTimestamp: new Date().toISOString()
     };
 
     logger.error("FOLLOWUP_EXECUTION_FAILED", err.message, errorInfo);
 
+    logger.info("FOLLOWUP_DB_UPDATE_START", "Iniciando UPDATE de erro/retry do followup", {
+      traceId,
+      job_id: followup.id,
+      error: err.message
+    });
+
     const isFinalAttempt = (followup.attempts || 0) >= 2;
     
-    await supabaseAdmin
+    const { data: errorUpdateData, error: errorUpdateError } = await supabaseAdmin
       .from("crm_followups")
       .update({
         status: isFinalAttempt ? "CANCELED" : "READY",
@@ -502,7 +510,22 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
           last_step: "FOLLOWUP_ERROR"
         }
       } as any)
-      .eq("id", followup.id);
+      .eq("id", followup.id)
+      .select('id, status');
+
+    if (errorUpdateError) {
+      logger.error("FOLLOWUP_DB_UPDATE_FAILED", "Falha crítica ao persistir erro no followup", {
+        traceId,
+        job_id: followup.id,
+        error: errorUpdateError
+      });
+    } else {
+      logger.info("FOLLOWUP_DB_UPDATE_SUCCESS", "Persistência de erro concluída", {
+        traceId,
+        job_id: followup.id,
+        newStatus: errorUpdateData?.[0]?.status
+      });
+    }
   }
 }
 
