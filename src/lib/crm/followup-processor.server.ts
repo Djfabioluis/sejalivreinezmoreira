@@ -278,15 +278,26 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       return;
     }
 
+    // 1. Auditando o fluxo completo: resolveFollowupCustomerName()
+    const nameData = await resolveFollowupCustomerName(followup, conversation, traceId);
+    
+    logger.info("FOLLOWUP_NAME_RESOLVED", `Resolução de nome para o job ${followup.id}`, { 
+      traceId, 
+      job_id: followup.id,
+      customerFirstName: nameData.firstName,
+      customerName: nameData.fullName,
+      source: nameData.source,
+      timestamp: new Date().toISOString()
+    });
+
     // Adiciona log de início de geração
     await updateFollowupStep(followup.id, "FOLLOWUP_GENERATION_STARTED", traceId);
 
     let messageText = followup.message_template;
     if (!messageText) {
-       messageText = await generateAiFollowup(followup, conversation, traceId);
+       messageText = await generateAiFollowup(followup, conversation, traceId, nameData);
     } else {
-      // 6. TEMPLATE FIXO (Se vier de uma regra com mensagem fixa)
-      const nameData = await resolveFollowupCustomerName(followup, conversation, traceId);
+      // 6. TEMPLATE FIXO
       if (nameData.firstName) {
         messageText = messageText.replace(/{{nome}}/g, nameData.fullName || "");
         messageText = messageText.replace(/{{primeiro_nome}}/g, nameData.firstName || "");
@@ -295,6 +306,13 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
         messageText = messageText.replace(/,?\s?{{primeiro_nome}}/g, "");
       }
     }
+
+    logger.info("FOLLOWUP_MESSAGE_GENERATED", `Mensagem final gerada para o job ${followup.id}`, {
+      traceId,
+      job_id: followup.id,
+      messageText,
+      timestamp: new Date().toISOString()
+    });
 
     if (!messageText) {
       throw new Error("MESSAGE_GENERATION_FAILED: O retorno da IA ou template fixo está vazio.");
@@ -334,11 +352,14 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     const success = await sendEvolutionText(instance, conversation.phone_number, messageText);
 
     // 2. LOG DA EVOLUTION: Resposta HTTP e MessageId
-    // Nota: supomos que a Evolution API retorna um ID no sucesso
-    logger.info("FOLLOWUP_EVOLUTION_RESPONSE", `Evolution API response: ${success ? 'SUCCESS' : 'FAILED'}`, { 
+    logger.info("FOLLOWUP_MESSAGE_SENT", `Evolution API response: ${success ? 'SUCCESS' : 'FAILED'}`, { 
       traceId, 
       job_id: followup.id,
       success,
+      customerFirstName: nameData.firstName,
+      customerName: nameData.fullName,
+      source: nameData.source,
+      messageSent: messageText,
       timestamp: new Date().toISOString()
     });
 
@@ -555,8 +576,8 @@ async function resolveFollowupCustomerName(followup: any, conversation: any, tra
   return { fullName, firstName, source };
 }
 
-async function generateAiFollowup(followup: any, conversation: any, traceId: string): Promise<string> {
-  const nameData = await resolveFollowupCustomerName(followup, conversation, traceId);
+async function generateAiFollowup(followup: any, conversation: any, traceId: string, preResolvedName?: any): Promise<string> {
+  const nameData = preResolvedName || await resolveFollowupCustomerName(followup, conversation, traceId);
   
   const stage = followup.stage || followup.metadata?.stage || 'Geral';
   
@@ -572,6 +593,16 @@ Contexto: Este é um contato de follow-up do tipo "${stage}".
 Objetivo: Ser gentil, profissional e incentivar o retorno ao salão.
 Não use emojis em excesso. Não use linguajar formal demais.
 Mensagem:`;
+
+  logger.info("FOLLOWUP_PROMPT_CONTEXT", `Prompt enviado para a Julia (Job: ${followup.id})`, {
+    traceId,
+    job_id: followup.id,
+    customerFirstName: nameData.firstName,
+    customerName: nameData.fullName,
+    source: nameData.source,
+    prompt,
+    timestamp: new Date().toISOString()
+  });
 
   try {
     const apiKey = await getAiKey();
