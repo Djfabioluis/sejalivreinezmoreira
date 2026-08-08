@@ -125,8 +125,8 @@ function CRMPage() {
                <Activity className="h-5 w-5 text-emerald-600 animate-pulse" />
              </div>
              <div>
-               <h3 className="text-sm font-bold">Motor de Follow-up <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-none">ONLINE</Badge></h3>
-               <p className="text-[10px] text-muted-foreground">Fila: {workerStatus.queueSize} | Última: {workerStatus.lastRun ? format(new Date(workerStatus.lastRun), "HH:mm:ss", { locale: ptBR }) : 'Nunca'}</p>
+                <h3 className="text-sm font-bold">Motor de Follow-up <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-none">ONLINE</Badge></h3>
+                <p className="text-[10px] text-muted-foreground">Fila: {workerStatus.queueSize} | Polling: {format(new Date(), "HH:mm:ss")}</p>
              </div>
           </div>
         </div>
@@ -508,10 +508,11 @@ function CRMPage() {
                   <DataField label="Telefone" value={formatPhone(selectedExecution.phone)} icon={<Phone className="h-3 w-3" />} />
                   <DataField label="Agendado em" value={format(new Date(selectedExecution.scheduled_at), "HH:mm:ss dd/MM")} />
                   <DataField label="Executado em" value={selectedExecution.completed_at ? format(new Date(selectedExecution.completed_at), "HH:mm:ss dd/MM") : (selectedExecution.sent_at ? format(new Date(selectedExecution.sent_at), "HH:mm:ss dd/MM") : "-")} />
-                  <DataField label="Worker ID" value={selectedExecution.metadata?.worker_id || "Julia Engine v2"} />
+                  <DataField label="Worker ID" value={selectedExecution.metadata?.worker_id || "Julia Engine v3"} />
                   <DataField label="Evolution Instance" value={selectedExecution.metadata?.instance_name || selectedExecution.metadata?.evolutionInstance || "Primary"} />
                   <DataField label="Conversation ID" value={selectedExecution.metadata?.conversationId || (selectedExecution.metadata?.conversationCreated ? "Created" : (selectedExecution.metadata?.conversationFound ? "Found" : "-"))} />
                   <DataField label="Message ID" value={selectedExecution.metadata?.message_id || selectedExecution.metadata?.evolution_response?.key?.id || "-"} className="col-span-2" />
+
 
                   
                   {selectedExecution.status === 'CANCELED' && (
