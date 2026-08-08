@@ -91,19 +91,12 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     });
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-
-  try {
-    const agent = await findAgentByInstance(instance);
-    const contactPhone = normalizePhone(msg.remoteJid);
-    const conversationKey = buildConversationKey(instance, msg.remoteJid);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { HUMAN_TAKEOVER_TIMEOUT_MINUTES } = await import("../config");
 
     // BUSCA CONVERSA PARA CHECAR ATTENDANCE MODE
     const { data: conversation } = await supabaseAdmin
       .from("wa_conversas" as any)
-      .select("id, attendance_mode, human_takeover_at")
+      .select("id, messages, customer_context, contact_name, attendance_mode, human_takeover_at")
       .or(`phone.eq.${conversationKey},phone.eq.${contactPhone},phone_number.eq.${contactPhone}`)
       .maybeSingle();
 
@@ -201,11 +194,17 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       return;
     }
 
-    const text = textOverride?.trim() || extractMessageText(msg.message);
     if (!text) {
       await logEvent({ instance, messageId, event: "agent_flow", status: "empty_text_skipped", payload: { traceId } });
       return;
     }
+
+    const { normalizeConversationHistory } = await import("./history");
+    const history = normalizeConversationHistory(
+      (conv?.messages as any[]) || [],
+      text,
+      messageId
+    );
 
     // Chama o orquestrador da IA Julia com logging e traceId
     const { runAgentWithLogging } = await import("@/lib/chat.server");
@@ -222,12 +221,12 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       messages: history,
       instance,
       messageId,
-      contactName: msg.pushName || (convFull as any)?.contact_name || undefined,
+      contactName: msg.pushName || conv?.contact_name || undefined,
       text,
       unidadeId: agent.unidade_id,
       contactPhone,
       conversationKey,
-      customerContext: (convFull as any)?.customer_context || {},
+      customerContext: conv?.customer_context || {},
       traceId
     } as any);
 
@@ -260,7 +259,6 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       messageId,
       traceId
     });
-
 
     await logEvent({ instance, messageId, event: "OUTBOUND_SENT", status: "success", payload: { traceId } });
   } catch (error) {
