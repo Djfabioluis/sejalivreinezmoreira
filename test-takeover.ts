@@ -30,7 +30,7 @@ async function test() {
     }]
   }, "http://localhost/webhook");
   let { data: conv } = await supabaseAdmin.from("wa_conversas").select("attendance_mode").eq("phone", phone).single();
-  console.log("Status ECO IA:", conv?.attendance_mode);
+  console.log("Status ECO IA:", (conv as any)?.attendance_mode);
 
   console.log("3. Simulando HUMANO (Deve mudar para HUMAN)...");
   await processMessagesUpsert({
@@ -42,12 +42,12 @@ async function test() {
     }]
   }, "http://localhost/webhook");
   ({ data: conv } = await supabaseAdmin.from("wa_conversas").select("attendance_mode, human_takeover_at").eq("phone", phone).single());
-  console.log("Status HUMANO:", conv?.attendance_mode, "| Takeover at:", conv?.human_takeover_at);
+  console.log("Status HUMANO:", (conv as any)?.attendance_mode, "| Takeover at:", (conv as any)?.human_takeover_at);
 
   console.log("4. Verificando processamento de cliente APÓS expiração forçada...");
-  // Forçamos o takeover_at para 15 minutos atrás no banco
+  // Forçamos o takeover_at para 15 minutos atrás no banco (literalmente 15 min atrás para evitar fuso horário)
   const expirationDate = new Date(Date.now() - 15 * 60 * 1000).toISOString();
-  await supabaseAdmin.from("wa_conversas").update({ human_takeover_at: expirationDate }).eq("phone", phone);
+  await supabaseAdmin.from("wa_conversas").update({ human_takeover_at: expirationDate } as any).eq("phone", phone);
 
   console.log("Executando webhook de cliente...");
   await processMessagesUpsert({
@@ -59,8 +59,11 @@ async function test() {
     }]
   }, "http://localhost/webhook");
 
+  // Aguardar um pouco para os logs assíncronos
+  await new Promise(r => setTimeout(r, 1000));
+
   ({ data: conv } = await supabaseAdmin.from("wa_conversas").select("attendance_mode").eq("phone", phone).single());
-  console.log("Status final:", conv?.attendance_mode);
+  console.log("Status final (deve ser AI):", (conv as any)?.attendance_mode);
 }
 
 test().catch(console.error);
