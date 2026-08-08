@@ -11,7 +11,8 @@ async function testWithRealName() {
     status: "READY",
     stage: "TESTE",
     scheduled_at: new Date().toISOString(),
-    rule_id: "00000000-0000-0000-0000-000000000000",
+    rule_id: "a53d3d16-6f83-4715-a9ac-d045c59ef069",
+
 
     metadata: { 
       contact_name: "Fabio Luis Moreira",
