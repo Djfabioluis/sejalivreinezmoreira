@@ -77,10 +77,9 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
 
         // fromMe=true mas NÃO foi a IA -> HUMANO assumiu
         const phone = normalizePhone(msg.remoteJid);
-        const { updateConversationMetadata } = await import("./conversation.server");
         const conversationKey = buildConversationKey(msg.instance, msg.remoteJid);
 
-        await supabaseAdmin
+        const { error: updateError } = await supabaseAdmin
           .from("wa_conversas")
           .update({ 
             attendance_mode: "HUMAN", 
@@ -88,12 +87,16 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
           })
           .or(`phone.eq.${conversationKey},phone.eq.${phone},phone_number.eq.${phone}`);
 
+        if (updateError) {
+          console.error("[takeover] Error updating to HUMAN mode:", updateError);
+        }
+
         await logEvent({
           instance: msg.instance,
           messageId: msg.messageId,
           event: "human_takeover_detected",
           status: "attendance_mode_set_to_human",
-          payload: { traceId, phone, conversationKey, remoteJid: msg.remoteJid }
+          payload: { traceId, phone, conversationKey, remoteJid: msg.remoteJid, updateError }
         });
 
         continue; 
