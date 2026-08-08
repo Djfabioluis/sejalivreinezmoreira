@@ -4,7 +4,7 @@ import { getConnectionState, getQrCode } from "./src/lib/evolution.server";
 
 async function main() {
   console.log("--- DIAGNÓSTICO DE CONECTIVIDADE ---");
-  const instance = "julia-main"; // Instância configurada no dashboard conforme histórico
+  const instance = "agente-5541998430354"; // Tentando a instância anterior
   
   try {
     const state = await getConnectionState(instance);
