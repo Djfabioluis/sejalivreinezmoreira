@@ -144,23 +144,23 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
         cancel_reason: cancelReason,
         updated_at: new Date().toISOString(),
         metadata: {
-          ...(followup.metadata || {}),
+          ...(currentFollowup.metadata || {}),
           ...logContext,
           original_job_id: previousSent.id,
           original_message_id: previousSent.message_id,
           original_sent_at: previousSent.sent_at,
           cancel_code: cancelReason
         }
-      } as any).eq("id", followup.id);
+      } as any).eq("id", currentFollowup.id);
       return;
     }
-
+    
     // 3. Normalização do Telefone
     const { normalizeBrazilianPhone } = await import("@/lib/phone");
-    const normalized = normalizeBrazilianPhone(followup.phone);
+    const normalized = normalizeBrazilianPhone(currentFollowup.phone);
     
     if (!normalized || normalized.reason) {
-      await blockFollowup(followup.id, "INVALID_PHONE", `Telefone inválido: ${normalized?.reason || "FORMAT_NOT_RECOGNIZED"}`, traceId, logContext);
+      await blockFollowup(currentFollowup.id, "INVALID_PHONE", `Telefone inválido: ${normalized?.reason || "FORMAT_NOT_RECOGNIZED"}`, traceId, logContext);
       return;
     }
 
