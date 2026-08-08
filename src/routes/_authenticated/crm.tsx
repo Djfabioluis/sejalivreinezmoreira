@@ -231,10 +231,10 @@ function CRMPage() {
                 <table className="w-full text-left text-xs">
                    <thead className="bg-muted/50 uppercase tracking-widest font-bold text-[10px] text-muted-foreground border-b border-border/40">
                       <tr>
-                         <th className="px-6 py-4">Telefone</th>
+                         <th className="px-6 py-4">Job ID</th>
+                         <th className="px-6 py-4">Cliente</th>
                          <th className="px-6 py-4">Regra</th>
                          <th className="px-6 py-4">Agendado</th>
-                         <th className="px-6 py-4">Tentativas</th>
                          <th className="px-6 py-4">Status</th>
                          <th className="px-6 py-4 text-right">Ações</th>
                       </tr>
@@ -242,12 +242,12 @@ function CRMPage() {
                    <tbody className="divide-y divide-border/40">
                       {executions.map((e: any) => (
                         <tr key={e.id} className="hover:bg-muted/20 transition-colors">
+                           <td className="px-6 py-4 font-mono text-[10px] text-muted-foreground">{e.id.split('-')[0]}</td>
                            <td className="px-6 py-4 font-bold">{formatPhone(e.phone)}</td>
                            <td className="px-6 py-4">{e.rule?.name || 'Manual'}</td>
                            <td className="px-6 py-4 text-muted-foreground">{format(new Date(e.scheduled_at), 'dd/MM HH:mm', { locale: ptBR })}</td>
-                           <td className="px-6 py-4">{e.attempts || 0}/3</td>
                            <td className="px-6 py-4">
-                              <Badge variant="outline" className={`text-[9px] uppercase ${e.status === 'PROCESSING' ? 'border-blue-500/20 text-blue-600 animate-pulse' : 'border-amber-500/20 text-amber-600'}`}>
+                              <Badge variant="outline" className={`text-[9px] uppercase \${e.status === 'PROCESSING' ? 'border-blue-500/20 text-blue-600 animate-pulse' : 'border-amber-500/20 text-amber-600'}`}>
                                  {e.status}
                               </Badge>
                            </td>
@@ -286,10 +286,12 @@ function CRMPage() {
                 <table className="w-full text-left text-xs">
                    <thead className="bg-muted/50 uppercase tracking-widest font-bold text-[10px] text-muted-foreground border-b border-border/40">
                        <tr>
-                          <th className="px-6 py-4">Telefone</th>
+                          <th className="px-6 py-4">Job ID</th>
+                          <th className="px-6 py-4">Cliente</th>
                           <th className="px-6 py-4">Regra</th>
+                          <th className="px-6 py-4">Message ID</th>
                           <th className="px-6 py-4">Motivo</th>
-                          <th className="px-6 py-4">Concluído</th>
+                          <th className="px-6 py-4">Executado em</th>
                           <th className="px-6 py-4">Status</th>
                           <th className="px-6 py-4 text-right">Ações</th>
                        </tr>
@@ -297,8 +299,10 @@ function CRMPage() {
                    <tbody className="divide-y divide-border/40">
                       {history.map((h: any) => (
                         <tr key={h.id} className="hover:bg-muted/20 transition-colors">
+                           <td className="px-6 py-4 font-mono text-[10px] text-muted-foreground">{h.id.split('-')[0]}</td>
                            <td className="px-6 py-4 font-bold">{formatPhone(h.phone)}</td>
-                            <td className="px-6 py-4">{h.rule?.name || 'Manual'}</td>
+                           <td className="px-6 py-4">{h.rule?.name || 'Manual'}</td>
+                           <td className="px-6 py-4 font-mono text-[10px]">{h.message_id || '-'}</td>
                             <td className="px-6 py-4 max-w-xs">
                               {h.status === 'CANCELED' ? (
                                 <Badge variant="secondary" className="text-[9px] bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 border-none">

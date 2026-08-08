@@ -1,4 +1,4 @@
-{/* Execute esta instrucao no projeto: Implemente a sincronização automática do status da mensagem através do webhook da Evolution. Quando chegar um evento de ACK, atualize a tabela crm_followups com o status correspondente (PENDING → SENT → DELIVERED → READ). O painel deve refletir esses estados em tempo real. */}
+{/* Execute esta instrucao no projeto: CORREÇÃO DE AUDITORIA DO FOLLOW-UP — CORRELACIONAR LOGS POR JOB */}
 
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useState } from "react";
