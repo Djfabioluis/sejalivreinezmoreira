@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createHmac, timingSafeEqual } from "crypto";
 import { type UIMessage } from "ai";
 import { runAgent, runAgentWithLogging } from "@/lib/chat.server";
+import { ConversationService } from "@/lib/conversation-service.server";
 import { transcribeAudio, synthesizeSpeechMp3 } from "@/lib/ai-audio.server";
 import { getWhatsAppConfig } from "@/lib/whatsapp-config.server";
 import { sanitizeCustomerText } from "@/lib/text-sanitize";
@@ -156,12 +157,20 @@ async function loadHistory(phone: string): Promise<UIMessage[]> {
   return Array.isArray(raw) ? (raw as UIMessage[]) : [];
 }
 
-async function saveHistory(phone: string, messages: UIMessage[]) {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+async function saveHistory(phone: string, messages: UIMessage[], instance: string, phoneNumber: string) {
   const trimmed = messages.slice(-40);
+  await ConversationService.findOrCreate({
+    instance,
+    phone_number: phoneNumber,
+    contact_name: "Cliente",
+    metadata: { source: "CloudAPI" }
+  });
+  
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   await supabaseAdmin
     .from("wa_conversas" as never)
-    .upsert({ phone, messages: trimmed, updated_at: new Date().toISOString() } as never);
+    .update({ messages: trimmed as any, updated_at: new Date().toISOString() } as never)
+    .eq("phone", `${instance}:${phoneNumber}`);
 }
 
 function textMessage(role: "user" | "assistant", text: string): UIMessage {
