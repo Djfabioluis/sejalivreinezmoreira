@@ -314,14 +314,15 @@ function CRMPage() {
                             </td>
                             <td className="px-6 py-4 text-muted-foreground">{format(new Date(h.completed_at || h.created_at), 'dd/MM HH:mm', { locale: ptBR })}</td>
                             <td className="px-6 py-4">
-                               <Badge variant="outline" className={`text-[9px] uppercase ${
-                                 h.status === 'SENT' ? 'border-blue-500/20 text-blue-600' : 
-                                 h.status === 'DELIVERED' ? 'border-green-500/20 text-green-600' :
-                                 h.status === 'READ' ? 'border-purple-500/20 text-purple-600' :
-                                 h.status === 'CANCELED' ? 'border-amber-500/20 text-amber-600' : 
-                                 'border-red-500/20 text-red-600'}`}>
-                                  {h.status}
-                               </Badge>
+                                <Badge variant="outline" className={`text-[9px] uppercase ${
+                                  h.status === 'SENT' ? 'border-emerald-500/20 text-emerald-600 bg-emerald-50/50' : 
+                                  h.status === 'DELIVERED' ? 'border-green-500/20 text-green-600' :
+                                  h.status === 'READ' ? 'border-purple-500/20 text-purple-600' :
+                                  h.status === 'CANCELED' ? 'border-amber-500/20 text-amber-600 bg-amber-50/50' : 
+                                  'border-red-500/20 text-red-600 bg-red-50/50'}`}>
+                                   {h.status === 'SENT' ? '🟢 ' : h.status === 'CANCELED' ? '🟠 ' : h.status === 'FAILED' ? '🔴 ' : ''}
+                                   {h.status}
+                                </Badge>
                             </td>
                             <td className="px-6 py-4 text-right">
                                <Button 
@@ -576,12 +577,17 @@ function CRMPage() {
                       )}
 
                       {selectedExecution.metadata?.last_error && (
-                        <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3 space-y-2 col-span-2">
-                          <p className="text-[10px] text-red-600 font-bold uppercase flex items-center gap-1">
-                            <Bot className="h-3 w-3" /> ERRO DA IA / EXECUÇÃO
-                          </p>
+                        <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3 space-y-3 col-span-2">
+                          <div className="flex items-center justify-between border-b border-red-500/10 pb-2">
+                            <p className="text-[10px] text-red-600 font-bold uppercase flex items-center gap-1">
+                              <Bot className="h-3 w-3" /> DIAGNÓSTICO DA FALHA
+                            </p>
+                            <Badge variant="outline" className="text-[8px] border-red-200 text-red-700 bg-red-50 py-0 h-4">
+                              {selectedExecution.metadata.last_error.stage || 'UNHANDLED_EXCEPTION'}
+                            </Badge>
+                          </div>
                           
-                          <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-2 text-[10px]">
+                          <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-3 text-[10px]">
                             {selectedExecution.metadata.last_error.provider && (
                               <div>
                                 <span className="text-muted-foreground block uppercase text-[8px]">Provider:</span>
@@ -594,12 +600,18 @@ function CRMPage() {
                                 <span className="font-medium">{selectedExecution.metadata.last_error.model}</span>
                               </div>
                             )}
-                            {selectedExecution.metadata.last_error.status && (
+                            {(selectedExecution.metadata.last_error.http_status || selectedExecution.metadata.last_error.status) && (
                               <div>
                                 <span className="text-muted-foreground block uppercase text-[8px]">HTTP Status:</span>
-                                <Badge variant="outline" className="text-[9px] py-0 h-4 border-red-200 text-red-700 bg-red-50">
-                                  {selectedExecution.metadata.last_error.status}
-                                </Badge>
+                                <span className="font-bold text-red-600">
+                                  {selectedExecution.metadata.last_error.http_status || selectedExecution.metadata.last_error.status}
+                                </span>
+                              </div>
+                            )}
+                            {selectedExecution.metadata.last_error.error_code && (
+                              <div>
+                                <span className="text-muted-foreground block uppercase text-[8px]">Código:</span>
+                                <span className="font-mono text-red-700">{selectedExecution.metadata.last_error.error_code}</span>
                               </div>
                             )}
                             {selectedExecution.metadata.last_error.duration_ms && (
@@ -608,35 +620,45 @@ function CRMPage() {
                                 <span className="font-medium">{selectedExecution.metadata.last_error.duration_ms}ms</span>
                               </div>
                             )}
-                          </div>
-
-                          <div className="space-y-1 text-[10px] font-mono">
-                            <p className="text-red-700 font-bold flex items-center gap-1">
-                              {selectedExecution.metadata.last_error.name || 'Error'}: {selectedExecution.metadata.last_error.message}
-                            </p>
-                            
-                            {selectedExecution.metadata.last_error.raw_response && (
-                              <div className="mt-2">
-                                <p className="text-[8px] text-muted-foreground uppercase font-bold mb-1">Response Raw:</p>
-                                <pre className="text-[9px] bg-black/5 p-2 rounded border border-black/5 max-h-32 overflow-y-auto whitespace-pre-wrap">
-                                  {typeof selectedExecution.metadata.last_error.raw_response === 'string' 
-                                    ? selectedExecution.metadata.last_error.raw_response 
-                                    : JSON.stringify(selectedExecution.metadata.last_error.raw_response, null, 2)}
-                                </pre>
+                            {selectedExecution.metadata.last_error.request_id && (
+                              <div>
+                                <span className="text-muted-foreground block uppercase text-[8px]">Request ID:</span>
+                                <span className="font-mono truncate block">{selectedExecution.metadata.last_error.request_id}</span>
                               </div>
                             )}
+                          </div>
 
-                            <div className="mt-2">
-                              <p className="text-[8px] text-muted-foreground uppercase font-bold mb-1">Stack Trace:</p>
-                              <p className="text-[9px] text-muted-foreground whitespace-pre-wrap break-all leading-relaxed bg-black/5 p-2 rounded border border-black/5 max-h-32 overflow-y-auto">
-                                {selectedExecution.metadata.last_error.stack}
+                          <div className="space-y-2 text-[10px]">
+                            <div>
+                              <p className="text-[8px] text-muted-foreground uppercase font-bold mb-1">Mensagem:</p>
+                              <p className="text-red-700 font-medium leading-relaxed bg-red-500/5 p-2 rounded border border-red-500/10">
+                                {selectedExecution.metadata.last_error.message}
                               </p>
                             </div>
+                            
+                            {(selectedExecution.metadata.last_error.response_body || selectedExecution.metadata.last_error.raw_response) && (
+                              <details className="group">
+                                <summary className="text-[8px] text-muted-foreground uppercase font-bold mb-1 cursor-pointer hover:text-foreground flex items-center gap-1 list-none">
+                                  <ChevronRight className="h-2 w-2 transition-transform group-open:rotate-90" />
+                                  Resposta RAW (expandível)
+                                </summary>
+                                <pre className="mt-2 text-[9px] bg-black/5 p-2 rounded border border-black/5 max-h-40 overflow-y-auto whitespace-pre-wrap font-mono leading-tight">
+                                  {JSON.stringify(selectedExecution.metadata.last_error.response_body || selectedExecution.metadata.last_error.raw_response, null, 2)}
+                                </pre>
+                              </details>
+                            )}
 
-                            <div className="flex justify-between items-center text-[9px] pt-1">
-                              <span className="text-muted-foreground">Trace: {selectedExecution.metadata.last_error.trace_id || selectedExecution.metadata.trace_id}</span>
-                              <span className="text-muted-foreground">ID: {selectedExecution.metadata.last_error.request_id || '-'}</span>
-                            </div>
+                            {(selectedExecution.metadata.last_error.stacktrace || selectedExecution.metadata.last_error.stack) && (
+                              <details className="group">
+                                <summary className="text-[8px] text-muted-foreground uppercase font-bold mb-1 cursor-pointer hover:text-foreground flex items-center gap-1 list-none">
+                                  <ChevronRight className="h-2 w-2 transition-transform group-open:rotate-90" />
+                                  Stack Trace (expandível)
+                                </summary>
+                                <pre className="mt-2 text-[9px] text-muted-foreground whitespace-pre-wrap break-all leading-relaxed bg-black/5 p-2 rounded border border-black/5 max-h-40 overflow-y-auto font-mono">
+                                  {selectedExecution.metadata.last_error.stacktrace || selectedExecution.metadata.last_error.stack}
+                                </pre>
+                              </details>
+                            )}
                           </div>
                         </div>
                       )}
