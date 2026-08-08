@@ -20,6 +20,7 @@ async function testFollowupResolution() {
       phone: testPhone,
       customer_id: null,
       status: "PENDING",
+      stage: "FOLLOWUP_READY",
       scheduled_at: new Date().toISOString(),
       attempts: 0,
       rule_id: "00000000-0000-0000-0000-000000000000",
