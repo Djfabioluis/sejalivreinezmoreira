@@ -67,32 +67,37 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { HUMAN_TAKEOVER_TIMEOUT_MINUTES } = await import("../config");
 
-    // BUSCA CONVERSA PARA CHECAR ATTENDANCE MODE (usando as any para evitar erro de tipo na coluna nova até o types.ts atualizar)
-    const { data: conversation } = await supabaseAdmin
+    // BUSCA CONVERSA PARA CHECAR ATTENDANCE MODE
+    const { data: conversation, error: convError } = await supabaseAdmin
       .from("wa_conversas" as any)
       .select("id, attendance_mode, human_takeover_at")
       .eq("instance", instance)
       .eq("phone", contactPhone)
       .maybeSingle();
 
+    if (convError) {
+       console.error("[evolution] Error fetching conversation for takeover check:", convError);
+    }
+
     const conv = conversation as any;
 
     if (conv?.attendance_mode === "HUMAN") {
       const takeoverAt = conv.human_takeover_at ? new Date(conv.human_takeover_at).getTime() : 0;
-      const minutesSinceTakeover = (Date.now() - takeoverAt) / 60000;
+      const now = Date.now();
+      const minutesSinceTakeover = (now - takeoverAt) / 60000;
 
-      if (minutesSinceTakeover < HUMAN_TAKEOVER_TIMEOUT_MINUTES) {
+      if (takeoverAt > 0 && minutesSinceTakeover < HUMAN_TAKEOVER_TIMEOUT_MINUTES) {
         await logEvent({ 
           instance, 
           messageId, 
           event: "agent_flow_skipped_human_mode",
           status: "skipped",
-          payload: { traceId, minutesSinceTakeover }
+          payload: { traceId, minutesSinceTakeover, human_takeover_at: conv.human_takeover_at }
         });
         return;
       }
 
-      // Expirou -> volta para AI
+      // Expirou ou data inválida -> volta para AI
       await supabaseAdmin
         .from("wa_conversas" as any)
         .update({ attendance_mode: "AI", human_takeover_at: null } as any)
