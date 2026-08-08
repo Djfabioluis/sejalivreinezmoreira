@@ -372,7 +372,15 @@ async function generateAiFollowup(followup: any, nameData: any) {
       throw new Error("LOVABLE_AI_GATEWAY_KEY not found in environment");
     }
 
-    const provider = createLovableAiGatewayProvider(apiKey);
+    const { createOpenAICompatible } = await import("@ai-sdk/openai-compatible");
+    const provider = createOpenAICompatible({
+      name: "lovable",
+      baseURL: "https://ai.gateway.lovable.dev/v1",
+      headers: {
+        "Lovable-API-Key": apiKey,
+      }
+    });
+    
     const model = provider(modelName);
     const prompt = `Aja como Julia, uma assistente humanizada de um salão de beleza. O cliente se chama ${nameData.fullName} (primeiro nome: ${nameData.firstName || 'cliente'}). Gere uma mensagem curta, acolhedora e personalizada de follow-up para este cliente. Nunca use a palavra "Cliente" como se fosse o nome dele.`;
     
@@ -384,7 +392,6 @@ async function generateAiFollowup(followup: any, nameData: any) {
     return text;
   } catch (err: any) {
     const duration = Date.now() - startTime;
-    // Captura estendida do erro da IA
     const errorInfo = {
       stage: "AI_GENERATION",
       provider: providerName,
