@@ -71,8 +71,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     const { data: conversation } = await supabaseAdmin
       .from("wa_conversas" as any)
       .select("id, attendance_mode, human_takeover_at")
-      .eq("instance", instance)
-      .eq("phone", contactPhone)
+      .or(`phone.eq.${conversationKey},phone.eq.${contactPhone},phone_number.eq.${contactPhone}`)
       .maybeSingle();
 
     const conv = conversation as any;
