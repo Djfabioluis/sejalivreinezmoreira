@@ -452,7 +452,7 @@ export const simulateRealCustomer = createServerFn({ method: "POST" })
       const { updateCustomerPipeline } = await import("./crm.server");
       await updateCustomerPipeline({
         phone: normalizedPhone,
-        stage: 'ABANDONADO',
+        stage: 'ABANDONADO' as any,
         abandonmentReason: reason
       });
 
