@@ -532,19 +532,24 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
         }
       } as any)
       .eq("id", followup.id)
-      .select('id, status');
+      .select('*');
 
-    if (errorUpdateError) {
+    const errorRowCount = errorUpdateData?.length || 0;
+
+    if (errorUpdateError || errorRowCount === 0) {
       logger.error("FOLLOWUP_DB_UPDATE_FAILED", "Falha crítica ao persistir erro no followup", {
         traceId,
         job_id: followup.id,
+        rowCount: errorRowCount,
         error: errorUpdateError
       });
     } else {
       logger.info("FOLLOWUP_DB_UPDATE_SUCCESS", "Persistência de erro concluída", {
         traceId,
         job_id: followup.id,
-        newStatus: errorUpdateData?.[0]?.status
+        newStatus: errorUpdateData[0].status,
+        rowCount: errorRowCount,
+        returning: errorUpdateData[0]
       });
     }
   }
