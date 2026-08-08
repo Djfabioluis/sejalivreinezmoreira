@@ -17,6 +17,7 @@ import {
   getWhatsAppHealth,
   refreshWhatsAppHealth,
 } from "@/lib/whatsapp-health.functions";
+import { getEvolutionStatus } from "@/lib/evolution.functions";
 
 type Health = {
   checkedAt: string;
