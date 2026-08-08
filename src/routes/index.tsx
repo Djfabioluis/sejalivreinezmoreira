@@ -1,4 +1,62 @@
-{/* Execute esta instrucao no projeto: feito */}
+{/* Execute esta instrucao no projeto: # Prompt para o Lovable — Evolution API não envia eventos de mensagens humanas (fromMe) ao webhook
+
+## Contexto (confirmado por teste)
+
+Testamos de forma definitiva: ao enviar uma mensagem manualmente pelo WhatsApp conectado, **nenhum registro** aparece nos logs do servidor — nem mesmo um log genérico de "payload recebido". Isso descarta qualquer problema no código da aplicação (`processor.server.ts`, `attendance_mode`, filtro de eco, etc.) — o problema está uma camada abaixo: **a própria Evolution API não está disparando a chamada de webhook para mensagens `fromMe: true`.**
+
+## Tarefa
+
+### 1. Inspecionar a configuração do webhook da instância
+
+Consulte a configuração atual do webhook da instância em produção (a mesma identificada anteriormente, `agente-5541998430354`, ou a que estiver ativa hoje):
+
+```
+GET {EVOLUTION_API_URL}/webhook/find/{instance}
+Headers: apikey: {EVOLUTION_API_KEY}
+```
+
+Me mostre a resposta completa. Preciso ver especificamente:
+- O array `events` — confirme se `MESSAGES_UPSERT` está presente.
+- Qualquer campo relacionado a filtrar mensagens próprias (pode aparecer com nomes como `ignore_from_me` — se a versão da Evolution API usada não tiver esse campo pelo webhook, ele pode estar em outro lugar, ver item 2).
+
+### 2. Inspecionar as configurações gerais da instância
+
+Consulte as configurações da instância (não só do webhook):
+
+```
+GET {EVOLUTION_API_URL}/settings/find/{instance}
+Headers: apikey: {EVOLUTION_API_KEY}
+```
+
+Procure por qualquer opção relacionada a:
+- `reject_call` / `always_online` / `read_messages` / `read_status` / `sync_full_history`
+- Qualquer flag que mencione "self" ou "from me" ou "own messages"
+
+Cole a resposta completa aqui.
+
+### 3. Corrigir a configuração para incluir mensagens `fromMe: true`
+
+Com base no que a consulta acima revelar, ajuste a configuração via `POST {EVOLUTION_API_URL}/webhook/set/{instance}` (ou o endpoint de settings equivalente) para garantir que mensagens enviadas pelo próprio número conectado **também disparem o webhook**. Isso é indispensável para a detecção de takeover humano funcionar — sem esse evento chegando, não existe forma de saber que um humano respondeu.
+
+### 4. Se a versão da Evolution API não suportar isso de forma alguma (fallback)
+
+Algumas versões/configurações de gateway simplesmente não encaminham mensagens `fromMe` via webhook, por design, sem opção de desligar esse comportamento. Se for esse o caso, implemente um mecanismo alternativo de detecção por **polling periódico**:
+
+1. A cada X segundos (ex.: 15-30s, ajustável), para conversas com `attendance_mode = 'AI'` e atividade recente (ex.: última mensagem do cliente há menos de 30 minutos), consulte o histórico de mensagens da conversa diretamente na Evolution API:
+   ```
+   GET {EVOLUTION_API_URL}/chat/findMessages/{instance}
+   ```
+   (ajuste para o endpoint real de histórico de mensagens da versão usada, pode ser `POST` com filtro por `remoteJid`)
+2. Compare as mensagens `fromMe: true` retornadas com os Message IDs já rastreados como enviados pela própria IA (`ai_sent_messages`, da correção anterior).
+3. Se encontrar uma mensagem `fromMe: true` com ID que **não** está em `ai_sent_messages` → é uma mensagem humana que não chegou via webhook → aplique a mesma lógica de takeover (`attendance_mode = 'HUMAN'`, `human_takeover_at = now()`) usada no fluxo de webhook.
+4. Esse polling deve ser leve e só rodar para conversas ativas, não para a base inteira de clientes, para não sobrecarregar a API.
+
+### 5. Teste e confirmação
+
+1. Depois de corrigir a configuração (ou implementar o fallback), repita o teste definitivo: mensagem manual pelo WhatsApp → confirme que agora aparece registro no log (via webhook corrigido, ou via detecção por polling).
+2. Confirme que `attendance_mode` muda para `HUMAN`.
+3. Confirme que uma mensagem seguinte do "cliente" não recebe resposta automática da IA.
+4. Me informe qual dos dois caminhos foi usado (webhook corrigido diretamente, ou fallback por polling), para eu saber a partir de agora o que esperar do comportamento do sistema. */}
 
 
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
