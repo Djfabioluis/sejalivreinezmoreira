@@ -1,41 +1,27 @@
-{/* Execute esta instrucao no projeto: # Prompt para o Lovable — Jobs presos em READY + validação de conectividade real
+{/* Execute esta instrucao no projeto: # Prompt para o Lovable — Message ID retornado mas mensagem não chegou (instância sem sessão ativa)
 
 ## Contexto
 
-Você (Lovable) já identificou, na própria auditoria da fila de follow-up, que alguns registros permanecem no status `READY` sem progredir para `PROCESSING`/`SENT`. Preciso que essa investigação seja concluída e, na sequência, validado o envio real (o teste anterior falhou com HTTP 400 da Evolution API, mas usando um número de teste — ainda não confirmamos se a instância está de fato conectada nem se um número real recebe a mensagem).
+Depois da última correção ("instância `julia-main` não existia na API, corrigido"), o sistema reportou envio bem-sucedido com Message ID `3EB06E21E4E905556DAF64`, mas a mensagem **não chegou** no WhatsApp do número de teste — que é meu número real e está ativo.
 
-## Parte 1 — Por que jobs ficam presos em `READY`
+**Hipótese:** ao corrigir o problema de "instância não existe", pode ter sido criada uma instância **nova** na Evolution API (via `createInstance()`), mas essa instância nova não tem nenhuma sessão de WhatsApp autenticada — ninguém escaneou o QR Code para conectá-la a um número real. Isso explicaria por que a API aceita o envio e retorna um Message ID válido (gerado localmente pelo Baileys/Evolution ao montar a mensagem) sem que a entrega de fato aconteça pela rede do WhatsApp.
 
-1. No worker `Julia Engine v4` (`src/lib/crm/followup-processor.server.ts`, acionado via cron em `/api/public/crm-cron`), rastreie o caminho exato entre a transição `READY → PROCESSING`:
-   - Existe algum lock/trava (ex.: `SELECT ... FOR UPDATE SKIP LOCKED`, ou um campo tipo `locked_by`/`locked_at`) que pode ficar "preso" se um processamento anterior travou no meio (crash, timeout) sem liberar o lock?
-   - Existe algum limite de concorrência (ex.: `LIMIT N` por execução) que pode estar sistematicamente pulando os mesmos registros mais antigos por causa de ordenação incorreta (ex.: sempre pegando os mais recentes em vez dos mais antigos por `scheduled_at`)?
-   - O cron está rodando com frequência suficiente para não deixar a fila acumular? Confirme via `SELECT * FROM cron.job_run_details ORDER BY start_time DESC LIMIT 30;` se há execuções falhando silenciosamente (status diferente de `succeeded`) ou se o intervalo configurado é grande demais.
-2. Rode uma consulta real para quantificar o problema:
-   ```sql
-   SELECT status, count(*), min(scheduled_at), max(scheduled_at)
-   FROM crm_followups
-   WHERE reason NOT IN ('MANUAL_TEST') AND stage NOT IN ('TEST_EXECUTION')
-   GROUP BY status;
-   ```
-   Traga esse resultado para eu ver quantos follow-ups **reais** (não testes) estão de fato parados, há quanto tempo, e desde quando isso acontece.
-3. Se encontrar jobs travados em `READY` ou `PROCESSING` há mais tempo do que o esperado (ex.: mais de 1 hora), identifique a causa raiz (lock não liberado, exceção não tratada, timeout sem rollback de status) e corrija — incluindo uma rotina de "auto-recuperação" que libere jobs travados em `PROCESSING` há mais de X minutos, devolvendo-os para `READY` para nova tentativa (com incremento em `attempts` e um limite máximo de tentativas antes de marcar como `FALHA` definitiva).
+## Tarefa
 
-## Parte 2 — Validar conectividade real da instância Evolution + envio de verdade
+1. Identifique qual é o nome exato da instância que está configurada **agora** (depois da última correção) em `base_conhecimento` (id=20, campo de configuração da Evolution) ou nas variáveis de ambiente `EVOLUTION_API_URL`/instância padrão usada por `sendEvolutionText`.
+2. Rode `getConnectionState(instance)` para essa instância específica (não a antiga `julia-main`) e me diga o resultado exato: `conectado`, `desconectado` ou `aguardando_qr`.
+3. Se o resultado **não** for `conectado`:
+   - Gere o QR Code com `getQrCode(instance)` e exiba na tela `/configuracao-whatsapp` (ou me dê uma forma de visualizá-lo agora).
+   - Eu vou escanear esse QR Code com o WhatsApp do número `41999102791` para autenticar a sessão de verdade.
+   - Depois de eu confirmar que escaneei, rode `getConnectionState` de novo e só prossiga quando o status vier `conectado`.
+4. Depois de confirmado `conectado`, repita o envio de teste (pode ser o mesmo botão "Teste de 2 minutos" ou um follow-up manual com dados realistas) e me informe o novo Message ID e horário exato.
+5. **Importante:** não confie apenas no `res.ok`/Message ID retornado pela Evolution API como prova de entrega — isso só confirma que a mensagem foi aceita e enfileirada, não que chegou ao destinatário. Se a Evolution API expuser algum endpoint de status de entrega (webhook de `ack`/`DELIVERY_ACK`/`READ`, ou endpoint de consulta de status da mensagem por ID), use-o para confirmar a entrega real antes de reportar sucesso. Se não existir tal mecanismo hoje, sinalize isso como uma lacuna a corrigir: o sistema não tem como diferenciar "aceito pela API" de "efetivamente entregue".
 
-1. Use `getConnectionState(instance)` (`src/lib/evolution.server.ts`) para checar o status da instância usada em produção. Me mostre o resultado (`conectado`, `desconectado` ou `aguardando_qr`).
-2. Se não estiver `conectado`, gere um novo QR Code (`getQrCode(instance)`) na tela `/configuracao-whatsapp` para eu reconectar.
-3. Depois de confirmar `conectado`, crie um novo job de follow-up de teste **realista** (sem `MANUAL_TEST`/`TEST_EXECUTION`), com o meu número real de WhatsApp (que eu sei que está ativo), e deixe ele ser processado pelo fluxo normal (sem bypass de teste).
-4. Confirme no painel de auditoria:
-   - `STATUS` final = `SENT`.
-   - `MESSAGE ID` preenchido com um ID real da Evolution API (sem erro 400).
-5. Me avise o horário exato para eu conferir o recebimento da mensagem no WhatsApp.
+## Resultado esperado
 
-## Entregável esperado
-
-Ao final, quero um resumo curto com:
-- Causa raiz confirmada de por que jobs reais ficavam presos em `READY` (se houver).
-- Correção aplicada.
-- Resultado do teste de envio real (status da instância + resultado do envio).
+- Confirmação do status real da instância (`conectado` de verdade, com sessão ativa).
+- QR Code gerado e escaneado, se necessário.
+- Novo teste de envio com confirmação (por mim, checando o WhatsApp) de que a mensagem chegou.
 */}
 
 
