@@ -364,7 +364,15 @@ async function generateAiFollowup(followup: any, nameData: any) {
   const startTime = Date.now();
   
   try {
-    const provider = createLovableAiGatewayProvider(providerName);
+    // Busca a chave da API do Lovable AI Gateway
+    const { getAiKey } = await import("../ai-gateway.server");
+    const apiKey = await getAiKey();
+    
+    if (!apiKey) {
+      throw new Error("LOVABLE_AI_GATEWAY_KEY not found in environment");
+    }
+
+    const provider = createLovableAiGatewayProvider(apiKey);
     const model = provider(modelName);
     const prompt = `Aja como Julia, uma assistente humanizada de um salão de beleza. O cliente se chama ${nameData.fullName} (primeiro nome: ${nameData.firstName || 'cliente'}). Gere uma mensagem curta, acolhedora e personalizada de follow-up para este cliente. Nunca use a palavra "Cliente" como se fosse o nome dele.`;
     
