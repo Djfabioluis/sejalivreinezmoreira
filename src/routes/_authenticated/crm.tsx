@@ -413,7 +413,7 @@ function CRMPage() {
               <Card className="bg-slate-950 text-slate-50 border-slate-800 shadow-2xl overflow-hidden">
                 <CardHeader className="py-3 px-4 bg-slate-900/50 border-b border-slate-800">
                   <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-primary">
-                    <ShieldCheck className="h-3 w-3" /> System Audit Mode (Real-Time Data)
+                    <ShieldCheck className="h-3 w-3" /> Job Audit & Correlation
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 space-y-4">
@@ -424,21 +424,29 @@ function CRMPage() {
                       </div>
                       <div className="space-y-1">
                         <span className="text-slate-500 block">STATUS:</span>
-                        <Badge variant="outline" className={`h-4 text-[9px] uppercase border-primary/30 text-primary ${selectedExecution.status === 'PROCESSING' ? 'animate-pulse' : ''}`}>
+                        <Badge variant="outline" className={`h-4 text-[9px] uppercase border-primary/30 text-primary \${selectedExecution.status === 'PROCESSING' ? 'animate-pulse' : ''}`}>
                           {selectedExecution.status}
                         </Badge>
                       </div>
                       <div className="space-y-1">
                         <span className="text-slate-500 block">CONVERSATION ID:</span>
-                        <span className={selectedExecution.metadata?.conversationId ? "text-emerald-400" : "text-red-500"}>
-                          {selectedExecution.metadata?.conversationId || "NULL / NOT_FOUND"}
+                        <span className={selectedExecution.conversation_id || selectedExecution.metadata?.conversationId ? "text-emerald-400" : "text-red-500"}>
+                          {selectedExecution.conversation_id || selectedExecution.metadata?.conversationId || "NULL / NOT_FOUND"}
                         </span>
                       </div>
                       <div className="space-y-1">
                         <span className="text-slate-500 block">MESSAGE ID:</span>
-                        <span className={selectedExecution.metadata?.message_id || selectedExecution.metadata?.evolution_response?.key?.id ? "text-emerald-400" : "text-red-500"}>
-                          {selectedExecution.metadata?.message_id || selectedExecution.metadata?.evolution_response?.key?.id || "NULL / NOT_SENT"}
+                        <span className={selectedExecution.message_id || selectedExecution.metadata?.message_id ? "text-emerald-400" : "text-red-500"}>
+                          {selectedExecution.message_id || selectedExecution.metadata?.message_id || "NULL / NOT_SENT"}
                         </span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-slate-500 block">TRACE ID:</span>
+                        <span className="text-amber-400 truncate block">{selectedExecution.metadata?.trace_id || "N/A"}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-slate-500 block">PHONE LAST 4:</span>
+                        <span className="text-slate-300 block">{selectedExecution.phone?.slice(-4) || "????"}</span>
                       </div>
                    </div>
 
