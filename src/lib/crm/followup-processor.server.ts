@@ -448,7 +448,7 @@ async function generateAiFollowup(followup: any, nameData: any) {
   const startTime = Date.now();
   
   try {
-    const { createLovableAiGatewayProvider } from "../ai-gateway.server";
+    // createLovableAiGatewayProvider já está importado no topo
     const apiKey = process.env.LOVABLE_AI_GATEWAY_KEY || process.env.LOVABLE_API_KEY || "";
     
     if (!apiKey) {
