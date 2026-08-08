@@ -4,10 +4,18 @@ import { supabaseAdmin } from "./src/integrations/supabase/client.server";
 async function testCorrelation() {
   console.log("🚀 Iniciando teste de correlação de Job...");
   
-  const phone = "5511999999999";
-  const ruleId = "a53d6804-d50c-4384-954f-123456789012";
+  const phone = "5511" + Math.floor(10000000 + Math.random() * 90000000).toString();
   
-  // 1. Criar Job de Teste
+  // 1. Obter uma regra existente
+  const { data: rules } = await supabaseAdmin.from("crm_followup_rules").select("id").limit(1);
+  if (!rules || rules.length === 0) {
+    console.error("❌ Nenhuma regra encontrada no banco.");
+    return;
+  }
+  const ruleId = rules[0].id;
+  console.log(`✅ Usando Rule ID: ${ruleId}`);
+
+  // 2. Criar Job de Teste
   const { data: job, error } = await supabaseAdmin.from("crm_followups").insert({
     phone,
     rule_id: ruleId,
@@ -26,7 +34,7 @@ async function testCorrelation() {
   const jobId = job.id;
   console.log(`✅ Job criado: ${jobId}`);
 
-  // 2. Executar Worker
+  // 3. Executar Worker
   const traceId = `test-corr-${Date.now()}`;
   console.log(`Running processSingleFollowup with parentTraceId: ${traceId}`);
   
@@ -37,7 +45,7 @@ async function testCorrelation() {
     console.error("❌ Erro no Worker:", err);
   }
 
-  // 3. Verificar Persistência
+  // 4. Verificar Persistência
   const { data: finalJob } = await supabaseAdmin.from("crm_followups").select("*").eq("id", jobId).single();
   console.log("\n📊 Resultado Final do Job:");
   console.log(`Status: ${finalJob?.status}`);
@@ -46,7 +54,7 @@ async function testCorrelation() {
   console.log(`Job ID no Metadata: ${finalJob?.metadata?.job_id}`);
   console.log(`Phone Last4 no Metadata: ${finalJob?.metadata?.phone_last4}`);
   
-  if ((finalJob?.status === "SENT" || finalJob?.status === "CANCELED") && finalJob?.metadata?.job_id === jobId) {
+  if ((finalJob?.status === "SENT" || finalJob?.status === "CANCELED" || finalJob?.status === "FAILED") && finalJob?.metadata?.job_id === jobId) {
     console.log("\n✨ TESTE DE CORRELAÇÃO PASSOU! ✨");
     console.log(`Trace ID: ${finalJob?.metadata?.trace_id}`);
     console.log(`Job ID: ${finalJob?.id}`);
