@@ -780,7 +780,6 @@ function CRMPage() {
           )}
         </SheetContent>
       </Sheet>
-    </div>
 
       <Dialog open={isSimulateModalOpen} onOpenChange={setIsSimulateModalOpen}>
         <DialogContent className="sm:max-w-md">
