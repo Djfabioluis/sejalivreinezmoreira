@@ -86,16 +86,23 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     });
 
     const agent = await findAgentByInstance(instance);
-    const contactPhone = normalizePhone(msg.remoteJid);
-    const conversationKey = buildConversationKey(instance, msg.remoteJid);
     
     await logEvent({
       instance,
       messageId,
-      event: "CONVERSATION_RESOLVED",
-      status: "success",
-      payload: { traceId, conversationKey, contactPhone }
+      event: "AGENT_RESOLVED_FROM_INSTANCE",
+      status: agent ? "success" : "failed",
+      payload: { 
+        traceId, 
+        instanceName: instance,
+        agentId: agent?.id,
+        agentName: agent?.nome || agent?.name || "Julia",
+        unitId: agent?.unidade_id,
+        aiEnabled: isIAEnabled(agent)
+      }
     });
+
+    const contactPhone = normalizePhone(msg.remoteJid);
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { HUMAN_TAKEOVER_TIMEOUT_MINUTES } = await import("../config");
