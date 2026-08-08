@@ -411,7 +411,7 @@ export const simulateRealCustomer = createServerFn({ method: "POST" })
     
     if (!normalizedPhone || normalizedPhone.length < 10) throw new Error("Telefone inválido");
 
-    const instance = "agente-01";
+    const instance = "agente-5541998430354";
     const conversationKey = `${instance}:${normalizedPhone}`;
 
     // 2. Ensure wa_conversas entry and wait for it
@@ -456,7 +456,7 @@ export const simulateRealCustomer = createServerFn({ method: "POST" })
       const customer = {
         phone: normalizedPhone,
         customer_name: "Cliente Simulação",
-        customer_context: { instance: "agente-01" }
+        customer_context: { instance: "agente-5541998430354" }
       };
       await createBirthdayFollowup(customer, traceId);
     } else {

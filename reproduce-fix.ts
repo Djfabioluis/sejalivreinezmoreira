@@ -20,7 +20,7 @@ async function test() {
     const { normalizeBrazilianPhone } = await import("./src/lib/phone");
     const normalized = normalizeBrazilianPhone(phone);
     const normalizedPhone = normalized?.full || phone.replace(/\D/g, '');
-    const instance = "agente-01";
+    const instance = "agente-5541998430354";
     const conversationKey = `${instance}:${normalizedPhone}`;
 
     console.log(`📱 Telefone normalizado: ${normalizedPhone}`);
