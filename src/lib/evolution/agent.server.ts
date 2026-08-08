@@ -58,7 +58,40 @@ export function isIAEnabled(agent: any): boolean {
 export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride?: string) {
   const messageId = msg.messageId;
   const instance = msg.instance;
-  const traceId = `${instance}:${messageId}`;
+  const traceId = (msg as any)._traceId || `${instance}:${messageId}`;
+
+  await logEvent({
+    instance,
+    messageId,
+    event: "WHATSAPP_WEBHOOK_RECEIVED",
+    status: "success",
+    payload: { traceId, fromMe: msg.fromMe }
+  });
+
+  try {
+    const text = textOverride?.trim() || extractMessageText(msg.message);
+    await logEvent({
+      instance,
+      messageId,
+      event: "MESSAGE_PARSED",
+      status: "success",
+      payload: { traceId, textSnippet: text?.slice(0, 50) }
+    });
+
+    const agent = await findAgentByInstance(instance);
+    const contactPhone = normalizePhone(msg.remoteJid);
+    const conversationKey = buildConversationKey(instance, msg.remoteJid);
+    
+    await logEvent({
+      instance,
+      messageId,
+      event: "CONVERSATION_RESOLVED",
+      status: "success",
+      payload: { traceId, conversationKey, contactPhone }
+    });
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
 
   try {
     const agent = await findAgentByInstance(instance);
@@ -122,7 +155,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       await logEvent({ 
         instance, 
         messageId, 
-        event: "agent_status_checked",
+        event: "AGENT_RESOLVED",
         status: "success",
         payload: { status: agent.status, unitId: agent.unidade_id, traceId }
       });
@@ -174,22 +207,17 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       return;
     }
 
-    // Histórico da conversa para dar contexto à IA
-    const { data: convFull } = await supabaseAdmin
-      .from("wa_conversas" as any)
-      .select("messages, customer_context, contact_name")
-      .or(`phone.eq.${conversationKey},phone.eq.${contactPhone},phone_number.eq.${contactPhone}`)
-      .maybeSingle();
-
-    const { normalizeConversationHistory } = await import("./history");
-    const history = normalizeConversationHistory(
-      ((convFull as any)?.messages as any[]) || [],
-      text,
-      messageId
-    );
-
     // Chama o orquestrador da IA Julia com logging e traceId
     const { runAgentWithLogging } = await import("@/lib/chat.server");
+    
+    await logEvent({
+      instance,
+      messageId,
+      event: "AI_REQUEST_STARTED",
+      status: "started",
+      payload: { traceId, unitId: agent.unidade_id }
+    });
+
     const result: any = await runAgentWithLogging({
       messages: history,
       instance,
@@ -202,6 +230,14 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       customerContext: (convFull as any)?.customer_context || {},
       traceId
     } as any);
+
+    await logEvent({
+      instance,
+      messageId,
+      event: "AI_RESPONSE_RECEIVED",
+      status: "success",
+      payload: { traceId, responseSnippet: String(result?.text || "").slice(0, 50) }
+    });
 
     const replyText = String(result?.text || "").trim();
     if (!replyText) {
@@ -226,7 +262,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     });
 
 
-    await logEvent({ instance, messageId, event: "agent_flow_completed", status: "success", payload: { traceId } });
+    await logEvent({ instance, messageId, event: "OUTBOUND_SENT", status: "success", payload: { traceId } });
   } catch (error) {
     console.error("[evolution] Error in runAgentFlow", error);
     await logEvent({
