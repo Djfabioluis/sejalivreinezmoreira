@@ -11,7 +11,7 @@ async function test() {
   // Limpa tudo antes
   await supabaseAdmin.from("wa_conversas").delete().eq("phone", phone);
 
-  // Insere direto com o estado desejado usando supabaseAdmin puro (sem casting as any excessivo)
+  // Insere direto com o estado desejado usando o tipo correto (sem as any se possível ou as string explicitamente)
   const { data: inserted, error: setupError } = await supabaseAdmin
     .from("wa_conversas")
     .insert({ 
@@ -19,7 +19,7 @@ async function test() {
       instance,
       attendance_mode: "HUMAN", 
       human_takeover_at: expiredDate 
-    })
+    } as any)
     .select()
     .single();
 
@@ -39,6 +39,9 @@ async function test() {
       message: { conversation: "Oi!" },
       messageTimestamp: Math.floor(Date.now() / 1000)
   });
+
+  // Aguarda a persistência assíncrona do update no handler
+  await new Promise(r => setTimeout(r, 1000));
 
   console.log("3. Verificando resultado...");
   const { data: conv } = await supabaseAdmin.from("wa_conversas").select("attendance_mode").eq("phone", phone).single();
