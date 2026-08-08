@@ -362,7 +362,8 @@ async function blockFollowup(id: string, reason: string, detail: string, traceId
 }
 
 async function resolveFollowupCustomerName(followup: any, conversation: any, traceId: string) {
-  const fullName = followup.metadata?.contact_name || conversation.contact_name || "Cliente";
+  const followupMetadata = typeof followup.metadata === 'object' ? (followup.metadata as any) : {};
+  const fullName = followupMetadata?.contact_name || conversation.contact_name || "Cliente";
   const firstName = fullName !== "Cliente" ? fullName.split(' ')[0] : null;
   return { fullName, firstName, source: "metadata" };
 }
