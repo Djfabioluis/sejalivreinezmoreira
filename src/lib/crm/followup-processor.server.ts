@@ -426,6 +426,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
         updated_at: completionTime,
         metadata: {
           ...(followup.metadata || {}),
+          conversationId: conversation.id, // PERSISTÊNCIA GARANTIDA DO CONVERSATION_ID
           last_step: "FOLLOWUP_SENT",
           evolution_success: true,
           evolution_response: evolutionData,
