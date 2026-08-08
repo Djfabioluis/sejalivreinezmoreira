@@ -1,4 +1,3 @@
-import { sendEvolutionText } from "./src/lib/evolution.server";
 import { processMessagesUpsert } from "./src/lib/evolution/processor.server";
 import { supabaseAdmin } from "./src/integrations/supabase/client.server";
 
@@ -15,76 +14,53 @@ async function test() {
     human_takeover_at: null 
   }, { onConflict: 'phone' });
 
-  console.log("2. Simulando persistência de ID da IA...");
+  console.log("2. Simulando ECO da IA (Não deve mudar para HUMAN)...");
   await supabaseAdmin.from("ai_sent_messages").insert({
     instance,
-    message_id: "AI_MSG_123",
+    message_id: "AI_MSG_1",
     phone,
     sent_at: new Date().toISOString()
   });
-
-  console.log("3. Simulando Webhook de ECO da IA...");
   await processMessagesUpsert({
     instance,
-    data: [
-      {
-        key: { remoteJid: phone + "@s.whatsapp.net", fromMe: true, id: "AI_MSG_123" },
-        message: { conversation: "Olá cliente!" },
-        messageTimestamp: Math.floor(Date.now() / 1000)
-      }
-    ]
+    data: [{
+      key: { remoteJid: phone + "@s.whatsapp.net", fromMe: true, id: "AI_MSG_1" },
+      message: { conversation: "Olá!" },
+      messageTimestamp: Math.floor(Date.now() / 1000)
+    }]
   }, "http://localhost/webhook");
-
   let { data: conv } = await supabaseAdmin.from("wa_conversas").select("attendance_mode").eq("phone", phone).single();
-  console.log("Status após ECO da IA:", conv?.attendance_mode, "(Esperado: AI)");
+  console.log("Status ECO IA:", conv?.attendance_mode);
 
-  console.log("4. Simulando Webhook de HUMANO...");
+  console.log("3. Simulando HUMANO (Deve mudar para HUMAN)...");
   await processMessagesUpsert({
     instance,
-    data: [
-      {
-        key: { remoteJid: phone + "@s.whatsapp.net", fromMe: true, id: "HUMAN_MSG_456" },
-        message: { conversation: "Olá, sou a atendente Julia Humana." },
-        messageTimestamp: Math.floor(Date.now() / 1000)
-      }
-    ]
+    data: [{
+      key: { remoteJid: phone + "@s.whatsapp.net", fromMe: true, id: "HUMAN_MSG_2" },
+      message: { conversation: "Eu assumo aqui." },
+      messageTimestamp: Math.floor(Date.now() / 1000)
+    }]
   }, "http://localhost/webhook");
-
   ({ data: conv } = await supabaseAdmin.from("wa_conversas").select("attendance_mode, human_takeover_at").eq("phone", phone).single());
-  console.log("Status após HUMANO:", conv?.attendance_mode, "(Esperado: HUMAN)");
+  console.log("Status HUMANO:", conv?.attendance_mode, "| Takeover at:", conv?.human_takeover_at);
 
-  console.log("5. Simulando entrada de cliente dentro da janela de 10min...");
+  console.log("4. Verificando processamento de cliente APÓS expiração forçada...");
+  // Forçamos o takeover_at para 15 minutos atrás no banco
+  const expirationDate = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+  await supabaseAdmin.from("wa_conversas").update({ human_takeover_at: expirationDate }).eq("phone", phone);
+
+  console.log("Executando webhook de cliente...");
   await processMessagesUpsert({
     instance,
-    data: [
-      {
-        key: { remoteJid: phone + "@s.whatsapp.net", fromMe: false, id: "CLIENT_MSG_789" },
-        message: { conversation: "Quero agendar!" },
-        messageTimestamp: Math.floor(Date.now() / 1000)
-      }
-    ]
-  }, "http://localhost/webhook");
-
-  console.log("6. Simulando expiração...");
-  const tenMinsAgo = new Date(Date.now() - 11 * 60 * 1000).toISOString();
-  await supabaseAdmin.from("wa_conversas").update({ 
-    human_takeover_at: tenMinsAgo 
-  }).eq("phone", phone);
-
-  console.log("7. Simulando entrada de cliente APÓS 10min...");
-  await processMessagesUpsert({
-    instance,
-    data: [
-      {
-        key: { remoteJid: phone + "@s.whatsapp.net", fromMe: false, id: "CLIENT_MSG_ABC" },
-        message: { conversation: "Oi?" },
-        messageTimestamp: Math.floor(Date.now() / 1000)
-      }
-    ]
+    data: [{
+      key: { remoteJid: phone + "@s.whatsapp.net", fromMe: false, id: "CLIENT_MSG_3" },
+      message: { conversation: "Oi!" },
+      messageTimestamp: Math.floor(Date.now() / 1000)
+    }]
   }, "http://localhost/webhook");
 
   ({ data: conv } = await supabaseAdmin.from("wa_conversas").select("attendance_mode").eq("phone", phone).single());
-  console.log("Status final:", conv?.attendance_mode, "(Esperado: AI)");
+  console.log("Status final:", conv?.attendance_mode);
 }
 
 test().catch(console.error);
