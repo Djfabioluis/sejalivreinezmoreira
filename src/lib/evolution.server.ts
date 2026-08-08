@@ -100,8 +100,8 @@ async function evoFetch(
     data = null;
   }
 
-  if (debug) {
-    logger.debug("EVOLUTION_API_RESPONSE", `Status: ${res.status}`, { durationMs, path });
+  if (debug || !res.ok) {
+    logger.debug("EVOLUTION_API_RESPONSE", `Status: ${res.status}`, { durationMs, path, data, text });
   }
 
   return { ok: res.ok, status: res.status, data, text };
@@ -256,7 +256,8 @@ export async function sendEvolutionText(
     logger.error("EVOLUTION_SEND_TEXT_FAILED", `Status: ${res.status} - ${errorMsg}`, { to, textSnippet: text.slice(0, 50), traceId });
     
     // Lançar erro real para ser capturado pelo followup-processor
-    throw new Error(`EVOLUTION_HTTP_ERROR: Status ${res.status}. ${errorMsg}`);
+    const details = typeof res.data === 'object' ? JSON.stringify(res.data) : res.text || "Unknown Evolution Error";
+    throw new Error(`EVOLUTION_HTTP_ERROR: Status ${res.status}. ${details}`);
   }
   
   return { success: res.ok, data: res.data };
