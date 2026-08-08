@@ -4,8 +4,14 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { hasRole } from "@/lib/roles";
 
 async function assertAdmin(ctx: { supabase: any; userId: string }) {
-  const isAdmin = await hasRole(ctx.userId, "admin");
-  if (!isAdmin) throw new Error("Acesso restrito a administradores.");
+  // Usa o cliente autenticado do usuário (evita erro "JWT issued at future"
+  // causado por desvio de relógio do token de service role).
+  const { data, error } = await ctx.supabase.rpc("has_role", {
+    _user_id: ctx.userId,
+    _role: "admin",
+  });
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Acesso restrito a administradores.");
 }
 
 export const listCustomerPipeline = createServerFn({ method: "GET" })
