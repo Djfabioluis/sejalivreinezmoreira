@@ -360,18 +360,33 @@ export const getWorkerStatus = createServerFn({ method: "GET" })
       .in("status", ["PENDING", "READY", "READY_TO_SEND", "PROCESSING"]);
     
     const { data: lastFollowup } = await (supabaseAdmin.from("crm_followups" as any) as any)
-      .select("updated_at")
+      .select("updated_at, metadata, status, phone, cancel_reason")
       .order("updated_at", { ascending: false })
       .limit(1)
-      .single();
+      .maybeSingle();
+
+    const { data: lastSent } = await (supabaseAdmin.from("crm_followups" as any) as any)
+      .select("updated_at, message_template")
+      .eq("status", "SENT")
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     return {
       status: "ONLINE",
-      lastRun: lastFollowup?.updated_at || new Date().toISOString(),
+      lastRun: lastFollowup?.updated_at || null,
       nextRun: new Date(Date.now() + 60000).toISOString(),
       queueSize: queue?.length || 0,
-      avgTime: "4.2s",
-      lastError: null
+      lastJob: lastFollowup ? {
+        id: (lastFollowup as any).id,
+        status: lastFollowup.status,
+        phone: lastFollowup.phone,
+        worker_id: (lastFollowup.metadata as any)?.worker_id
+      } : null,
+      lastSentAt: lastSent?.updated_at || null,
+      lastError: lastFollowup?.status === 'CANCELED' || lastFollowup?.status === 'FAILED' 
+        ? (lastFollowup.metadata as any)?.last_error?.message || lastFollowup.cancel_reason 
+        : null
     };
   });
 
