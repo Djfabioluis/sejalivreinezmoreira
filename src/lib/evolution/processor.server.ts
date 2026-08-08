@@ -69,7 +69,20 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
           continue; 
         }
 
-        // NOVO: Ignorar se for mensagem de status/broadcast enviada por mim
+        // NOVO: LOG DETALHADO PARA DEPURAÇÃO DE TAKEOVER
+        await logEvent({
+          instance: msg.instance,
+          messageId: msg.messageId,
+          event: "from_me_detected_not_ai",
+          status: "processing_takeover",
+          payload: { 
+            traceId, 
+            remoteJid: msg.remoteJid,
+            isStatus: msg.remoteJid.includes("@broadcast") || msg.remoteJid === "status@broadcast"
+          }
+        });
+
+        // Ignorar se for mensagem de status/broadcast enviada por mim
         if (msg.remoteJid.includes("@broadcast") || msg.remoteJid === "status@broadcast") {
           continue;
         }
@@ -98,10 +111,8 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
           payload: { traceId, phone, conversationKey, remoteJid: msg.remoteJid, updateError, fromMe: msg.fromMe }
         });
 
-        // IMPORTANTE: Não dar 'continue' aqui se quisermos que a mensagem humana manual 
-        // também seja registrada no histórico da conversa (wa_conversas.messages)
-        // apenas evitamos que a IA responda a ela no passo 7.
-
+        // IMPORTANTE: Permitimos continuar para registrar a mensagem no histórico, 
+        // mas o runAgentFlow no passo 7 já bloqueia resposta se isFromMe for true.
       }
 
 
