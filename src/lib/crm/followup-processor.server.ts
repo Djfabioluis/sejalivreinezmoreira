@@ -22,22 +22,53 @@ export async function processPendingFollowups() {
   const now = new Date();
   const nowIso = now.toISOString();
 
-  logger.info("FOLLOWUP_WORKER_STARTED", "Iniciando processamento de follow-ups", { traceId, now: nowIso });
+  // 2. Registrar quando o worker inicia
+  logger.info("WORKER_STARTED", "Iniciando worker de processamento de follow-ups", { traceId, now: nowIso });
 
   try {
+    // 3. Registrar cada ciclo
+    logger.info("WORKER_TICK", "Ciclo de processamento iniciado", { traceId, timestamp: nowIso });
+
     await discoverNewFollowups(traceId);
 
-    const fifteenMinsAgo = new Date(now.getTime() - 15 * 60 * 1000).toISOString();
-    await supabaseAdmin
+    // 11. Nunca deixar READY indefinidamente (Timeout de 60s)
+    const sixtySecondsAgo = new Date(now.getTime() - 60 * 1000).toISOString();
+    const { count: resetCount } = await supabaseAdmin
       .from("crm_followups")
       .update({ 
         status: "READY", 
         updated_at: nowIso,
-        metadata: { recovery: "stuck_processing_reset", reset_at: nowIso }
+        metadata: { 
+          recovery: "stuck_processing_timeout", 
+          reset_at: nowIso,
+          reason: "Processing stuck for more than 60s" 
+        }
       } as any)
       .in("status", ["PROCESSING", "EM_PROCESSAMENTO"])
-      .lt("updated_at", fifteenMinsAgo);
+      .lt("updated_at", sixtySecondsAgo)
+      .select('id');
 
+    if (resetCount && resetCount > 0) {
+      logger.info("WORKER_STUCK_RESET", `${resetCount} jobs redefinidos de PROCESSING para READY por timeout`, { traceId });
+    }
+
+    // 4. Registrar quantos followups READY existem
+    const { data: readyFollowups, error: countError } = await supabaseAdmin
+      .from("crm_followups")
+      .select("id")
+      .in("status", ["PENDING", "READY", "PENDENTE", "READY_TO_SEND"])
+      .lte("scheduled_at", nowIso)
+      .lt("attempts", 3);
+
+    const readyCount = readyFollowups?.length || 0;
+    logger.info("WORKER_READY_COUNT", `Existem ${readyCount} followups prontos para processamento`, { traceId, count: readyCount });
+
+    if (countError || readyCount === 0) {
+      logger.info("WORKER_IDLE", "Nenhum follow-up para processar neste ciclo", { traceId });
+      return;
+    }
+
+    // Buscar os registros para processar
     const { data: followups, error: fetchError } = await (supabaseAdmin
       .from("crm_followups" as any) as any)
       .select("*")
@@ -47,9 +78,14 @@ export async function processPendingFollowups() {
       .order("scheduled_at", { ascending: true })
       .limit(20);
 
-    if (fetchError || !followups) return;
+    if (fetchError || !followups) {
+      logger.error("WORKER_FETCH_ERROR", fetchError?.message || "Erro desconhecido ao buscar followups", { traceId });
+      return;
+    }
 
     for (const followup of (followups as any[])) {
+      // 5. Registrar qual ID foi selecionado
+      logger.info("WORKER_JOB_SELECTED", `Selecionando ID: ${followup.id}`, { traceId, followupId: followup.id });
       await processSingleFollowup(followup, traceId);
     }
   } catch (err: any) {
@@ -62,7 +98,8 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
   
   try {
     const now = new Date().toISOString();
-    const { error: lockError } = await supabaseAdmin
+    // 6. Registrar: worker pegou o job? (Tenta travar o job)
+    const { data: lockedJob, error: lockError } = await supabaseAdmin
       .from("crm_followups")
       .update({ 
         status: "PROCESSING", 
@@ -75,9 +112,19 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
         }
       } as any)
       .eq("id", followup.id)
-      .in("status", ["PENDING", "READY", "PENDENTE", "READY_TO_SEND"]);
+      .in("status", ["PENDING", "READY", "PENDENTE", "READY_TO_SEND"])
+      .select('id')
+      .single();
 
-    if (lockError) throw new Error(`LOCK_FAILED: ${lockError.message}`);
+    if (lockError || !lockedJob) {
+      // 7. Se não pegou, explicar exatamente por quê
+      const reason = lockError ? `Database error: ${lockError.message}` : "Race condition: job already taken or status changed";
+      logger.warn("WORKER_JOB_GRAB_FAILED", `Worker não conseguiu pegar o job ${followup.id}`, { traceId, followupId: followup.id, reason });
+      return;
+    }
+
+    logger.info("WORKER_JOB_GRAB_SUCCESS", `Worker pegou o job ${followup.id}`, { traceId, followupId: followup.id });
+
 
     // 1. Logar o telefone bruto recebido
     logger.info("FOLLOWUP_PHASE_1_START", "Iniciando processamento de telefone", { 
@@ -174,21 +221,41 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     
     const { sendEvolutionText } = await import("@/lib/evolution.server");
     
-    // Logar dados antes de enviar para Evolution para auditoria definitiva
+    // 8. Se pegou, mostrar: FOLLOWUP_EVOLUTION_STARTED, payload enviado
+    const evolutionPayload = {
+      instance: conversation.instance,
+      phone: conversation.phone_number,
+      message: messageText
+    };
+    logger.info("FOLLOWUP_EVOLUTION_STARTED", "Payload enviado para Evolution API", { 
+      traceId, 
+      followupId: followup.id,
+      payload: evolutionPayload
+    });
+
     await updateFollowupMetadata(followup.id, {
       phoneBeforeValidation: followup.phone,
       phoneSentToEvolution: normalized.full,
       evolutionInstance: conversation.instance,
-      evolutionPhoneNumber: conversation.phone_number
+      evolutionPhoneNumber: conversation.phone_number,
+      evolutionPayload
     });
 
     const success = await sendEvolutionText(conversation.instance, conversation.phone_number, messageText);
+
+    // 9. Registrar resposta da Evolution
+    logger.info("FOLLOWUP_EVOLUTION_RESPONSE", `Evolution API response: ${success ? 'SUCCESS' : 'FAILED'}`, { 
+      traceId, 
+      followupId: followup.id,
+      success 
+    });
 
     if (!success) {
       await updateFollowupStep(followup.id, "FOLLOWUP_EVOLUTION_FAILED", traceId);
       throw new Error("EVOLUTION_HTTP_ERROR: Falha ao enviar mensagem via Evolution API.");
     }
 
+    // 10. Atualizar status: PROCESSING ↓ SENT (o status SENT é definido abaixo)
     await updateFollowupStep(followup.id, "FOLLOWUP_EVOLUTION_SUCCESS", traceId);
 
     const completionTime = new Date().toISOString();
