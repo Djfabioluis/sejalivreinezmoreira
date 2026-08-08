@@ -38,7 +38,10 @@ async function testRealFollowup() {
     .limit(1)
     .single();
   
-  if (!rule) return;
+  if (!rule) {
+    console.error("Nenhuma regra encontrada.");
+    return;
+  }
 
   // 4. Criar um job REAL
   const realJobId = "00000000-0000-4000-d000-" + Math.random().toString(16).substring(2, 14).padEnd(12, '0');
