@@ -66,30 +66,37 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
             status: "skipped",
             payload: { traceId }
           });
-        continue; 
-      }
+          continue; 
+        }
+
+        // NOVO: Ignorar se for mensagem de status/broadcast enviada por mim
+        if (msg.remoteJid.includes("@broadcast") || msg.remoteJid === "status@broadcast") {
+          continue;
+        }
 
 
         // fromMe=true mas NÃO foi a IA -> HUMANO assumiu
         const phone = normalizePhone(msg.remoteJid);
-        const { updateConversationMetadata } = await import("./conversation.server");
         const conversationKey = buildConversationKey(msg.instance, msg.remoteJid);
 
-        await supabaseAdmin
+        const { error: updateError } = await supabaseAdmin
           .from("wa_conversas")
           .update({ 
             attendance_mode: "HUMAN", 
             human_takeover_at: new Date().toISOString() 
           })
-          .eq("instance", msg.instance)
-          .eq("phone", phone);
+          .or(`phone.eq.${conversationKey},phone.eq.${phone},phone_number.eq.${phone}`);
+
+        if (updateError) {
+          console.error("[takeover] Error updating to HUMAN mode:", updateError);
+        }
 
         await logEvent({
           instance: msg.instance,
           messageId: msg.messageId,
           event: "human_takeover_detected",
           status: "attendance_mode_set_to_human",
-          payload: { traceId, phone }
+          payload: { traceId, phone, conversationKey, remoteJid: msg.remoteJid, updateError }
         });
 
         continue; 

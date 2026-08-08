@@ -71,8 +71,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     const { data: conversation } = await supabaseAdmin
       .from("wa_conversas" as any)
       .select("id, attendance_mode, human_takeover_at")
-      .eq("instance", instance)
-      .eq("phone", contactPhone)
+      .or(`phone.eq.${conversationKey},phone.eq.${contactPhone},phone_number.eq.${contactPhone}`)
       .maybeSingle();
 
     const conv = conversation as any;
@@ -104,7 +103,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       const { error: updateError } = await supabaseAdmin
         .from("wa_conversas")
         .update({ attendance_mode: "AI", human_takeover_at: null })
-        .eq("phone", contactPhone);
+        .or(`phone.eq.${conversationKey},phone.eq.${contactPhone},phone_number.eq.${contactPhone}`);
 
       if (updateError) {
         console.error("[takeover-debug] Error updating attendance mode:", updateError);
@@ -148,6 +147,24 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
           payload: { agent_status: agent?.status, unit_id: agent?.unidade_id, traceId }
         });
       }
+      return;
+    }
+
+    // NOVO: Double-check attendance mode immediately before AI invocation to prevent race conditions
+    const { data: finalCheck } = await supabaseAdmin
+      .from("wa_conversas")
+      .select("attendance_mode")
+      .or(`phone.eq.${conversationKey},phone.eq.${contactPhone},phone_number.eq.${contactPhone}`)
+      .maybeSingle();
+      
+    if (finalCheck?.attendance_mode === "HUMAN") {
+      await logEvent({
+        instance,
+        messageId,
+        event: "agent_flow_aborted_race_condition",
+        status: "aborted",
+        payload: { traceId, reason: "Human takeover detected just before AI run" }
+      });
       return;
     }
 
