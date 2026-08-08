@@ -477,7 +477,7 @@ Mensagem:`;
 
     const provider = createLovableAiGatewayProvider(apiKey);
     const { text } = await generateText({
-      model: provider("gemini-1.5-flash") as any,
+      model: provider("google/gemini-2.5-flash") as any,
       prompt,
     });
     
