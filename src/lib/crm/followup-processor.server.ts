@@ -106,6 +106,13 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
 
     logger.info("FOLLOWUP_PROCESSING", "Iniciando processamento do job", logContext);
 
+    // 1.5 Filtro de Testes Manuais (Tratar isoladamente ou descartar)
+    if (followup.reason === "MANUAL_TEST" || followup.stage === "TEST_EXECUTION") {
+      logger.info("FOLLOWUP_TEST_BYPASS", "Job de teste manual detectado. Cancelando sem envio real.", logContext);
+      await blockFollowup(followup.id, "TEST_SKIPPED", "Manual test job ignored by processor", traceId, logContext);
+      return;
+    }
+
     // 2. Verificação de Duplicidade / Envio Prévio (Idempotência)
     const { data: previousSent } = await supabaseAdmin
       .from("crm_followups")
@@ -149,20 +156,30 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       return;
     }
 
-    // 4. Busca ou Criação de Conversa
+    // 4. Busca ou Criação de Conversa (Priorizando Telefone se customer_id for null)
     const instance = followup.metadata?.instance || "agente-5541998430354";
     let conversation: any;
+    
     try {
-      conversation = await ConversationService.findOrCreate({
-        instance,
-        phone_number: normalized.full,
-        contact_name: followup.metadata?.contact_name || 'Cliente',
-        metadata: logContext
-      });
+      // Tentar encontrar conversa existente por phone_number (mais confiável)
+      const existingConv = await ConversationService.findByPhone(instance, normalized.full);
+      
+      if (existingConv) {
+        conversation = existingConv;
+      } else {
+        // Se não encontrar por telefone, criar nova
+        conversation = await ConversationService.findOrCreate({
+          instance,
+          phone_number: normalized.full,
+          contact_name: followup.metadata?.contact_name || 'Cliente',
+          metadata: logContext
+        });
+      }
       
       logger.info("FOLLOWUP_CONVERSATION_RESOLVED", "Conversa resolvida", {
         ...logContext,
-        conversation_id: conversation.id
+        conversation_id: conversation.id,
+        found_by: existingConv ? "phone_lookup" : "creation"
       });
     } catch (convErr: any) {
       const errorInfo = {
