@@ -270,14 +270,22 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     });
 
   } catch (err: any) {
-    logger.error("FOLLOWUP_ERROR", err.message, { ...logContext, error: err });
+    const errorDetails = err.details || { 
+      message: err.message, 
+      name: err.name,
+      stack: err.stack,
+      timestamp: new Date().toISOString() 
+    };
+
+    logger.error("FOLLOWUP_ERROR", err.message, { ...logContext, error: errorDetails });
+
     await supabaseAdmin.from("crm_followups").update({
       status: "FAILED",
       updated_at: new Date().toISOString(),
       metadata: {
         ...(followup.metadata || {}),
         ...logContext,
-        last_error: { message: err.message, timestamp: new Date().toISOString() }
+        last_error: errorDetails
       }
     } as any).eq("id", followup.id);
   }
