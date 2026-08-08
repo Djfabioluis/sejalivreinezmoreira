@@ -316,8 +316,14 @@ function buildTools(
   };
 }
 
-export async function runAgent(opts: AgentOptions & { messages: any[] }) {
-  const { messages, conversationKey, unidadeId, sandbox, customerContext, activePromotions } = opts;
+export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: string }) {
+  const { conversationKey, unidadeId, sandbox, customerContext, activePromotions } = opts;
+  // Resiliência: se não vier histórico, monta a partir do texto recebido.
+  const messages =
+    Array.isArray(opts.messages) && opts.messages.length > 0
+      ? opts.messages
+      : [{ role: "user", parts: [{ type: "text", text: opts.text ?? "" }] }];
+
   const { effectiveUnitId, effectiveUnitName } = await resolveEffectiveUnit({ conversationKey, agentUnitId: unidadeId });
   
   const gatewayKey = process.env.LOVABLE_AI_GATEWAY_KEY || process.env.LOVABLE_API_KEY || "";
@@ -335,7 +341,12 @@ export async function runAgent(opts: AgentOptions & { messages: any[] }) {
 
   const tools = buildTools(!!sandbox, effectiveUnitId, conversationKey, opts.messageId);
 
-  const modelMessages = Array.isArray(messages) && messages[0]?.role ? messages : await convertToModelMessages(messages);
+  // Aceita tanto UIMessages (com parts) quanto ModelMessages (com content).
+  const needsConversion = messages.some((m: any) => Array.isArray(m?.parts));
+  const modelMessages = needsConversion
+    ? await convertToModelMessages(messages as any)
+    : messages;
+
   return generateText({
     model: model as any,
     system: system + (sandbox ? SANDBOX_NOTE : ""),
@@ -345,12 +356,17 @@ export async function runAgent(opts: AgentOptions & { messages: any[] }) {
   } as any);
 }
 
-export async function runAgentWithLogging(opts: AgentOptions & { messages: any[] }) {
+export async function runAgentWithLogging(opts: AgentOptions & { messages?: any[]; text?: string }) {
   const result = await runAgent(opts);
-  
+
   // Garantia determinística da promoção de mechas (Bug 2)
-  const lastMessage = opts.messages[opts.messages.length - 1]?.content || "";
-  const isMechasIntent = /\bmechas?\b/i.test(lastMessage);
+  const last = Array.isArray(opts.messages) ? opts.messages[opts.messages.length - 1] : null;
+  const lastMessage =
+    (typeof last?.content === "string" ? last.content : null) ??
+    (Array.isArray(last?.parts) ? last.parts.map((p: any) => p?.text ?? "").join(" ") : "") ??
+    "";
+  const isMechasIntent = /\bmechas?\b/i.test(`${lastMessage} ${opts.text ?? ""}`);
+
   
   if (isMechasIntent && result.text) {
       const promoText = "Pacote de Mechas por R$ 289,90";
