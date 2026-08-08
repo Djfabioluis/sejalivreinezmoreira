@@ -374,11 +374,14 @@ async function generateAiFollowup(followup: any, nameData: any) {
     const provider = createLovableAiGatewayProvider(apiKey);
     const model = provider(modelName);
     
-    const prompt = `Gere uma mensagem curta de follow-up para ${nameData.fullName}.`;
+    const prompt = `Aja como Julia, uma assistente humanizada de um salão de beleza. O cliente se chama ${nameData.fullName} (primeiro nome: ${nameData.firstName || 'cliente'}). Gere uma mensagem curta, acolhedora e personalizada de follow-up para este cliente. Nunca use a palavra "Cliente" como se fosse o nome dele.`;
     
+    // Usando a API nativa do provedor (OpenAI Compatible) para evitar abstrações que causem 400
     const { text } = await generateText({
       model,
-      prompt,
+      messages: [
+        { role: 'user', content: prompt }
+      ]
     });
     
     return text;
