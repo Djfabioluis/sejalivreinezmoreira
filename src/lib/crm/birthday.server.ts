@@ -29,7 +29,9 @@ export async function processBirthdays() {
     // Por enquanto, vamos consultar o pipeline e as conversas que já temos.
     const { data: customers, error } = await supabaseAdmin
       .from("crm_customer_pipeline")
-      .select("phone, customer_name, customer_context:wa_conversas(customer_context, instance)");
+      .select("phone, customer_name, customer_context:wa_conversas(customer_context, instance)")
+      .not("wa_conversas", "is", null);
+
 
     if (error) throw error;
 
