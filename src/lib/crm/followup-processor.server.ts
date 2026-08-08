@@ -106,10 +106,12 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
 
     logger.info("FOLLOWUP_PROCESSING", "Iniciando processamento do job", logContext);
 
-    // 1.5 Filtro de Testes Manuais (Tratar isoladamente ou descartar)
-    if (followup.reason === "MANUAL_TEST" || followup.stage === "TEST_EXECUTION") {
-      logger.info("FOLLOWUP_TEST_BYPASS", "Job de teste manual detectado. Cancelando sem envio real.", logContext);
-      await blockFollowup(followup.id, "TEST_SKIPPED", "Manual test job ignored by processor", traceId, logContext);
+    // 1.5 Filtro de Testes Sintéticos (MANUAL_TEST ou TEST_EXECUTION)
+    const isSyntheticTest = followup.reason === "MANUAL_TEST" || followup.stage === "TEST_EXECUTION";
+
+    if (isSyntheticTest) {
+      logger.info("FOLLOWUP_TEST_BYPASS", "Job de teste sintético detectado. Cancelando sem envio real.", logContext);
+      await blockFollowup(followup.id, "TEST_SKIPPED", "Synthetic test job ignored by processor", traceId, logContext);
       return;
     }
 
