@@ -316,8 +316,14 @@ function buildTools(
   };
 }
 
-export async function runAgent(opts: AgentOptions & { messages: any[] }) {
-  const { messages, conversationKey, unidadeId, sandbox, customerContext, activePromotions } = opts;
+export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: string }) {
+  const { conversationKey, unidadeId, sandbox, customerContext, activePromotions } = opts;
+  // Resiliência: se não vier histórico, monta a partir do texto recebido.
+  const messages =
+    Array.isArray(opts.messages) && opts.messages.length > 0
+      ? opts.messages
+      : [{ role: "user", parts: [{ type: "text", text: opts.text ?? "" }] }];
+
   const { effectiveUnitId, effectiveUnitName } = await resolveEffectiveUnit({ conversationKey, agentUnitId: unidadeId });
   
   const gatewayKey = process.env.LOVABLE_AI_GATEWAY_KEY || process.env.LOVABLE_API_KEY || "";
