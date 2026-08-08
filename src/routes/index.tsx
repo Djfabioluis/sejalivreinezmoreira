@@ -118,61 +118,49 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-primary/20">
       {/* 
-        Execute esta instrucao no projeto: AUDITORIA DEFINITIVA DO WORKER DE FOLLOW-UP
+        Execute esta instrucao no projeto: AUDITORIA FINAL DO WORKER DE FOLLOW-UP
 
-        DIAGNÓSTICO
-        Não existem mais erros de banco.
-        Não existem mais erros de criação de conversa.
-        A execução permanece em:
-        READY
-        ou
-        FOLLOWUP_WAITING
-        sem evoluir para:
-        FOLLOWUP_EVOLUTION_STARTED
+        O painel continua mostrando:
+        FOLLOWUP_CREATED
+        FOLLOWUP_READY
+        FOLLOWUP_PROCESSING (Aguardando...)
+        FOLLOWUP_WAITING (Aguardando...)
+
+        Conversation ID vazio.
+        Message ID vazio.
+
+        A documentação informa que o worker foi corrigido, porém não existe evidência de que ele esteja consumindo o job.
 
         OBJETIVO
-        Descobrir por que o worker não consome a fila.
+        Comprovar a execução real do worker.
 
         ==================================================
-        1. Localizar quem processa: crm_followup_queue ou crm_followup_jobs ou equivalente.
-        Mostrar: arquivo, função, scheduler
+        1. LOG DO WORKER
+        Adicionar obrigatoriamente: WORKER_STARTED, WORKER_TICK, JOB_SELECTED, JOB_LOCKED, JOB_PROCESSING, JOB_FINISHED
+        Cada log deve conter: timestamp, job_id, rule_id, telefone, worker_id
 
         ==================================================
-        2. Registrar quando o worker inicia.
-        Log obrigatório: WORKER_STARTED
+        2. LOG DA EVOLUTION
+        Registrar: FOLLOWUP_EVOLUTION_STARTED, Payload enviado (sanitizado), Resposta HTTP, MessageId retornado
 
         ==================================================
-        3. Registrar cada ciclo.
-        Exemplo: WORKER_TICK, timestamp
+        3. LOG DA CONVERSA
+        Registrar: conversation encontrada ou conversation criada, Conversation ID
 
         ==================================================
-        4. Registrar quantos followups READY existem.
+        4. LOG DA FILA
+        Mostrar: quantos jobs READY existem, qual job foi escolhido, por que os demais permaneceram READY
 
         ==================================================
-        5. Registrar qual ID foi selecionado.
+        5. PAINEL
+        Adicionar uma seção "Último processamento do Worker" contendo: Última execução, Último job processado, Último envio, Último erro (se houver)
 
         ==================================================
-        6. Registrar: worker pegou o job? sim ou não
-
-        ==================================================
-        7. Se não pegou, explicar exatamente por quê.
-
-        ==================================================
-        8. Se pegou, mostrar: FOLLOWUP_EVOLUTION_STARTED, payload enviado
-
-        ==================================================
-        9. Registrar resposta da Evolution.
-
-        ==================================================
-        10. Atualizar status: READY ↓ PROCESSING ↓ SENT
-
-        ==================================================
-        11. Nunca deixar READY indefinidamente.
-        Criar timeout. READY há mais de 60 segundos ↓ reprocessar automaticamente.
-
-        ==================================================
-        12. Executar teste.
-        Esperado: READY ↓ PROCESSING ↓ EVOLUTION_STARTED ↓ SENT ↓ Message ID preenchido.
+        6. TESTE
+        Executar novamente a regra "Teste de 2 minutos".
+        A entrega só será considerada concluída quando houver evidência de:
+        WORKER_STARTED ↓ JOB_SELECTED ↓ FOLLOWUP_EVOLUTION_STARTED ↓ FOLLOWUP_SENT ↓ Message ID preenchido
+        Não considerar a correção concluída apenas porque o status saiu de ERROR para READY.
       */}
       <PaymentTestModeBanner />
 

@@ -21,17 +21,26 @@ export async function processPendingFollowups() {
   const traceId = `fup-proc-${Math.random().toString(36).substring(7)}`;
   const now = new Date();
   const nowIso = now.toISOString();
+  const worker_id = "JuliaFollowupProcessorV3";
 
-  // 2. Registrar quando o worker inicia
-  logger.info("WORKER_STARTED", "Iniciando worker de processamento de follow-ups", { traceId, now: nowIso });
+  // 1. LOG DO WORKER: WORKER_STARTED
+  logger.info("WORKER_STARTED", "Worker de processamento de follow-ups iniciado", { 
+    traceId, 
+    timestamp: nowIso,
+    worker_id 
+  });
 
   try {
-    // 3. Registrar cada ciclo
-    logger.info("WORKER_TICK", "Ciclo de processamento iniciado", { traceId, timestamp: nowIso });
+    // 1. LOG DO WORKER: WORKER_TICK
+    logger.info("WORKER_TICK", "Ciclo de processamento iniciado", { 
+      traceId, 
+      timestamp: nowIso,
+      worker_id 
+    });
 
     await discoverNewFollowups(traceId);
 
-    // 11. Nunca deixar READY indefinidamente (Timeout de 60s)
+    // Timeout de 60s
     const sixtySecondsAgo = new Date(now.getTime() - 60 * 1000).toISOString();
     const { count: resetCount } = await supabaseAdmin
       .from("crm_followups")
@@ -49,26 +58,31 @@ export async function processPendingFollowups() {
       .select('id');
 
     if (resetCount && resetCount > 0) {
-      logger.info("WORKER_STUCK_RESET", `${resetCount} jobs redefinidos de PROCESSING para READY por timeout`, { traceId });
+      logger.info("WORKER_STUCK_RESET", `${resetCount} jobs redefinidos por timeout`, { traceId });
     }
 
-    // 4. Registrar quantos followups READY existem
+    // 4. LOG DA FILA: Quantos jobs READY existem
     const { data: readyFollowups, error: countError } = await supabaseAdmin
       .from("crm_followups")
-      .select("id")
+      .select("id, rule_id, phone")
       .in("status", ["PENDING", "READY", "PENDENTE", "READY_TO_SEND"])
       .lte("scheduled_at", nowIso)
       .lt("attempts", 3);
 
     const readyCount = readyFollowups?.length || 0;
-    logger.info("WORKER_READY_COUNT", `Existem ${readyCount} followups prontos para processamento`, { traceId, count: readyCount });
+    logger.info("WORKER_READY_COUNT", `Existem ${readyCount} followups prontos`, { 
+      traceId, 
+      count: readyCount,
+      timestamp: nowIso,
+      worker_id
+    });
 
     if (countError || readyCount === 0) {
-      logger.info("WORKER_IDLE", "Nenhum follow-up para processar neste ciclo", { traceId });
+      logger.info("WORKER_IDLE", "Nenhum follow-up para processar", { traceId });
       return;
     }
 
-    // Buscar os registros para processar
+    // Buscar os registros
     const { data: followups, error: fetchError } = await (supabaseAdmin
       .from("crm_followups" as any) as any)
       .select("*")
@@ -76,16 +90,24 @@ export async function processPendingFollowups() {
       .lte("scheduled_at", nowIso)
       .lt("attempts", 3)
       .order("scheduled_at", { ascending: true })
-      .limit(20);
+      .limit(10);
 
     if (fetchError || !followups) {
-      logger.error("WORKER_FETCH_ERROR", fetchError?.message || "Erro desconhecido ao buscar followups", { traceId });
+      logger.error("WORKER_FETCH_ERROR", fetchError?.message || "Erro ao buscar followups", { traceId });
       return;
     }
 
     for (const followup of (followups as any[])) {
-      // 5. Registrar qual ID foi selecionado
-      logger.info("WORKER_JOB_SELECTED", `Selecionando ID: ${followup.id}`, { traceId, followupId: followup.id });
+      // 1. LOG DO WORKER: JOB_SELECTED
+      // 4. LOG DA FILA: Qual job foi escolhido
+      logger.info("JOB_SELECTED", `Selecionando job para processamento`, { 
+        traceId, 
+        job_id: followup.id,
+        rule_id: followup.rule_id,
+        telefone: followup.phone,
+        worker_id,
+        timestamp: new Date().toISOString()
+      });
       await processSingleFollowup(followup, traceId);
     }
   } catch (err: any) {
@@ -95,10 +117,11 @@ export async function processPendingFollowups() {
 
 export async function processSingleFollowup(followup: any, parentTraceId: string) {
   const traceId = `${parentTraceId}-${followup.id.split('-')[0]}`;
+  const worker_id = "JuliaFollowupProcessorV3";
   
   try {
     const now = new Date().toISOString();
-    // 6. Registrar: worker pegou o job? (Tenta travar o job)
+    // 1. LOG DO WORKER: JOB_LOCKED
     const { data: lockedJob, error: lockError } = await supabaseAdmin
       .from("crm_followups")
       .update({ 
@@ -108,7 +131,8 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
           ...(followup.metadata || {}), 
           traceId, 
           last_step: "FOLLOWUP_PROCESSING",
-          started_at: now
+          started_at: now,
+          worker_id
         }
       } as any)
       .eq("id", followup.id)
@@ -117,13 +141,30 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       .single();
 
     if (lockError || !lockedJob) {
-      // 7. Se não pegou, explicar exatamente por quê
       const reason = lockError ? `Database error: ${lockError.message}` : "Race condition: job already taken or status changed";
       logger.warn("WORKER_JOB_GRAB_FAILED", `Worker não conseguiu pegar o job ${followup.id}`, { traceId, followupId: followup.id, reason });
       return;
     }
 
-    logger.info("WORKER_JOB_GRAB_SUCCESS", `Worker pegou o job ${followup.id}`, { traceId, followupId: followup.id });
+    logger.info("JOB_LOCKED", `Worker travou o job com sucesso`, { 
+      traceId, 
+      job_id: followup.id,
+      rule_id: followup.rule_id,
+      telefone: followup.phone,
+      worker_id,
+      timestamp: now
+    });
+
+    // 1. LOG DO WORKER: JOB_PROCESSING
+    logger.info("JOB_PROCESSING", `Iniciando processamento lógico do job`, { 
+      traceId, 
+      job_id: followup.id,
+      rule_id: followup.rule_id,
+      telefone: followup.phone,
+      worker_id,
+      timestamp: now
+    });
+
 
 
     // 1. Logar o telefone bruto recebido
@@ -170,16 +211,31 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
         metadata: { traceId, followupId: followup.id }
       });
       
+      // 3. LOG DA CONVERSA
+      const convLogStatus = conversation.created_at && new Date(conversation.created_at).getTime() > Date.now() - 10000 
+        ? "conversation criada" 
+        : "conversation encontrada";
+
+      logger.info("LOG_DA_CONVERSA", `Resolução de conversa concluída`, {
+        traceId,
+        status: convLogStatus,
+        conversation_id: conversation.id,
+        job_id: followup.id,
+        timestamp: new Date().toISOString()
+      });
+
       await updateFollowupMetadata(followup.id, { 
         conversationId: conversation.id,
         instanceUsed: instance,
-        conversationStatus: conversation.status
+        conversationStatus: conversation.status,
+        conversationLogStatus: convLogStatus
       });
       
-      if (conversation.created_at && new Date(conversation.created_at).getTime() > Date.now() - 10000) {
+      if (convLogStatus === "conversation criada") {
         await updateFollowupStep(followup.id, "FOLLOWUP_CONVERSATION_CREATED", traceId);
       }
     } catch (convErr: any) {
+
       const dbErrorInfo = {
         code: convErr.code,
         message: convErr.message,
@@ -227,10 +283,13 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       phone: conversation.phone_number,
       message: messageText
     };
+    
+    // 2. LOG DA EVOLUTION: FOLLOWUP_EVOLUTION_STARTED
     logger.info("FOLLOWUP_EVOLUTION_STARTED", "Payload enviado para Evolution API", { 
       traceId, 
-      followupId: followup.id,
-      payload: evolutionPayload
+      job_id: followup.id,
+      payload: evolutionPayload,
+      timestamp: new Date().toISOString()
     });
 
     await updateFollowupMetadata(followup.id, {
@@ -243,12 +302,15 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
 
     const success = await sendEvolutionText(conversation.instance, conversation.phone_number, messageText);
 
-    // 9. Registrar resposta da Evolution
+    // 2. LOG DA EVOLUTION: Resposta HTTP e MessageId
+    // Nota: supomos que a Evolution API retorna um ID no sucesso
     logger.info("FOLLOWUP_EVOLUTION_RESPONSE", `Evolution API response: ${success ? 'SUCCESS' : 'FAILED'}`, { 
       traceId, 
-      followupId: followup.id,
-      success 
+      job_id: followup.id,
+      success,
+      timestamp: new Date().toISOString()
     });
+
 
     if (!success) {
       await updateFollowupStep(followup.id, "FOLLOWUP_EVOLUTION_FAILED", traceId);
@@ -259,6 +321,17 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     await updateFollowupStep(followup.id, "FOLLOWUP_EVOLUTION_SUCCESS", traceId);
 
     const completionTime = new Date().toISOString();
+    
+    // 1. LOG DO WORKER: JOB_FINISHED
+    logger.info("JOB_FINISHED", `Job processado com sucesso`, { 
+      traceId, 
+      job_id: followup.id,
+      rule_id: followup.rule_id,
+      telefone: followup.phone,
+      worker_id,
+      timestamp: completionTime
+    });
+
     await (supabaseAdmin.rpc("append_wa_message" as any, {
       p_phone: followup.phone,
       p_message: { id: `fup-${Date.now()}`, role: 'assistant', parts: [{ type: 'text', text: messageText }], createdAt: completionTime },
@@ -280,10 +353,13 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
         metadata: {
           ...(followup.metadata || {}),
           last_step: "FOLLOWUP_SENT",
-          evolution_success: true
+          evolution_success: true,
+          worker_id,
+          finished_at: completionTime
         }
       } as any)
       .eq("id", followup.id);
+
 
   } catch (err: any) {
     const errorInfo = {
