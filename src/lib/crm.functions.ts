@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { hasRole } from "@/lib/roles";
+
 
 async function assertAdmin(ctx: { supabase: any; userId: string }) {
   // Usa o cliente autenticado do usuário (evita erro "JWT issued at future"
