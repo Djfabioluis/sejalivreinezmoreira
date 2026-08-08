@@ -165,7 +165,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     }
 
     // 4. Busca ou Criação de Conversa (Priorizando Telefone se customer_id for null)
-    const instance = followup.metadata?.instance || "agente-5541998430354";
+    const instance = currentFollowup.metadata?.instance || "agente-5541998430354";
     let conversation: any;
     
     try {
