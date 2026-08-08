@@ -241,7 +241,8 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     logger.info("FOLLOWUP_EVOLUTION_STARTED", "Iniciando envio via Evolution", logContext);
     
     const { sendEvolutionText } = await import("@/lib/evolution.server");
-    const evoResult = await sendEvolutionText(instance, conversation.phone_number, messageText);
+    const targetInstance = conversation.instance || instance;
+    const evoResult = await sendEvolutionText(targetInstance, conversation.phone_number, messageText);
     const success = evoResult.success;
     const evolutionData = evoResult.data;
     const messageId = evolutionData?.key?.id || evolutionData?.id || evolutionData?.message?.key?.id;
