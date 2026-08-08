@@ -459,11 +459,12 @@ function CRMPage() {
                   <DataField label="Trigger" value={selectedExecution.rule?.name || selectedExecution.reason || "Manual"} />
                   <DataField label="Telefone" value={formatPhone(selectedExecution.phone)} icon={<Phone className="h-3 w-3" />} />
                   <DataField label="Agendado em" value={format(new Date(selectedExecution.scheduled_at), "HH:mm:ss dd/MM")} />
-                  <DataField label="Executado em" value={selectedExecution.completed_at ? format(new Date(selectedExecution.completed_at), "HH:mm:ss dd/MM") : "-"} />
+                  <DataField label="Executado em" value={selectedExecution.completed_at ? format(new Date(selectedExecution.completed_at), "HH:mm:ss dd/MM") : (selectedExecution.sent_at ? format(new Date(selectedExecution.sent_at), "HH:mm:ss dd/MM") : "-")} />
                   <DataField label="Worker ID" value={selectedExecution.metadata?.worker_id || "Julia Engine v2"} />
                   <DataField label="Evolution Instance" value={selectedExecution.metadata?.instance_name || selectedExecution.metadata?.evolutionInstance || "Primary"} />
                   <DataField label="Conversation ID" value={selectedExecution.metadata?.conversationId || (selectedExecution.metadata?.conversationCreated ? "Created" : (selectedExecution.metadata?.conversationFound ? "Found" : "-"))} />
-                  <DataField label="Message ID" value={selectedExecution.metadata?.message_id || "-"} className="col-span-2" />
+                  <DataField label="Message ID" value={selectedExecution.metadata?.message_id || selectedExecution.metadata?.evolution_response?.key?.id || "-"} className="col-span-2" />
+
                   
                   {selectedExecution.status === 'CANCELED' && (
                     <div className="col-span-2 pt-2 border-t border-border mt-2 space-y-3">
@@ -545,9 +546,24 @@ function CRMPage() {
               <div className="space-y-4">
                 <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Conteúdo da Mensagem</h4>
                 <div className="bg-primary/5 p-4 rounded-xl border border-primary/10 text-xs italic text-muted-foreground">
-                  {selectedExecution.message_template || selectedExecution.metadata?.generated_message || "Mensagem não registrada ou gerada dinamicamente."}
+                  {selectedExecution.message_template || selectedExecution.metadata?.generated_message || selectedExecution.metadata?.evolution_response?.message?.conversation || "Mensagem não registrada ou gerada dinamicamente."}
                 </div>
               </div>
+
+              {/* Evolution RAW Response */}
+              {selectedExecution.metadata?.evolution_response && (
+                <div className="space-y-4">
+                  <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Resposta da Evolution (Raw Data)</h4>
+                  <div className="bg-muted/50 p-4 rounded-xl border border-border/40">
+                    <ScrollArea className="h-40">
+                      <pre className="text-[10px] font-mono leading-tight text-muted-foreground">
+                        {JSON.stringify(selectedExecution.metadata.evolution_response, null, 2)}
+                      </pre>
+                    </ScrollArea>
+                  </div>
+                </div>
+              )}
+
             </div>
           )}
         </SheetContent>
