@@ -25,7 +25,7 @@ export async function processAutomatedRecoveries() {
 
   for (const customer of allAbandoned) {
     try {
-      if (GENERIC_ABANDONMENT_REASONS_TO_SKIP.includes(customer.abandonment_reason)) {
+      if (customer.abandonment_reason && GENERIC_ABANDONMENT_REASONS_TO_SKIP.includes(customer.abandonment_reason)) {
         // "Se abandonment_reason == PRICE ↓ não insistir."
         continue;
       }
@@ -233,7 +233,7 @@ async function sendRecoveryMessage(phone: string, text: string, conv: any, reaso
     const { updateCustomerPipeline } = await import("../crm.server");
     await updateCustomerPipeline({
       phone,
-      stage: 'IDENTIFICANDO_SERVICO', 
+      stage: 'IDENTIFYING_SERVICE', 
       nextAction: 'Recovery sent'
     });
 
