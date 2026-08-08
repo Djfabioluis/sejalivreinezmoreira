@@ -372,51 +372,62 @@ async function resolveFollowupCustomerName(followup: any, conversation: any, tra
 
 async function generateAiFollowup(followup: any, nameData: any) {
   const providerName = "google";
-  const modelName = "gemini-1.5-flash";
+  const modelName = "google/gemini-2.5-flash"; // Using the updated 2026 default
   const startTime = Date.now();
   
   try {
-    const { getAiKey, createLovableAiGatewayProvider } = await import("../ai-gateway.server");
+    const { getAiKey } = await import("../ai-gateway.server");
     const apiKey = await getAiKey();
     
     if (!apiKey) {
       throw new Error("LOVABLE_AI_GATEWAY_KEY not found in environment");
     }
 
-    const provider = createLovableAiGatewayProvider(apiKey);
-    const model = provider(modelName);
-    
     const prompt = `Aja como Julia, uma assistente humanizada de um salão de beleza. O cliente se chama ${nameData.fullName} (primeiro nome: ${nameData.firstName || 'cliente'}). Gere uma mensagem curta, acolhedora e personalizada de follow-up para este cliente. Nunca use a palavra "Cliente" como se fosse o nome dele.`;
     
-    // Usando a API nativa do provedor (OpenAI Compatible) para evitar abstrações que causem 400
-    const { text } = await generateText({
-      model,
-      messages: [
-        { role: 'user', content: prompt }
-      ]
+    // Fallback para fetch direto se o provider estiver dando 400
+    console.log("Julia AI: Chamando Gateway Lovable (fetch direto)...");
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`, // Usar Authorization: Bearer para o Gateway
+        "X-Lovable-AIG-SDK": "fetch-raw"
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.7
+      })
     });
-    
-    return text;
+
+
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      throw { status: response.status, data: errorBody };
+    }
+
+    const result = await response.json();
+    return result.choices?.[0]?.message?.content || "";
+
   } catch (err: any) {
     const duration = Date.now() - startTime;
     const errorInfo = {
       stage: "AI_GENERATION",
       provider: providerName,
       model: modelName,
-      endpoint: "lovable-ai-gateway",
-      http_status: err.status || err.statusCode || (err.response?.status),
-      error_code: err.name || "AI_ERROR",
-      message: err.message,
-      response_body: err.response?.data || err.data || null,
-      request_id: err.headers?.['x-request-id'] || err.response?.headers?.['x-request-id'],
+      endpoint: "lovable-ai-gateway-raw",
+      http_status: err.status || 500,
+      error_code: "AI_RAW_ERROR",
+      message: err.message || "Failed to generate AI response",
+      response_body: err.data || null,
       duration_ms: duration,
-      stacktrace: err.stack,
       timestamp: new Date().toISOString()
     };
 
     throw { 
       type: "AI_GENERATION_FAILED", 
-      message: err.message, 
+      message: errorInfo.message, 
       details: errorInfo 
     };
   }
