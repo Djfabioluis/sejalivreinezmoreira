@@ -411,7 +411,7 @@ export const simulateRealCustomer = createServerFn({ method: "POST" })
     
     if (!normalizedPhone || normalizedPhone.length < 10) throw new Error("Telefone inválido");
 
-    const instance = "agente-5541998430354";
+    const instance = "agente-5541998430354"; // Instância oficial principal
     const conversationKey = `${instance}:${normalizedPhone}`;
 
     // 2. Ensure wa_conversas entry and wait for it

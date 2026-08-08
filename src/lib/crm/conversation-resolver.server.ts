@@ -43,19 +43,20 @@ export async function resolveConversationForFollowup(
 
     // 2. Fallback: Tentar encontrar por phone_number (campo isolado) se existir,
     // independente da instância, para tentar reaproveitar dados se possível.
+    // PRIORIZAMOS a instância informada nos parâmetros se houver múltiplas conversas.
     const { data: convByNumber } = await supabaseAdmin
       .from("wa_conversas")
       .select("*")
       .eq("phone_number", fullPhone)
-      .order("updated_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .order("updated_at", { ascending: false });
 
-    if (convByNumber) {
+    const bestConv = (convByNumber as any[])?.find(c => c.instance === instance) || (convByNumber as any[])?.[0];
+
+    if (bestConv) {
       return {
-        conversation: convByNumber,
+        conversation: bestConv,
         foundBy: "phone_lookup",
-        instance: convByNumber.instance || instance,
+        instance: bestConv.instance || instance,
         normalizedPhone: fullPhone
       };
     }
