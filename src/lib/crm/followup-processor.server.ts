@@ -480,7 +480,7 @@ INSTRUÇÕES CRÍTICAS:
         "X-Lovable-AIG-SDK": "fetch-raw"
       },
       body: JSON.stringify({
-        model: "gemini-1.5-flash",
+        model: "google/gemini-2.5-flash",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.7
       })
