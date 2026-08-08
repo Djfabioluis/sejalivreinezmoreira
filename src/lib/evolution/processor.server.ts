@@ -62,9 +62,12 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
           await logEvent({
             instance: msg.instance,
             messageId: msg.messageId,
-            event: "message_ignored_from_me_ai_echo",
+            event: "MESSAGE_IGNORED",
             status: "skipped",
-            payload: { traceId }
+            payload: { 
+              traceId,
+              reason: "ai_echo"
+            }
           });
           continue; 
         }
@@ -113,6 +116,14 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
 
         // IMPORTANTE: Permitimos continuar para registrar a mensagem no histórico, 
         // mas o runAgentFlow no passo 7 já bloqueia resposta se isFromMe for true.
+      } else {
+        await logEvent({
+          instance: msg.instance,
+          messageId: msg.messageId,
+          event: "INBOUND_DIRECTION",
+          status: "success",
+          payload: { traceId, direction: "CUSTOMER" }
+        });
       }
 
 
@@ -124,9 +135,13 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
         await logEvent({
           instance: msg.instance,
           messageId: msg.messageId,
-          event: "ignored_chat_type",
+          event: "MESSAGE_IGNORED",
           status: "skipped",
-          payload: { remoteJid: msg.remoteJid, traceId }
+          payload: { 
+            remoteJid: msg.remoteJid, 
+            traceId,
+            reason: msg.remoteJid.includes("@g.us") ? "group_message" : "broadcast_status"
+          }
         });
         continue;
       }
@@ -146,9 +161,12 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
         await logEvent({
           instance: msg.instance,
           messageId: finalMessageId,
-          event: "message_skipped",
+          event: "MESSAGE_IGNORED",
           status: "skipped",
-          payload: { traceId, reason }
+          payload: { 
+            traceId, 
+            reason: reason === "already_processed" ? "duplicate" : reason 
+          }
         });
         continue;
       }
