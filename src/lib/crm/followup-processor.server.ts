@@ -309,7 +309,8 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       phoneSentToEvolution: normalized.full,
       evolutionInstance: conversation.instance,
       evolutionPhoneNumber: conversation.phone_number,
-      evolutionPayload
+      evolutionPayload,
+      evolution_started_at: new Date().toISOString()
     });
 
     const success = await sendEvolutionText(conversation.instance, conversation.phone_number, messageText);

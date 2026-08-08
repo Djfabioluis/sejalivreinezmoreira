@@ -1,3 +1,98 @@
+{/* Execute esta instrucao no projeto: AUDITORIA DEFINITIVA DO CONSUMO DA FILA DE FOLLOW-UP
+DIAGNÓSTICO
+Não existem mais erros de banco.
+Não existem mais erros de criação de conversa.
+O registro permanece:
+STATUS = READY
+sem nunca iniciar o processamento.
+Conversation ID = vazio
+Message ID = vazio
+Executado em = -
+OBJETIVO
+Descobrir por que o Worker nunca consome o job READY.
+==================================================
+1. LOCALIZAR O CONSUMIDOR DA FILA
+Identificar:
+- arquivo;
+- função;
+- scheduler;
+- cron;
+- worker;
+- Edge Function;
+- Background Job.
+Mostrar exatamente quem processa os registros READY.
+==================================================
+2. MOSTRAR A CONSULTA
+Exibir a consulta utilizada para buscar jobs.
+Exemplo:
+SELECT ...
+FROM crm_followup_queue
+WHERE status='READY'
+Mostrar todos os filtros aplicados.
+==================================================
+3. REGISTRAR QUANTOS JOBS EXISTEM
+No início de cada ciclo registrar:
+READY encontrados:
+PROCESSING encontrados:
+WAITING encontrados:
+==================================================
+4. REGISTRAR O JOB ESCOLHIDO
+Se existir READY:
+registrar:
+job_id
+telefone
+rule_id
+created_at
+==================================================
+5. SE NENHUM JOB FOR ESCOLHIDO
+Mostrar exatamente qual filtro eliminou o registro.
+Exemplos:
+organization_id
+unit_id
+instance
+next_execution
+retry_count
+janela de horário
+timezone
+==================================================
+6. LOG OBRIGATÓRIO
+Adicionar:
+WORKER_STARTED
+WORKER_TICK
+QUEUE_SCANNED
+JOB_SELECTED
+JOB_STARTED
+JOB_FINISHED
+==================================================
+7. NÃO DEIXAR READY INFINITO
+Se um registro permanecer READY por mais de 30 segundos:
+registrar motivo.
+==================================================
+8. TESTE
+Executar novamente a regra "Teste de 2 minutos".
+Resultado esperado:
+READY
+↓
+JOB_SELECTED
+↓
+PROCESSING
+↓
+CONVERSATION_FOUND_OR_CREATED
+↓
+FOLLOWUP_EVOLUTION_STARTED
+↓
+FOLLOWUP_SENT
+↓
+Message ID preenchido.
+==================================================
+ENTREGA
+Informar:
+- quem consome a fila;
+- consulta utilizada;
+- quantidade de jobs READY;
+- qual job foi escolhido;
+- por que o job atual não foi escolhido (caso continue READY);
+- log completo do processamento. */}
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
