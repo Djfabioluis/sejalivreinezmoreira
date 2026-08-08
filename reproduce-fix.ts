@@ -23,7 +23,7 @@ async function test() {
     // GARANTIR QUE A CONVERSA EXISTE NA INSTÂNCIA CORRETA ANTES DE DISPARAR
     const { data: conv } = await supabaseAdmin
       .from("wa_conversas")
-      .select("phone")
+      .select("phone, instance")
       .eq("phone", conversationKey)
       .maybeSingle();
 
@@ -39,7 +39,11 @@ async function test() {
         customer_context: { instance: instance }
       } as any);
     } else {
-      console.log("✅ Conversa já existe na instância correta.");
+      console.log("✅ Conversa já existe. Verificando instância...");
+      if (conv.instance !== instance) {
+         console.log(`🔄 Corrigindo instância de ${conv.instance} para ${instance}`);
+         await supabaseAdmin.from("wa_conversas").update({ instance: instance } as any).eq("phone", conversationKey);
+      }
     }
 
     const { updateCustomerPipeline } = await import("./src/lib/crm.server");
@@ -78,9 +82,12 @@ async function test() {
     console.log(`💬 MESSAGE ID: ${result.message_id || 'NULL'}`);
     console.log(`🗂️ METADATA CONVERSATION ID: ${result.metadata?.conversation_id || 'NULL'}`);
     console.log(`🔍 FOUND BY: ${result.metadata?.found_by || 'NULL'}`);
+    console.log(`📡 INSTANCE USED: ${result.metadata?.evolution_response?.instance || 'N/A'}`);
 
     if (result.status === 'SENT' && result.metadata?.found_by === 'phone_lookup') {
       console.log("🎉 TESTE BEM-SUCEDIDO!");
+    } else if (result.status === 'SENT') {
+      console.log("🎉 ENVIADO, mas found_by não é phone_lookup. (Verifique metadata)");
     } else {
       console.log("⚠️ ALERTA: O resultado não atingiu os critérios esperados.");
       console.log("Metadata completo:", JSON.stringify(result.metadata, null, 2));
