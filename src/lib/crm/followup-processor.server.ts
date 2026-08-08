@@ -243,11 +243,19 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
 
     const success = await sendEvolutionText(conversation.instance, conversation.phone_number, messageText);
 
+    // 9. Registrar resposta da Evolution
+    logger.info("FOLLOWUP_EVOLUTION_RESPONSE", `Evolution API response: ${success ? 'SUCCESS' : 'FAILED'}`, { 
+      traceId, 
+      followupId: followup.id,
+      success 
+    });
+
     if (!success) {
       await updateFollowupStep(followup.id, "FOLLOWUP_EVOLUTION_FAILED", traceId);
       throw new Error("EVOLUTION_HTTP_ERROR: Falha ao enviar mensagem via Evolution API.");
     }
 
+    // 10. Atualizar status: PROCESSING ↓ SENT (o status SENT é definido abaixo)
     await updateFollowupStep(followup.id, "FOLLOWUP_EVOLUTION_SUCCESS", traceId);
 
     const completionTime = new Date().toISOString();
