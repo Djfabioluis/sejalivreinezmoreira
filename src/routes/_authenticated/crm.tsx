@@ -13,7 +13,9 @@ import {
   saveFollowupRule,
   deleteFollowupRule,
   runFollowupTest,
-  getWorkerStatus
+  getWorkerStatus,
+  simulateRealCustomer
+
 
 } from "@/lib/crm.functions";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -27,8 +29,9 @@ import { useServerFn } from "@tanstack/react-start";
 import { 
   Plus, Clock, Zap, MessageSquare, Bot, Sparkles, Settings, History, LayoutDashboard,
   Play, Edit2, Trash2, Loader2, PlayCircle, Activity, Info, ChevronRight, CheckCircle2, AlertCircle, XCircle, Phone,
-  Database, ShieldCheck
+  Database, ShieldCheck, UserPlus, AlertTriangle
 } from "lucide-react";
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -64,6 +67,8 @@ function CRMPage() {
   const saveRuleFn = useServerFn(saveFollowupRule);
   const deleteRuleFn = useServerFn(deleteFollowupRule);
   const runTestFn = useServerFn(runFollowupTest);
+  const simulateCustomerFn = useServerFn(simulateRealCustomer);
+
   
   const { data: pipeline } = useSuspenseQuery({ queryKey: ["crm-pipeline"], queryFn: () => listCustomerPipeline() });
   const { data: rules } = useSuspenseQuery({ queryKey: ["followup-rules"], queryFn: () => listFollowupRules() });
@@ -79,6 +84,10 @@ function CRMPage() {
   const [selectedExecution, setSelectedExecution] = useState<any>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isSimulateModalOpen, setIsSimulateModalOpen] = useState(false);
+  const [simulationData, setSimulationData] = useState({ phone: "", scenario: "ABANDONMENT_GENERIC" });
+  const [isSimulating, setIsSimulating] = useState(false);
+
 
   const formatPhone = (phone: string) => {
     if (!phone) return "";
@@ -129,6 +138,41 @@ function CRMPage() {
       setIsRefreshing(false);
     }
   };
+
+  const handleSimulateReal = async () => {
+    if (!simulationData.phone) {
+      toast.error("Informe o telefone");
+      return;
+    }
+    
+    setIsSimulating(true);
+    toast.loading("Simulando comportamento de cliente real...");
+    
+    try {
+      const result = await simulateCustomerFn({ data: simulationData });
+      toast.dismiss();
+      
+      if (result) {
+        toast.success(`Simulação concluída! Status: ${result.status}`);
+        if (result.status === 'SENT') {
+          toast.success("Mensagem enviada com sucesso!", { description: `ID: ${result.message_id || result.id}` });
+        } else if (result.status === 'CANCELED') {
+          toast.info(`Envio cancelado: ${result.cancel_reason || 'Motivo não informado'}`);
+        }
+      } else {
+        toast.error("Simulação falhou: nenhum registro de follow-up encontrado.");
+      }
+      
+      setIsSimulateModalOpen(false);
+      queryClient.invalidateQueries();
+    } catch (err: any) {
+      toast.dismiss();
+      toast.error(err.message || "Erro inesperado na simulação");
+    } finally {
+      setIsSimulating(false);
+    }
+  };
+
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -190,6 +234,14 @@ function CRMPage() {
             {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Loader2 className="h-4 w-4" />}
             {isRefreshing ? "Atualizando..." : "Atualizar"}
           </Button>
+          <Button 
+            variant="secondary"
+            onClick={() => setIsSimulateModalOpen(true)}
+            className="flex-1 md:flex-none gap-2 bg-purple-500/10 text-purple-600 hover:bg-purple-500/20 border-purple-500/20"
+          >
+            <UserPlus className="h-4 w-4" /> Simular cliente real
+          </Button>
+
         </div>
       </div>
 
@@ -728,7 +780,76 @@ function CRMPage() {
           )}
         </SheetContent>
       </Sheet>
+
+      <Dialog open={isSimulateModalOpen} onOpenChange={setIsSimulateModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-purple-600" /> Simular cliente real
+            </DialogTitle>
+            <DialogDescription>
+              Isso criará um cenário realista e acionará o pipeline de envio real da Julia.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="phone">Telefone do Cliente (com DDD)</Label>
+              <Input 
+                id="phone" 
+                placeholder="Ex: 5541998430354" 
+                value={simulationData.phone}
+                onChange={(e) => setSimulationData({ ...simulationData, phone: e.target.value })}
+              />
+              <p className="text-[10px] text-muted-foreground italic">Use um número que você possa verificar no WhatsApp.</p>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="scenario">Cenário para Simulação</Label>
+              <Select 
+                value={simulationData.scenario}
+                onValueChange={(v) => setSimulationData({ ...simulationData, scenario: v })}
+              >
+                <SelectTrigger id="scenario">
+                  <SelectValue placeholder="Selecione o cenário" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ABANDONMENT_GENERIC">Abandono de agendamento (Genérico)</SelectItem>
+                  <SelectItem value="ABANDONMENT_PROFESSIONAL">Abandono — Profissional indisponível</SelectItem>
+                  <SelectItem value="ABANDONMENT_SATURDAY">Abandono — Sábado lotado</SelectItem>
+                  <SelectItem value="BIRTHDAY">Aniversário do dia</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg flex gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0" />
+              <p className="text-[11px] text-amber-800 leading-tight">
+                <strong>⚠️ Aviso de Custo Real:</strong> Diferente do botão de "Testar" nas regras, esta simulação <strong>enviará uma mensagem real</strong> via WhatsApp e consumirá créditos de IA.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsSimulateModalOpen(false)} disabled={isSimulating}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleSimulateReal} 
+              disabled={isSimulating}
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              {isSimulating ? (
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Processando...</>
+              ) : (
+                "Simular envio real"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+
   );
 }
 

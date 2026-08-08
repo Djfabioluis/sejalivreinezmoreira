@@ -396,3 +396,83 @@ export const getWorkerStatus = createServerFn({ method: "GET" })
     };
   });
 
+
+export const simulateRealCustomer = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((data: { phone: string; scenario: string }) => data)
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context);
+    const { phone, scenario } = data;
+    
+    // 1. Normalize phone (simple version, could use a utility)
+    const normalizedPhone = phone.replace(/\D/g, '');
+    if (!normalizedPhone || normalizedPhone.length < 10) throw new Error("Telefone inválido");
+
+    // 2. Ensure wa_conversas entry
+    const { data: conv } = await supabaseAdmin
+      .from("wa_conversas")
+      .select("phone, attendance_mode")
+      .eq("phone", normalizedPhone)
+      .maybeSingle();
+
+    if (!conv) {
+      await supabaseAdmin.from("wa_conversas").insert({
+        phone: normalizedPhone,
+        contact_name: "Cliente Simulação",
+        instance: "agente-01",
+        attendance_mode: "AI",
+        phone_number: normalizedPhone,
+        status: "novo"
+      } as any);
+    } else if (conv.attendance_mode !== 'AI') {
+      await supabaseAdmin
+        .from("wa_conversas")
+        .update({ attendance_mode: 'AI' } as any)
+        .eq("phone", normalizedPhone);
+    }
+
+    const traceId = `sim-${Date.now()}`;
+
+    // 3. Handle Scenario
+    if (scenario === 'BIRTHDAY') {
+      const { createBirthdayFollowup } = await import("./crm/birthday.server");
+      // Mock customer object for the function
+      const customer = {
+        phone: normalizedPhone,
+        customer_name: "Cliente Simulação",
+        customer_context: { instance: "agente-01" }
+      };
+      await createBirthdayFollowup(customer, traceId);
+    } else {
+      // Abandonment scenarios
+      let reason = 'Sem resposta após escolher serviço';
+      if (scenario === 'ABANDONMENT_PROFESSIONAL') reason = 'PROFESSIONAL_UNAVAILABLE';
+      if (scenario === 'ABANDONMENT_SATURDAY') reason = 'SATURDAY_FULL';
+
+      const { updateCustomerPipeline } = await import("./crm.server");
+      await updateCustomerPipeline({
+        phone: normalizedPhone,
+        stage: 'ABANDONADO' as any,
+        abandonmentReason: reason
+      });
+
+      // Trigger recovery engine
+      const { processAutomatedRecoveries } = await import("./crm/recovery.server");
+      await processAutomatedRecoveries();
+    }
+
+    // 4. Trigger follow-up processor immediately to send
+    const { processPendingFollowups } = await import("./crm/followup-processor.server");
+    await processPendingFollowups();
+
+    // 5. Fetch result
+    const { data: result } = await supabaseAdmin
+      .from("crm_followups")
+      .select("*, rule:crm_followup_rules(name)")
+      .eq("phone", normalizedPhone)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    return result;
+  });
