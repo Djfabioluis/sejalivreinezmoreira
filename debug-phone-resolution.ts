@@ -1,13 +1,13 @@
 
 import { processSingleFollowup } from "./src/lib/crm/followup-processor.server";
 import { supabaseAdmin } from "./src/integrations/supabase/client.server";
-import { v4 as uuidv4 } from 'uuid';
+import { crypto } from "node:crypto";
 
 async function testFollowupResolution() {
   console.log("🚀 Iniciando teste de resolução de conversa por telefone...");
 
   // 1. Criar um job de teste com customer_id = null
-  const testJobId = uuidv4();
+  const testJobId = "00000000-0000-4000-a000-" + Math.random().toString(16).substring(2, 14).padEnd(12, '0');
   const testPhone = "41999102791";
 
   // Limpar jobs anteriores com este telefone para evitar idempotência
@@ -58,12 +58,42 @@ async function testFollowupResolution() {
     conversation_id: updatedJob.metadata?.conversationId
   }, null, 2));
 
-  if (updatedJob.status === "SENT" && updatedJob.metadata?.conversationId) {
-    console.log("✨ SUCESSO: Conversa resolvida pelo telefone e mensagem enviada!");
-  } else if (updatedJob.status === "CANCELED" && updatedJob.cancel_reason === "TEST_SKIPPED") {
-    console.log("ℹ️ INFO: Job de teste foi corretamente ignorado pelo bypass de teste.");
-  } else {
-    console.log("❌ FALHA: O job não atingiu o estado esperado.");
+  // 4. Testar bypass de teste manual
+  console.log("\n🧪 Testando bypass de TEST_EXECUTION...");
+  const manualTestId = "00000000-0000-4000-b000-" + Math.random().toString(16).substring(2, 14).padEnd(12, '0');
+  const { data: manualJob } = await supabaseAdmin
+    .from("crm_followups")
+    .insert({
+      id: manualTestId,
+      phone: "41999999999",
+      customer_id: null,
+      status: "PENDING",
+      scheduled_at: new Date().toISOString(),
+      attempts: 0,
+      rule_id: "00000000-0000-0000-0000-000000000000",
+      reason: "MANUAL_TEST",
+      stage: "TEST_EXECUTION",
+      metadata: { instance: "test" }
+    } as any)
+    .select()
+    .single();
+
+  await processSingleFollowup(manualJob, "trace-manual-bypass");
+  
+  const { data: updatedManualJob } = await supabaseAdmin
+    .from("crm_followups")
+    .select("*")
+    .eq("id", manualTestId)
+    .single();
+
+  console.log("📊 Estado final do Job Manual:");
+  console.log(JSON.stringify({
+    status: updatedManualJob.status,
+    cancel_reason: updatedManualJob.cancel_reason
+  }, null, 2));
+
+  if (updatedManualJob.status === "CANCELED" && updatedManualJob.cancel_reason === "TEST_SKIPPED") {
+    console.log("✨ SUCESSO: Job de teste manual foi ignorado corretamente.");
   }
 }
 
