@@ -1,12 +1,13 @@
 
 import { processSingleFollowup } from "./src/lib/crm/followup-processor.server";
 import { supabaseAdmin } from "./src/integrations/supabase/client.server";
+import { v4 as uuidv4 } from 'uuid';
 
 async function testFollowupResolution() {
   console.log("🚀 Iniciando teste de resolução de conversa por telefone...");
 
   // 1. Criar um job de teste com customer_id = null
-  const testJobId = "00000000-0000-0000-0000-" + Math.random().toString(36).substring(2, 14).padEnd(12, '0');
+  const testJobId = uuidv4();
   const testPhone = "41999102791";
 
   // Limpar jobs anteriores com este telefone para evitar idempotência
