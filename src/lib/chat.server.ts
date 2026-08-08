@@ -372,7 +372,8 @@ export async function streamAgent(opts: AgentOptions & { messages: any[] }) {
   const { messages, conversationKey, unidadeId, sandbox, customerContext, activePromotions } = opts;
   const { effectiveUnitId, effectiveUnitName } = await resolveEffectiveUnit({ conversationKey, agentUnitId: unidadeId });
   
-  const provider = createLovableAiGatewayProvider(process.env.LOVABLE_AI_GATEWAY_KEY || "");
+  const gatewayKey = process.env.LOVABLE_AI_GATEWAY_KEY || process.env.LOVABLE_API_KEY || "";
+  const provider = createLovableAiGatewayProvider(gatewayKey);
   const model = provider("gemini-1.5-flash");
 
   const system = assembleSystemPrompt({
