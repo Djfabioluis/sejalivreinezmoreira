@@ -63,6 +63,48 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
   try {
     const agent = await findAgentByInstance(instance);
+    const phone = normalizePhone(msg.remoteJid);
+    const conversationKey = buildConversationKey(instance, msg.remoteJid);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { HUMAN_TAKEOVER_TIMEOUT_MINUTES } = await import("../config");
+
+    // BUSCA CONVERSA PARA CHECAR ATTENDANCE MODE
+    const { data: conversation } = await supabaseAdmin
+      .from("wa_conversas")
+      .select("id, attendance_mode, human_takeover_at")
+      .eq("instance", instance)
+      .eq("phone", phone)
+      .maybeSingle();
+
+    if (conversation?.attendance_mode === "HUMAN") {
+      const takeoverAt = conversation.human_takeover_at ? new Date(conversation.human_takeover_at).getTime() : 0;
+      const minutesSinceTakeover = (Date.now() - takeoverAt) / 60000;
+
+      if (minutesSinceTakeover < HUMAN_TAKEOVER_TIMEOUT_MINUTES) {
+        await logEvent({ 
+          instance, 
+          messageId, 
+          event: "agent_flow_skipped_human_mode",
+          status: "skipped",
+          payload: { traceId, minutesSinceTakeover }
+        });
+        return;
+      }
+
+      // Expirou -> volta para AI
+      await supabaseAdmin
+        .from("wa_conversas")
+        .update({ attendance_mode: "AI", human_takeover_at: null })
+        .eq("id", conversation.id);
+
+      await logEvent({ 
+        instance, 
+        messageId, 
+        event: "human_takeover_expired_ai_reactivated",
+        status: "reactivated",
+        payload: { traceId, minutesSinceTakeover }
+      });
+    }
     
     if (agent) {
       await logEvent({ 
@@ -75,6 +117,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     }
 
     const iaEnabled = isIAEnabled(agent);
+
 
     if (!iaEnabled) {
       const status = String(agent?.status || "").toLowerCase().trim();

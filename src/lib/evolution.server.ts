@@ -259,9 +259,28 @@ export async function sendEvolutionText(
     const details = typeof res.data === 'object' ? JSON.stringify(res.data) : res.text || "Unknown Evolution Error";
     throw new Error(`EVOLUTION_HTTP_ERROR: Status ${res.status}. ${details}`);
   }
+
+  // PERSISTÊNCIA DE MENSAGEM DA IA (Para detecção de takeover manual)
+  try {
+    const responseBody = res.data;
+    const sentMessageId = responseBody?.key?.id || responseBody?.message?.key?.id;
+    if (sentMessageId) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await supabaseAdmin.from("ai_sent_messages").insert({
+        instance,
+        message_id: sentMessageId,
+        phone: number,
+        sent_at: new Date().toISOString(),
+      });
+      logger.info("AI_MESSAGE_PERSISTED", "Message ID da IA salvo para controle de takeover", { sentMessageId, instance, number });
+    }
+  } catch (err) {
+    logger.error("AI_MESSAGE_PERSISTENCE_FAILED", "Falha ao salvar Message ID da IA", { error: err instanceof Error ? err.message : String(err) });
+  }
   
   return { success: res.ok, data: res.data };
 }
+
 
 /**
  * Proteção fail-closed no nível de transporte.
