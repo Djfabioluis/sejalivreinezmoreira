@@ -20,7 +20,7 @@ async function main() {
       metadata: {
         source: "REAL_TEST_V10",
         contact_name: "Usuario Real Teste",
-        instance: "julia-main"
+        instance: "agente-5541998430354"
       }
     })
     .select()

@@ -174,7 +174,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
 
     // 4. Busca ou Criação de Conversa (Priorizando Telefone se customer_id for null)
     const followupMetadata = typeof currentFollowup.metadata === 'object' ? (currentFollowup.metadata as any) : {};
-    const instance = followupMetadata?.instance || "julia-main";
+    const instance = followupMetadata?.instance || "agente-5541998430354";
     let conversation: any;
     
     try {
