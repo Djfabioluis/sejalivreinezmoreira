@@ -9,8 +9,10 @@ async function testWithRealName() {
   const { data: job, error } = await supabaseAdmin.from("crm_followups").insert({
     phone: "5511999999999",
     status: "READY",
+    stage: "TESTE",
     scheduled_at: new Date().toISOString(),
     rule_id: "00000000-0000-0000-0000-000000000000",
+
     metadata: { 
       contact_name: "Fabio Luis Moreira",
       test: true,
