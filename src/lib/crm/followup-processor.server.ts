@@ -98,7 +98,8 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
   
   try {
     const now = new Date().toISOString();
-    const { error: lockError } = await supabaseAdmin
+    // 6. Registrar: worker pegou o job? (Tenta travar o job)
+    const { data: lockedJob, error: lockError } = await supabaseAdmin
       .from("crm_followups")
       .update({ 
         status: "PROCESSING", 
@@ -111,9 +112,19 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
         }
       } as any)
       .eq("id", followup.id)
-      .in("status", ["PENDING", "READY", "PENDENTE", "READY_TO_SEND"]);
+      .in("status", ["PENDING", "READY", "PENDENTE", "READY_TO_SEND"])
+      .select('id')
+      .single();
 
-    if (lockError) throw new Error(`LOCK_FAILED: ${lockError.message}`);
+    if (lockError || !lockedJob) {
+      // 7. Se não pegou, explicar exatamente por quê
+      const reason = lockError ? `Database error: ${lockError.message}` : "Race condition: job already taken or status changed";
+      logger.warn("WORKER_JOB_GRAB_FAILED", `Worker não conseguiu pegar o job ${followup.id}`, { traceId, followupId: followup.id, reason });
+      return;
+    }
+
+    logger.info("WORKER_JOB_GRAB_SUCCESS", `Worker pegou o job ${followup.id}`, { traceId, followupId: followup.id });
+
 
     // 1. Logar o telefone bruto recebido
     logger.info("FOLLOWUP_PHASE_1_START", "Iniciando processamento de telefone", { 
