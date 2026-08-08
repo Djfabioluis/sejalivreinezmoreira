@@ -49,7 +49,7 @@ arquivo: src/lib/crm/followup-processor.server.ts
 função: processPendingFollowups()
 entrypoint: src/routes/api/public/crm-cron.ts
 quem chama: pg_cron (Supabase) via HTTP GET
-frequência: a cada 5 minutos (*/5 * * * *)
+frequência: a cada 5 minutos
 
 ==================================================
 2. IDENTIFICAR O SCHEDULER
@@ -61,7 +61,7 @@ pg_cron (Confirmado no banco de dados)
 
 Configuração real:
 Job ID 10: "crm-cron-job"
-Schedule: "*/15 * * * *" (Original) -> "*/5 * * * *" (Atualizado)
+Schedule: a cada 5 minutos
 Command: SELECT net.http_get(url := (SELECT value FROM public.secrets WHERE name = 'SITE_URL') || '/api/public/crm-cron', ...)
 
 ERRO IDENTIFICADO: O comando do cron original estava falhando (FAILED) com erro "relation public.secrets does not exist". O comando tentava ler secrets diretamente via SQL, mas a tabela public.secrets não existe.
@@ -97,7 +97,7 @@ cron.job_run_details
 Mostrar:
 
 jobname: crm-cron-job
-schedule: */5 * * * *
+schedule: a cada 5 minutos
 active: true
 last run: 2026-08-08 00:30:00 (Original)
 status: FAILED (Original) -> RECONFIGURADO COM URL ABSOLUTA E TOKEN HARDCODED NO CRON (Seguro no nível do banco)
@@ -194,6 +194,7 @@ Não responder apenas "corrigido".
 CRITÉRIO FINAL
 
 Só considerar concluído quando um job READY for consumido automaticamente, sem intervenção manual, e chegar ao WhatsApp com Message ID registrado. */}
+
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
