@@ -42,18 +42,12 @@ async function test() {
     }]
   }, "http://localhost/webhook");
   ({ data: conv } = await supabaseAdmin.from("wa_conversas").select("attendance_mode, human_takeover_at").eq("phone", phone).single());
-  console.log("Status HUMANO:", (conv as any)?.attendance_mode, "| Takeover at:", (conv as any)?.human_takeover_at);
+  console.log("Status HUMANO:", (conv as any)?.attendance_mode);
 
-  console.log("4. Verificando processamento de cliente APÓS expiração forçada...");
-  // Tentamos o RPC de forma segura
-  try {
-      await (supabaseAdmin as any).rpc("execute_sql", {
-          sql: `UPDATE public.wa_conversas SET human_takeover_at = now() - interval '15 minutes' WHERE phone = '${phone}'`
-      });
-  } catch (e) {
-      const expirationDate = new Date(Date.now() - 15 * 60 * 1000).toISOString();
-      await supabaseAdmin.from("wa_conversas").update({ human_takeover_at: expirationDate } as any).eq("phone", phone);
-  }
+  console.log("4. Verificando processamento de cliente APÓS expiração forçada (resiliente)...");
+  // Setamos a data para 20 minutos atrás no passado do servidor
+  const expiredDate = new Date(Date.now() - 20 * 60 * 1000).toISOString();
+  await supabaseAdmin.from("wa_conversas").update({ human_takeover_at: expiredDate } as any).eq("phone", phone);
 
   console.log("Executando webhook de cliente...");
   await processMessagesUpsert({
