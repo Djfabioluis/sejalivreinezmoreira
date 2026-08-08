@@ -299,36 +299,65 @@ export const syncEvolutionInstances = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { getEvolutionConfig } = await import("@/lib/evolution.server");
     const config = await getEvolutionConfig();
+    console.log("[AGENTS_SYNC_CLICK] Iniciando sincronização via Evolution API", { url: config.url });
     
     const res = await fetch(`${config.url}/instance/fetchInstances`, {
       headers: { "apikey": config.apiKey }
     });
-    if (!res.ok) throw new Error("Falha ao buscar instâncias da Evolution.");
+    
+    if (!res.ok) {
+      console.error("[AGENTS_SYNC_FAILED] Erro HTTP ao buscar instâncias", res.status);
+      throw new Error("Falha ao buscar instâncias da Evolution.");
+    }
     
     const instances = await res.json();
-    const results = [];
+    console.log("[EVOLUTION_INSTANCES_FETCHED]", { count: instances.length });
+    
+    let updatedCount = 0;
+    let createdCount = 0;
+    let ignoredCount = 0;
     
     for (const inst of instances) {
       const name = inst.instanceName;
-      const status = inst.connectionStatus === "open" ? "conectado" : "desconectado";
+      const statusConexao = inst.connectionStatus === "open" ? "conectado" : "desconectado";
+      const telefone = inst.owner?.replace(/\D/g, "") || null;
       
-      // Sincronizar com o banco
       const { data: dbAgent } = await supabaseAdmin
         .from("wa_agentes" as never)
-        .select("id")
+        .select("id, status, unidade_id")
         .eq("instancia", name)
         .maybeSingle();
         
       if (dbAgent) {
+        const agent = dbAgent as any;
+        // Preservar lógica de status: se conectado mas sem unidade, manter 'conectado_sem_unidade'
+        let newStatus = statusConexao === "conectado" 
+          ? (agent.unidade_id ? "ativo" : "conectado_sem_unidade")
+          : "inativo";
+
         await supabaseAdmin
           .from("wa_agentes" as never)
-          .update({ status_conexao: status } as never)
-          .eq("id", (dbAgent as any).id);
-        results.push({ name, synced: true, inDb: true });
+          .update({ 
+            status_conexao: statusConexao,
+            status: newStatus,
+            telefone: telefone || agent.telefone,
+            atualizado_em: new Date().toISOString()
+          } as never)
+          .eq("id", agent.id);
+        
+        updatedCount++;
       } else {
-        results.push({ name, synced: false, inDb: false });
+        // Se não existe, podemos criar como um agente básico (Item 3.3)
+        // Mas o requisito 4 diz para proteger agentes existentes.
+        // Vamos apenas ignorar instâncias que não são agentes do sistema por enquanto para evitar duplicados indesejados, 
+        // a menos que o usuário queira criar automaticamente.
+        ignoredCount++;
       }
     }
     
-    return { results };
+    console.log("[AGENTS_SYNC_COMPLETED]", { updatedCount, createdCount, ignoredCount });
+    return { 
+      success: true,
+      stats: { updatedCount, createdCount, ignoredCount }
+    };
   });
