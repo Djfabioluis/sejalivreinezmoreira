@@ -45,9 +45,15 @@ async function test() {
   console.log("Status HUMANO:", (conv as any)?.attendance_mode, "| Takeover at:", (conv as any)?.human_takeover_at);
 
   console.log("4. Verificando processamento de cliente APÓS expiração forçada...");
-  // Forçamos o takeover_at para 15 minutos atrás no banco (literalmente 15 min atrás para evitar fuso horário)
-  const expirationDate = new Date(Date.now() - 15 * 60 * 1000).toISOString();
-  await supabaseAdmin.from("wa_conversas").update({ human_takeover_at: expirationDate } as any).eq("phone", phone);
+  // Forçamos o takeover_at para 15 minutos atrás no banco
+  // IMPORTANTE: Como o banco e o servidor podem estar em fusos diferentes, usamos uma data relativa no SQL
+  await supabaseAdmin.rpc("execute_sql" as any, {
+      sql: `UPDATE public.wa_conversas SET human_takeover_at = now() - interval '15 minutes' WHERE phone = '${phone}'`
+  }).catch(async () => {
+      // Fallback se rpc falhar
+      const expirationDate = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+      await supabaseAdmin.from("wa_conversas").update({ human_takeover_at: expirationDate } as any).eq("phone", phone);
+  });
 
   console.log("Executando webhook de cliente...");
   await processMessagesUpsert({
@@ -59,7 +65,7 @@ async function test() {
     }]
   }, "http://localhost/webhook");
 
-  // Aguardar um pouco para os logs assíncronos
+  // Aguardar o log assíncrono
   await new Promise(r => setTimeout(r, 1000));
 
   ({ data: conv } = await supabaseAdmin.from("wa_conversas").select("attendance_mode").eq("phone", phone).single());
