@@ -155,6 +155,8 @@ function CRMPage() {
           </CardContent>
         </Card>
       </div>
+
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-2 w-full md:w-auto">
           <Button 
             onClick={() => {
