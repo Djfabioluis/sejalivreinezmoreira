@@ -67,9 +67,9 @@ export async function processPendingFollowups() {
       .select("status");
 
     if (!statsError && stats) {
-      const ready = stats.filter(s => ["PENDING", "READY", "PENDENTE", "READY_TO_SEND"].includes(s.status)).length;
-      const processing = stats.filter(s => ["PROCESSING", "EM_PROCESSAMENTO"].includes(s.status)).length;
-      const waiting = stats.filter(s => ["WAITING", "AGUARDANDO"].includes(s.status)).length;
+      const ready = stats.filter(s => s.status && ["PENDING", "READY", "PENDENTE", "READY_TO_SEND"].includes(s.status)).length;
+      const processing = stats.filter(s => s.status && ["PROCESSING", "EM_PROCESSAMENTO"].includes(s.status)).length;
+      const waiting = stats.filter(s => s.status && ["WAITING", "AGUARDANDO"].includes(s.status)).length;
       
       logger.info("QUEUE_SCANNED", `Status da fila mapeado`, { 
         traceId, 
