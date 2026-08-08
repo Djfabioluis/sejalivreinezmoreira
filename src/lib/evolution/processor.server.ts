@@ -45,17 +45,56 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
     });
 
     try {
-      // 2. fromMe (mensagem enviada pelo próprio número) → ignorar cedo
+      // 2. fromMe (mensagem enviada pelo próprio número) → diferenciar IA vs Humano
       if (isFromMe(msg.fromMe)) {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        
+        // Verifica se é eco da IA
+        const { data: aiMessage } = await supabaseAdmin
+          .from("ai_sent_messages")
+          .select("message_id")
+          .eq("instance", msg.instance)
+          .eq("message_id", msg.messageId)
+          .maybeSingle();
+
+        if (aiMessage) {
+          // Eco da própria IA — ignorar
+          await logEvent({
+            instance: msg.instance,
+            messageId: msg.messageId,
+            event: "message_ignored_from_me_ai_echo",
+            status: "skipped",
+            payload: { traceId }
+          });
+        continue; 
+      }
+
+
+        // fromMe=true mas NÃO foi a IA -> HUMANO assumiu
+        const phone = normalizePhone(msg.remoteJid);
+        const { updateConversationMetadata } = await import("./conversation.server");
+        const conversationKey = buildConversationKey(msg.instance, msg.remoteJid);
+
+        await supabaseAdmin
+          .from("wa_conversas")
+          .update({ 
+            attendance_mode: "HUMAN", 
+            human_takeover_at: new Date().toISOString() 
+          })
+          .eq("instance", msg.instance)
+          .eq("phone", phone);
+
         await logEvent({
           instance: msg.instance,
           messageId: msg.messageId,
-          event: "message_ignored_from_me",
-          status: "skipped",
-          payload: { traceId }
+          event: "human_takeover_detected",
+          status: "attendance_mode_set_to_human",
+          payload: { traceId, phone }
         });
-        continue;
+
+        continue; 
       }
+
 
       const text = extractMessageText(msg.message);
       const phone = normalizePhone(msg.remoteJid);

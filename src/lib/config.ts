@@ -1,0 +1,1 @@
+export const HUMAN_TAKEOVER_TIMEOUT_MINUTES = 10;

@@ -1,5 +1,4 @@
 import { NormalizedEvolutionMessage } from "./types";
-
 import { logEvent } from "./logger.server";
 import { extractMessageText } from "./message-text";
 import { normalizePhone, buildConversationKey } from "./contact";
@@ -63,6 +62,62 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
   try {
     const agent = await findAgentByInstance(instance);
+    const contactPhone = normalizePhone(msg.remoteJid);
+    const conversationKey = buildConversationKey(instance, msg.remoteJid);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { HUMAN_TAKEOVER_TIMEOUT_MINUTES } = await import("../config");
+
+    // BUSCA CONVERSA PARA CHECAR ATTENDANCE MODE
+    const { data: conversation } = await supabaseAdmin
+      .from("wa_conversas" as any)
+      .select("id, attendance_mode, human_takeover_at")
+      .eq("instance", instance)
+      .eq("phone", contactPhone)
+      .maybeSingle();
+
+    const conv = conversation as any;
+
+    if (conv?.attendance_mode === "HUMAN") {
+      const takeoverAtStr = conv.human_takeover_at;
+      const takeoverAt = takeoverAtStr ? new Date(takeoverAtStr).getTime() : 0;
+      const now = Date.now();
+      
+      const diffMs = now - takeoverAt;
+      const minutesSinceTakeover = diffMs / 60000;
+
+      console.log(`[takeover-debug] ${contactPhone}: mode=HUMAN, diffMs=${diffMs.toFixed(0)}, minsElapsed=${minutesSinceTakeover.toFixed(2)}`);
+
+      if (takeoverAt > 0 && minutesSinceTakeover < HUMAN_TAKEOVER_TIMEOUT_MINUTES) {
+        await logEvent({ 
+          instance, 
+          messageId, 
+          event: "agent_flow_skipped_human_mode",
+          status: "skipped",
+          payload: { traceId, minutesSinceTakeover, human_takeover_at: conv.human_takeover_at }
+        });
+        return;
+      }
+
+      // Se chegamos aqui, ou passou o tempo ou o timestamp é inválido/futuro
+      console.log(`[takeover-debug] Reactivating AI for ${contactPhone} (minsElapsed: ${minutesSinceTakeover.toFixed(2)})`);
+      
+      const { error: updateError } = await supabaseAdmin
+        .from("wa_conversas")
+        .update({ attendance_mode: "AI", human_takeover_at: null })
+        .eq("phone", contactPhone);
+
+      if (updateError) {
+        console.error("[takeover-debug] Error updating attendance mode:", updateError);
+      }
+
+      await logEvent({ 
+        instance, 
+        messageId, 
+        event: "human_takeover_expired_ai_reactivated",
+        status: "reactivated",
+        payload: { traceId, minutesSinceTakeover }
+      });
+    }
     
     if (agent) {
       await logEvent({ 
@@ -102,10 +157,6 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       return;
     }
 
-
-    const phone = normalizePhone(msg.remoteJid);
-    const conversationKey = buildConversationKey(instance, msg.remoteJid);
-
     // Chama o orquestrador da IA Julia com logging e traceId
     const { runAgentWithLogging } = await import("@/lib/chat.server");
     await runAgentWithLogging({
@@ -114,7 +165,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       contactName: msg.pushName || undefined,
       text,
       unidadeId: agent.unidade_id,
-      contactPhone: phone,
+      contactPhone,
       conversationKey,
       traceId
     } as any);
