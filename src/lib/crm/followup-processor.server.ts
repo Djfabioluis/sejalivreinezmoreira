@@ -198,7 +198,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
         stack: convErr.stack,
         timestamp: new Date().toISOString()
       };
-      await blockFollowup(followup.id, "CONVERSATION_CREATION_FAILED", `Erro ao resolver conversa: ${convErr.message}`, traceId, { ...logContext, last_error: errorInfo });
+      await blockFollowup(currentFollowup.id, "CONVERSATION_CREATION_FAILED", `Erro ao resolver conversa: ${convErr.message}`, traceId, { ...logContext, last_error: errorInfo });
       return;
     }
 
