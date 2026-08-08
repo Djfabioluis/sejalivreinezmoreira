@@ -321,6 +321,17 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     await updateFollowupStep(followup.id, "FOLLOWUP_EVOLUTION_SUCCESS", traceId);
 
     const completionTime = new Date().toISOString();
+    
+    // 1. LOG DO WORKER: JOB_FINISHED
+    logger.info("JOB_FINISHED", `Job processado com sucesso`, { 
+      traceId, 
+      job_id: followup.id,
+      rule_id: followup.rule_id,
+      telefone: followup.phone,
+      worker_id,
+      timestamp: completionTime
+    });
+
     await (supabaseAdmin.rpc("append_wa_message" as any, {
       p_phone: followup.phone,
       p_message: { id: `fup-${Date.now()}`, role: 'assistant', parts: [{ type: 'text', text: messageText }], createdAt: completionTime },
@@ -342,10 +353,13 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
         metadata: {
           ...(followup.metadata || {}),
           last_step: "FOLLOWUP_SENT",
-          evolution_success: true
+          evolution_success: true,
+          worker_id,
+          finished_at: completionTime
         }
       } as any)
       .eq("id", followup.id);
+
 
   } catch (err: any) {
     const errorInfo = {
