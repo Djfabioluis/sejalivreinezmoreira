@@ -101,7 +101,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       } as any)
       .eq("id", followup.id)
       .in("status", ["PENDING", "READY", "PENDENTE", "READY_TO_SEND", "PROCESSING"])
-      .select('id')
+      .select('*')
       .single();
 
     if (lockError || !lockedJob) {
@@ -109,14 +109,15 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       return;
     }
 
+    const currentFollowup = lockedJob;
     logger.info("FOLLOWUP_PROCESSING", "Iniciando processamento do job", logContext);
 
     // 1.5 Filtro de Testes Sintéticos (Baseado exclusivamente em campos estruturados)
-    const isSyntheticTest = followup.reason === "MANUAL_TEST" || followup.stage === "TEST_EXECUTION";
+    const isSyntheticTest = currentFollowup.reason === "MANUAL_TEST" || currentFollowup.stage === "TEST_EXECUTION";
 
     if (isSyntheticTest) {
       logger.info("FOLLOWUP_TEST_BYPASS", "Job de teste sintético detectado. Cancelando sem envio real.", logContext);
-      await blockFollowup(followup.id, "TEST_SKIPPED", "Synthetic test job ignored by processor", traceId, logContext);
+      await blockFollowup(currentFollowup.id, "TEST_SKIPPED", "Synthetic test job ignored by processor", traceId, logContext);
       return;
     }
 
