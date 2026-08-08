@@ -4,12 +4,20 @@ import { supabaseAdmin } from "./src/integrations/supabase/client.server";
 async function test() {
   console.log("🚀 Iniciando teste de erro da IA...");
   
+  // Pegar uma regra válida
+  const { data: rules } = await supabaseAdmin.from("crm_followup_rules").select("id").limit(1);
+  if (!rules || rules.length === 0) {
+    console.error("Nenhuma regra de followup encontrada para o teste.");
+    return;
+  }
+  const validRuleId = rules[0].id;
+
   const { data: job, error } = await supabaseAdmin.from("crm_followups").insert({
     phone: "5511999999999",
     status: "READY",
     scheduled_at: new Date().toISOString(),
-    rule_id: "00000000-0000-0000-0000-000000000000",
-    stage: "test", // Corrigindo erro de constraint
+    rule_id: validRuleId,
+    stage: "test",
     metadata: { test: true, force_ai_error: true }
   }).select().single();
 
