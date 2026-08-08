@@ -462,9 +462,10 @@ async function generateAiFollowup(followup: any, nameData: any) {
 ${namePrompt}
 Gere uma mensagem curta, acolhedora e personalizada de follow-up para este cliente. 
 INSTRUÇÕES CRÍTICAS: 
-- Nunca use a palavra "Cliente", "Usuario" ou similares como nome.
-- Se não hovel nome validado, não use nenhum nome na saudação.
+- Nunca use a palavra "Cliente", "Usuario", "Usuário" ou similares como nome.
+- Se o nome do cliente for null ou inválido, use exclusivamente saudação natural sem nome.
 - Mantenha o tom profissional e caloroso.`;
+
 
     
     // Fallback para fetch direto se o provider estiver dando 400
