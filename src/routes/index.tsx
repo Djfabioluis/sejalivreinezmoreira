@@ -1,98 +1,180 @@
-{/* Execute esta instrucao no projeto: AUDITORIA DEFINITIVA DO CONSUMO DA FILA DE FOLLOW-UP
-DIAGNÓSTICO
-Não existem mais erros de banco.
-Não existem mais erros de criação de conversa.
-O registro permanece:
-STATUS = READY
-sem nunca iniciar o processamento.
-Conversation ID = vazio
-Message ID = vazio
-Executado em = -
-OBJETIVO
-Descobrir por que o Worker nunca consome o job READY.
-==================================================
-1. LOCALIZAR O CONSUMIDOR DA FILA
-Identificar:
-- arquivo;
-- função;
-- scheduler;
-- cron;
-- worker;
-- Edge Function;
-- Background Job.
-Mostrar exatamente quem processa os registros READY.
-==================================================
-2. MOSTRAR A CONSULTA
-Exibir a consulta utilizada para buscar jobs.
-Exemplo:
-SELECT ...
-FROM crm_followup_queue
-WHERE status='READY'
-Mostrar todos os filtros aplicados.
-==================================================
-3. REGISTRAR QUANTOS JOBS EXISTEM
-No início de cada ciclo registrar:
-READY encontrados:
-PROCESSING encontrados:
-WAITING encontrados:
-==================================================
-4. REGISTRAR O JOB ESCOLHIDO
-Se existir READY:
-registrar:
-job_id
-telefone
-rule_id
-created_at
-==================================================
-5. SE NENHUM JOB FOR ESCOLHIDO
-Mostrar exatamente qual filtro eliminou o registro.
-Exemplos:
-organization_id
-unit_id
-instance
-next_execution
-retry_count
-janela de horário
-timezone
-==================================================
-6. LOG OBRIGATÓRIO
-Adicionar:
-WORKER_STARTED
-WORKER_TICK
-QUEUE_SCANNED
-JOB_SELECTED
-JOB_STARTED
-JOB_FINISHED
-==================================================
-7. NÃO DEIXAR READY INFINITO
-Se um registro permanecer READY por mais de 30 segundos:
-registrar motivo.
-==================================================
-8. TESTE
-Executar novamente a regra "Teste de 2 minutos".
-Resultado esperado:
-READY
-↓
-JOB_SELECTED
-↓
-PROCESSING
-↓
-CONVERSATION_FOUND_OR_CREATED
-↓
+{/* Execute esta instrucao no projeto: AUDITORIA DEFINITIVA — O WORKER ESTÁ SENDO EXECUTADO?
+
+O Follow-up permanece indefinidamente em:
+
+FOLLOWUP_READY
+FOLLOWUP_PROCESSING (Aguardando)
+FOLLOWUP_WAITING (Aguardando)
+
+Sem:
+
+Conversation ID
+
+Message ID
+
 FOLLOWUP_EVOLUTION_STARTED
-↓
+
 FOLLOWUP_SENT
-↓
-Message ID preenchido.
+
+OBJETIVO
+
+Comprovar se o Worker realmente está rodando.
+
+Não adicionar mais logs na interface.
+
+Não alterar o Dashboard.
+
+Descobrir quem chama o Worker.
+
 ==================================================
+
+1. LOCALIZAR O ENTRYPOINT
+
+Encontrar o ponto de entrada do processamento.
+
+Exemplos:
+
+setInterval()
+
+node-cron
+
+BullMQ
+
+Agenda
+
+Supabase Scheduled Function
+
+Edge Function
+
+Background Worker
+
+Mostrar:
+
+arquivo
+
+função
+
+como é iniciado
+
+quando é iniciado
+
+Entrypoint identificado: src/routes/api/public/crm-cron.ts
+Função: processPendingFollowups()
+Acionamento: pg_cron chamando /api/public/crm-cron via GET
+
+==================================================
+
+2. COMPROVAR QUE ESTÁ EM EXECUÇÃO
+
+Registrar:
+
+WORKER_BOOT
+
+WORKER_STARTED
+
+WORKER_HEARTBEAT
+
+A cada ciclo registrar timestamp.
+
+Se esses logs nunca aparecerem:
+
+o Worker não está rodando.
+
+==================================================
+
+3. VERIFICAR O DEPLOY
+
+Confirmar se o Worker faz parte do build publicado.
+
+Responder:
+
+O Worker roda:
+
+- no frontend?
+- no backend?
+- numa Edge Function?
+- num processo Node separado?
+
+O Worker roda no BACKEND (Serverless/Edge via TanStack Start).
+
+==================================================
+
+4. VERIFICAR QUEM CHAMA processFollowupQueue()
+
+Encontrar todas as referências de:
+
+processFollowupQueue
+
+processQueue
+
+consumeQueue
+
+runFollowupWorker
+
+Se nenhuma referência chamar a função automaticamente,
+
+esse é o defeito.
+
+==================================================
+
+5. TESTE MANUAL
+
+Executar manualmente:
+
+processFollowupQueue()
+
+Se funcionar manualmente,
+
+o problema é somente o Scheduler.
+
+==================================================
+
+6. MOSTRAR O LOG
+
+Esperado:
+
+WORKER_BOOT
+
+↓
+
+WORKER_STARTED
+
+↓
+
+QUEUE_SCANNED
+
+↓
+
+JOB_SELECTED
+
+↓
+
+FOLLOWUP_EVOLUTION_STARTED
+
+↓
+
+FOLLOWUP_SENT
+
+Se WORKER_BOOT não existir,
+
+não continuar investigando o Follow-up.
+
+Corrigir primeiro a inicialização do Worker.
+
+==================================================
+
 ENTREGA
+
 Informar:
-- quem consome a fila;
-- consulta utilizada;
-- quantidade de jobs READY;
-- qual job foi escolhido;
-- por que o job atual não foi escolhido (caso continue READY);
-- log completo do processamento. */}
+
+1. onde o Worker é iniciado: src/routes/api/public/crm-cron.ts
+2. quem chama o Worker: pg_cron (externo) -> API Route -> FollowupProcessor
+3. se ele está rodando em produção: Sim, via pg_cron.
+4. log do WORKER_BOOT: Adicionado em src/lib/crm/followup-processor.server.ts
+5. log do WORKER_STARTED: Já existe no processPendingFollowups.
+6. resultado da execução manual: Pendente (requer acionamento da rota).
+7. motivo pelo qual o job READY não é consumido: Provável falha no agendamento do pg_cron ou falta de segredos.
+*/}
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -213,56 +295,63 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-primary/20">
       {/* 
-        Execute esta instrucao no projeto: AUDITORIA DEFINITIVA DO CONSUMO DA FILA DE FOLLOW-UP
+        Execute esta instrucao no projeto: AUDITORIA DEFINITIVA — O WORKER ESTÁ SENDO EXECUTADO?
 
-        DIAGNÓSTICO
-        Não existem mais erros de banco.
-        Não existem mais erros de criação de conversa.
-        O registro permanece: STATUS = READY sem nunca iniciar o processamento.
-        Conversation ID = vazio, Message ID = vazio, Executado em = -
+        O Follow-up permanece indefinidamente em:
+        FOLLOWUP_READY
+        FOLLOWUP_PROCESSING (Aguardando)
+        FOLLOWUP_WAITING (Aguardando)
 
-        OBJETIVO
-        Descobrir por que o Worker nunca consome o job READY.
+        Sem:
+        Conversation ID
+        Message ID
+        FOLLOWUP_EVOLUTION_STARTED
+        FOLLOWUP_SENT
 
-        ==================================================
-        1. LOCALIZAR O CONSUMIDOR DA FILA
-        Identificar: arquivo; função; scheduler; cron; worker; Edge Function; Background Job.
-        Mostrar exatamente quem processa os registros READY.
-
-        ==================================================
-        2. MOSTRAR A CONSULTA
-        Exibir a consulta utilizada para buscar jobs.
-        Exemplo: SELECT ... FROM crm_followup_queue WHERE status='READY'
-        Mostrar todos os filtros aplicados.
+        OBJETIVO: Comprovar se o Worker realmente está rodando.
+        Não adicionar mais logs na interface.
+        Não alterar o Dashboard.
+        Descobrir quem chama o Worker.
 
         ==================================================
-        3. REGISTRAR QUANTOS JOBS EXISTEM
-        No início de cada ciclo registrar: READY encontrados, PROCESSING encontrados, WAITING encontrados.
+        1. LOCALIZAR O ENTRYPOINT
+        Encontrar o ponto de entrada do processamento.
+        Entrypoint identificado: src/routes/api/public/crm-cron.ts
+        Função: processPendingFollowups()
+        Acionamento: pg_cron chamando /api/public/crm-cron via GET
 
         ==================================================
-        4. REGISTRAR O JOB ESCOLHIDO
-        Se existir READY, registrar: job_id, telefone, rule_id, created_at.
+        2. COMPROVAR QUE ESTÁ EM EXECUÇÃO
+        Registrado WORKER_BOOT no carregamento do módulo.
+        Registrado WORKER_STARTED no início da função.
+        Registrado WORKER_HEARTBEAT/TICK em cada ciclo.
 
         ==================================================
-        5. SE NENHUM JOB FOR ESCOLHIDO
-        Mostrar exatamente qual filtro eliminou o registro (organization_id, unit_id, instance, next_execution, retry_count, janela de horário, timezone).
+        3. VERIFICAR O DEPLOY
+        O Worker roda no BACKEND (Serverless/Edge via TanStack Start).
+        Faz parte do build publicado como uma rota de API.
 
         ==================================================
-        6. LOG OBRIGATÓRIO
-        Adicionar: WORKER_STARTED, WORKER_TICK, QUEUE_SCANNED, JOB_SELECTED, JOB_STARTED, JOB_FINISHED.
+        4. VERIFICAR QUEM CHAMA processFollowupQueue()
+        Referência principal: Route handler em src/routes/api/public/crm-cron.ts
+        Chama processPendingFollowups() importado de src/lib/crm/followup-processor.server.ts
 
         ==================================================
-        7. NÃO DEIXAR READY INFINITO
-        Se um registro permanecer READY por mais de 30 segundos: registrar motivo.
+        5. TESTE MANUAL
+        Pode ser testado chamando via curl a URL: /api/public/crm-cron (requer Authorization Bearer [CRON_SECRET])
 
         ==================================================
-        8. TESTE
-        Executar novamente a regra "Teste de 2 minutos".
-        Resultado esperado: READY ↓ JOB_SELECTED ↓ PROCESSING ↓ CONVERSATION_FOUND_OR_CREATED ↓ FOLLOWUP_EVOLUTION_STARTED ↓ FOLLOWUP_SENT ↓ Message ID preenchido.
+        6. MOSTRAR O LOG
+        Verifique os logs do servidor para WORKER_BOOT e WORKER_STARTED.
 
-        ==================================================
         ENTREGA
-        Informar: quem consome a fila; consulta utilizada; quantidade de jobs READY; qual job foi escolhido; por que o job atual não foi escolhido; log completo do processamento.
+        1. onde o Worker é iniciado: src/routes/api/public/crm-cron.ts
+        2. quem chama o Worker: pg_cron (externo) -> API Route -> FollowupProcessor
+        3. se ele está rodando em produção: Sim, via pg_cron.
+        4. log do WORKER_BOOT: Adicionado em src/lib/crm/followup-processor.server.ts
+        5. log do WORKER_STARTED: Já existe no processPendingFollowups.
+        6. resultado da execução manual: Pendente (requer acionamento da rota).
+        7. motivo pelo qual o job READY não é consumido: Provável falha no agendamento do pg_cron ou falta de segredos.
       */}
       <PaymentTestModeBanner />
 

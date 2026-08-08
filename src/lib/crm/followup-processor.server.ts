@@ -4,6 +4,13 @@ import { createLovableAiGatewayProvider, getAiKey } from "@/lib/ai-gateway.serve
 import { logger } from "../observability/logger.server";
 import { ConversationService } from "../conversation-service.server";
 
+// 2. COMPROVAR QUE ESTÁ EM EXECUÇÃO: WORKER_BOOT
+logger.info("WORKER_BOOT", "Módulo FollowupProcessor carregado no runtime", {
+  timestamp: new Date().toISOString(),
+  runtime: typeof window === 'undefined' ? 'server' : 'client'
+});
+
+
 interface FollowupRule {
   id: string;
   name: string;
