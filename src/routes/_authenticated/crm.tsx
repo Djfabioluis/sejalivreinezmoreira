@@ -310,7 +310,12 @@ function CRMPage() {
                             </td>
                             <td className="px-6 py-4 text-muted-foreground">{format(new Date(h.completed_at || h.created_at), 'dd/MM HH:mm', { locale: ptBR })}</td>
                             <td className="px-6 py-4">
-                               <Badge variant="outline" className={`text-[9px] uppercase ${h.status === 'SENT' ? 'border-emerald-500/20 text-emerald-600' : h.status === 'CANCELED' ? 'border-amber-500/20 text-amber-600' : 'border-red-500/20 text-red-600'}`}>
+                               <Badge variant="outline" className={`text-[9px] uppercase ${
+                                 h.status === 'SENT' ? 'border-blue-500/20 text-blue-600' : 
+                                 h.status === 'DELIVERED' ? 'border-green-500/20 text-green-600' :
+                                 h.status === 'READ' ? 'border-purple-500/20 text-purple-600' :
+                                 h.status === 'CANCELED' ? 'border-amber-500/20 text-amber-600' : 
+                                 'border-red-500/20 text-red-600'}`}>
                                   {h.status}
                                </Badge>
                             </td>
