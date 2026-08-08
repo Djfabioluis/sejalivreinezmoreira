@@ -74,7 +74,6 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
           continue;
         }
 
-
         // fromMe=true mas NÃO foi a IA -> HUMANO assumiu
         const phone = normalizePhone(msg.remoteJid);
         const conversationKey = buildConversationKey(msg.instance, msg.remoteJid);
@@ -96,10 +95,13 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
           messageId: msg.messageId,
           event: "human_takeover_detected",
           status: "attendance_mode_set_to_human",
-          payload: { traceId, phone, conversationKey, remoteJid: msg.remoteJid, updateError }
+          payload: { traceId, phone, conversationKey, remoteJid: msg.remoteJid, updateError, fromMe: msg.fromMe }
         });
 
-        continue; 
+        // IMPORTANTE: Não dar 'continue' aqui se quisermos que a mensagem humana manual 
+        // também seja registrada no histórico da conversa (wa_conversas.messages)
+        // apenas evitamos que a IA responda a ela no passo 7.
+
       }
 
 
