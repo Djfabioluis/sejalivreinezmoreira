@@ -129,12 +129,14 @@ export async function replyToUser(params: {
   const sent = await sendEvolutionText(params.instance, params.phone, params.text, typingMs);
 
   if (sent) {
+    const sentMessageId = sent.data?.key?.id || sent.data?.message?.key?.id || params.messageId;
+    
     await logEvent({ 
       instance: params.instance, 
       messageId: params.messageId,
-      event: "evolution_send_completed", 
+      event: "MESSAGE_SENT", 
       status: "success",
-      payload: { traceId }
+      payload: { traceId, sentMessageId }
     });
 
     // 10. PERSISTÊNCIA DA RESPOSTA (Atomicamente via RPC)

@@ -328,7 +328,23 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
   
   const gatewayKey = process.env.LOVABLE_AI_GATEWAY_KEY || process.env.LOVABLE_API_KEY || "";
   const provider = createLovableAiGatewayProvider(gatewayKey);
-  const model = provider("google/gemini-2.5-flash");
+  const modelName = "google/gemini-2.5-flash";
+  const model = provider(modelName);
+
+  if (opts.traceId) {
+    await logEvent({
+      instance: opts.instance || "unknown",
+      messageId: opts.messageId || "unknown",
+      event: "AI_PROVIDER_RESOLVED",
+      status: "success",
+      payload: { 
+        traceId: opts.traceId, 
+        provider: "lovable-gateway", 
+        model: modelName,
+        apiKeyStatus: gatewayKey ? "OK" : "MISSING"
+      }
+    });
+  }
 
   const system = assembleSystemPrompt({
     contactName: opts.contactName,
@@ -347,13 +363,33 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
     ? await convertToModelMessages(messages as any)
     : messages;
 
-  return generateText({
-    model: model as any,
-    system: system + (sandbox ? SANDBOX_NOTE : ""),
-    messages: modelMessages,
-    tools: tools as any,
-    maxSteps: 5,
-  } as any);
+  try {
+    return await generateText({
+      model: model as any,
+      system: system + (sandbox ? SANDBOX_NOTE : ""),
+      messages: modelMessages,
+      tools: tools as any,
+      maxSteps: 5,
+    } as any);
+  } catch (error: any) {
+    if (opts.traceId) {
+      await logEvent({
+        instance: opts.instance || "unknown",
+        messageId: opts.messageId || "unknown",
+        event: "AI_REQUEST_FAILED",
+        status: "error",
+        errorDetail: error.message,
+        payload: {
+          traceId: opts.traceId,
+          errorName: error.name,
+          errorStack: error.stack,
+          httpStatus: error.status,
+          model: modelName
+        }
+      });
+    }
+    throw error;
+  }
 }
 
 export async function runAgentWithLogging(opts: AgentOptions & { messages?: any[]; text?: string }) {

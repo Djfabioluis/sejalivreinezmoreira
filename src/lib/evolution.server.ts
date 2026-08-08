@@ -2,6 +2,7 @@
 // Nunca importar em código de browser.
 import { sanitizeCustomerText } from "@/lib/text-sanitize";
 import { logger } from "./observability/logger.server";
+import { logEvent } from "./evolution/logger.server";
 import { AppError } from "./core/errors";
 import { 
   enforceNoCpfInSubscriptionFlow, 
@@ -226,12 +227,16 @@ export async function sendEvolutionText(
   }
   
   // LOG OBRIGATÓRIO: EVOLUTION_REQUEST
-  logger.info("EVOLUTION_REQUEST", "Disparando requisição HTTP para Evolution", {
-    traceId,
-    timestamp: new Date().toISOString(),
+  await logEvent({
     instance,
-    to: number,
-    payload: { ...payload, text: text.slice(0, 50) + "..." }
+    event: "EVOLUTION_REQUEST",
+    status: "started",
+    payload: {
+      traceId,
+      timestamp: new Date().toISOString(),
+      to: number,
+      textSnippet: text.slice(0, 50) + "..."
+    }
   });
 
   const res = await evoFetch(`/message/sendText/${encodeURIComponent(instance)}`, {
@@ -242,13 +247,18 @@ export async function sendEvolutionText(
   const durationMs = Date.now() - startedAt;
 
   // LOG OBRIGATÓRIO: EVOLUTION_RESPONSE
-  logger.info("EVOLUTION_RESPONSE", "Resposta da Evolution API recebida", {
-    traceId,
-    timestamp: new Date().toISOString(),
-    durationMs,
-    status: res.status,
-    ok: res.ok,
-    data: res.data
+  await logEvent({
+    instance,
+    event: "EVOLUTION_RESPONSE",
+    status: res.ok ? "success" : "error",
+    payload: {
+      traceId,
+      timestamp: new Date().toISOString(),
+      durationMs,
+      status: res.status,
+      ok: res.ok,
+      data: res.data
+    }
   });
 
   if (!res.ok) {
