@@ -64,8 +64,8 @@ export async function processPendingFollowups() {
 }
 
 export async function processSingleFollowup(followup: any, parentTraceId: string) {
-  const phone_last4 = followup.phone ? followup.phone.slice(-4) : "0000";
-  const traceId = `${parentTraceId}-${followup.id.split('-')[0]}`;
+  const phone_last4 = followup?.phone ? followup.phone.slice(-4) : "0000";
+  const traceId = `${parentTraceId}-${followup?.id?.split('-')[0] || 'unknown'}`;
   const worker_id = "JuliaFollowupProcessorV5";
   
   const logContext = {
