@@ -90,7 +90,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
         status: "PROCESSING", 
         updated_at: now,
         metadata: { 
-          ...(followup.metadata || {}), 
+          ...(typeof followup.metadata === 'object' ? followup.metadata : {}), 
           trace_id: traceId, 
           last_step: "FOLLOWUP_PROCESSING",
           started_at: now,
