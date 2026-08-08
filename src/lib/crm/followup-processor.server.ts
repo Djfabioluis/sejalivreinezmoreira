@@ -304,12 +304,42 @@ async function resolveFollowupCustomerName(followup: any, conversation: any, tra
 }
 
 async function generateAiFollowup(followup: any, nameData: any) {
-  const provider = createLovableAiGatewayProvider("google");
-  const model = provider("gemini-1.5-flash");
-  const prompt = `Aja como Julia, uma assistente humanizada. O cliente se chama ${nameData.fullName}. Gere uma mensagem curta de follow-up.`;
-  const { text } = await generateText({
-    model,
-    prompt,
-  });
-  return text;
+  const providerName = "google";
+  const modelName = "gemini-1.5-flash";
+  const startTime = Date.now();
+  
+  try {
+    const provider = createLovableAiGatewayProvider(providerName);
+    const model = provider(modelName);
+    const prompt = `Aja como Julia, uma assistente humanizada de um salão de beleza. O cliente se chama ${nameData.fullName} (primeiro nome: ${nameData.firstName || 'cliente'}). Gere uma mensagem curta, acolhedora e personalizada de follow-up para este cliente. Nunca use a palavra "Cliente" como se fosse o nome dele.`;
+    
+    const { text, response } = await generateText({
+      model,
+      prompt,
+    });
+    
+    return text;
+  } catch (err: any) {
+    const duration = Date.now() - startTime;
+    // Captura estendida do erro da IA
+    const errorInfo = {
+      provider: providerName,
+      model: modelName,
+      endpoint: "lovable-ai-gateway",
+      status: err.status || err.statusCode || (err.response?.status),
+      message: err.message,
+      name: err.name,
+      stack: err.stack,
+      duration_ms: duration,
+      timestamp: new Date().toISOString(),
+      raw_response: err.response?.data || err.data || null,
+      request_id: err.headers?.['x-request-id'] || err.response?.headers?.['x-request-id']
+    };
+
+    throw { 
+      type: "AI_GENERATION_FAILED", 
+      message: err.message, 
+      details: errorInfo 
+    };
+  }
 }
