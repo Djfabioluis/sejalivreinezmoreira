@@ -568,18 +568,66 @@ function CRMPage() {
                       )}
 
                       {selectedExecution.metadata?.last_error && (
-                        <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3 space-y-2">
+                        <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3 space-y-2 col-span-2">
                           <p className="text-[10px] text-red-600 font-bold uppercase flex items-center gap-1">
-                            <XCircle className="h-3 w-3" /> Detalhes da Exceção
+                            <Bot className="h-3 w-3" /> ERRO DA IA / EXECUÇÃO
                           </p>
+                          
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-2 mb-2 text-[10px]">
+                            {selectedExecution.metadata.last_error.provider && (
+                              <div>
+                                <span className="text-muted-foreground block uppercase text-[8px]">Provider:</span>
+                                <span className="font-medium">{selectedExecution.metadata.last_error.provider}</span>
+                              </div>
+                            )}
+                            {selectedExecution.metadata.last_error.model && (
+                              <div>
+                                <span className="text-muted-foreground block uppercase text-[8px]">Modelo:</span>
+                                <span className="font-medium">{selectedExecution.metadata.last_error.model}</span>
+                              </div>
+                            )}
+                            {selectedExecution.metadata.last_error.status && (
+                              <div>
+                                <span className="text-muted-foreground block uppercase text-[8px]">HTTP Status:</span>
+                                <Badge variant="outline" className="text-[9px] py-0 h-4 border-red-200 text-red-700 bg-red-50">
+                                  {selectedExecution.metadata.last_error.status}
+                                </Badge>
+                              </div>
+                            )}
+                            {selectedExecution.metadata.last_error.duration_ms && (
+                              <div>
+                                <span className="text-muted-foreground block uppercase text-[8px]">Tempo:</span>
+                                <span className="font-medium">{selectedExecution.metadata.last_error.duration_ms}ms</span>
+                              </div>
+                            )}
+                          </div>
+
                           <div className="space-y-1 text-[10px] font-mono">
-                            <p className="text-red-700 font-bold">{selectedExecution.metadata.last_error.name}: {selectedExecution.metadata.last_error.message}</p>
-                            <p className="text-muted-foreground whitespace-pre-wrap break-all leading-relaxed bg-black/5 p-2 rounded border border-black/5 max-h-40 overflow-y-auto">
-                              {selectedExecution.metadata.last_error.stack}
+                            <p className="text-red-700 font-bold flex items-center gap-1">
+                              {selectedExecution.metadata.last_error.name || 'Error'}: {selectedExecution.metadata.last_error.message}
                             </p>
+                            
+                            {selectedExecution.metadata.last_error.raw_response && (
+                              <div className="mt-2">
+                                <p className="text-[8px] text-muted-foreground uppercase font-bold mb-1">Response Raw:</p>
+                                <pre className="text-[9px] bg-black/5 p-2 rounded border border-black/5 max-h-32 overflow-y-auto whitespace-pre-wrap">
+                                  {typeof selectedExecution.metadata.last_error.raw_response === 'string' 
+                                    ? selectedExecution.metadata.last_error.raw_response 
+                                    : JSON.stringify(selectedExecution.metadata.last_error.raw_response, null, 2)}
+                                </pre>
+                              </div>
+                            )}
+
+                            <div className="mt-2">
+                              <p className="text-[8px] text-muted-foreground uppercase font-bold mb-1">Stack Trace:</p>
+                              <p className="text-[9px] text-muted-foreground whitespace-pre-wrap break-all leading-relaxed bg-black/5 p-2 rounded border border-black/5 max-h-32 overflow-y-auto">
+                                {selectedExecution.metadata.last_error.stack}
+                              </p>
+                            </div>
+
                             <div className="flex justify-between items-center text-[9px] pt-1">
-                              <span className="text-muted-foreground">Trace: {selectedExecution.metadata.last_error.traceId}</span>
-                              <span className="text-muted-foreground">Worker: {selectedExecution.metadata.last_error.workerId}</span>
+                              <span className="text-muted-foreground">Trace: {selectedExecution.metadata.last_error.trace_id || selectedExecution.metadata.trace_id}</span>
+                              <span className="text-muted-foreground">ID: {selectedExecution.metadata.last_error.request_id || '-'}</span>
                             </div>
                           </div>
                         </div>
