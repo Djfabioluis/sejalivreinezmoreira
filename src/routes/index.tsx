@@ -1,4 +1,45 @@
-{/* Execute esta instrucao no projeto: CORREÇÃO DE AUDITORIA DO FOLLOW-UP — CORRELACIONAR LOGS POR JOB */}
+{/* Execute esta instrucao no projeto: # Prompt para o Lovable — Validar envio real de follow-up (cliente de verdade)
+
+## Contexto
+
+Já confirmamos que:
+- O bypass de teste sintético funciona corretamente: jobs com `reason: "MANUAL_TEST"` e `stage: "TEST_EXECUTION"` são cancelados como esperado, e o texto livre do trigger/nome não influencia mais essa decisão.
+
+Agora precisamos confirmar o caminho "feliz" de verdade: um follow-up com `customer_id: null` mas `phone` preenchido deve ser encontrado pela busca por telefone (`phone_lookup`) e a mensagem deve ser **efetivamente enviada** via WhatsApp.
+
+## Tarefa
+
+1. Crie um job de teste em `crm_followups` simulando um cliente **real**, com valores realistas (não sintéticos) nos campos `reason` e `stage` — ou seja, **nada** de `MANUAL_TEST` / `TEST_EXECUTION`. Use meu número de WhatsApp para eu confirmar o recebimento. Exemplo:
+   ```sql
+   INSERT INTO crm_followups (phone, customer_id, stage, reason, priority, scheduled_at, status, attempts)
+   VALUES (
+     '<MEU_NUMERO_COM_DDD>',
+     NULL,
+     'ABANDONED_BOOKING',   -- stage real usado no fluxo de abandono de agendamento
+     'NO_RESPONSE',         -- motivo real, não MANUAL_TEST
+     1,
+     now(),                  -- agendado para agora
+     'PENDENTE',              -- ou o valor de status pendente em uso atualmente no schema
+     0
+   );
+   ```
+2. Não use a palavra "Teste"/"Test" em nenhum campo de texto livre relacionado a esse job (nome, trigger, descrição) — só para eliminar qualquer ambiguidade, mesmo já sabendo que o bypass agora olha só `reason`/`stage`.
+3. Garanta que exista uma linha correspondente em `wa_conversas` para esse telefone, para o `phone_lookup` ter o que encontrar (se eu já conversei com a Julia antes por esse número, já deve existir).
+4. Dispare o processamento desse job (mesmo fluxo usado nos testes anteriores, pelo painel).
+5. Abra o painel "Detalhes da Execução" (Job Audit & Correlation) para esse job e confirme:
+   - `CONVERSATION ID` **não** é `NULL/NOT_FOUND` — deve mostrar o ID real da conversa encontrada por telefone.
+   - `MESSAGE ID` está preenchido (sem `NOT_SENT`).
+   - `STATUS` final é `SENT` (ou equivalente `ENVIADO`), **não** `CANCELED`.
+   - Nos logs do motor, aparece `found_by: "phone_lookup"`.
+6. Me avise o horário exato do envio para eu conferir no meu WhatsApp se a mensagem chegou, e se o conteúdo está coerente (tom da Julia, referência ao contexto da conversa).
+
+## Se algo falhar
+
+- Se `CONVERSATION ID` continuar `NOT_FOUND` mesmo havendo uma linha em `wa_conversas` para esse telefone: verifique se o formato do telefone salvo em `crm_followups.phone` bate exatamente com o salvo em `wa_conversas.phone` — pode ser o mesmo problema de ambiguidade do 9º dígito (8 vs 9 dígitos) que já corrigimos na validação de assinatura; se for o caso, aplique a mesma lógica de tentar as duas variantes também nessa busca.
+- Se `MESSAGE ID` for preenchido mas a mensagem não chegar no WhatsApp: o problema não é mais no follow-up, é na camada Evolution API (`sendEvolutionText`) — verifique a instância e a API key da Evolution configuradas.
+- Se o job for cancelado de novo com `TEST_SKIPPED` mesmo com `reason`/`stage` realistas: a correção anterior não pegou todos os pontos de checagem — peça para revisar se existe mais de um lugar no código decidindo esse bypass (ex.: um no processor e outro em uma função de validação separada).
+*/}
+
 
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useState } from "react";
