@@ -476,15 +476,16 @@ INSTRUÇÕES CRÍTICAS:
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`, // Usar Authorization: Bearer para o Gateway
+        "Lovable-API-Key": apiKey,
         "X-Lovable-AIG-SDK": "fetch-raw"
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "gemini-1.5-flash",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.7
       })
     });
+
 
 
     if (!response.ok) {
