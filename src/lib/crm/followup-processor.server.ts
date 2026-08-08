@@ -288,12 +288,6 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
 
     const updatePayload = {
       status: "SENT",
-      attempts: (followup.attempts || 0) + 1,
-      sent_at: completionTime,
-      completed_at: completionTime,
-      message_template: messageText,
-      message_id: messageId,
-      updated_at: completionTime,
       attempts: (currentFollowup.attempts || 0) + 1,
       sent_at: completionTime,
       completed_at: completionTime,
