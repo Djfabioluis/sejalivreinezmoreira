@@ -1,3 +1,98 @@
+{/* Execute esta instrucao no projeto: AUDITORIA DEFINITIVA DO CONSUMO DA FILA DE FOLLOW-UP
+DIAGNÓSTICO
+Não existem mais erros de banco.
+Não existem mais erros de criação de conversa.
+O registro permanece:
+STATUS = READY
+sem nunca iniciar o processamento.
+Conversation ID = vazio
+Message ID = vazio
+Executado em = -
+OBJETIVO
+Descobrir por que o Worker nunca consome o job READY.
+==================================================
+1. LOCALIZAR O CONSUMIDOR DA FILA
+Identificar:
+- arquivo;
+- função;
+- scheduler;
+- cron;
+- worker;
+- Edge Function;
+- Background Job.
+Mostrar exatamente quem processa os registros READY.
+==================================================
+2. MOSTRAR A CONSULTA
+Exibir a consulta utilizada para buscar jobs.
+Exemplo:
+SELECT ...
+FROM crm_followup_queue
+WHERE status='READY'
+Mostrar todos os filtros aplicados.
+==================================================
+3. REGISTRAR QUANTOS JOBS EXISTEM
+No início de cada ciclo registrar:
+READY encontrados:
+PROCESSING encontrados:
+WAITING encontrados:
+==================================================
+4. REGISTRAR O JOB ESCOLHIDO
+Se existir READY:
+registrar:
+job_id
+telefone
+rule_id
+created_at
+==================================================
+5. SE NENHUM JOB FOR ESCOLHIDO
+Mostrar exatamente qual filtro eliminou o registro.
+Exemplos:
+organization_id
+unit_id
+instance
+next_execution
+retry_count
+janela de horário
+timezone
+==================================================
+6. LOG OBRIGATÓRIO
+Adicionar:
+WORKER_STARTED
+WORKER_TICK
+QUEUE_SCANNED
+JOB_SELECTED
+JOB_STARTED
+JOB_FINISHED
+==================================================
+7. NÃO DEIXAR READY INFINITO
+Se um registro permanecer READY por mais de 30 segundos:
+registrar motivo.
+==================================================
+8. TESTE
+Executar novamente a regra "Teste de 2 minutos".
+Resultado esperado:
+READY
+↓
+JOB_SELECTED
+↓
+PROCESSING
+↓
+CONVERSATION_FOUND_OR_CREATED
+↓
+FOLLOWUP_EVOLUTION_STARTED
+↓
+FOLLOWUP_SENT
+↓
+Message ID preenchido.
+==================================================
+ENTREGA
+Informar:
+- quem consome a fila;
+- consulta utilizada;
+- quantidade de jobs READY;
+- qual job foi escolhido;
+- por que o job atual não foi escolhido (caso continue READY);
+- log completo do processamento. */}
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -118,49 +213,56 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-primary/20">
       {/* 
-        Execute esta instrucao no projeto: AUDITORIA FINAL DO WORKER DE FOLLOW-UP
+        Execute esta instrucao no projeto: AUDITORIA DEFINITIVA DO CONSUMO DA FILA DE FOLLOW-UP
 
-        O painel continua mostrando:
-        FOLLOWUP_CREATED
-        FOLLOWUP_READY
-        FOLLOWUP_PROCESSING (Aguardando...)
-        FOLLOWUP_WAITING (Aguardando...)
-
-        Conversation ID vazio.
-        Message ID vazio.
-
-        A documentação informa que o worker foi corrigido, porém não existe evidência de que ele esteja consumindo o job.
+        DIAGNÓSTICO
+        Não existem mais erros de banco.
+        Não existem mais erros de criação de conversa.
+        O registro permanece: STATUS = READY sem nunca iniciar o processamento.
+        Conversation ID = vazio, Message ID = vazio, Executado em = -
 
         OBJETIVO
-        Comprovar a execução real do worker.
+        Descobrir por que o Worker nunca consome o job READY.
 
         ==================================================
-        1. LOG DO WORKER
-        Adicionar obrigatoriamente: WORKER_STARTED, WORKER_TICK, JOB_SELECTED, JOB_LOCKED, JOB_PROCESSING, JOB_FINISHED
-        Cada log deve conter: timestamp, job_id, rule_id, telefone, worker_id
+        1. LOCALIZAR O CONSUMIDOR DA FILA
+        Identificar: arquivo; função; scheduler; cron; worker; Edge Function; Background Job.
+        Mostrar exatamente quem processa os registros READY.
 
         ==================================================
-        2. LOG DA EVOLUTION
-        Registrar: FOLLOWUP_EVOLUTION_STARTED, Payload enviado (sanitizado), Resposta HTTP, MessageId retornado
+        2. MOSTRAR A CONSULTA
+        Exibir a consulta utilizada para buscar jobs.
+        Exemplo: SELECT ... FROM crm_followup_queue WHERE status='READY'
+        Mostrar todos os filtros aplicados.
 
         ==================================================
-        3. LOG DA CONVERSA
-        Registrar: conversation encontrada ou conversation criada, Conversation ID
+        3. REGISTRAR QUANTOS JOBS EXISTEM
+        No início de cada ciclo registrar: READY encontrados, PROCESSING encontrados, WAITING encontrados.
 
         ==================================================
-        4. LOG DA FILA
-        Mostrar: quantos jobs READY existem, qual job foi escolhido, por que os demais permaneceram READY
+        4. REGISTRAR O JOB ESCOLHIDO
+        Se existir READY, registrar: job_id, telefone, rule_id, created_at.
 
         ==================================================
-        5. PAINEL
-        Adicionar uma seção "Último processamento do Worker" contendo: Última execução, Último job processado, Último envio, Último erro (se houver)
+        5. SE NENHUM JOB FOR ESCOLHIDO
+        Mostrar exatamente qual filtro eliminou o registro (organization_id, unit_id, instance, next_execution, retry_count, janela de horário, timezone).
 
         ==================================================
-        6. TESTE
+        6. LOG OBRIGATÓRIO
+        Adicionar: WORKER_STARTED, WORKER_TICK, QUEUE_SCANNED, JOB_SELECTED, JOB_STARTED, JOB_FINISHED.
+
+        ==================================================
+        7. NÃO DEIXAR READY INFINITO
+        Se um registro permanecer READY por mais de 30 segundos: registrar motivo.
+
+        ==================================================
+        8. TESTE
         Executar novamente a regra "Teste de 2 minutos".
-        A entrega só será considerada concluída quando houver evidência de:
-        WORKER_STARTED ↓ JOB_SELECTED ↓ FOLLOWUP_EVOLUTION_STARTED ↓ FOLLOWUP_SENT ↓ Message ID preenchido
-        Não considerar a correção concluída apenas porque o status saiu de ERROR para READY.
+        Resultado esperado: READY ↓ JOB_SELECTED ↓ PROCESSING ↓ CONVERSATION_FOUND_OR_CREATED ↓ FOLLOWUP_EVOLUTION_STARTED ↓ FOLLOWUP_SENT ↓ Message ID preenchido.
+
+        ==================================================
+        ENTREGA
+        Informar: quem consome a fila; consulta utilizada; quantidade de jobs READY; qual job foi escolhido; por que o job atual não foi escolhido; log completo do processamento.
       */}
       <PaymentTestModeBanner />
 
