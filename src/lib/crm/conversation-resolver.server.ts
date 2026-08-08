@@ -25,6 +25,7 @@ export async function resolveConversationForFollowup(
   const conversationKey = `${instance}:${fullPhone}`;
   
   try {
+    // 1. Tentar encontrar pelo formato composto (instance:phone)
     const { data: existingConv } = await supabaseAdmin
       .from("wa_conversas")
       .select("*")
@@ -36,6 +37,25 @@ export async function resolveConversationForFollowup(
         conversation: existingConv,
         foundBy: "phone_lookup",
         instance,
+        normalizedPhone: fullPhone
+      };
+    }
+
+    // 2. Fallback: Tentar encontrar por phone_number (campo isolado) se existir,
+    // independente da instância, para tentar reaproveitar dados se possível.
+    const { data: convByNumber } = await supabaseAdmin
+      .from("wa_conversas")
+      .select("*")
+      .eq("phone_number", fullPhone)
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (convByNumber) {
+      return {
+        conversation: convByNumber,
+        foundBy: "phone_lookup",
+        instance: convByNumber.instance || instance,
         normalizedPhone: fullPhone
       };
     }
