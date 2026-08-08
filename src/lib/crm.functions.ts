@@ -265,7 +265,7 @@ export const listFollowupExecutions = createServerFn({ method: "GET" })
       .from("crm_followups" as any) as any)
       .select("*, rule:crm_followup_rules(name)")
       .in("status", ["PENDING", "READY", "READY_TO_SEND", "PROCESSING"])
-      .order("scheduled_at", { ascending: true })
+      .order("updated_at", { ascending: false })
       .limit(100);
     if (error) throw new Error(error.message);
     return data || [];

@@ -27,7 +27,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { 
   Plus, Clock, Zap, MessageSquare, Bot, Sparkles, Settings, History, LayoutDashboard,
   Play, Edit2, Trash2, Loader2, PlayCircle, Activity, Info, ChevronRight, CheckCircle2, AlertCircle, XCircle, Phone,
-  Database
+  Database, ShieldCheck
 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
@@ -125,8 +125,8 @@ function CRMPage() {
                <Activity className="h-5 w-5 text-emerald-600 animate-pulse" />
              </div>
              <div>
-               <h3 className="text-sm font-bold">Motor de Follow-up <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-none">ONLINE</Badge></h3>
-               <p className="text-[10px] text-muted-foreground">Fila: {workerStatus.queueSize} | Última: {workerStatus.lastRun ? format(new Date(workerStatus.lastRun), "HH:mm:ss", { locale: ptBR }) : 'Nunca'}</p>
+                <h3 className="text-sm font-bold">Motor de Follow-up <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-none">ONLINE</Badge></h3>
+                <p className="text-[10px] text-muted-foreground">Fila: {workerStatus.queueSize} | Polling: {format(new Date(), "HH:mm:ss")}</p>
              </div>
           </div>
         </div>
@@ -387,28 +387,76 @@ function CRMPage() {
       />
 
       <Sheet open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        <SheetContent className="sm:max-w-md w-full overflow-y-auto">
-          <SheetHeader>
+        <SheetContent className="sm:max-w-xl w-full overflow-y-auto">
+          <SheetHeader className="mb-6">
             <SheetTitle className="flex items-center gap-2">
-              Detalhes da Execução
-              {selectedExecution && (
-                <Badge variant="outline" className="text-[10px] uppercase">
-                  {selectedExecution.status}
-                </Badge>
-              )}
+              <Bot className="h-5 w-5 text-primary" /> Detalhes da Execução
             </SheetTitle>
             <SheetDescription>
-              Diagnóstico completo e timeline do follow-up.
+              Diagnóstico completo e auditoria real do banco de dados.
             </SheetDescription>
           </SheetHeader>
 
+
           {selectedExecution && (
-            <div className="mt-8 space-y-8">
+            <div className="space-y-8 animate-in fade-in slide-in-from-right duration-300">
+              {/* MODO DEBUG OBRIGATÓRIO */}
+              <Card className="bg-slate-950 text-slate-50 border-slate-800 shadow-2xl overflow-hidden">
+                <CardHeader className="py-3 px-4 bg-slate-900/50 border-b border-slate-800">
+                  <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-primary">
+                    <ShieldCheck className="h-3 w-3" /> System Audit Mode (Real-Time Data)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 space-y-4">
+                   <div className="grid grid-cols-2 gap-3 text-[10px] font-mono">
+                      <div className="space-y-1">
+                        <span className="text-slate-500 block">JOB ID:</span>
+                        <span className="text-primary truncate block">{selectedExecution.id}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-slate-500 block">STATUS:</span>
+                        <Badge variant="outline" className={`h-4 text-[9px] uppercase border-primary/30 text-primary ${selectedExecution.status === 'PROCESSING' ? 'animate-pulse' : ''}`}>
+                          {selectedExecution.status}
+                        </Badge>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-slate-500 block">CONVERSATION ID:</span>
+                        <span className={selectedExecution.metadata?.conversationId ? "text-emerald-400" : "text-red-500"}>
+                          {selectedExecution.metadata?.conversationId || "NULL / NOT_FOUND"}
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-slate-500 block">MESSAGE ID:</span>
+                        <span className={selectedExecution.metadata?.message_id || selectedExecution.metadata?.evolution_response?.key?.id ? "text-emerald-400" : "text-red-500"}>
+                          {selectedExecution.metadata?.message_id || selectedExecution.metadata?.evolution_response?.key?.id || "NULL / NOT_SENT"}
+                        </span>
+                      </div>
+                   </div>
+
+                   <div className="pt-2 border-t border-slate-800">
+                      <p className="text-[9px] text-slate-500 uppercase font-black mb-2">Supabase Query Context</p>
+                      <code className="text-[9px] bg-black/40 p-2 rounded block text-emerald-500/80 leading-tight">
+                        SELECT * FROM crm_followups WHERE id = '{selectedExecution.id}'
+                      </code>
+                   </div>
+
+                   <div className="pt-2">
+                      <p className="text-[9px] text-slate-500 uppercase font-black mb-2">RAW DB RECORD (JSON)</p>
+                      <ScrollArea className="h-40 w-full rounded border border-slate-800 bg-black/20 p-2">
+                        <pre className="text-[9px] leading-tight text-slate-300">
+                          {JSON.stringify(selectedExecution, null, 2)}
+                        </pre>
+                      </ScrollArea>
+                   </div>
+                </CardContent>
+              </Card>
+
               {/* Timeline Section */}
               <div className="space-y-4">
                 <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                   <Clock className="h-3 w-3" /> Timeline da Operação
                 </h4>
+
                 
                 <div className="relative pl-6 space-y-6 border-l border-border ml-2">
                   {[
@@ -460,10 +508,11 @@ function CRMPage() {
                   <DataField label="Telefone" value={formatPhone(selectedExecution.phone)} icon={<Phone className="h-3 w-3" />} />
                   <DataField label="Agendado em" value={format(new Date(selectedExecution.scheduled_at), "HH:mm:ss dd/MM")} />
                   <DataField label="Executado em" value={selectedExecution.completed_at ? format(new Date(selectedExecution.completed_at), "HH:mm:ss dd/MM") : (selectedExecution.sent_at ? format(new Date(selectedExecution.sent_at), "HH:mm:ss dd/MM") : "-")} />
-                  <DataField label="Worker ID" value={selectedExecution.metadata?.worker_id || "Julia Engine v2"} />
+                  <DataField label="Worker ID" value={selectedExecution.metadata?.worker_id || "Julia Engine v3"} />
                   <DataField label="Evolution Instance" value={selectedExecution.metadata?.instance_name || selectedExecution.metadata?.evolutionInstance || "Primary"} />
                   <DataField label="Conversation ID" value={selectedExecution.metadata?.conversationId || (selectedExecution.metadata?.conversationCreated ? "Created" : (selectedExecution.metadata?.conversationFound ? "Found" : "-"))} />
                   <DataField label="Message ID" value={selectedExecution.metadata?.message_id || selectedExecution.metadata?.evolution_response?.key?.id || "-"} className="col-span-2" />
+
 
                   
                   {selectedExecution.status === 'CANCELED' && (
