@@ -11,6 +11,8 @@ import { analyzeAgenda } from '@/lib/crm/agenda-analyzer.server';
 import { processWaitingList } from '@/lib/crm/waiting-list.server';
 import { runDailyAnalysis } from '@/lib/crm/daily-analyst.server';
 import { runPredictiveCampaignEngine } from '@/lib/crm/predictive-campaign.server';
+import { processBirthdays } from '@/lib/crm/birthday.server';
+
 import { logger } from '@/lib/observability/logger.server';
 import { getServerEnv } from '@/lib/config/env.server';
 
@@ -84,9 +86,13 @@ export const Route = createFileRoute('/api/public/crm-cron')({
         
         const hour = parseInt(brTime);
 
+        if (hour === 8) {
+          results.push(await runJob("processBirthdays", () => processBirthdays()));
+        }
         if (hour === 7) {
           results.push(await runJob("managementBriefing", () => generateManagementBriefing()));
         }
+
         if (hour === 22) {
           results.push(await runJob("dailyAnalysis", () => runDailyAnalysis()));
         }

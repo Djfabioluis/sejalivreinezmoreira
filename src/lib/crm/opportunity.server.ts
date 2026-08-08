@@ -46,7 +46,8 @@ export async function runOpportunityEngine() {
         - Contexto: ${JSON.stringify(context)}
         
         OPÇÕES DE TIPOS:
-        ABANDONED_BOOKING, RETURN_REMINDER, BIRTHDAY, PLAN_AVAILABLE, EMPTY_SLOT, VIP_CUSTOMER, REBOOK, WAITING_LIST, UPSELL, CROSS_SELL.
+        RETURN_REMINDER, PLAN_AVAILABLE, EMPTY_SLOT, REBOOK, WAITING_LIST, UPSELL, CROSS_SELL.
+
         
         REGRAS:
         - Prioridade de 0 a 100.
