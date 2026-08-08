@@ -351,7 +351,7 @@ async function generateAiFollowup(followup: any, nameData: any) {
     const model = provider(modelName);
     const prompt = `Aja como Julia, uma assistente humanizada de um salão de beleza. O cliente se chama ${nameData.fullName} (primeiro nome: ${nameData.firstName || 'cliente'}). Gere uma mensagem curta, acolhedora e personalizada de follow-up para este cliente. Nunca use a palavra "Cliente" como se fosse o nome dele.`;
     
-    const { text, response } = await generateText({
+    const { text } = await generateText({
       model,
       prompt,
     });
@@ -361,17 +361,18 @@ async function generateAiFollowup(followup: any, nameData: any) {
     const duration = Date.now() - startTime;
     // Captura estendida do erro da IA
     const errorInfo = {
+      stage: "AI_GENERATION",
       provider: providerName,
       model: modelName,
       endpoint: "lovable-ai-gateway",
-      status: err.status || err.statusCode || (err.response?.status),
+      http_status: err.status || err.statusCode || (err.response?.status),
+      error_code: err.name || "AI_ERROR",
       message: err.message,
-      name: err.name,
-      stack: err.stack,
+      response_body: err.response?.data || err.data || null,
+      request_id: err.headers?.['x-request-id'] || err.response?.headers?.['x-request-id'],
       duration_ms: duration,
-      timestamp: new Date().toISOString(),
-      raw_response: err.response?.data || err.data || null,
-      request_id: err.headers?.['x-request-id'] || err.response?.headers?.['x-request-id']
+      stacktrace: err.stack,
+      timestamp: new Date().toISOString()
     };
 
     throw { 
