@@ -18,6 +18,12 @@ import {
   Play,
   Zap,
 } from "lucide-react";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { PLANS as CENTRAL_PLANS, type Cycle } from "@/lib/plans";
 
 const StripeEmbeddedCheckout = lazy(() =>
@@ -115,8 +121,8 @@ function LandingPage() {
   const filteredPlans = CENTRAL_PLANS.filter(p => p.cycle === cycle);
 
   return (
-    <div className="min-h-screen bg-background text-foreground font-sans selection:bg-primary/20">
-      <div className="hidden">Execute esta instrucao no projeto: A</div>
+    <div className="min-h-screen bg-background text-foreground font-sans selection:bg-primary/20 scroll-smooth">
+      <div className="hidden">Execute esta instrucao no projeto: CORREÇÃO ISOLADA — FAQ DA HOMEPAGE NÃO FUNCIONA</div>
       <PaymentTestModeBanner />
       
       {/* Decorative Background Elements */}
@@ -384,6 +390,81 @@ function LandingPage() {
                 </Card>
               ))}
             </div>
+          </div>
+        </section>
+
+        {/* FAQ Section */}
+        <section id="faq" className="py-24 sm:py-32 scroll-mt-20">
+          <div className="mx-auto max-w-4xl px-6">
+            <div className="text-center mb-16">
+              <Badge variant="outline" className="mb-4 border-primary/20 text-primary">
+                FAQ
+              </Badge>
+              <h2 className="font-display text-4xl font-bold sm:text-5xl mb-4">
+                Perguntas Frequentes
+              </h2>
+              <p className="text-lg text-muted-foreground">
+                Tudo o que você precisa saber sobre a Julia AI e a plataforma Seja Livre.
+              </p>
+            </div>
+
+            <Accordion type="single" collapsible className="w-full space-y-4">
+              {[
+                {
+                  q: "Como a Julia AI atende meus clientes?",
+                  a: "A Julia utiliza processamento de linguagem natural avançado para entender intenções, responder dúvidas e guiar o cliente no WhatsApp de forma humana e empática, 24 horas por dia."
+                },
+                {
+                  q: "A Julia funciona 24 horas por dia?",
+                  a: "Sim. Diferente de uma recepção humana, a Julia não dorme nem tira folga, garantindo que nenhum cliente fique sem resposta, mesmo em feriados ou durante a madrugada."
+                },
+                {
+                  q: "A plataforma integra com o BEMP?",
+                  a: "Totalmente. A Julia consulta horários disponíveis em tempo real na sua agenda do BEMP e registra os novos agendamentos automaticamente."
+                },
+                {
+                  q: "A Julia pode fazer agendamentos automaticamente?",
+                  a: "Sim, ela identifica o serviço desejado, sugere horários compatíveis e finaliza o agendamento no sistema sem você precisar tocar no telefone."
+                },
+                {
+                  q: "Posso acompanhar as conversas?",
+                  a: "Sim, você tem um dashboard completo para visualizar todos os diálogos da IA e o status de cada atendimento em tempo real."
+                },
+                {
+                  q: "O sistema possui Follow-up automático?",
+                  a: "Sim. O motor de Follow-up detecta quando um cliente parou o agendamento no meio ou se faz tempo que não volta, enviando lembretes gentis para reengajá-lo."
+                },
+                {
+                  q: "Posso usar mais de uma unidade ou número de WhatsApp?",
+                  a: "Sim, a plataforma é escalável e permite gerenciar múltiplos agentes e números de WhatsApp em um único painel de gestão."
+                },
+                {
+                  q: "É possível pausar a IA e assumir a conversa manualmente?",
+                  a: "Sim. Existe o 'Human Takeover': se você responder manualmente no WhatsApp, a IA detecta e silencia automaticamente para não interferir na sua conversa."
+                },
+                {
+                  q: "Como funciona o plano de assinatura?",
+                  a: "Oferecemos planos mensais e anuais (com desconto) baseados na escala do seu negócio. Todos os planos incluem a inteligência da Julia e integração com o BEMP."
+                },
+                {
+                  q: "Meus dados ficam protegidos?",
+                  a: "Segurança é nossa prioridade. Utilizamos criptografia de ponta a ponta e seguimos padrões rigorosos para garantir que seus dados e os de seus clientes estejam seguros."
+                }
+              ].map((faq, i) => (
+                <AccordionItem 
+                  key={i} 
+                  value={`item-${i}`}
+                  className="border border-border/40 rounded-2xl bg-card/50 px-6 backdrop-blur-sm overflow-hidden transition-all hover:border-primary/20"
+                >
+                  <AccordionTrigger className="text-left font-display font-semibold text-lg hover:no-underline py-6">
+                    {faq.q}
+                  </AccordionTrigger>
+                  <AccordionContent className="text-muted-foreground leading-relaxed pb-6">
+                    {faq.a}
+                  </AccordionContent>
+                </AccordionItem>
+              ))}
+            </Accordion>
           </div>
         </section>
 
