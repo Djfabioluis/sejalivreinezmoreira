@@ -6,7 +6,6 @@ async function runTest() {
   console.log("🚀 Iniciando teste real do Worker de Follow-up...");
 
   // 1. Verificar se existe algum job READY ou PENDING para processar
-  // Se não houver, criamos um
   const { data: existingJobs } = await supabaseAdmin
     .from("crm_followups")
     .select("id")
@@ -18,7 +17,7 @@ async function runTest() {
      const { error: createError } = await supabaseAdmin
       .from("crm_followups")
       .insert({
-        phone: "5511999999999", // Número que existe no banco ou será validado
+        phone: "5511999999999",
         status: "READY",
         stage: "TEST",
         scheduled_at: new Date().toISOString(),
@@ -38,11 +37,11 @@ async function runTest() {
   console.log("⏳ Executando processPendingFollowups()...");
   await processPendingFollowups();
 
-  // 3. Consultar o banco para ver os últimos jobs processados (SENT ou CANCELED)
+  // 3. Consultar o banco para ver os últimos jobs processados
   console.log("🔍 Consultando registros atualizados no banco...");
   const { data: updatedJobs, error: fetchError } = await supabaseAdmin
     .from("crm_followups")
-    .select("id, status, conversation_id, message_id, sent_at, completed_at, updated_at, metadata")
+    .select("id, status, sent_at, completed_at, updated_at, metadata")
     .order("updated_at", { ascending: false })
     .limit(3);
 
@@ -51,20 +50,21 @@ async function runTest() {
   } else {
     console.log("📊 RESULTADOS RECENTES DO BANCO:");
     updatedJobs?.forEach(job => {
+      const meta = (job.metadata as any) || {};
       console.log(`\n--- Job: ${job.id} ---`);
       console.log(`Status: ${job.status}`);
-      console.log(`Conversation ID: ${job.conversation_id || (job.metadata as any)?.conversationId || 'NULL'}`);
-      console.log(`Message ID: ${job.message_id || (job.metadata as any)?.message_id || 'NULL'}`);
+      console.log(`Conversation ID (metadata): ${meta.conversationId || 'NULL'}`);
+      console.log(`Message ID (metadata): ${meta.message_id || 'NULL'}`);
       console.log(`Sent At: ${job.sent_at || 'NULL'}`);
       console.log(`Completed At: ${job.completed_at || 'NULL'}`);
-      console.log(`Metadata: ${JSON.stringify(job.metadata, null, 2).slice(0, 200)}...`);
+      console.log(`Metadata snippet: ${JSON.stringify(meta, null, 2).slice(0, 150)}...`);
     });
 
     const hasSent = updatedJobs?.some(j => j.status === 'SENT');
     if (hasSent) {
       console.log("\n✅ SUCESSO: Pelo menos um job foi marcado como SENT e persistido!");
     } else {
-      console.log("\n⚠️ AVISO: Nenhum job chegou ao status SENT. Verifique os logs de FOLLOWUP_DB_UPDATE_SUCCESS para outros status (CANCELED/READY).");
+      console.log("\n⚠️ AVISO: Nenhum job chegou ao status SENT. Verifique os logs de FOLLOWUP_DB_UPDATE_SUCCESS para outros status.");
     }
   }
 
@@ -75,4 +75,5 @@ runTest().catch(err => {
   console.error("💥 Erro fatal no teste:", err);
   process.exit(1);
 });
+
 
