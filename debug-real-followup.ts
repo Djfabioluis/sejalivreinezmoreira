@@ -95,6 +95,9 @@ async function testRealFollowup() {
     console.log("✨ SUCESSO: O follow-up foi processado e ENVIADO!");
   } else {
     console.log("❌ FALHA: Status =", updatedJob.status);
+    if (updatedJob.metadata?.last_error) {
+       console.log("Detalhes do erro:", JSON.stringify(updatedJob.metadata.last_error, null, 2));
+    }
   }
 }
 
