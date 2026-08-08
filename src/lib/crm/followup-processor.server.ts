@@ -3,6 +3,7 @@ import { generateText } from "ai";
 import { createLovableAiGatewayProvider, getAiKey } from "@/lib/ai-gateway.server";
 import { logger } from "../observability/logger.server";
 import { ConversationService } from "../conversation-service.server";
+import { BempService } from "../bemp-service.server";
 
 // 2. COMPROVAR QUE ESTÁ EM EXECUÇÃO: WORKER_BOOT
 logger.info("WORKER_BOOT", "Módulo FollowupProcessor carregado no runtime", {
@@ -283,6 +284,16 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     let messageText = followup.message_template;
     if (!messageText) {
        messageText = await generateAiFollowup(followup, conversation, traceId);
+    } else {
+      // 6. TEMPLATE FIXO (Se vier de uma regra com mensagem fixa)
+      const nameData = await resolveFollowupCustomerName(followup, conversation, traceId);
+      if (nameData.firstName) {
+        messageText = messageText.replace(/{{nome}}/g, nameData.fullName || "");
+        messageText = messageText.replace(/{{primeiro_nome}}/g, nameData.firstName || "");
+      } else {
+        messageText = messageText.replace(/,?\s?{{nome}}/g, "");
+        messageText = messageText.replace(/,?\s?{{primeiro_nome}}/g, "");
+      }
     }
 
     if (!messageText) {
@@ -459,10 +470,104 @@ async function blockFollowup(id: string, reasonCode: string, message: string, tr
     .eq("id", id);
 }
 
+async function resolveFollowupCustomerName(followup: any, conversation: any, traceId: string) {
+  let fullName = "";
+  let source = "";
+
+  // 1. customer vinculado ao followup
+  if (followup.metadata?.contact_name && followup.metadata.contact_name !== "Cliente") {
+    fullName = followup.metadata.contact_name;
+    source = "followup_metadata";
+  }
+
+  // 2. wa_conversas.contact_name
+  if (!fullName && conversation.contact_name && conversation.contact_name !== "Cliente") {
+    fullName = conversation.contact_name;
+    source = "wa_conversas";
+  }
+
+  // 3. CRM customer (se crm_followups.customer_id existir e for UUID)
+  if (!fullName && followup.customer_id) {
+    const { data: crmCustomer } = await supabaseAdmin
+      .from("crm_customer_pipeline")
+      .select("customer_name")
+      .eq("id", followup.customer_id)
+      .maybeSingle();
+    
+    if (crmCustomer?.customer_name) {
+      fullName = crmCustomer.customer_name;
+      source = "CRM";
+    }
+  }
+
+  // 4. BEMP customer
+  if (!fullName && conversation.phone_number) {
+    try {
+      // Normalizar para o formato que a BEMP espera: DDI, DDD, Numero
+      const phone = conversation.phone_number.replace(/\D/g, ''); // 5511999999999
+      const countryCode = phone.substring(0, 2);
+      const areaCode = phone.substring(2, 4);
+      const number = phone.substring(4);
+      
+      const bempData = await BempService.findCustomerByPhone({ countryCode, areaCode, number });
+      if (bempData?.name) {
+        fullName = bempData.name;
+        source = "BEMP";
+      }
+    } catch (e) {
+      logger.debug("BEMP_NAME_LOOKUP_FAILED", "Falha ao buscar nome na BEMP", { traceId, phone: conversation.phone_number });
+    }
+  }
+
+  // 5. Contexto da conversa
+  if (!fullName && conversation.customer_context?.name) {
+    fullName = conversation.customer_context.name;
+    source = "conversation_context";
+  }
+
+  if (!fullName) {
+    return { fullName: null, firstName: null, source: "none" };
+  }
+
+  // Normalizar: remover "Cliente", "Cliente VIP", etc.
+  const invalidNames = ["cliente", "cliente vip", "usuário", "contato", "usuario"];
+  if (invalidNames.includes(fullName.toLowerCase().trim())) {
+    return { fullName: null, firstName: null, source: "none" };
+  }
+
+  const firstName = fullName.split(' ')[0];
+  
+  logger.info("FOLLOWUP_CUSTOMER_NAME_RESOLVED", `Nome resolvido via ${source}`, { 
+    traceId, 
+    source, 
+    hasName: true, 
+    firstName 
+  });
+
+  // 8. Persistência no wa_conversas se for de fonte confiável
+  if (["CRM", "BEMP"].includes(source) && (!conversation.contact_name || conversation.contact_name === "Cliente")) {
+    await supabaseAdmin
+      .from("wa_conversas")
+      .update({ contact_name: fullName } as any)
+      .eq("phone", conversation.phone);
+  }
+
+  return { fullName, firstName, source };
+}
+
 async function generateAiFollowup(followup: any, conversation: any, traceId: string): Promise<string> {
+  const nameData = await resolveFollowupCustomerName(followup, conversation, traceId);
+  
   const stage = followup.stage || followup.metadata?.stage || 'Geral';
+  
+  // 5. PASSAR O NOME PARA A IA
+  const nameInstruction = nameData.firstName 
+    ? `O nome do cliente é ${nameData.fullName} (primeiro nome: ${nameData.firstName}). Quando customerFirstName estiver disponível, use-o naturalmente na saudação. Nunca invente um nome. Nunca use "Cliente" como nome.`
+    : `O nome do cliente não está disponível. Não use "Cliente" ou "Cliente VIP" como nome. Use uma saudação sem nome, como "Olá! 💜" ou "Oi! Tudo bem? 💜".`;
+
   const prompt = `Você é Julia, a assistente inteligente do Salão Seja Livre.
-Escreva uma mensagem de WhatsApp curta e humanizada para o cliente ${conversation.contact_name || 'Cliente'}.
+Escreva uma mensagem de WhatsApp curta e humanizada.
+${nameInstruction}
 Contexto: Este é um contato de follow-up do tipo "${stage}".
 Objetivo: Ser gentil, profissional e incentivar o retorno ao salão.
 Não use emojis em excesso. Não use linguajar formal demais.
@@ -483,9 +588,20 @@ Mensagem:`;
     
     if (!text) {
       logger.warn("AI_EMPTY_RESPONSE", "IA retornou texto vazio", { traceId, prompt });
+      return "";
     }
     
-    return text;
+    // 6. TEMPLATE FIXO / REPLACE
+    let finalMsg = text;
+    if (nameData.firstName) {
+      finalMsg = finalMsg.replace(/{{nome}}/g, nameData.fullName || "");
+      finalMsg = finalMsg.replace(/{{primeiro_nome}}/g, nameData.firstName || "");
+    } else {
+      finalMsg = finalMsg.replace(/,?\s?{{nome}}/g, "");
+      finalMsg = finalMsg.replace(/,?\s?{{primeiro_nome}}/g, "");
+    }
+    
+    return finalMsg;
   } catch (e: any) {
     logger.error("AI_GENERATION_ERROR", e.message, { traceId, error: e, prompt });
     return "";
