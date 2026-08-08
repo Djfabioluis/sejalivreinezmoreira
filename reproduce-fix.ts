@@ -20,6 +20,28 @@ async function test() {
     await supabaseAdmin.from("crm_followups").delete().eq("phone", normalizedPhone);
     console.log("🧹 Histórico de followups limpo.");
 
+    // GARANTIR QUE A CONVERSA EXISTE NA INSTÂNCIA CORRETA ANTES DE DISPARAR
+    const { data: conv } = await supabaseAdmin
+      .from("wa_conversas")
+      .select("phone")
+      .eq("phone", conversationKey)
+      .maybeSingle();
+
+    if (!conv) {
+      console.log("🆕 Criando conversa na instância correta...");
+      await supabaseAdmin.from("wa_conversas").insert({
+        phone: conversationKey,
+        phone_number: normalizedPhone,
+        instance: instance,
+        contact_name: "Cliente Simulação Teste",
+        attendance_mode: "AI",
+        status: "novo",
+        customer_context: { instance: instance }
+      } as any);
+    } else {
+      console.log("✅ Conversa já existe na instância correta.");
+    }
+
     const { updateCustomerPipeline } = await import("./src/lib/crm.server");
     await updateCustomerPipeline({
       phone: normalizedPhone,
