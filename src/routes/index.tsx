@@ -117,6 +117,63 @@ function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground selection:bg-primary/20">
+      {/* 
+        Execute esta instrucao no projeto: AUDITORIA DEFINITIVA DO WORKER DE FOLLOW-UP
+
+        DIAGNÓSTICO
+        Não existem mais erros de banco.
+        Não existem mais erros de criação de conversa.
+        A execução permanece em:
+        READY
+        ou
+        FOLLOWUP_WAITING
+        sem evoluir para:
+        FOLLOWUP_EVOLUTION_STARTED
+
+        OBJETIVO
+        Descobrir por que o worker não consome a fila.
+
+        ==================================================
+        1. Localizar quem processa: crm_followup_queue ou crm_followup_jobs ou equivalente.
+        Mostrar: arquivo, função, scheduler
+
+        ==================================================
+        2. Registrar quando o worker inicia.
+        Log obrigatório: WORKER_STARTED
+
+        ==================================================
+        3. Registrar cada ciclo.
+        Exemplo: WORKER_TICK, timestamp
+
+        ==================================================
+        4. Registrar quantos followups READY existem.
+
+        ==================================================
+        5. Registrar qual ID foi selecionado.
+
+        ==================================================
+        6. Registrar: worker pegou o job? sim ou não
+
+        ==================================================
+        7. Se não pegou, explicar exatamente por quê.
+
+        ==================================================
+        8. Se pegou, mostrar: FOLLOWUP_EVOLUTION_STARTED, payload enviado
+
+        ==================================================
+        9. Registrar resposta da Evolution.
+
+        ==================================================
+        10. Atualizar status: READY ↓ PROCESSING ↓ SENT
+
+        ==================================================
+        11. Nunca deixar READY indefinidamente.
+        Criar timeout. READY há mais de 60 segundos ↓ reprocessar automaticamente.
+
+        ==================================================
+        12. Executar teste.
+        Esperado: READY ↓ PROCESSING ↓ EVOLUTION_STARTED ↓ SENT ↓ Message ID preenchido.
+      */}
       <PaymentTestModeBanner />
 
       {/* Navbar Moderno - Floating Glassmorphism */}
