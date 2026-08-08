@@ -734,6 +734,18 @@ function ServicosCard({ salonId }: { salonId: string }) {
   });
   const services = asArray(q.data);
 
+  const handleRefresh = async () => {
+    console.log("[SERVICES_REFRESH_STARTED]", { salonId });
+    try {
+      await q.refetch();
+      toast.success("Serviços atualizados com sucesso.");
+      console.log("[SERVICES_REFRESH_SUCCESS]", { salonId });
+    } catch (err) {
+      console.error("[SERVICES_REFRESH_FAILED]", err);
+      toast.error("Erro ao atualizar serviços (BEMP_INVALID_RESPONSE)");
+    }
+  };
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
@@ -743,8 +755,14 @@ function ServicosCard({ salonId }: { salonId: string }) {
           </CardTitle>
           <CardDescription>Valores e duração conforme a Bemp</CardDescription>
         </div>
-        <Button variant="ghost" size="sm" onClick={() => q.refetch()}>
-          <RefreshCw className="h-4 w-4" />
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={handleRefresh}
+          disabled={q.isFetching}
+          className="text-pink-500 hover:text-pink-600 hover:bg-pink-50"
+        >
+          <RefreshCw className={`h-4 w-4 ${q.isFetching ? "animate-spin" : ""}`} />
         </Button>
       </CardHeader>
       <CardContent>
