@@ -67,7 +67,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { HUMAN_TAKEOVER_TIMEOUT_MINUTES } = await import("../config");
 
-    // BUSCA CONVERSA PARA CHECAR ATTENDANCE MODE (usando any para bypassar erros de tipagem até o gerador rodar)
+    // BUSCA CONVERSA PARA CHECAR ATTENDANCE MODE (usando as any para evitar erro de tipo na coluna nova até o types.ts atualizar)
     const { data: conversation } = await supabaseAdmin
       .from("wa_conversas" as any)
       .select("id, attendance_mode, human_takeover_at")
@@ -95,7 +95,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       // Expirou -> volta para AI
       await supabaseAdmin
         .from("wa_conversas" as any)
-        .update({ attendance_mode: "AI", human_takeover_at: null })
+        .update({ attendance_mode: "AI", human_takeover_at: null } as any)
         .eq("id", conv.id);
 
       await logEvent({ 

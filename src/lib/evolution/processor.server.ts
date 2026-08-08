@@ -72,7 +72,7 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
 
         // fromMe=true mas NÃO foi a IA -> HUMANO assumiu
         const phone = normalizePhone(msg.remoteJid);
-        const { updateConversationMetadata } = await import("../conversation.server");
+        const { updateConversationMetadata } = await import("./conversation.server");
         const conversationKey = buildConversationKey(msg.instance, msg.remoteJid);
 
         await supabaseAdmin
