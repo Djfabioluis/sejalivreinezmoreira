@@ -86,7 +86,10 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       const diffMs = now - takeoverAt;
       const minutesSinceTakeover = diffMs / 60000;
 
-      if (takeoverAt > 0 && diffMs >= 0 && minutesSinceTakeover < HUMAN_TAKEOVER_TIMEOUT_MINUTES) {
+      console.log(`[takeover-debug] ${contactPhone}: mode=HUMAN, diffMs=${diffMs}, minsElapsed=${minutesSinceTakeover.toFixed(2)}`);
+
+      if (takeoverAt > 0 && minutesSinceTakeover < HUMAN_TAKEOVER_TIMEOUT_MINUTES) {
+
         await logEvent({ 
           instance, 
           messageId, 
