@@ -417,7 +417,7 @@ export const simulateRealCustomer = createServerFn({ method: "POST" })
     // 2. Ensure wa_conversas entry and wait for it
     const { data: conv } = await supabaseAdmin
       .from("wa_conversas")
-      .select("phone, attendance_mode")
+      .select("phone, attendance_mode, instance")
       .eq("phone", conversationKey)
       .maybeSingle();
 
@@ -440,10 +440,10 @@ export const simulateRealCustomer = createServerFn({ method: "POST" })
         .single();
         
       if (!verifiedConv) throw new Error("Falha ao criar conversa para simulação");
-    } else if (conv.attendance_mode !== 'AI') {
+    } else if (conv.attendance_mode !== 'AI' || conv.instance !== instance) {
       await supabaseAdmin
         .from("wa_conversas")
-        .update({ attendance_mode: 'AI' } as any)
+        .update({ attendance_mode: 'AI', instance: instance } as any)
         .eq("phone", conversationKey);
     }
 
