@@ -217,7 +217,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     // 3. Busca ou Criação de Conversa
     await updateFollowupStep(followup.id, "FOLLOWUP_CONVERSATION_LOOKUP", traceId);
     
-    const instance = followup.metadata?.instance || "agente-01";
+    const instance = followup.metadata?.instance || "agente-5541999102791";
     
     await updateFollowupStep(followup.id, "FOLLOWUP_CONVERSATION_LOOKUP", traceId);
     
