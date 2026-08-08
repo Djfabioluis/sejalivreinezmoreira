@@ -136,7 +136,13 @@ export async function replyToUser(params: {
       messageId: params.messageId,
       event: "MESSAGE_SENT", 
       status: "success",
-      payload: { traceId, sentMessageId }
+      payload: { 
+        traceId, 
+        sentMessageId,
+        outboundInstance: params.instance,
+        outboundDestination: params.phone,
+        evolutionResponse: sent.data
+      }
     });
 
     // 10. PERSISTÊNCIA DA RESPOSTA (Atomicamente via RPC)

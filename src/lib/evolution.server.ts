@@ -235,6 +235,7 @@ export async function sendEvolutionText(
       traceId,
       timestamp: new Date().toISOString(),
       to: number,
+      endpoint: `/message/sendText/${instance}`,
       textSnippet: text.slice(0, 50) + "..."
     }
   });

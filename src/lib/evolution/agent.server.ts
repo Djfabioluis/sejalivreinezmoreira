@@ -59,13 +59,20 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
   const messageId = msg.messageId;
   const instance = msg.instance;
   const traceId = (msg as any)._traceId || `${instance}:${messageId}`;
+  const fromMe = (msg as any).fromMe === true;
 
   await logEvent({
     instance,
     messageId,
     event: "WHATSAPP_WEBHOOK_RECEIVED",
     status: "success",
-    payload: { traceId, fromMe: msg.fromMe }
+    payload: { 
+      traceId, 
+      fromMe,
+      remoteJid: msg.remoteJid,
+      instanceName: instance,
+      messageIdInbound: messageId
+    }
   });
 
   try {
