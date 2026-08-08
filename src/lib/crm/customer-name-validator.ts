@@ -44,9 +44,10 @@ export function isValidCustomerName(name: string | null | undefined): boolean {
   }
   
   // 5. Placeholder check (e.g. {{nome}}, [NOME])
-  if (/^\{\{.*\}\}$/.test(cleanName) || /^\[.*\]$/.stringify(cleanName) === cleanName) {
+  if (/^\{\{.*\}\}$/.test(cleanName) || /^\[.*\]$/.test(cleanName)) {
     return false;
   }
+
   
   // 6. Character validity (should have at least some letters)
   if (!/[a-zA-ZáàâãéèêíïóôõöúçñÁÀÂÃÉÈÊÍÏÓÔÕÖÚÇÑ]/.test(cleanName)) {
