@@ -576,8 +576,8 @@ async function resolveFollowupCustomerName(followup: any, conversation: any, tra
   return { fullName, firstName, source };
 }
 
-async function generateAiFollowup(followup: any, conversation: any, traceId: string): Promise<string> {
-  const nameData = await resolveFollowupCustomerName(followup, conversation, traceId);
+async function generateAiFollowup(followup: any, conversation: any, traceId: string, preResolvedName?: any): Promise<string> {
+  const nameData = preResolvedName || await resolveFollowupCustomerName(followup, conversation, traceId);
   
   const stage = followup.stage || followup.metadata?.stage || 'Geral';
   
@@ -593,6 +593,16 @@ Contexto: Este é um contato de follow-up do tipo "${stage}".
 Objetivo: Ser gentil, profissional e incentivar o retorno ao salão.
 Não use emojis em excesso. Não use linguajar formal demais.
 Mensagem:`;
+
+  logger.info("FOLLOWUP_PROMPT_CONTEXT", `Prompt enviado para a Julia (Job: ${followup.id})`, {
+    traceId,
+    job_id: followup.id,
+    customerFirstName: nameData.firstName,
+    customerName: nameData.fullName,
+    source: nameData.source,
+    prompt,
+    timestamp: new Date().toISOString()
+  });
 
   try {
     const apiKey = await getAiKey();
