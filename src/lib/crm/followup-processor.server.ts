@@ -294,8 +294,14 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       message_template: messageText,
       message_id: messageId,
       updated_at: completionTime,
+      attempts: (currentFollowup.attempts || 0) + 1,
+      sent_at: completionTime,
+      completed_at: completionTime,
+      message_template: messageText,
+      message_id: messageId,
+      updated_at: completionTime,
       metadata: {
-        ...(followup.metadata || {}),
+        ...(typeof currentFollowup.metadata === 'object' ? currentFollowup.metadata : {}),
         ...logContext,
         conversationId: conversation.id,
         evolution_response: evolutionData,
@@ -306,7 +312,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     const { data: updateData, error: updateError } = await supabaseAdmin
       .from("crm_followups")
       .update(updatePayload as any)
-      .eq("id", followup.id)
+      .eq("id", currentFollowup.id)
       .select('*');
 
     if (updateError || !updateData?.length) {
