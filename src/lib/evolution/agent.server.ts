@@ -82,14 +82,12 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       const takeoverAt = takeoverAtStr ? new Date(takeoverAtStr).getTime() : 0;
       const now = Date.now();
       
-      // Cálculo resiliente: se takeoverAt for futuro em relação ao server (clock skew), tratamos como "acabou de acontecer"
       const diffMs = now - takeoverAt;
       const minutesSinceTakeover = diffMs / 60000;
 
-      console.log(`[takeover-debug] ${contactPhone}: mode=HUMAN, diffMs=${diffMs}, minsElapsed=${minutesSinceTakeover.toFixed(2)}`);
+      console.log(`[takeover-debug] ${contactPhone}: mode=HUMAN, takeoverAt=${takeoverAtStr}, serverNow=${new Date(now).toISOString()}, minsElapsed=${minutesSinceTakeover.toFixed(2)}`);
 
       if (takeoverAt > 0 && minutesSinceTakeover < HUMAN_TAKEOVER_TIMEOUT_MINUTES) {
-
         await logEvent({ 
           instance, 
           messageId, 
@@ -100,14 +98,8 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
         return;
       }
 
-      // Se passou o tempo OU se o clock skew é negativo (takeoverAt é no futuro) OU data inválida
-      // Apenas reativamos se diffMs for positivo (passou o tempo) ou se for muito negativo (erro de fuso)
-      if (takeoverAt > 0 && diffMs < 0 && Math.abs(diffMs) < 60000) {
-         // Clock skew pequeno (menos de 1 min no futuro), ignoramos e mantemos HUMAN
-         return;
-      }
-
-      // Reativa AI
+      // Reativa AI se passou o tempo ou se não há timestamp válido
+      console.log(`[takeover-debug] Reactivating AI for ${contactPhone}`);
       await supabaseAdmin
         .from("wa_conversas" as any)
         .update({ attendance_mode: "AI", human_takeover_at: null } as any)
