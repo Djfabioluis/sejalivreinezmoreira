@@ -24,20 +24,26 @@ export async function processPendingFollowups() {
 
   try {
     // NÃO DEIXAR READY INFINITO (Reset de jobs travados em PROCESSING)
-    const sixtySecondsAgo = new Date(now.getTime() - 60 * 1000).toISOString();
-    await supabaseAdmin
+    // Limite de 5 minutos para considerar travado
+    const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000).toISOString();
+    const { count: resetCount } = await supabaseAdmin
       .from("crm_followups")
       .update({ 
         status: "READY", 
         updated_at: nowIso,
         metadata: { 
+          ...(typeof now === 'object' ? {} : {}), // Placeholder to maintain metadata structure
           recovery: "stuck_processing_timeout", 
           reset_at: nowIso,
-          reason: "Processing stuck for more than 60s" 
+          reason: "Processing stuck for more than 5m" 
         }
       } as any)
       .in("status", ["PROCESSING", "EM_PROCESSAMENTO"])
-      .lt("updated_at", sixtySecondsAgo);
+      .lt("updated_at", fiveMinutesAgo);
+
+    if (resetCount && resetCount > 0) {
+      logger.info("WORKER_AUTO_RECOVERY", `${resetCount} jobs recuperados de PROCESSING para READY`, { traceId });
+    }
 
     const { data: followups, error: fetchError } = await (supabaseAdmin
       .from("crm_followups" as any) as any)
@@ -168,7 +174,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
 
     // 4. Busca ou Criação de Conversa (Priorizando Telefone se customer_id for null)
     const followupMetadata = typeof currentFollowup.metadata === 'object' ? (currentFollowup.metadata as any) : {};
-    const instance = followupMetadata?.instance || "agente-5541998430354";
+    const instance = followupMetadata?.instance || "julia-main";
     let conversation: any;
     
     try {

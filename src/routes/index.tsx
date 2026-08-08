@@ -1,28 +1,41 @@
-{/* Execute esta instrucao no projeto: # Prompt para o Lovable — Verificar/reconectar a instância Evolution API (erro 400 no envio)
+{/* Execute esta instrucao no projeto: # Prompt para o Lovable — Jobs presos em READY + validação de conectividade real
 
 ## Contexto
 
-O último teste de follow-up passou por toda a lógica de negócio (busca de conversa por telefone, geração de mensagem pela IA), mas falhou no envio final: a Evolution API retornou **HTTP 400**, indicando que o número de teste não foi reconhecido pela instância — tanto na variante com quanto sem o 9º dígito. Isso aponta para um problema de conectividade/configuração da instância, não mais de lógica de código.
+Você (Lovable) já identificou, na própria auditoria da fila de follow-up, que alguns registros permanecem no status `READY` sem progredir para `PROCESSING`/`SENT`. Preciso que essa investigação seja concluída e, na sequência, validado o envio real (o teste anterior falhou com HTTP 400 da Evolution API, mas usando um número de teste — ainda não confirmamos se a instância está de fato conectada nem se um número real recebe a mensagem).
 
-## Tarefa
+## Parte 1 — Por que jobs ficam presos em `READY`
 
-1. Use a função já existente `getConnectionState(instance)` em `src/lib/evolution.server.ts` para checar o status atual da instância usada em produção (a mesma configurada em `wa_conversas.instance` para as conversas reais, ou a padrão configurada na tela `/configuracao-whatsapp`).
-   - Se possível, exponha esse resultado no mesmo painel de auditoria (Job Audit & Correlation) ou em uma tela de diagnóstico simples, mostrando: `aguardando_qr`, `conectado` ou `desconectado`.
-2. Se o status vier `desconectado` ou `aguardando_qr`:
-   - Gere um novo QR Code (`getQrCode(instance)`) e mostre na tela `/configuracao-whatsapp` para eu escanear e reconectar o WhatsApp.
-   - Depois de reconectado, confirme rodando `getConnectionState` de novo até aparecer `conectado`.
-3. Se o status vier `conectado` mas o erro 400 persistir, investigue duas outras causas possíveis:
-   - **Número de teste inválido**: confirme que o número usado no teste (`...2791`) é um número real com WhatsApp ativo. Se for um número fictício ou desativado, isso por si só gera 400 na Evolution API — não é bug.
-   - **Formato esperado pela Evolution API**: verifique no corpo da resposta de erro (log completo do 400, não só o status) se a mensagem indica algo além de "número não encontrado" — por exemplo, formato de payload incorreto, JID mal formado, etc. Cole aqui o corpo completo do erro se aparecer algo assim.
-4. Depois de confirmar que a instância está `conectada` e usando um número de teste válido, rode novamente o mesmo teste de follow-up com dados realistas (mesmo formato do prompt anterior: `reason`/`stage` não sintéticos, meu número real de WhatsApp).
-5. Confirme no painel de auditoria que agora:
-   - `STATUS` final é `SENT`.
-   - `MESSAGE ID` vem preenchido com um ID real retornado pela Evolution API (não mais erro 400).
-6. Me confirme o horário do envio para eu checar se a mensagem chegou de fato no meu WhatsApp.
+1. No worker `Julia Engine v4` (`src/lib/crm/followup-processor.server.ts`, acionado via cron em `/api/public/crm-cron`), rastreie o caminho exato entre a transição `READY → PROCESSING`:
+   - Existe algum lock/trava (ex.: `SELECT ... FOR UPDATE SKIP LOCKED`, ou um campo tipo `locked_by`/`locked_at`) que pode ficar "preso" se um processamento anterior travou no meio (crash, timeout) sem liberar o lock?
+   - Existe algum limite de concorrência (ex.: `LIMIT N` por execução) que pode estar sistematicamente pulando os mesmos registros mais antigos por causa de ordenação incorreta (ex.: sempre pegando os mais recentes em vez dos mais antigos por `scheduled_at`)?
+   - O cron está rodando com frequência suficiente para não deixar a fila acumular? Confirme via `SELECT * FROM cron.job_run_details ORDER BY start_time DESC LIMIT 30;` se há execuções falhando silenciosamente (status diferente de `succeeded`) ou se o intervalo configurado é grande demais.
+2. Rode uma consulta real para quantificar o problema:
+   ```sql
+   SELECT status, count(*), min(scheduled_at), max(scheduled_at)
+   FROM crm_followups
+   WHERE reason NOT IN ('MANUAL_TEST') AND stage NOT IN ('TEST_EXECUTION')
+   GROUP BY status;
+   ```
+   Traga esse resultado para eu ver quantos follow-ups **reais** (não testes) estão de fato parados, há quanto tempo, e desde quando isso acontece.
+3. Se encontrar jobs travados em `READY` ou `PROCESSING` há mais tempo do que o esperado (ex.: mais de 1 hora), identifique a causa raiz (lock não liberado, exceção não tratada, timeout sem rollback de status) e corrija — incluindo uma rotina de "auto-recuperação" que libere jobs travados em `PROCESSING` há mais de X minutos, devolvendo-os para `READY` para nova tentativa (com incremento em `attempts` e um limite máximo de tentativas antes de marcar como `FALHA` definitiva).
 
-## Observação para o futuro
+## Parte 2 — Validar conectividade real da instância Evolution + envio de verdade
 
-Vale adicionar uma verificação de `getConnectionState` **antes** de tentar enviar qualquer follow-up (não só em teste manual) — se a instância estiver desconectada, o job deveria falhar com um código de erro claro tipo `EVOLUTION_DISCONNECTED` (e talvez pausar novas tentativas de follow-up até a reconexão), em vez de um erro 400 genérico difícil de diagnosticar depois.
+1. Use `getConnectionState(instance)` (`src/lib/evolution.server.ts`) para checar o status da instância usada em produção. Me mostre o resultado (`conectado`, `desconectado` ou `aguardando_qr`).
+2. Se não estiver `conectado`, gere um novo QR Code (`getQrCode(instance)`) na tela `/configuracao-whatsapp` para eu reconectar.
+3. Depois de confirmar `conectado`, crie um novo job de follow-up de teste **realista** (sem `MANUAL_TEST`/`TEST_EXECUTION`), com o meu número real de WhatsApp (que eu sei que está ativo), e deixe ele ser processado pelo fluxo normal (sem bypass de teste).
+4. Confirme no painel de auditoria:
+   - `STATUS` final = `SENT`.
+   - `MESSAGE ID` preenchido com um ID real da Evolution API (sem erro 400).
+5. Me avise o horário exato para eu conferir o recebimento da mensagem no WhatsApp.
+
+## Entregável esperado
+
+Ao final, quero um resumo curto com:
+- Causa raiz confirmada de por que jobs reais ficavam presos em `READY` (se houver).
+- Correção aplicada.
+- Resultado do teste de envio real (status da instância + resultado do envio).
 */}
 
 
