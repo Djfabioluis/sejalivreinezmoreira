@@ -23,7 +23,7 @@ O último teste de follow-up passou por toda a lógica de negócio (busca de con
 ## Observação para o futuro
 
 Vale adicionar uma verificação de `getConnectionState` **antes** de tentar enviar qualquer follow-up (não só em teste manual) — se a instância estiver desconectada, o job deveria falhar com um código de erro claro tipo `EVOLUTION_DISCONNECTED` (e talvez pausar novas tentativas de follow-up até a reconexão), em vez de um erro 400 genérico difícil de diagnosticar depois.
-*/},
+*/}
 
 
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";

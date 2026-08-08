@@ -54,6 +54,15 @@ function ConfiguracaoWhatsAppPage() {
   const testConn = useServerFn(testWhatsAppConnection);
   const fetchHealth = useServerFn(getWhatsAppHealth);
   const runHealth = useServerFn(refreshWhatsAppHealth);
+  const fetchEvolution = useServerFn(getEvolutionStatus);
+
+  const [evoStatus, setEvoStatus] = useState<{
+    instance: string;
+    state: string;
+    qrcode: string | null;
+    apiUrl: string;
+  } | null>(null);
+  const [evoLoading, setEvoLoading] = useState(false);
 
   const [accessToken, setAccessToken] = useState("");
   const [phoneNumberId, setPhoneNumberId] = useState("");
@@ -134,6 +143,23 @@ function ConfiguracaoWhatsAppPage() {
     }
   }
 
+  async function onRefreshEvolution() {
+    setEvoLoading(true);
+    try {
+      const status = await fetchEvolution();
+      setEvoStatus(status);
+      toast.success("Status da Evolution atualizado");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Erro ao carregar Evolution");
+    } finally {
+      setEvoLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    onRefreshEvolution();
+  }, []);
+
   async function onSave() {
     if (!accessToken.trim() || !phoneNumberId.trim() || !appSecret.trim() || !verifyToken.trim()) {
       toast.error("Preencha todos os campos");
@@ -212,6 +238,44 @@ function ConfiguracaoWhatsAppPage() {
 
       <main className="mx-auto max-w-3xl px-4 py-6 space-y-4">
         <HealthCard health={health} loading={healthLoading} onRefresh={onRefreshHealth} />
+
+        <Card>
+          <CardHeader className="pb-2 flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-base">Instância Evolution (WhatsApp Web)</CardTitle>
+              <CardDescription>Status da conexão via QR Code.</CardDescription>
+            </div>
+            <Button variant="ghost" size="icon" onClick={onRefreshEvolution} disabled={evoLoading}>
+              <RefreshCw className={`h-4 w-4 ${evoLoading ? "animate-spin" : ""}`} />
+            </Button>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {evoStatus ? (
+              <>
+                <div className="flex items-center gap-2">
+                  <div className={`h-3 w-3 rounded-full ${evoStatus.state === 'conectado' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                  <span className="text-sm font-medium capitalize">{evoStatus.state.replace('_', ' ')}</span>
+                  <span className="text-xs text-muted-foreground ml-auto font-mono">{evoStatus.instance}</span>
+                </div>
+                
+                {evoStatus.state !== 'conectado' && evoStatus.qrcode && (
+                  <div className="flex flex-col items-center gap-3 p-4 bg-muted/30 rounded-lg">
+                    <p className="text-xs text-center text-muted-foreground">Escaneie o QR Code no WhatsApp para conectar:</p>
+                    <img src={evoStatus.qrcode} alt="WhatsApp QR Code" className="w-48 h-48 border rounded shadow-sm" />
+                  </div>
+                )}
+                
+                <div className="text-[10px] text-muted-foreground font-mono break-all opacity-50">
+                  API: {evoStatus.apiUrl}
+                </div>
+              </>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+                <Loader2 className="h-4 w-4 animate-spin" /> Carregando status da Evolution...
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
 
         <Card>
