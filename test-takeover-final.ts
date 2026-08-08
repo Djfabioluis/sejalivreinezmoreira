@@ -7,12 +7,21 @@ async function test() {
 
   console.log("1. Preparando conversa expirada...");
   const expiredDate = new Date(Date.now() - 20 * 60 * 1000).toISOString();
+  
+  // Primeiro garantimos que a conversa existe
   await supabaseAdmin.from("wa_conversas").upsert({ 
     phone, 
     instance,
+    attendance_mode: "AI"
+  }, { onConflict: 'phone' });
+
+  // Agora forçamos o estado HUMAN
+  const { error } = await supabaseAdmin.from("wa_conversas").update({ 
     attendance_mode: "HUMAN", 
     human_takeover_at: expiredDate 
-  }, { onConflict: 'phone' });
+  } as any).eq("phone", phone);
+
+  if (error) console.error("Erro no setup:", error);
 
   console.log("2. Chamando runAgentFlow DIRETAMENTE...");
   await runAgentFlow({
