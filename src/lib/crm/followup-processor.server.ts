@@ -211,11 +211,11 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     }
 
     // 5. Resolução de Nome e Geração de Mensagem
-    const nameData = await resolveFollowupCustomerName(followup, conversation, traceId);
+    const nameData = await resolveFollowupCustomerName(currentFollowup, conversation, traceId);
     
-    let messageText = followup.message_template;
+    let messageText = currentFollowup.message_template;
     if (!messageText) {
-       messageText = await generateAiFollowup(followup, nameData);
+       messageText = await generateAiFollowup(currentFollowup, nameData);
     } else {
       if (nameData.firstName) {
         messageText = messageText.replace(/{{nome}}/g, nameData.fullName || "");
