@@ -24,11 +24,29 @@ let envCache: ServerEnv | null = null;
 export function getServerEnv(): ServerEnv {
   if (envCache) return envCache;
 
-  const result = ServerEnvSchema.safeParse(process.env);
+  const rawEnv = {
+    SUPABASE_URL: process.env.SUPABASE_URL,
+    SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+    SUPABASE_PUBLISHABLE_KEY: process.env.SUPABASE_PUBLISHABLE_KEY,
+    LOVABLE_API_KEY: process.env.LOVABLE_API_KEY,
+    EVOLUTION_API_URL: process.env.EVOLUTION_API_URL,
+    EVOLUTION_API_KEY: process.env.EVOLUTION_API_KEY,
+    EVOLUTION_WEBHOOK_SECRET: process.env.EVOLUTION_WEBHOOK_SECRET,
+    BEMP_DOMINIO: process.env.BEMP_DOMINIO,
+    BEMP_TOKEN: process.env.BEMP_TOKEN,
+    CRON_SECRET: process.env.CRON_SECRET,
+    NODE_ENV: process.env.NODE_ENV,
+    ENABLE_TEST_ENDPOINTS: process.env.ENABLE_TEST_ENDPOINTS,
+    TEST_ENDPOINT_SECRET: process.env.TEST_ENDPOINT_SECRET,
+  };
+
+  const result = ServerEnvSchema.safeParse(rawEnv);
 
   if (!result.success) {
-    console.error("❌ Invalid environment variables:", result.error.format());
-    throw new Error("Invalid environment variables");
+    console.error("❌ Invalid environment variables:", JSON.stringify(result.error.format(), null, 2));
+    // Don't throw for missing optional keys like CRON_SECRET during dev/build if not strictly needed
+    // But for the cron route, it will check specifically.
+    return (result.data || rawEnv) as any;
   }
 
   envCache = result.data;

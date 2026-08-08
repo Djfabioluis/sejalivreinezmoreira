@@ -40,8 +40,7 @@ export const Route = createFileRoute('/api/public/crm-cron')({
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const env = getServerEnv();
-        const cronSecret = env.CRON_SECRET;
+        const cronSecret = process.env.CRON_SECRET;
         
         if (!cronSecret) {
           logger.critical("CRON_SECURITY_FAILURE", "CRON_SECRET not configured");
