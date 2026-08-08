@@ -105,7 +105,9 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       .single();
 
     if (lockError || !lockedJob) {
-      logger.warn("WORKER_JOB_GRAB_FAILED", "Worker não conseguiu travar o job", { ...logContext, reason: "Race condition or status change" });
+      // Se não conseguimos travar, mas o job já existe, podemos tentar processar o objeto atual 
+      // ou apenas registrar o log. Para fins de robustez, mantemos o retorno aqui.
+      logger.warn("WORKER_JOB_GRAB_FAILED", "Worker não conseguiu travar o job", { ...logContext, reason: lockError?.message || "Job not found or status mismatch" });
       return;
     }
 
