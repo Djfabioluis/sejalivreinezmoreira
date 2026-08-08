@@ -9,9 +9,10 @@ async function testSimpleGateway() {
   const provider = createLovableAiGatewayProvider(key);
   
   const models = [
+    "google/gemini-2.0-flash",
     "google/gemini-1.5-flash",
     "openai/gpt-4o-mini",
-    "anthropic/claude-3-5-haiku-latest"
+    "anthropic/claude-3-5-haiku-20241022"
   ];
 
   for (const modelId of models) {
@@ -19,7 +20,7 @@ async function testSimpleGateway() {
       console.log(`Testando modelo: ${modelId}...`);
       const result = await generateText({
         model: provider(modelId),
-        prompt: "Diga OK",
+        messages: [{ role: "user", content: "Diga OK" }],
       });
       console.log(`Resultado ${modelId}:`, result.text);
       if (result.text) break;
