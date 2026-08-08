@@ -78,6 +78,7 @@ function CRMPage() {
   const [editingRule, setEditingRule] = useState<any>(null);
   const [selectedExecution, setSelectedExecution] = useState<any>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const formatPhone = (phone: string) => {
     if (!phone) return "";
@@ -113,6 +114,19 @@ function CRMPage() {
     } catch (err: any) {
       toast.dismiss();
       toast.error(err.message);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await queryClient.invalidateQueries();
+      toast.success("Dados atualizados com sucesso");
+    } catch (error) {
+      console.error("Erro ao atualizar dados:", error);
+      toast.error("Erro ao atualizar dados");
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -169,10 +183,12 @@ function CRMPage() {
           </Button>
           <Button 
             variant="outline" 
-            onClick={() => queryClient.invalidateQueries()}
+            onClick={handleRefresh}
+            disabled={isRefreshing}
             className="flex-1 md:flex-none gap-2"
           >
-            <Loader2 className="h-4 w-4" /> Atualizar
+            {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Loader2 className="h-4 w-4" />}
+            {isRefreshing ? "Atualizando..." : "Atualizar"}
           </Button>
         </div>
       </div>
