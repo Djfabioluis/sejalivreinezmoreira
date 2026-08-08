@@ -178,37 +178,39 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     let conversation: any;
     
     try {
-      // Tentar encontrar conversa existente por phone_number (mais confiável)
+      // 1. Tentar encontrar conversa existente por phone_number (source of truth)
       const existingConv = await ConversationService.findByPhone(instance, normalized.full);
       
       if (existingConv) {
         conversation = existingConv;
-      } else {
-        // Se não encontrar por telefone, criar nova
-        conversation = await ConversationService.findOrCreate({
-          instance,
-          phone_number: normalized.full,
-          contact_name: (typeof currentFollowup.metadata === 'object' ? (currentFollowup.metadata as any)?.contact_name : null) || 'Cliente',
-          metadata: logContext
+        logger.info("FOLLOWUP_CONVERSATION_RESOLVED", "Conversa existente encontrada", {
+          ...logContext,
+          conversation_id: conversation.id || conversation.phone,
+          found_by: "phone_lookup"
         });
+      } else {
+        // Se não houver conversa interna correspondente, manter null e registrar
+        logger.info("FOLLOWUP_CONVERSATION_NOT_FOUND", "Nenhuma conversa existente para este telefone. O envio continuará sem vínculo de conversa.", {
+          ...logContext,
+          phone: normalized.full
+        });
+        
+        // Mock de objeto de conversa mínima para o pipeline de envio não quebrar
+        // mas sem persistir no banco se não existir
+        conversation = {
+          phone_number: normalized.full,
+          instance: instance,
+          id: null,
+          contact_name: null,
+          attendance_mode: 'AI'
+        };
       }
-      
-      logger.info("FOLLOWUP_CONVERSATION_RESOLVED", "Conversa resolvida", {
-        ...logContext,
-        conversation_id: conversation.id,
-        found_by: existingConv ? "phone_lookup" : "creation"
-      });
     } catch (convErr: any) {
-      const errorInfo = {
-        stage: "CONVERSATION_LOOKUP",
-        message: convErr.message,
-        name: convErr.name,
-        stack: convErr.stack,
-        timestamp: new Date().toISOString()
-      };
-      await blockFollowup(currentFollowup.id, "CONVERSATION_CREATION_FAILED", `Erro ao resolver conversa: ${convErr.message}`, traceId, { ...logContext, last_error: errorInfo });
-      return;
+      logger.error("FOLLOWUP_CONVERSATION_LOOKUP_ERROR", convErr.message, { ...logContext, error: convErr });
+      // Fallback para envio direto mesmo com erro na busca
+      conversation = { phone_number: normalized.full, instance, id: null, attendance_mode: 'AI' };
     }
+
 
     const ctx = (conversation.customer_context as any) || {};
     const attendanceMode = ctx.attendance_mode || (conversation as any).attendance_mode;
@@ -305,7 +307,9 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       metadata: {
         ...(typeof currentFollowup.metadata === 'object' ? currentFollowup.metadata : {}),
         ...logContext,
-        conversationId: conversation.id,
+        conversation_id: conversation.id || conversation.phone || null,
+        ...nameData.auditData,
+
         evolution_response: evolutionData,
         finished_at: completionTime
       }
@@ -370,15 +374,76 @@ async function blockFollowup(id: string, reason: string, detail: string, traceId
 }
 
 async function resolveFollowupCustomerName(followup: any, conversation: any, traceId: string) {
+  const { isValidCustomerName, formatCustomerName } = await import("./customer-name-validator");
+  const { normalizeBrazilianPhone } = await import("@/lib/phone");
+
+  let resolvedName: string | null = null;
+  let source: string | null = null;
+  
   const followupMetadata = typeof followup.metadata === 'object' ? (followup.metadata as any) : {};
-  const fullName = followupMetadata?.contact_name || conversation.contact_name || "Cliente";
-  const firstName = fullName !== "Cliente" ? fullName.split(' ')[0] : null;
-  return { fullName, firstName, source: "metadata" };
+  const phone = followup.phone;
+  const normalizedPhone = normalizeBrazilianPhone(phone)?.full;
+
+  // Hierarquia de busca
+  // 1. Cadastro principal do CRM (crm_customer_pipeline)
+  if (!resolvedName && phone) {
+    const { data } = await supabaseAdmin
+      .from("crm_customer_pipeline")
+      .select("customer_name")
+      .eq("phone", phone)
+      .maybeSingle();
+    
+    if (data?.customer_name && isValidCustomerName(data.customer_name)) {
+      resolvedName = data.customer_name;
+      source = "crm_customer_pipeline";
+    }
+  }
+
+  // 2. Conversa vinculada (pushName/contact_name)
+  if (!resolvedName && conversation?.contact_name && isValidCustomerName(conversation.contact_name)) {
+    resolvedName = conversation.contact_name;
+    source = "wa_conversas";
+  }
+
+  // 3. Metadata da conversa
+  if (!resolvedName && conversation?.customer_context?.pushName && isValidCustomerName(conversation.customer_context.pushName)) {
+    resolvedName = conversation.customer_context.pushName;
+    source = "wa_conversas_metadata";
+  }
+
+  // 4. Metadata do follow-up (legado/fallback)
+  if (!resolvedName && followupMetadata?.contact_name && isValidCustomerName(followupMetadata.contact_name)) {
+    resolvedName = followupMetadata.contact_name;
+    source = "followup_metadata";
+  }
+
+  const finalName = resolvedName ? formatCustomerName(resolvedName) : null;
+  const firstName = finalName ? finalName.split(' ')[0] : null;
+
+  const auditData = {
+    customer_name_resolved: finalName,
+    customer_name_source: source,
+    customer_name_valid: !!finalName,
+    customer_name_fallback_used: !finalName
+  };
+
+  if (finalName) {
+    logger.info("FOLLOWUP_NAME_RESOLVED", `Nome resolvido: ${finalName}`, { ...auditData, traceId });
+  } else {
+    logger.info("FOLLOWUP_NAME_NOT_FOUND", "Nenhum nome válido encontrado", { ...auditData, traceId });
+  }
+
+  return { 
+    fullName: finalName, 
+    firstName, 
+    source,
+    auditData
+  };
 }
 
 async function generateAiFollowup(followup: any, nameData: any) {
   const providerName = "google";
-  const modelName = "google/gemini-2.5-flash"; // Using the updated 2026 default
+  const modelName = "google/gemini-2.5-flash"; 
   const startTime = Date.now();
   
   try {
@@ -389,7 +454,19 @@ async function generateAiFollowup(followup: any, nameData: any) {
       throw new Error("LOVABLE_AI_GATEWAY_KEY not found in environment");
     }
 
-    const prompt = `Aja como Julia, uma assistente humanizada de um salão de beleza. O cliente se chama ${nameData.fullName} (primeiro nome: ${nameData.firstName || 'cliente'}). Gere uma mensagem curta, acolhedora e personalizada de follow-up para este cliente. Nunca use a palavra "Cliente" como se fosse o nome dele.`;
+    const namePrompt = nameData.fullName 
+      ? `O cliente se chama ${nameData.fullName} (primeiro nome: ${nameData.firstName}). Use saudação personalizada: "Olá, ${nameData.firstName}!".`
+      : `Não sabemos o nome do cliente. NUNCA invente um nome. Use uma saudação natural sem nome, como: "Olá! Tudo bem?" ou "Oi! Como vai?".`;
+
+    const prompt = `Aja como Julia, uma assistente humanizada de um salão de beleza. 
+${namePrompt}
+Gere uma mensagem curta, acolhedora e personalizada de follow-up para este cliente. 
+INSTRUÇÕES CRÍTICAS: 
+- Nunca use a palavra "Cliente", "Usuario", "Usuário" ou similares como nome.
+- Se o nome do cliente for null ou inválido, use exclusivamente saudação natural sem nome.
+- Mantenha o tom profissional e caloroso.`;
+
+
     
     // Fallback para fetch direto se o provider estiver dando 400
     console.log("Julia AI: Chamando Gateway Lovable (fetch direto)...");
