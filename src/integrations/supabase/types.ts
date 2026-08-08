@@ -134,6 +134,33 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_sent_messages: {
+        Row: {
+          created_at: string | null
+          id: string
+          instance: string
+          message_id: string
+          phone: string
+          sent_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          instance: string
+          message_id: string
+          phone: string
+          sent_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          instance?: string
+          message_id?: string
+          phone?: string
+          sent_at?: string | null
+        }
+        Relationships: []
+      }
       atendimentos_humanos: {
         Row: {
           canal: string
@@ -1525,8 +1552,10 @@ export type Database = {
       wa_conversas: {
         Row: {
           agent_id: string | null
+          attendance_mode: string | null
           contact_name: string | null
           customer_context: Json | null
+          human_takeover_at: string | null
           instance: string | null
           last_read_at: string | null
           messages: Json
@@ -1544,8 +1573,10 @@ export type Database = {
         }
         Insert: {
           agent_id?: string | null
+          attendance_mode?: string | null
           contact_name?: string | null
           customer_context?: Json | null
+          human_takeover_at?: string | null
           instance?: string | null
           last_read_at?: string | null
           messages?: Json
@@ -1563,8 +1594,10 @@ export type Database = {
         }
         Update: {
           agent_id?: string | null
+          attendance_mode?: string | null
           contact_name?: string | null
           customer_context?: Json | null
+          human_takeover_at?: string | null
           instance?: string | null
           last_read_at?: string | null
           messages?: Json
@@ -1633,6 +1666,7 @@ export type Database = {
         }
         Returns: Json
       }
+      cleanup_old_ai_messages: { Args: never; Returns: undefined }
       evo_claim_event: {
         Args: {
           p_instance: string
