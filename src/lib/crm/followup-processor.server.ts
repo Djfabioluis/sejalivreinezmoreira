@@ -395,7 +395,7 @@ async function generateAiFollowup(followup: any, nameData: any) {
         "X-Lovable-AIG-SDK": "fetch-raw"
       },
       body: JSON.stringify({
-        model: "google/gemini-1.5-flash",
+        model: "google/gemini-2.0-flash",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.7
       })
