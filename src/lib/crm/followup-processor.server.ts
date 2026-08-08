@@ -360,7 +360,7 @@ async function resolveFollowupCustomerName(followup: any, conversation: any, tra
 
 async function generateAiFollowup(followup: any, nameData: any) {
   const providerName = "google";
-  const modelName = "gemini-1.5-flash";
+  const modelName = "google:gemini-1.5-flash"; // Prefixo explícito para provedor genérico
   const startTime = Date.now();
   
   try {
@@ -371,9 +371,9 @@ async function generateAiFollowup(followup: any, nameData: any) {
       throw new Error("LOVABLE_AI_GATEWAY_KEY not found in environment");
     }
 
-    const { createOpenAI } = await import("@ai-sdk/openai");
-    const provider = createOpenAI({
-      apiKey,
+    const { createOpenAICompatible } = await import("@ai-sdk/openai-compatible");
+    const provider = createOpenAICompatible({
+      name: "lovable",
       baseURL: "https://ai.gateway.lovable.dev/v1",
       headers: {
         "Lovable-API-Key": apiKey,
