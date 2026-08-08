@@ -352,11 +352,14 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     const success = await sendEvolutionText(instance, conversation.phone_number, messageText);
 
     // 2. LOG DA EVOLUTION: Resposta HTTP e MessageId
-    // Nota: supomos que a Evolution API retorna um ID no sucesso
-    logger.info("FOLLOWUP_EVOLUTION_RESPONSE", `Evolution API response: ${success ? 'SUCCESS' : 'FAILED'}`, { 
+    logger.info("FOLLOWUP_MESSAGE_SENT", `Evolution API response: ${success ? 'SUCCESS' : 'FAILED'}`, { 
       traceId, 
       job_id: followup.id,
       success,
+      customerFirstName: nameData.firstName,
+      customerName: nameData.fullName,
+      source: nameData.source,
+      messageSent: messageText,
       timestamp: new Date().toISOString()
     });
 
