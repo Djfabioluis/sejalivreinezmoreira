@@ -1,4 +1,4 @@
-import { createFileRoute, Outlet, redirect, Link } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect, Link, useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { SidebarProvider, SidebarInset, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
@@ -47,6 +47,8 @@ export const Route = createFileRoute("/_authenticated")({
 
 function AuthenticatedLayout() {
   const { user } = Route.useRouteContext();
+  const navigate = useNavigate();
+
   
   return (
     <SidebarProvider>
@@ -123,7 +125,14 @@ function AuthenticatedLayout() {
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Button size="sm" className="hidden sm:flex gap-2 shadow-lg shadow-primary/20 font-medium">
+            <Button 
+              size="sm" 
+              className="hidden sm:flex gap-2 shadow-lg shadow-primary/20 font-medium"
+              onClick={() => {
+                console.log("[NEW_APPOINTMENT_CLICK] Navigating to /agendar");
+                navigate({ to: "/agendar" });
+              }}
+            >
               <Plus className="h-4 w-4" />
               Novo Agendamento
             </Button>
