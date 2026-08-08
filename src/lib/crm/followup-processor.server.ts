@@ -172,43 +172,35 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       return;
     }
 
-    // 4. Busca ou Criação de Conversa (Priorizando Telefone se customer_id for null)
+    // 4. Busca de Conversa Unificada
     const followupMetadata = typeof currentFollowup.metadata === 'object' ? (currentFollowup.metadata as any) : {};
-    const instance = followupMetadata?.instance || "agente-5541998430354";
-    let conversation: any;
+    const { resolveConversationForFollowup } = await import("./conversation-resolver.server");
+    const resolution = await resolveConversationForFollowup(currentFollowup.phone, followupMetadata, traceId);
     
-    try {
-      // 1. Tentar encontrar conversa existente por phone_number (source of truth)
-      const existingConv = await ConversationService.findByPhone(instance, normalized.full);
+    let conversation: any = resolution.conversation;
+    const instance = resolution.instance;
+
+    if (conversation) {
+      logger.info("FOLLOWUP_CONVERSATION_RESOLVED", "Conversa resolvida com sucesso", {
+        ...logContext,
+        conversation_id: conversation.id || conversation.phone,
+        found_by: resolution.foundBy
+      });
+    } else {
+      logger.info("FOLLOWUP_CONVERSATION_NOT_FOUND", "Nenhuma conversa existente para este telefone. O envio continuará sem vínculo de conversa.", {
+        ...logContext,
+        phone: resolution.normalizedPhone,
+        found_by: resolution.foundBy
+      });
       
-      if (existingConv) {
-        conversation = existingConv;
-        logger.info("FOLLOWUP_CONVERSATION_RESOLVED", "Conversa existente encontrada", {
-          ...logContext,
-          conversation_id: conversation.id || conversation.phone,
-          found_by: "phone_lookup"
-        });
-      } else {
-        // Se não houver conversa interna correspondente, manter null e registrar
-        logger.info("FOLLOWUP_CONVERSATION_NOT_FOUND", "Nenhuma conversa existente para este telefone. O envio continuará sem vínculo de conversa.", {
-          ...logContext,
-          phone: normalized.full
-        });
-        
-        // Mock de objeto de conversa mínima para o pipeline de envio não quebrar
-        // mas sem persistir no banco se não existir
-        conversation = {
-          phone_number: normalized.full,
-          instance: instance,
-          id: null,
-          contact_name: null,
-          attendance_mode: 'AI'
-        };
-      }
-    } catch (convErr: any) {
-      logger.error("FOLLOWUP_CONVERSATION_LOOKUP_ERROR", convErr.message, { ...logContext, error: convErr });
-      // Fallback para envio direto mesmo com erro na busca
-      conversation = { phone_number: normalized.full, instance, id: null, attendance_mode: 'AI' };
+      // Objeto de conversa mínima para o pipeline
+      conversation = {
+        phone_number: resolution.normalizedPhone,
+        instance: instance,
+        id: null,
+        contact_name: null,
+        attendance_mode: 'AI'
+      };
     }
 
 

@@ -404,31 +404,47 @@ export const simulateRealCustomer = createServerFn({ method: "POST" })
     await assertAdmin(context);
     const { phone, scenario } = data;
     
-    // 1. Normalize phone (simple version, could use a utility)
-    const normalizedPhone = phone.replace(/\D/g, '');
+    // 1. Normalize phone using official utility
+    const { normalizeBrazilianPhone } = await import("@/lib/phone");
+    const normalized = normalizeBrazilianPhone(phone);
+    const normalizedPhone = normalized?.full || phone.replace(/\D/g, '');
+    
     if (!normalizedPhone || normalizedPhone.length < 10) throw new Error("Telefone inválido");
 
-    // 2. Ensure wa_conversas entry
+    const instance = "agente-01";
+    const conversationKey = `${instance}:${normalizedPhone}`;
+
+    // 2. Ensure wa_conversas entry and wait for it
     const { data: conv } = await supabaseAdmin
       .from("wa_conversas")
       .select("phone, attendance_mode")
-      .eq("phone", normalizedPhone)
+      .eq("phone", conversationKey)
       .maybeSingle();
 
     if (!conv) {
       await supabaseAdmin.from("wa_conversas").insert({
-        phone: normalizedPhone,
-        contact_name: "Cliente Simulação",
-        instance: "agente-01",
-        attendance_mode: "AI",
+        phone: conversationKey,
         phone_number: normalizedPhone,
-        status: "novo"
+        contact_name: "Cliente Simulação",
+        instance: instance,
+        attendance_mode: "AI",
+        status: "novo",
+        customer_context: {}
       } as any);
+      
+      // Confirm insertion
+      const { data: verifiedConv } = await supabaseAdmin
+        .from("wa_conversas")
+        .select("phone")
+        .eq("phone", conversationKey)
+        .single();
+        
+      if (!verifiedConv) throw new Error("Falha ao criar conversa para simulação");
     } else if (conv.attendance_mode !== 'AI') {
       await supabaseAdmin
         .from("wa_conversas")
         .update({ attendance_mode: 'AI' } as any)
-        .eq("phone", normalizedPhone);
+        .eq("phone", conversationKey);
     }
 
     const traceId = `sim-${Date.now()}`;
