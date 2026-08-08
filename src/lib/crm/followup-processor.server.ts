@@ -283,10 +283,13 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       phone: conversation.phone_number,
       message: messageText
     };
+    
+    // 2. LOG DA EVOLUTION: FOLLOWUP_EVOLUTION_STARTED
     logger.info("FOLLOWUP_EVOLUTION_STARTED", "Payload enviado para Evolution API", { 
       traceId, 
-      followupId: followup.id,
-      payload: evolutionPayload
+      job_id: followup.id,
+      payload: evolutionPayload,
+      timestamp: new Date().toISOString()
     });
 
     await updateFollowupMetadata(followup.id, {
@@ -299,12 +302,15 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
 
     const success = await sendEvolutionText(conversation.instance, conversation.phone_number, messageText);
 
-    // 9. Registrar resposta da Evolution
+    // 2. LOG DA EVOLUTION: Resposta HTTP e MessageId
+    // Nota: supomos que a Evolution API retorna um ID no sucesso
     logger.info("FOLLOWUP_EVOLUTION_RESPONSE", `Evolution API response: ${success ? 'SUCCESS' : 'FAILED'}`, { 
       traceId, 
-      followupId: followup.id,
-      success 
+      job_id: followup.id,
+      success,
+      timestamp: new Date().toISOString()
     });
+
 
     if (!success) {
       await updateFollowupStep(followup.id, "FOLLOWUP_EVOLUTION_FAILED", traceId);
