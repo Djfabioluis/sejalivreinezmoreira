@@ -256,7 +256,7 @@ export const listFollowupHistory = createServerFn({ method: "GET" })
     const { data, error } = await (supabaseAdmin
       .from("crm_followups" as any) as any)
       .select("*, rule:crm_followup_rules(name)")
-      .in("status", ["SENT", "FAILED", "CANCELED"])
+      .in("status", ["SENT", "DELIVERED", "READ", "FAILED", "CANCELED"])
       .order("updated_at", { ascending: false })
       .limit(100);
     if (error) throw new Error(error.message);

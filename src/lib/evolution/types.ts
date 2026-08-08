@@ -1,4 +1,4 @@
-export type EvolutionEventName = "messages.upsert" | "connection.update" | "unknown";
+export type EvolutionEventName = "messages.upsert" | "connection.update" | "messages.ack" | "unknown";
 
 export interface NormalizedEvolutionMessage {
   instance: string;

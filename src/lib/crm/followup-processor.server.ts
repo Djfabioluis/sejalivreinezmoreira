@@ -422,6 +422,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       sent_at: completionTime,
       completed_at: completionTime,
       message_template: messageText,
+      message_id: messageId, // PERSISTÊNCIA NA COLUNA NATIVA
       updated_at: completionTime,
       metadata: {
         ...(followup.metadata || {}),
