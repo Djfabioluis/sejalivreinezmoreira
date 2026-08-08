@@ -351,12 +351,17 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
   } as any);
 }
 
-export async function runAgentWithLogging(opts: AgentOptions & { messages: any[] }) {
+export async function runAgentWithLogging(opts: AgentOptions & { messages?: any[]; text?: string }) {
   const result = await runAgent(opts);
-  
+
   // Garantia determinística da promoção de mechas (Bug 2)
-  const lastMessage = opts.messages[opts.messages.length - 1]?.content || "";
-  const isMechasIntent = /\bmechas?\b/i.test(lastMessage);
+  const last = Array.isArray(opts.messages) ? opts.messages[opts.messages.length - 1] : null;
+  const lastMessage =
+    (typeof last?.content === "string" ? last.content : null) ??
+    (Array.isArray(last?.parts) ? last.parts.map((p: any) => p?.text ?? "").join(" ") : "") ??
+    "";
+  const isMechasIntent = /\bmechas?\b/i.test(`${lastMessage} ${opts.text ?? ""}`);
+
   
   if (isMechasIntent && result.text) {
       const promoText = "Pacote de Mechas por R$ 289,90";
