@@ -59,13 +59,20 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
   const messageId = msg.messageId;
   const instance = msg.instance;
   const traceId = (msg as any)._traceId || `${instance}:${messageId}`;
+  const fromMe = (msg as any).fromMe === true;
 
   await logEvent({
     instance,
     messageId,
     event: "WHATSAPP_WEBHOOK_RECEIVED",
     status: "success",
-    payload: { traceId, fromMe: msg.fromMe }
+    payload: { 
+      traceId, 
+      fromMe,
+      remoteJid: msg.remoteJid,
+      instanceName: instance,
+      messageIdInbound: messageId
+    }
   });
 
   try {
@@ -79,6 +86,22 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     });
 
     const agent = await findAgentByInstance(instance);
+    
+    await logEvent({
+      instance,
+      messageId,
+      event: "AGENT_RESOLVED_FROM_INSTANCE",
+      status: agent ? "success" : "failed",
+      payload: { 
+        traceId, 
+        instanceName: instance,
+        agentId: agent?.id,
+        agentName: agent?.nome || agent?.name || "Julia",
+        unitId: agent?.unidade_id,
+        aiEnabled: isIAEnabled(agent)
+      }
+    });
+
     const contactPhone = normalizePhone(msg.remoteJid);
     const conversationKey = buildConversationKey(instance, msg.remoteJid);
     
