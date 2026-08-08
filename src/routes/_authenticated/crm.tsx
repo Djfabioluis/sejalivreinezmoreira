@@ -118,16 +118,43 @@ function CRMPage() {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 bg-card rounded-xl border border-border/50 shadow-sm gap-4">
-        <div className="flex items-center gap-4">
-           <div className="bg-emerald-500/10 p-2 rounded-full">
-             <Activity className="h-5 w-5 text-emerald-600 animate-pulse" />
-           </div>
-           <div>
-             <h3 className="text-sm font-bold">Motor de Follow-up <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-none">ONLINE</Badge></h3>
-             <p className="text-[10px] text-muted-foreground">Fila: {workerStatus.queueSize} | Última: {workerStatus.lastRun}</p>
-           </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between p-4 bg-card rounded-xl border border-border/50 shadow-sm gap-4">
+          <div className="flex items-center gap-4">
+             <div className="bg-emerald-500/10 p-2 rounded-full">
+               <Activity className="h-5 w-5 text-emerald-600 animate-pulse" />
+             </div>
+             <div>
+               <h3 className="text-sm font-bold">Motor de Follow-up <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-none">ONLINE</Badge></h3>
+               <p className="text-[10px] text-muted-foreground">Fila: {workerStatus.queueSize} | Última: {workerStatus.lastRun ? format(new Date(workerStatus.lastRun), "HH:mm:ss", { locale: ptBR }) : 'Nunca'}</p>
+             </div>
+          </div>
         </div>
+
+        <Card className="border-border/50 shadow-sm bg-card">
+          <CardHeader className="p-4 pb-2">
+            <CardTitle className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+              <Zap className="h-3 w-3 text-primary" /> Último processamento do Worker
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 pt-0">
+            <div className="grid grid-cols-2 gap-y-2 text-[10px]">
+              <div className="text-muted-foreground">Última execução:</div>
+              <div className="font-mono">{workerStatus.lastRun ? format(new Date(workerStatus.lastRun), "dd/MM HH:mm:ss", { locale: ptBR }) : '-'}</div>
+              <div className="text-muted-foreground">Último job:</div>
+              <div className="font-mono truncate">{workerStatus.lastJob ? `${workerStatus.lastJob.status} (${workerStatus.lastJob.phone})` : '-'}</div>
+              <div className="text-muted-foreground">Último envio:</div>
+              <div className="font-mono">{workerStatus.lastSentAt ? format(new Date(workerStatus.lastSentAt), "HH:mm:ss", { locale: ptBR }) : '-'}</div>
+              {workerStatus.lastError && (
+                <>
+                  <div className="text-red-500 font-bold">Último erro:</div>
+                  <div className="text-red-500 truncate">{workerStatus.lastError}</div>
+                </>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
         <div className="flex items-center gap-2 w-full md:w-auto">
           <Button 
             onClick={() => {
