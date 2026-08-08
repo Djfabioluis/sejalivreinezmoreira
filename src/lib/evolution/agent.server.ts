@@ -85,7 +85,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       const diffMs = now - takeoverAt;
       const minutesSinceTakeover = diffMs / 60000;
 
-      console.log(`[takeover-debug] ${contactPhone}: mode=HUMAN, takeoverAt=${takeoverAtStr}, serverNow=${new Date(now).toISOString()}, minsElapsed=${minutesSinceTakeover.toFixed(2)}`);
+      console.log(`[takeover-debug] ${contactPhone}: mode=HUMAN, takeoverAt=${takeoverAtStr}, serverNow=${new Date(now).toISOString()}, diffMs=${diffMs}, minsElapsed=${minutesSinceTakeover.toFixed(2)}`);
 
       if (takeoverAt > 0 && minutesSinceTakeover < HUMAN_TAKEOVER_TIMEOUT_MINUTES) {
         await logEvent({ 
@@ -98,12 +98,17 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
         return;
       }
 
-      // Reativa AI se passou o tempo ou se não há timestamp válido
-      console.log(`[takeover-debug] Reactivating AI for ${contactPhone}`);
-      await supabaseAdmin
+      // Se chegamos aqui, ou passou o tempo ou o timestamp é inválido/futuro
+      console.log(`[takeover-debug] Reactivating AI for ${contactPhone} (minsElapsed: ${minutesSinceTakeover.toFixed(2)})`);
+      
+      const { error: updateError } = await supabaseAdmin
         .from("wa_conversas" as any)
         .update({ attendance_mode: "AI", human_takeover_at: null } as any)
         .eq("id", conv.id);
+
+      if (updateError) {
+        console.error("[takeover-debug] Error updating attendance mode:", updateError);
+      }
 
       await logEvent({ 
         instance, 
@@ -112,6 +117,9 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
         status: "reactivated",
         payload: { traceId, minutesSinceTakeover }
       });
+      
+      // IMPORTANTE: O conv ainda tem o estado antigo em memória, 
+      // mas como vamos seguir o fluxo, a IA responderá normalmente.
     }
     
     if (agent) {
