@@ -69,6 +69,19 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
           continue; 
         }
 
+        // NOVO: LOG DETALHADO PARA DEPURAÇÃO DE TAKEOVER
+        await logEvent({
+          instance: msg.instance,
+          messageId: msg.messageId,
+          event: "from_me_detected_not_ai",
+          status: "processing_takeover",
+          payload: { 
+            traceId, 
+            remoteJid: msg.remoteJid,
+            isStatus: msg.remoteJid.includes("@broadcast") || msg.remoteJid === "status@broadcast"
+          }
+        });
+
         // NOVO: Ignorar se for mensagem de status/broadcast enviada por mim
         if (msg.remoteJid.includes("@broadcast") || msg.remoteJid === "status@broadcast") {
           continue;
