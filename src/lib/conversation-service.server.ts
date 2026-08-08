@@ -39,7 +39,7 @@ export class ConversationService {
         instance: instance,
         contact_name: contact_name || "Cliente",
         status: "aberta",
-        messages: '[]' as any, // Postgres expects jsonb as string or object depending on adapter
+        messages: [],
         unread_count: 0
       };
 
