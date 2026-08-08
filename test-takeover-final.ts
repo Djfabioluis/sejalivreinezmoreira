@@ -11,13 +11,17 @@ async function test() {
   // Limpa tudo antes
   await supabaseAdmin.from("wa_conversas").delete().eq("phone", phone);
 
-  // Insere direto com o estado desejado
-  const { data: inserted, error: setupError } = await supabaseAdmin.from("wa_conversas").insert({ 
-    phone, 
-    instance,
-    attendance_mode: "HUMAN", 
-    human_takeover_at: expiredDate 
-  } as any).select().single();
+  // Insere direto com o estado desejado usando supabaseAdmin puro (sem casting as any excessivo)
+  const { data: inserted, error: setupError } = await supabaseAdmin
+    .from("wa_conversas")
+    .insert({ 
+      phone, 
+      instance,
+      attendance_mode: "HUMAN", 
+      human_takeover_at: expiredDate 
+    })
+    .select()
+    .single();
 
   if (setupError) {
       console.error("Erro no setup:", setupError);
@@ -38,7 +42,7 @@ async function test() {
 
   console.log("3. Verificando resultado...");
   const { data: conv } = await supabaseAdmin.from("wa_conversas").select("attendance_mode").eq("phone", phone).single();
-  console.log("Status final (DEVE SER AI):", (conv as any)?.attendance_mode);
+  console.log("Status final (DEVE SER AI):", conv?.attendance_mode);
 }
 
 test().catch(console.error);
