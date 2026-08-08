@@ -270,7 +270,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     // Tentamos atualizar o histórico e o job. Se falhar, logamos mas o status lógico é SENT.
     try {
       await (supabaseAdmin.rpc("append_wa_message" as any, {
-        p_phone: followup.phone,
+        p_phone: currentFollowup.phone,
         p_message: { 
           id: messageId || `fup-${Date.now()}`, 
           role: 'assistant', 
