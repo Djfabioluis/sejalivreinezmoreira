@@ -211,16 +211,31 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
         metadata: { traceId, followupId: followup.id }
       });
       
+      // 3. LOG DA CONVERSA
+      const convLogStatus = conversation.created_at && new Date(conversation.created_at).getTime() > Date.now() - 10000 
+        ? "conversation criada" 
+        : "conversation encontrada";
+
+      logger.info("LOG_DA_CONVERSA", `Resolução de conversa concluída`, {
+        traceId,
+        status: convLogStatus,
+        conversation_id: conversation.id,
+        job_id: followup.id,
+        timestamp: new Date().toISOString()
+      });
+
       await updateFollowupMetadata(followup.id, { 
         conversationId: conversation.id,
         instanceUsed: instance,
-        conversationStatus: conversation.status
+        conversationStatus: conversation.status,
+        conversationLogStatus: convLogStatus
       });
       
-      if (conversation.created_at && new Date(conversation.created_at).getTime() > Date.now() - 10000) {
+      if (convLogStatus === "conversation criada") {
         await updateFollowupStep(followup.id, "FOLLOWUP_CONVERSATION_CREATED", traceId);
       }
     } catch (convErr: any) {
+
       const dbErrorInfo = {
         code: convErr.code,
         message: convErr.message,
