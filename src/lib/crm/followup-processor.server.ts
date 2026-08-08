@@ -206,7 +206,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     const attendanceMode = ctx.attendance_mode || (conversation as any).attendance_mode;
     
     if (attendanceMode === "human" || conversation.status === "atendido_humano") {
-      await blockFollowup(followup.id, "HUMAN_TAKEOVER", "Cliente em atendimento humano", traceId, logContext);
+      await blockFollowup(currentFollowup.id, "HUMAN_TAKEOVER", "Cliente em atendimento humano", traceId, logContext);
       return;
     }
 
