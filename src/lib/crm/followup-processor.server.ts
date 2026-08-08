@@ -212,7 +212,12 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     const messageId = evolutionData?.key?.id || evolutionData?.id || evolutionData?.message?.key?.id;
 
     if (!success) {
-      throw new Error(`EVOLUTION_HTTP_ERROR: ${messageId || 'N/A'}`);
+      const evolutionError = {
+        status: evolutionData?.status || 400,
+        message: evolutionData?.message || "EVOLUTION_HTTP_ERROR",
+        raw: evolutionData
+      };
+      throw { type: "EVOLUTION_SEND_FAILED", message: `Evolution error: ${evolutionError.message}`, details: evolutionError };
     }
 
     logger.info("FOLLOWUP_EVOLUTION_SUCCESS", "Mensagem aceita pela Evolution API", { 
@@ -220,22 +225,27 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       message_id: messageId 
     });
 
-    // 7. Atualização do Histórico e Status Final
+    // 7. Ponto de não-retorno: A partir daqui o status é SENT
     const completionTime = new Date().toISOString();
     
-    await (supabaseAdmin.rpc("append_wa_message" as any, {
-      p_phone: followup.phone,
-      p_message: { 
-        id: messageId || `fup-${Date.now()}`, 
-        role: 'assistant', 
-        parts: [{ type: 'text', text: messageText }], 
-        createdAt: completionTime 
-      },
-      p_instance: conversation.instance,
-      p_phone_number: conversation.phone_number,
-      p_increment_unread: false,
-      p_new_status: "aguardando"
-    } as any) as any);
+    // Tentamos atualizar o histórico e o job. Se falhar, logamos mas o status lógico é SENT.
+    try {
+      await (supabaseAdmin.rpc("append_wa_message" as any, {
+        p_phone: followup.phone,
+        p_message: { 
+          id: messageId || `fup-${Date.now()}`, 
+          role: 'assistant', 
+          parts: [{ type: 'text', text: messageText }], 
+          createdAt: completionTime 
+        },
+        p_instance: conversation.instance,
+        p_phone_number: conversation.phone_number,
+        p_increment_unread: false,
+        p_new_status: "aguardando"
+      } as any) as any);
+    } catch (auditErr: any) {
+      logger.warn("AUDIT_SAVE_FAILED", "Falha ao salvar log de conversa, mas envio foi feito", { ...logContext, error: auditErr.message });
+    }
 
     const updatePayload = {
       status: "SENT",
@@ -261,15 +271,22 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       .select('*');
 
     if (updateError || !updateData?.length) {
-      throw new Error("DB_PERSISTENCE_ERROR");
+      // Se chegamos aqui, a mensagem FOI ENVIADA, mas o banco falhou no update final
+      logger.critical("POST_SEND_DB_UPDATE_FAILED", "Mensagem enviada via Evolution mas falhou ao atualizar crm_followups", {
+        ...logContext,
+        message_id: messageId,
+        error: updateError?.message
+      });
+      // Não lançamos erro aqui para evitar o catch que mudaria o status para FAILED
+    } else {
+      logger.info("FOLLOWUP_SENT", "Job finalizado com sucesso", {
+        ...logContext,
+        message_id: messageId
+      });
     }
 
-    logger.info("FOLLOWUP_SENT", "Job finalizado com sucesso", {
-      ...logContext,
-      message_id: messageId
-    });
-
   } catch (err: any) {
+    // FAILED só pode ocorrer ANTES do envio bem-sucedido via Evolution
     const errorDetails = err.details || { 
       message: err.message, 
       name: err.name,
