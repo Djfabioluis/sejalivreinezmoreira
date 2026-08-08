@@ -320,7 +320,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       evolution_started_at: new Date().toISOString()
     });
 
-    const success = await sendEvolutionText(conversation.instance, conversation.phone_number, messageText);
+    const success = await sendEvolutionText(instance, conversation.phone_number, messageText);
 
     // 2. LOG DA EVOLUTION: Resposta HTTP e MessageId
     // Nota: supomos que a Evolution API retorna um ID no sucesso
