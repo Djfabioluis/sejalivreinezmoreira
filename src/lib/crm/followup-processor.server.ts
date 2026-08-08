@@ -372,14 +372,14 @@ async function generateAiFollowup(followup: any, nameData: any) {
     }
 
     const provider = createLovableAiGatewayProvider(apiKey);
-    const model = provider("gemini-1.5-flash"); // Explicitamente gemini-1.5-flash
+    const model = provider(modelName);
     
     const prompt = `Aja como Julia, uma assistente humanizada de um salão de beleza. O cliente se chama ${nameData.fullName} (primeiro nome: ${nameData.firstName || 'cliente'}). Gere uma mensagem curta, acolhedora e personalizada de follow-up para este cliente. Nunca use a palavra "Cliente" como se fosse o nome dele.`;
     
     const { text } = await generateText({
       model,
       prompt,
-      maxTokens: 500,
+      maxCompletionTokens: 500,
     });
     
     return text;
