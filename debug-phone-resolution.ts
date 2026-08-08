@@ -1,7 +1,6 @@
 
 import { processSingleFollowup } from "./src/lib/crm/followup-processor.server";
 import { supabaseAdmin } from "./src/integrations/supabase/client.server";
-import { crypto } from "node:crypto";
 
 async function testFollowupResolution() {
   console.log("🚀 Iniciando teste de resolução de conversa por telefone...");
@@ -20,7 +19,7 @@ async function testFollowupResolution() {
       phone: testPhone,
       customer_id: null,
       status: "PENDING",
-      stage: "FOLLOWUP_READY",
+      stage: "CONVERSATION_LOOKUP", // Usando um valor válido para o enum/constraint de stage
       scheduled_at: new Date().toISOString(),
       attempts: 0,
       rule_id: "00000000-0000-0000-0000-000000000000",
@@ -62,39 +61,43 @@ async function testFollowupResolution() {
   // 4. Testar bypass de teste manual
   console.log("\n🧪 Testando bypass de TEST_EXECUTION...");
   const manualTestId = "00000000-0000-4000-b000-" + Math.random().toString(16).substring(2, 14).padEnd(12, '0');
-  const { data: manualJob } = await supabaseAdmin
+  const { data: manualJob, error: manualError } = await supabaseAdmin
     .from("crm_followups")
     .insert({
       id: manualTestId,
       phone: "41999999999",
       customer_id: null,
       status: "PENDING",
+      stage: "TEST_EXECUTION",
       scheduled_at: new Date().toISOString(),
       attempts: 0,
       rule_id: "00000000-0000-0000-0000-000000000000",
       reason: "MANUAL_TEST",
-      stage: "TEST_EXECUTION",
       metadata: { instance: "test" }
     } as any)
     .select()
     .single();
 
-  await processSingleFollowup(manualJob, "trace-manual-bypass");
-  
-  const { data: updatedManualJob } = await supabaseAdmin
-    .from("crm_followups")
-    .select("*")
-    .eq("id", manualTestId)
-    .single();
+  if (manualError) {
+    console.error("❌ Falha ao criar job manual:", manualError);
+  } else {
+    await processSingleFollowup(manualJob, "trace-manual-bypass");
+    
+    const { data: updatedManualJob } = await supabaseAdmin
+      .from("crm_followups")
+      .select("*")
+      .eq("id", manualTestId)
+      .single();
 
-  console.log("📊 Estado final do Job Manual:");
-  console.log(JSON.stringify({
-    status: updatedManualJob.status,
-    cancel_reason: updatedManualJob.cancel_reason
-  }, null, 2));
+    console.log("📊 Estado final do Job Manual:");
+    console.log(JSON.stringify({
+      status: updatedManualJob.status,
+      cancel_reason: updatedManualJob.cancel_reason
+    }, null, 2));
 
-  if (updatedManualJob.status === "CANCELED" && updatedManualJob.cancel_reason === "TEST_SKIPPED") {
-    console.log("✨ SUCESSO: Job de teste manual foi ignorado corretamente.");
+    if (updatedManualJob.status === "CANCELED" && updatedManualJob.cancel_reason === "TEST_SKIPPED") {
+      console.log("✨ SUCESSO: Job de teste manual foi ignorado corretamente.");
+    }
   }
 }
 
