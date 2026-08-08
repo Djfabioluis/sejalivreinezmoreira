@@ -46,7 +46,7 @@ export async function processPendingFollowups() {
       } as any)
       .in("status", ["PROCESSING", "EM_PROCESSAMENTO"])
       .lt("updated_at", sixtySecondsAgo)
-      .select('id', { count: 'exact', head: true });
+      .select('*', { count: 'exact', head: true });
 
     if (resetCount && resetCount > 0) {
       logger.info("WORKER_STUCK_RESET", `${resetCount} jobs redefinidos de PROCESSING para READY por timeout`, { traceId });
