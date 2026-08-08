@@ -66,8 +66,13 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
             status: "skipped",
             payload: { traceId }
           });
-        continue; 
-      }
+          continue; 
+        }
+
+        // NOVO: Ignorar se for mensagem de status/broadcast enviada por mim
+        if (msg.remoteJid.includes("@broadcast") || msg.remoteJid === "status@broadcast") {
+          continue;
+        }
 
 
         // fromMe=true mas NÃO foi a IA -> HUMANO assumiu
