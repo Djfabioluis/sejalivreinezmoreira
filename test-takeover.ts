@@ -61,7 +61,7 @@ async function test() {
 
   await new Promise(r => setTimeout(r, 1000));
   ({ data: conv } = await supabaseAdmin.from("wa_conversas").select("attendance_mode").eq("phone", phone).single());
-  console.log("Status final:", (conv as any)?.attendance_mode);
+  console.log("Status final (Deve ser AI):", (conv as any)?.attendance_mode);
 }
 
 test().catch(console.error);
