@@ -322,7 +322,7 @@ export async function runAgent(opts: AgentOptions & { messages: any[] }) {
   
   const gatewayKey = process.env.LOVABLE_AI_GATEWAY_KEY || process.env.LOVABLE_API_KEY || "";
   const provider = createLovableAiGatewayProvider(gatewayKey);
-  const model = provider("google/gemini-2.0-flash-001");
+  const model = provider("gemini-1.5-flash");
 
   const system = assembleSystemPrompt({
     contactName: opts.contactName,
@@ -374,7 +374,7 @@ export async function streamAgent(opts: AgentOptions & { messages: any[] }) {
   
   const gatewayKey = process.env.LOVABLE_AI_GATEWAY_KEY || process.env.LOVABLE_API_KEY || "";
   const provider = createLovableAiGatewayProvider(gatewayKey);
-  const model = provider("google/gemini-2.0-flash-001");
+  const model = provider("gemini-1.5-flash");
 
   const system = assembleSystemPrompt({
     contactName: opts.contactName,

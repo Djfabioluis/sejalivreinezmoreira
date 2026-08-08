@@ -1,8 +1,7 @@
 import { runAgent } from "./src/lib/chat.server";
-import { logger } from "./src/lib/observability/logger.server";
 
 async function testAI() {
-  console.log("=== TESTE DIRETO DA IA JULIA ===");
+  console.log("=== TESTE DIRETO DA IA JULIA (FIX) ===");
   try {
     const opts = {
       messages: [{ role: "user", content: "Responda apenas OK" }],
@@ -13,20 +12,18 @@ async function testAI() {
     };
 
     console.log("Chamando runAgent...");
-    // Bypass convertToModelMessages just for the test if it's failing in the test runner
-    // or provide the structure that SDK AI expects internally
     const result = await runAgent(opts as any);
     console.log("AI_RESPONSE_RECEIVED:", result.text);
     
-    if (result.text && result.text.includes("OK")) {
+    if (result.text && result.text.toUpperCase().includes("OK")) {
       console.log("RESULTADO: SUCESSO");
     } else {
-      console.log("RESULTADO: INESPERADO (Texto recebido mas não é OK)");
+      console.log("RESULTADO: INESPERADO", JSON.stringify(result));
     }
   } catch (error: any) {
     console.error("AI_REQUEST_FAILED");
     console.error("Message:", error.message);
-    console.error("Stack:", error.stack);
+    if (error.data) console.error("Data:", JSON.stringify(error.data));
   }
 }
 
