@@ -387,20 +387,16 @@ function CRMPage() {
       />
 
       <Sheet open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
-        <SheetContent className="sm:max-w-md w-full overflow-y-auto">
-          <SheetHeader>
+        <SheetContent className="sm:max-w-xl w-full overflow-y-auto">
+          <SheetHeader className="mb-6">
             <SheetTitle className="flex items-center gap-2">
-              Detalhes da Execução
-              {selectedExecution && (
-                <Badge variant="outline" className="text-[10px] uppercase">
-                  {selectedExecution.status}
-                </Badge>
-              )}
+              <Bot className="h-5 w-5 text-primary" /> Detalhes da Execução
             </SheetTitle>
             <SheetDescription>
-              Diagnóstico completo e timeline do follow-up.
+              Diagnóstico completo e auditoria real do banco de dados.
             </SheetDescription>
           </SheetHeader>
+
 
           {selectedExecution && (
             <div className="mt-8 space-y-8">
