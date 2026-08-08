@@ -165,7 +165,14 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
         conversation_id: conversation.id
       });
     } catch (convErr: any) {
-      await blockFollowup(followup.id, "CONVERSATION_CREATION_FAILED", `Erro ao resolver conversa: ${convErr.message}`, traceId, logContext);
+      const errorInfo = {
+        stage: "CONVERSATION_LOOKUP",
+        message: convErr.message,
+        name: convErr.name,
+        stack: convErr.stack,
+        timestamp: new Date().toISOString()
+      };
+      await blockFollowup(followup.id, "CONVERSATION_CREATION_FAILED", `Erro ao resolver conversa: ${convErr.message}`, traceId, { ...logContext, last_error: errorInfo });
       return;
     }
 
