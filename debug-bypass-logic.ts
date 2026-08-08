@@ -78,13 +78,17 @@ async function testBypassLogic() {
     .select()
     .single();
 
-  await processSingleFollowup(sJob, traceId);
-  const { data: updatedSJob } = await supabaseAdmin.from("crm_followups").select("status, cancel_reason").eq("id", syntheticJobId).single();
-  
-  if (updatedSJob.status === "CANCELED" && updatedSJob.cancel_reason === "TEST_SKIPPED") {
-    console.log("✅ SUCESSO: Bypass legítimo (reason=MANUAL_TEST) funcionando.");
+  if (sJob) {
+    await processSingleFollowup(sJob, traceId);
+    const { data: updatedSJob } = await supabaseAdmin.from("crm_followups").select("status, cancel_reason").eq("id", syntheticJobId).single();
+    
+    if (updatedSJob.status === "CANCELED" && updatedSJob.cancel_reason === "TEST_SKIPPED") {
+      console.log("✅ SUCESSO: Bypass legítimo (reason=MANUAL_TEST) funcionando.");
+    } else {
+      console.log("❌ FALHA: Bypass legítimo não funcionou. Status: " + updatedSJob.status);
+    }
   } else {
-    console.log("❌ FALHA: Bypass legítimo não funcionou.");
+    console.log("❌ FALHA: Não foi possível criar o job de teste sintético.");
   }
 }
 

@@ -64,8 +64,8 @@ export async function processPendingFollowups() {
 }
 
 export async function processSingleFollowup(followup: any, parentTraceId: string) {
-  if (!followup) {
-    logger.warn("WORKER_EMPTY_JOB", "Worker recebeu um job nulo");
+  if (!followup?.id) {
+    logger.warn("WORKER_EMPTY_JOB", "Worker recebeu um job inválido ou sem ID");
     return;
   }
 
@@ -100,7 +100,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
         }
       } as any)
       .eq("id", followup.id)
-      .in("status", ["PENDING", "READY", "PENDENTE", "READY_TO_SEND"])
+      .in("status", ["PENDING", "READY", "PENDENTE", "READY_TO_SEND", "PROCESSING"]) // Permite re-travar se necessário
       .select('id')
       .single();
 
