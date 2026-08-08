@@ -22,22 +22,53 @@ export async function processPendingFollowups() {
   const now = new Date();
   const nowIso = now.toISOString();
 
-  logger.info("FOLLOWUP_WORKER_STARTED", "Iniciando processamento de follow-ups", { traceId, now: nowIso });
+  // 2. Registrar quando o worker inicia
+  logger.info("WORKER_STARTED", "Iniciando worker de processamento de follow-ups", { traceId, now: nowIso });
 
   try {
+    // 3. Registrar cada ciclo
+    logger.info("WORKER_TICK", "Ciclo de processamento iniciado", { traceId, timestamp: nowIso });
+
     await discoverNewFollowups(traceId);
 
-    const fifteenMinsAgo = new Date(now.getTime() - 15 * 60 * 1000).toISOString();
-    await supabaseAdmin
+    // 11. Nunca deixar READY indefinidamente (Timeout de 60s)
+    const sixtySecondsAgo = new Date(now.getTime() - 60 * 1000).toISOString();
+    const { count: resetCount } = await supabaseAdmin
       .from("crm_followups")
       .update({ 
         status: "READY", 
         updated_at: nowIso,
-        metadata: { recovery: "stuck_processing_reset", reset_at: nowIso }
+        metadata: { 
+          recovery: "stuck_processing_timeout", 
+          reset_at: nowIso,
+          reason: "Processing stuck for more than 60s" 
+        }
       } as any)
       .in("status", ["PROCESSING", "EM_PROCESSAMENTO"])
-      .lt("updated_at", fifteenMinsAgo);
+      .lt("updated_at", sixtySecondsAgo)
+      .select('id', { count: 'exact', head: true });
 
+    if (resetCount && resetCount > 0) {
+      logger.info("WORKER_STUCK_RESET", `${resetCount} jobs redefinidos de PROCESSING para READY por timeout`, { traceId });
+    }
+
+    // 4. Registrar quantos followups READY existem
+    const { data: readyFollowups, error: countError } = await supabaseAdmin
+      .from("crm_followups")
+      .select("id")
+      .in("status", ["PENDING", "READY", "PENDENTE", "READY_TO_SEND"])
+      .lte("scheduled_at", nowIso)
+      .lt("attempts", 3);
+
+    const readyCount = readyFollowups?.length || 0;
+    logger.info("WORKER_READY_COUNT", `Existem ${readyCount} followups prontos para processamento`, { traceId, count: readyCount });
+
+    if (countError || readyCount === 0) {
+      logger.info("WORKER_IDLE", "Nenhum follow-up para processar neste ciclo", { traceId });
+      return;
+    }
+
+    // Buscar os registros para processar
     const { data: followups, error: fetchError } = await (supabaseAdmin
       .from("crm_followups" as any) as any)
       .select("*")
@@ -47,9 +78,14 @@ export async function processPendingFollowups() {
       .order("scheduled_at", { ascending: true })
       .limit(20);
 
-    if (fetchError || !followups) return;
+    if (fetchError || !followups) {
+      logger.error("WORKER_FETCH_ERROR", fetchError?.message || "Erro desconhecido ao buscar followups", { traceId });
+      return;
+    }
 
     for (const followup of (followups as any[])) {
+      // 5. Registrar qual ID foi selecionado
+      logger.info("WORKER_JOB_SELECTED", `Selecionando ID: ${followup.id}`, { traceId, followupId: followup.id });
       await processSingleFollowup(followup, traceId);
     }
   } catch (err: any) {
