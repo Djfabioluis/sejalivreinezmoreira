@@ -93,7 +93,7 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
           messageId: msg.messageId,
           event: "human_takeover_detected",
           status: "attendance_mode_set_to_human",
-          payload: { traceId, phone }
+          payload: { traceId, phone, conversationKey, remoteJid: msg.remoteJid }
         });
 
         continue; 
