@@ -64,8 +64,13 @@ export async function processPendingFollowups() {
 }
 
 export async function processSingleFollowup(followup: any, parentTraceId: string) {
-  const phone_last4 = followup?.phone ? followup.phone.slice(-4) : "0000";
-  const traceId = `${parentTraceId}-${followup?.id?.split('-')[0] || 'unknown'}`;
+  if (!followup) {
+    logger.warn("WORKER_EMPTY_JOB", "Worker recebeu um job nulo");
+    return;
+  }
+
+  const phone_last4 = followup.phone ? followup.phone.slice(-4) : "0000";
+  const traceId = `${parentTraceId}-${followup.id.split('-')[0]}`;
   const worker_id = "JuliaFollowupProcessorV5";
   
   const logContext = {
@@ -106,7 +111,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
 
     logger.info("FOLLOWUP_PROCESSING", "Iniciando processamento do job", logContext);
 
-    // 1.5 Filtro de Testes Sintéticos (MANUAL_TEST ou TEST_EXECUTION)
+    // 1.5 Filtro de Testes Sintéticos (Baseado exclusivamente em campos estruturados)
     const isSyntheticTest = followup.reason === "MANUAL_TEST" || followup.stage === "TEST_EXECUTION";
 
     if (isSyntheticTest) {
