@@ -448,12 +448,13 @@ async function generateAiFollowup(followup: any, nameData: any) {
   const startTime = Date.now();
   
   try {
-    const { getAiKey } = await import("../ai-gateway.server");
-    const apiKey = await getAiKey();
+    const { createLovableAiGatewayProvider } from "../ai-gateway.server";
+    const apiKey = process.env.LOVABLE_AI_GATEWAY_KEY || process.env.LOVABLE_API_KEY || "";
     
     if (!apiKey) {
-      throw new Error("LOVABLE_AI_GATEWAY_KEY not found in environment");
+      throw new Error("API KEY not found in environment (LOVABLE_AI_GATEWAY_KEY or LOVABLE_API_KEY)");
     }
+
 
     const namePrompt = nameData.fullName 
       ? `O cliente se chama ${nameData.fullName} (primeiro nome: ${nameData.firstName}). Use saudação personalizada: "Olá, ${nameData.firstName}!".`
