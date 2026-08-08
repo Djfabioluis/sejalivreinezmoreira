@@ -415,28 +415,54 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       timestamp: completionTime
     });
 
-    await supabaseAdmin
+    const updatePayload = {
+      status: "SENT",
+      attempts: (followup.attempts || 0) + 1,
+      sent_at: completionTime,
+      completed_at: completionTime,
+      message_template: messageText,
+      updated_at: completionTime,
+      metadata: {
+        ...(followup.metadata || {}),
+        conversationId: conversation.id, // PERSISTÊNCIA GARANTIDA DO CONVERSATION_ID
+        last_step: "FOLLOWUP_SENT",
+        evolution_success: true,
+        evolution_response: evolutionData,
+        message_id: messageId,
+        worker_id,
+        finished_at: completionTime,
+        duration_total_ms: Date.now() - new Date(followup.created_at).getTime()
+      }
+    };
+
+    logger.info("FOLLOWUP_DB_UPDATE_START", "Iniciando UPDATE final do followup", {
+      traceId,
+      job_id: followup.id,
+      payload: updatePayload
+    });
+
+    const { data: updateData, error: updateError, status: updateStatus } = await supabaseAdmin
       .from("crm_followups")
-      .update({
-        status: "SENT",
-        attempts: (followup.attempts || 0) + 1,
-        sent_at: completionTime,
-        completed_at: completionTime,
-        message_template: messageText,
-        updated_at: completionTime,
-        metadata: {
-          ...(followup.metadata || {}),
-          conversationId: conversation.id, // PERSISTÊNCIA GARANTIDA DO CONVERSATION_ID
-          last_step: "FOLLOWUP_SENT",
-          evolution_success: true,
-          evolution_response: evolutionData,
-          message_id: messageId,
-          worker_id,
-          finished_at: completionTime,
-          duration_total_ms: Date.now() - new Date(followup.created_at).getTime()
-        }
-      } as any)
-      .eq("id", followup.id);
+      .update(updatePayload as any)
+      .eq("id", followup.id)
+      .select('id, status, sent_at, completed_at');
+
+    if (updateError) {
+      logger.error("FOLLOWUP_DB_UPDATE_FAILED", "Erro no UPDATE final do followup", {
+        traceId,
+        job_id: followup.id,
+        error: updateError,
+        status: updateStatus
+      });
+      throw updateError;
+    }
+
+    logger.info("FOLLOWUP_DB_UPDATE_SUCCESS", "UPDATE final concluído com sucesso", {
+      traceId,
+      job_id: followup.id,
+      rowsAffected: updateData?.length || 0,
+      responseData: updateData
+    });
 
     // LOG OBRIGATÓRIO: JOB_FINISHED
     logger.info("JOB_FINISHED", `Job processado com sucesso`, { 
