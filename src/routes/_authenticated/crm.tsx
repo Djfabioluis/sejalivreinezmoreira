@@ -231,10 +231,10 @@ function CRMPage() {
                 <table className="w-full text-left text-xs">
                    <thead className="bg-muted/50 uppercase tracking-widest font-bold text-[10px] text-muted-foreground border-b border-border/40">
                       <tr>
-                         <th className="px-6 py-4">Telefone</th>
+                         <th className="px-6 py-4">Job ID</th>
+                         <th className="px-6 py-4">Cliente</th>
                          <th className="px-6 py-4">Regra</th>
                          <th className="px-6 py-4">Agendado</th>
-                         <th className="px-6 py-4">Tentativas</th>
                          <th className="px-6 py-4">Status</th>
                          <th className="px-6 py-4 text-right">Ações</th>
                       </tr>
@@ -242,12 +242,12 @@ function CRMPage() {
                    <tbody className="divide-y divide-border/40">
                       {executions.map((e: any) => (
                         <tr key={e.id} className="hover:bg-muted/20 transition-colors">
+                           <td className="px-6 py-4 font-mono text-[10px] text-muted-foreground">{e.id.split('-')[0]}</td>
                            <td className="px-6 py-4 font-bold">{formatPhone(e.phone)}</td>
                            <td className="px-6 py-4">{e.rule?.name || 'Manual'}</td>
                            <td className="px-6 py-4 text-muted-foreground">{format(new Date(e.scheduled_at), 'dd/MM HH:mm', { locale: ptBR })}</td>
-                           <td className="px-6 py-4">{e.attempts || 0}/3</td>
                            <td className="px-6 py-4">
-                              <Badge variant="outline" className={`text-[9px] uppercase ${e.status === 'PROCESSING' ? 'border-blue-500/20 text-blue-600 animate-pulse' : 'border-amber-500/20 text-amber-600'}`}>
+                              <Badge variant="outline" className={`text-[9px] uppercase \${e.status === 'PROCESSING' ? 'border-blue-500/20 text-blue-600 animate-pulse' : 'border-amber-500/20 text-amber-600'}`}>
                                  {e.status}
                               </Badge>
                            </td>
@@ -286,10 +286,12 @@ function CRMPage() {
                 <table className="w-full text-left text-xs">
                    <thead className="bg-muted/50 uppercase tracking-widest font-bold text-[10px] text-muted-foreground border-b border-border/40">
                        <tr>
-                          <th className="px-6 py-4">Telefone</th>
+                          <th className="px-6 py-4">Job ID</th>
+                          <th className="px-6 py-4">Cliente</th>
                           <th className="px-6 py-4">Regra</th>
+                          <th className="px-6 py-4">Message ID</th>
                           <th className="px-6 py-4">Motivo</th>
-                          <th className="px-6 py-4">Concluído</th>
+                          <th className="px-6 py-4">Executado em</th>
                           <th className="px-6 py-4">Status</th>
                           <th className="px-6 py-4 text-right">Ações</th>
                        </tr>
@@ -297,8 +299,10 @@ function CRMPage() {
                    <tbody className="divide-y divide-border/40">
                       {history.map((h: any) => (
                         <tr key={h.id} className="hover:bg-muted/20 transition-colors">
+                           <td className="px-6 py-4 font-mono text-[10px] text-muted-foreground">{h.id.split('-')[0]}</td>
                            <td className="px-6 py-4 font-bold">{formatPhone(h.phone)}</td>
-                            <td className="px-6 py-4">{h.rule?.name || 'Manual'}</td>
+                           <td className="px-6 py-4">{h.rule?.name || 'Manual'}</td>
+                           <td className="px-6 py-4 font-mono text-[10px]">{h.message_id || '-'}</td>
                             <td className="px-6 py-4 max-w-xs">
                               {h.status === 'CANCELED' ? (
                                 <Badge variant="secondary" className="text-[9px] bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 border-none">
@@ -409,7 +413,7 @@ function CRMPage() {
               <Card className="bg-slate-950 text-slate-50 border-slate-800 shadow-2xl overflow-hidden">
                 <CardHeader className="py-3 px-4 bg-slate-900/50 border-b border-slate-800">
                   <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-primary">
-                    <ShieldCheck className="h-3 w-3" /> System Audit Mode (Real-Time Data)
+                    <ShieldCheck className="h-3 w-3" /> Job Audit & Correlation
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="p-4 space-y-4">
@@ -420,21 +424,29 @@ function CRMPage() {
                       </div>
                       <div className="space-y-1">
                         <span className="text-slate-500 block">STATUS:</span>
-                        <Badge variant="outline" className={`h-4 text-[9px] uppercase border-primary/30 text-primary ${selectedExecution.status === 'PROCESSING' ? 'animate-pulse' : ''}`}>
+                        <Badge variant="outline" className={`h-4 text-[9px] uppercase border-primary/30 text-primary \${selectedExecution.status === 'PROCESSING' ? 'animate-pulse' : ''}`}>
                           {selectedExecution.status}
                         </Badge>
                       </div>
                       <div className="space-y-1">
                         <span className="text-slate-500 block">CONVERSATION ID:</span>
-                        <span className={selectedExecution.metadata?.conversationId ? "text-emerald-400" : "text-red-500"}>
-                          {selectedExecution.metadata?.conversationId || "NULL / NOT_FOUND"}
+                        <span className={selectedExecution.conversation_id || selectedExecution.metadata?.conversationId ? "text-emerald-400" : "text-red-500"}>
+                          {selectedExecution.conversation_id || selectedExecution.metadata?.conversationId || "NULL / NOT_FOUND"}
                         </span>
                       </div>
                       <div className="space-y-1">
                         <span className="text-slate-500 block">MESSAGE ID:</span>
-                        <span className={selectedExecution.metadata?.message_id || selectedExecution.metadata?.evolution_response?.key?.id ? "text-emerald-400" : "text-red-500"}>
-                          {selectedExecution.metadata?.message_id || selectedExecution.metadata?.evolution_response?.key?.id || "NULL / NOT_SENT"}
+                        <span className={selectedExecution.message_id || selectedExecution.metadata?.message_id ? "text-emerald-400" : "text-red-500"}>
+                          {selectedExecution.message_id || selectedExecution.metadata?.message_id || "NULL / NOT_SENT"}
                         </span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-slate-500 block">TRACE ID:</span>
+                        <span className="text-amber-400 truncate block">{selectedExecution.metadata?.trace_id || "N/A"}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-slate-500 block">PHONE LAST 4:</span>
+                        <span className="text-slate-300 block">{selectedExecution.phone?.slice(-4) || "????"}</span>
                       </div>
                    </div>
 
