@@ -117,10 +117,11 @@ export async function processPendingFollowups() {
 
 export async function processSingleFollowup(followup: any, parentTraceId: string) {
   const traceId = `${parentTraceId}-${followup.id.split('-')[0]}`;
+  const worker_id = "JuliaFollowupProcessorV3";
   
   try {
     const now = new Date().toISOString();
-    // 6. Registrar: worker pegou o job? (Tenta travar o job)
+    // 1. LOG DO WORKER: JOB_LOCKED
     const { data: lockedJob, error: lockError } = await supabaseAdmin
       .from("crm_followups")
       .update({ 
@@ -130,7 +131,8 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
           ...(followup.metadata || {}), 
           traceId, 
           last_step: "FOLLOWUP_PROCESSING",
-          started_at: now
+          started_at: now,
+          worker_id
         }
       } as any)
       .eq("id", followup.id)
@@ -139,13 +141,30 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       .single();
 
     if (lockError || !lockedJob) {
-      // 7. Se não pegou, explicar exatamente por quê
       const reason = lockError ? `Database error: ${lockError.message}` : "Race condition: job already taken or status changed";
       logger.warn("WORKER_JOB_GRAB_FAILED", `Worker não conseguiu pegar o job ${followup.id}`, { traceId, followupId: followup.id, reason });
       return;
     }
 
-    logger.info("WORKER_JOB_GRAB_SUCCESS", `Worker pegou o job ${followup.id}`, { traceId, followupId: followup.id });
+    logger.info("JOB_LOCKED", `Worker travou o job com sucesso`, { 
+      traceId, 
+      job_id: followup.id,
+      rule_id: followup.rule_id,
+      telefone: followup.phone,
+      worker_id,
+      timestamp: now
+    });
+
+    // 1. LOG DO WORKER: JOB_PROCESSING
+    logger.info("JOB_PROCESSING", `Iniciando processamento lógico do job`, { 
+      traceId, 
+      job_id: followup.id,
+      rule_id: followup.rule_id,
+      telefone: followup.phone,
+      worker_id,
+      timestamp: now
+    });
+
 
 
     // 1. Logar o telefone bruto recebido
