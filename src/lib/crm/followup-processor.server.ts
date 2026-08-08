@@ -479,7 +479,6 @@ Mensagem:`;
     const { text } = await generateText({
       model: provider("gemini-1.5-flash") as any,
       prompt,
-      maxTokens: 300,
     });
     
     if (!text) {
