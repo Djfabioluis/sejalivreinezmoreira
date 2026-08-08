@@ -339,11 +339,11 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       status: "FAILED",
       updated_at: new Date().toISOString(),
       metadata: {
-        ...(followup.metadata || {}),
+        ...(typeof followup?.metadata === 'object' ? followup.metadata : {}),
         ...logContext,
         last_error: errorDetails
       }
-    } as any).eq("id", followup.id);
+    } as any).eq("id", followup?.id || logContext.job_id);
   }
 }
 
