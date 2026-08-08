@@ -180,7 +180,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
         conversation = await ConversationService.findOrCreate({
           instance,
           phone_number: normalized.full,
-          contact_name: followup.metadata?.contact_name || 'Cliente',
+          contact_name: (typeof currentFollowup.metadata === 'object' ? (currentFollowup.metadata as any)?.contact_name : null) || 'Cliente',
           metadata: logContext
         });
       }
