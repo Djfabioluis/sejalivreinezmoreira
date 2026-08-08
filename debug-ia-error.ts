@@ -9,6 +9,7 @@ async function test() {
     status: "READY",
     scheduled_at: new Date().toISOString(),
     rule_id: "00000000-0000-0000-0000-000000000000",
+    stage: "test", // Corrigindo erro de constraint
     metadata: { test: true, force_ai_error: true }
   }).select().single();
 
@@ -21,7 +22,7 @@ async function test() {
 
   try {
     await processSingleFollowup(job, "test-trace");
-  } catch (e) {
+  } catch (e: any) {
     console.log("Erro capturado no teste:", e.message);
   }
 
