@@ -103,6 +103,14 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     const conv = conversation as any;
 
     if (conv?.attendance_mode === "HUMAN") {
+      await logEvent({
+        instance,
+        messageId,
+        event: "ATTENDANCE_MODE_CHECKED",
+        status: "success",
+        payload: { traceId, mode: "HUMAN", human_takeover_at: conv.human_takeover_at }
+      });
+
       const takeoverAtStr = conv.human_takeover_at;
       const takeoverAt = takeoverAtStr ? new Date(takeoverAtStr).getTime() : 0;
       const now = Date.now();
@@ -110,30 +118,21 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       const diffMs = now - takeoverAt;
       const minutesSinceTakeover = diffMs / 60000;
 
-      console.log(`[takeover-debug] ${contactPhone}: mode=HUMAN, diffMs=${diffMs.toFixed(0)}, minsElapsed=${minutesSinceTakeover.toFixed(2)}`);
-
       if (takeoverAt > 0 && minutesSinceTakeover < HUMAN_TAKEOVER_TIMEOUT_MINUTES) {
         await logEvent({ 
           instance, 
           messageId, 
-          event: "agent_flow_skipped_human_mode",
+          event: "AI_BLOCKED_BY_HUMAN_MODE",
           status: "skipped",
           payload: { traceId, minutesSinceTakeover, human_takeover_at: conv.human_takeover_at }
         });
         return;
       }
 
-      // Se chegamos aqui, ou passou o tempo ou o timestamp é inválido/futuro
-      console.log(`[takeover-debug] Reactivating AI for ${contactPhone} (minsElapsed: ${minutesSinceTakeover.toFixed(2)})`);
-      
       const { error: updateError } = await supabaseAdmin
         .from("wa_conversas")
         .update({ attendance_mode: "AI", human_takeover_at: null })
         .or(`phone.eq.${conversationKey},phone.eq.${contactPhone},phone_number.eq.${contactPhone}`);
-
-      if (updateError) {
-        console.error("[takeover-debug] Error updating attendance mode:", updateError);
-      }
 
       await logEvent({ 
         instance, 
@@ -141,6 +140,14 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
         event: "human_takeover_expired_ai_reactivated",
         status: "reactivated",
         payload: { traceId, minutesSinceTakeover }
+      });
+    } else {
+      await logEvent({
+        instance,
+        messageId,
+        event: "ATTENDANCE_MODE_CHECKED",
+        status: "success",
+        payload: { traceId, mode: conv?.attendance_mode || "AI" }
       });
     }
     
