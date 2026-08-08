@@ -372,7 +372,7 @@ async function resolveFollowupCustomerName(followup: any, conversation: any, tra
 
 async function generateAiFollowup(followup: any, nameData: any) {
   const providerName = "google";
-  const modelName = "gemini-2.0-flash"; // Using the updated 2026 default
+  const modelName = "gemini-2.5-flash"; // Using the updated 2026 default
   const startTime = Date.now();
   
   try {
@@ -395,7 +395,7 @@ async function generateAiFollowup(followup: any, nameData: any) {
         "X-Lovable-AIG-SDK": "fetch-raw"
       },
       body: JSON.stringify({
-        model: "google/gemini-2.0-flash",
+        model: "google/gemini-2.5-flash",
         messages: [{ role: "user", content: prompt }],
         temperature: 0.7
       })
