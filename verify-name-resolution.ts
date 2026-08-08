@@ -44,8 +44,10 @@ async function testWithoutName() {
   const { data: job, error } = await supabaseAdmin.from("crm_followups").insert({
     phone: "5511888888888",
     status: "READY",
+    stage: "TESTE",
     scheduled_at: new Date().toISOString(),
     rule_id: "00000000-0000-0000-0000-000000000000",
+
     metadata: { 
       contact_name: "Cliente", // Nome genérico que deve ser ignorado
       test: true,
