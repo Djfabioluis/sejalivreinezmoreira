@@ -92,7 +92,7 @@ export async function replyToUser(params: {
   await logEvent({ 
     instance: params.instance, 
     messageId: params.messageId,
-    event: "evolution_send_started", 
+    event: "OUTBOUND_STARTED", 
     status: "started",
     payload: { traceId }
   });
