@@ -82,7 +82,7 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
           }
         });
 
-        // NOVO: Ignorar se for mensagem de status/broadcast enviada por mim
+        // Ignorar se for mensagem de status/broadcast enviada por mim
         if (msg.remoteJid.includes("@broadcast") || msg.remoteJid === "status@broadcast") {
           continue;
         }
@@ -111,10 +111,8 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
           payload: { traceId, phone, conversationKey, remoteJid: msg.remoteJid, updateError, fromMe: msg.fromMe }
         });
 
-        // IMPORTANTE: Não dar 'continue' aqui se quisermos que a mensagem humana manual 
-        // também seja registrada no histórico da conversa (wa_conversas.messages)
-        // apenas evitamos que a IA responda a ela no passo 7.
-
+        // IMPORTANTE: Permitimos continuar para registrar a mensagem no histórico, 
+        // mas o runAgentFlow no passo 7 já bloqueia resposta se isFromMe for true.
       }
 
 
