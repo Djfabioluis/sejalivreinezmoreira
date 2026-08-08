@@ -486,6 +486,7 @@ export type Database = {
           created_at: string | null
           customer_id: string | null
           id: string
+          message_id: string | null
           message_template: string | null
           metadata: Json | null
           next_attempt_at: string | null
@@ -508,6 +509,7 @@ export type Database = {
           created_at?: string | null
           customer_id?: string | null
           id?: string
+          message_id?: string | null
           message_template?: string | null
           metadata?: Json | null
           next_attempt_at?: string | null
@@ -530,6 +532,7 @@ export type Database = {
           created_at?: string | null
           customer_id?: string | null
           id?: string
+          message_id?: string | null
           message_template?: string | null
           metadata?: Json | null
           next_attempt_at?: string | null
