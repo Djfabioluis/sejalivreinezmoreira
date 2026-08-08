@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { authenticateWebhook } from "@/lib/evolution/auth.server";
 import { normalizeEvolutionEvent } from "@/lib/evolution/event-normalizer";
 import { processConnectionUpdate, processMessagesUpsert } from "@/lib/evolution/processor.server";
+import { processMessageAck } from "@/lib/evolution/ack-processor.server";
 import { logEvent } from "@/lib/evolution/logger.server";
 import { logger } from "@/lib/observability/logger.server";
 
@@ -45,6 +46,8 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           // Passando o traceId para o processamento de mensagens
           (payload as any)._traceId = traceId;
           await processMessagesUpsert(payload, request.url);
+        } else if (eventData.event === "messages.ack") {
+          await processMessageAck(payload);
         }
 
         return new Response("OK");
