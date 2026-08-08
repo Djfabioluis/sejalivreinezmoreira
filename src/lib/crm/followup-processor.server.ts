@@ -1,28 +1,14 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import { generateText } from "ai";
-import { createLovableAiGatewayProvider, getAiKey } from "@/lib/ai-gateway.server";
+import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
 import { logger } from "../observability/logger.server";
 import { ConversationService } from "../conversation-service.server";
-import { BempService } from "../bemp-service.server";
 
 // 2. COMPROVAR QUE ESTÁ EM EXECUÇÃO: WORKER_BOOT
 logger.info("WORKER_BOOT", "Módulo FollowupProcessor carregado no runtime", {
   timestamp: new Date().toISOString(),
   runtime: typeof window === 'undefined' ? 'server' : 'client'
 });
-
-interface FollowupRule {
-  id: string;
-  name: string;
-  type: string;
-  delay_amount: number;
-  delay_unit: 'MINUTES' | 'HOURS' | 'DAYS';
-  message_mode: 'AI' | 'FIXED';
-  fixed_message?: string;
-  start_time: string;
-  end_time: string;
-  max_attempts: number;
-}
 
 export async function processPendingFollowups() {
   const traceId = `fup-proc-${Math.random().toString(36).substring(7)}`;
@@ -37,8 +23,6 @@ export async function processPendingFollowups() {
   });
 
   try {
-    await discoverNewFollowups(traceId);
-
     // NÃO DEIXAR READY INFINITO (Reset de jobs travados em PROCESSING)
     const sixtySecondsAgo = new Date(now.getTime() - 60 * 1000).toISOString();
     await supabaseAdmin
@@ -123,7 +107,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     logger.info("FOLLOWUP_PROCESSING", "Iniciando processamento do job", logContext);
 
     // 2. Verificação de Duplicidade / Envio Prévio (Idempotência)
-    const { data: previousSent, error: prevError } = await supabaseAdmin
+    const { data: previousSent } = await supabaseAdmin
       .from("crm_followups")
       .select("id, status, message_id, sent_at")
       .eq("phone", followup.phone)
@@ -132,6 +116,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       .maybeSingle();
 
     if (previousSent) {
+      const cancelReason = "CANCELED_ALREADY_SENT";
       logger.info("FOLLOWUP_CANCELED_ALREADY_SENT", "Job cancelado pois já houve envio anterior para este telefone", {
         ...logContext,
         original_job_id: previousSent.id,
@@ -141,7 +126,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
 
       await supabaseAdmin.from("crm_followups").update({
         status: "CANCELED",
-        cancel_reason: "CANCELED_ALREADY_SENT",
+        cancel_reason: cancelReason,
         updated_at: new Date().toISOString(),
         metadata: {
           ...(followup.metadata || {}),
@@ -149,7 +134,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
           original_job_id: previousSent.id,
           original_message_id: previousSent.message_id,
           original_sent_at: previousSent.sent_at,
-          cancel_code: "CANCELED_ALREADY_SENT"
+          cancel_code: cancelReason
         }
       } as any).eq("id", followup.id);
       return;
@@ -160,10 +145,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     const normalized = normalizeBrazilianPhone(followup.phone);
     
     if (!normalized || normalized.reason) {
-      await blockFollowup(followup.id, "INVALID_PHONE", `Telefone inválido: ${normalized?.reason || "FORMAT_NOT_RECOGNIZED"}`, traceId, {
-        ...logContext,
-        details: normalized
-      });
+      await blockFollowup(followup.id, "INVALID_PHONE", `Telefone inválido: ${normalized?.reason || "FORMAT_NOT_RECOGNIZED"}`, traceId, logContext);
       return;
     }
 
@@ -183,10 +165,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
         conversation_id: conversation.id
       });
     } catch (convErr: any) {
-      await blockFollowup(followup.id, "CONVERSATION_CREATION_FAILED", `Erro ao resolver conversa: ${convErr.message}`, traceId, {
-        ...logContext,
-        dbError: convErr
-      });
+      await blockFollowup(followup.id, "CONVERSATION_CREATION_FAILED", `Erro ao resolver conversa: ${convErr.message}`, traceId, logContext);
       return;
     }
 
@@ -203,7 +182,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     
     let messageText = followup.message_template;
     if (!messageText) {
-       messageText = await generateAiFollowup(followup, conversation, traceId, nameData);
+       messageText = await generateAiFollowup(followup, nameData);
     } else {
       if (nameData.firstName) {
         messageText = messageText.replace(/{{nome}}/g, nameData.fullName || "");
@@ -304,10 +283,6 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
   }
 }
 
-async function discoverNewFollowups(traceId: string) {
-  // Simplificado para o exemplo, mas deve buscar eventos que precisam de follow-up
-}
-
 async function blockFollowup(id: string, reason: string, detail: string, traceId: string, logContext: any = {}) {
   logger.info("FOLLOWUP_CANCELED", detail, { ...logContext, cancel_reason: reason });
   await supabaseAdmin.from("crm_followups").update({
@@ -328,11 +303,12 @@ async function resolveFollowupCustomerName(followup: any, conversation: any, tra
   return { fullName, firstName, source: "metadata" };
 }
 
-async function generateAiFollowup(followup: any, conversation: any, traceId: string, nameData: any) {
-  const provider = createLovableAiGatewayProvider("google", "gemini-2.0-flash-exp");
+async function generateAiFollowup(followup: any, nameData: any) {
+  const provider = createLovableAiGatewayProvider("google");
+  const model = provider("gemini-1.5-flash");
   const prompt = `Aja como Julia, uma assistente humanizada. O cliente se chama ${nameData.fullName}. Gere uma mensagem curta de follow-up.`;
   const { text } = await generateText({
-    model: provider,
+    model,
     prompt,
   });
   return text;
