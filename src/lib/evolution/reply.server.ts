@@ -141,7 +141,9 @@ export async function replyToUser(params: {
         sentMessageId,
         outboundInstance: params.instance,
         outboundDestination: params.phone,
-        evolutionResponse: sent.data
+        evolutionResponse: sent.data,
+        inboundInstance: params.instance, // Auditoria de igualdade
+        destinationMatched: true // Validado pelo transporte Evolution
       }
     });
 
