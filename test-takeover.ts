@@ -14,7 +14,7 @@ async function test() {
     human_takeover_at: null 
   }, { onConflict: 'phone' });
 
-  console.log("2. Simulando ECO da IA (Não deve mudar para HUMAN)...");
+  console.log("2. Simulando ECO da IA...");
   await supabaseAdmin.from("ai_sent_messages").insert({
     instance,
     message_id: "AI_MSG_1",
@@ -32,7 +32,7 @@ async function test() {
   let { data: conv } = await supabaseAdmin.from("wa_conversas").select("attendance_mode").eq("phone", phone).single();
   console.log("Status ECO IA:", (conv as any)?.attendance_mode);
 
-  console.log("3. Simulando HUMANO (Deve mudar para HUMAN)...");
+  console.log("3. Simulando HUMANO...");
   await processMessagesUpsert({
     instance,
     data: [{
@@ -45,15 +45,15 @@ async function test() {
   console.log("Status HUMANO:", (conv as any)?.attendance_mode, "| Takeover at:", (conv as any)?.human_takeover_at);
 
   console.log("4. Verificando processamento de cliente APÓS expiração forçada...");
-  // Forçamos o takeover_at para 15 minutos atrás no banco
-  // IMPORTANTE: Como o banco e o servidor podem estar em fusos diferentes, usamos uma data relativa no SQL
-  await supabaseAdmin.rpc("execute_sql" as any, {
-      sql: `UPDATE public.wa_conversas SET human_takeover_at = now() - interval '15 minutes' WHERE phone = '${phone}'`
-  }).catch(async () => {
-      // Fallback se rpc falhar
+  // Tentamos o RPC de forma segura
+  try {
+      await (supabaseAdmin as any).rpc("execute_sql", {
+          sql: `UPDATE public.wa_conversas SET human_takeover_at = now() - interval '15 minutes' WHERE phone = '${phone}'`
+      });
+  } catch (e) {
       const expirationDate = new Date(Date.now() - 15 * 60 * 1000).toISOString();
       await supabaseAdmin.from("wa_conversas").update({ human_takeover_at: expirationDate } as any).eq("phone", phone);
-  });
+  }
 
   console.log("Executando webhook de cliente...");
   await processMessagesUpsert({
@@ -65,11 +65,9 @@ async function test() {
     }]
   }, "http://localhost/webhook");
 
-  // Aguardar o log assíncrono
   await new Promise(r => setTimeout(r, 1000));
-
   ({ data: conv } = await supabaseAdmin.from("wa_conversas").select("attendance_mode").eq("phone", phone).single());
-  console.log("Status final (deve ser AI):", (conv as any)?.attendance_mode);
+  console.log("Status final:", (conv as any)?.attendance_mode);
 }
 
 test().catch(console.error);
