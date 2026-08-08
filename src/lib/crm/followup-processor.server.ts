@@ -325,15 +325,15 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     
     const { sendEvolutionText } = await import("@/lib/evolution.server");
     
-    // 8. Se pegou, mostrar: FOLLOWUP_EVOLUTION_STARTED, payload enviado
     const evolutionPayload = {
       instance: conversation.instance,
       phone: conversation.phone_number,
       message: messageText
     };
     
-    // 2. LOG DA EVOLUTION: FOLLOWUP_EVOLUTION_STARTED
-    logger.info("FOLLOWUP_EVOLUTION_STARTED", "Payload enviado para Evolution API", { 
+    // LOG OBRIGATÓRIO: EVOLUTION_REQUEST (já logado dentro da função, mas mantemos log de início no worker)
+    const evolutionStartedAt = Date.now();
+    logger.info("FOLLOWUP_EVOLUTION_STARTED", "Payload preparado para Evolution API", { 
       traceId, 
       job_id: followup.id,
       payload: evolutionPayload,
@@ -349,49 +349,71 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       evolution_started_at: new Date().toISOString()
     });
 
-    const success = await sendEvolutionText(instance, conversation.phone_number, messageText);
+    // Chamada efetiva
+    const evoResult = await sendEvolutionText(instance, conversation.phone_number, messageText);
+    const success = evoResult.success;
+    const evolutionData = evoResult.data;
+    const durationMs = Date.now() - evolutionStartedAt;
 
-    // 2. LOG DA EVOLUTION: Resposta HTTP e MessageId
+    // LOG OBRIGATÓRIO: EVOLUTION_RESPONSE (dentro da função tem log detalhado, aqui focamos no resultado para o followup)
+    const messageId = evolutionData?.key?.id || evolutionData?.id || evolutionData?.message?.key?.id;
+    
     logger.info("FOLLOWUP_MESSAGE_SENT", `Evolution API response: ${success ? 'SUCCESS' : 'FAILED'}`, { 
       traceId, 
       job_id: followup.id,
       success,
-      customerFirstName: nameData.firstName,
-      customerName: nameData.fullName,
-      source: nameData.source,
-      messageSent: messageText,
+      durationMs,
+      messageId,
       timestamp: new Date().toISOString()
     });
-
 
     if (!success) {
       await updateFollowupStep(followup.id, "FOLLOWUP_EVOLUTION_FAILED", traceId);
       throw new Error("EVOLUTION_HTTP_ERROR: Falha ao enviar mensagem via Evolution API.");
     }
 
-    // 10. Atualizar status: PROCESSING ↓ SENT (o status SENT é definido abaixo)
+    // LOG OBRIGATÓRIO: MESSAGE_ID_SAVED
+    if (messageId) {
+      logger.info("MESSAGE_ID_SAVED", "Message ID extraído com sucesso", {
+        traceId,
+        job_id: followup.id,
+        messageId,
+        timestamp: new Date().toISOString()
+      });
+    }
+
     await updateFollowupStep(followup.id, "FOLLOWUP_EVOLUTION_SUCCESS", traceId);
 
     const completionTime = new Date().toISOString();
     
-    // 1. LOG DO WORKER: JOB_FINISHED
-    logger.info("JOB_FINISHED", `Job processado com sucesso`, { 
-      traceId, 
+    // LOG OBRIGATÓRIO: CONVERSATION_UPDATED
+    logger.info("CONVERSATION_UPDATED", "Atualizando histórico da conversa", {
+      traceId,
       job_id: followup.id,
-      rule_id: followup.rule_id,
-      telefone: followup.phone,
-      worker_id,
+      conversation_id: conversation.id,
       timestamp: completionTime
     });
 
     await (supabaseAdmin.rpc("append_wa_message" as any, {
       p_phone: followup.phone,
-      p_message: { id: `fup-${Date.now()}`, role: 'assistant', parts: [{ type: 'text', text: messageText }], createdAt: completionTime },
+      p_message: { 
+        id: messageId || `fup-${Date.now()}`, 
+        role: 'assistant', 
+        parts: [{ type: 'text', text: messageText }], 
+        createdAt: completionTime 
+      },
       p_instance: conversation.instance,
       p_phone_number: conversation.phone_number,
       p_increment_unread: false,
       p_new_status: "aguardando"
     } as any) as any);
+
+    // LOG OBRIGATÓRIO: FOLLOWUP_SENT
+    logger.info("FOLLOWUP_SENT", "Finalizando job com status SENT", {
+      traceId,
+      job_id: followup.id,
+      timestamp: completionTime
+    });
 
     await supabaseAdmin
       .from("crm_followups")
@@ -406,11 +428,24 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
           ...(followup.metadata || {}),
           last_step: "FOLLOWUP_SENT",
           evolution_success: true,
+          evolution_response: evolutionData,
+          message_id: messageId,
           worker_id,
-          finished_at: completionTime
+          finished_at: completionTime,
+          duration_total_ms: Date.now() - new Date(followup.created_at).getTime()
         }
       } as any)
       .eq("id", followup.id);
+
+    // LOG OBRIGATÓRIO: JOB_FINISHED
+    logger.info("JOB_FINISHED", `Job processado com sucesso`, { 
+      traceId, 
+      job_id: followup.id,
+      rule_id: followup.rule_id,
+      telefone: followup.phone,
+      worker_id,
+      timestamp: completionTime
+    });
 
 
   } catch (err: any) {

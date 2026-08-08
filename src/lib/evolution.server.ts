@@ -181,11 +181,12 @@ export async function sendEvolutionText(
   to: string,
   body: string,
   typingMs = 0,
-): Promise<boolean> {
+): Promise<{ success: boolean; data?: any }> {
   const { normalizeBrazilianPhone } = await import("./phone");
   const normalized = normalizeBrazilianPhone(to);
   const number = normalized?.full || to.replace(/\D/g, "");
   const traceId = `out-${Math.random().toString(36).substring(7)}`;
+  const startedAt = Date.now();
   
   // INSTRUMENTAÇÃO DE AUDITORIA
   const stack = new Error().stack;
@@ -224,11 +225,32 @@ export async function sendEvolutionText(
     payload.options = { delay: typingMs, presence: "composing" };
   }
   
+  // LOG OBRIGATÓRIO: EVOLUTION_REQUEST
+  logger.info("EVOLUTION_REQUEST", "Disparando requisição HTTP para Evolution", {
+    traceId,
+    timestamp: new Date().toISOString(),
+    instance,
+    to: number,
+    payload: { ...payload, text: text.slice(0, 50) + "..." }
+  });
+
   const res = await evoFetch(`/message/sendText/${encodeURIComponent(instance)}`, {
     method: "POST",
     body: payload,
   });
   
+  const durationMs = Date.now() - startedAt;
+
+  // LOG OBRIGATÓRIO: EVOLUTION_RESPONSE
+  logger.info("EVOLUTION_RESPONSE", "Resposta da Evolution API recebida", {
+    traceId,
+    timestamp: new Date().toISOString(),
+    durationMs,
+    status: res.status,
+    ok: res.ok,
+    data: res.data
+  });
+
   if (!res.ok) {
     const errorMsg = res.data?.response?.message || res.data?.message || res.text || "Unknown Evolution Error";
     logger.error("EVOLUTION_SEND_TEXT_FAILED", `Status: ${res.status} - ${errorMsg}`, { to, textSnippet: text.slice(0, 50), traceId });
@@ -237,7 +259,7 @@ export async function sendEvolutionText(
     throw new Error(`EVOLUTION_HTTP_ERROR: Status ${res.status}. ${errorMsg}`);
   }
   
-  return res.ok;
+  return { success: res.ok, data: res.data };
 }
 
 /**
