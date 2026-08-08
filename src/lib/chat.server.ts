@@ -320,8 +320,9 @@ export async function runAgent(opts: AgentOptions & { messages: any[] }) {
   const { messages, conversationKey, unidadeId, sandbox, customerContext, activePromotions } = opts;
   const { effectiveUnitId, effectiveUnitName } = await resolveEffectiveUnit({ conversationKey, agentUnitId: unidadeId });
   
-  const provider = createLovableAiGatewayProvider(process.env.LOVABLE_AI_GATEWAY_KEY || "");
-  const model = provider("gemini-1.5-flash");
+  const gatewayKey = process.env.LOVABLE_AI_GATEWAY_KEY || process.env.LOVABLE_API_KEY || "";
+  const provider = createLovableAiGatewayProvider(gatewayKey);
+  const model = provider("google/gemini-2.5-flash");
 
   const system = assembleSystemPrompt({
     contactName: opts.contactName,
@@ -334,7 +335,7 @@ export async function runAgent(opts: AgentOptions & { messages: any[] }) {
 
   const tools = buildTools(!!sandbox, effectiveUnitId, conversationKey, opts.messageId);
 
-  const modelMessages = await convertToModelMessages(messages);
+  const modelMessages = Array.isArray(messages) && messages[0]?.role ? messages : await convertToModelMessages(messages);
   return generateText({
     model: model as any,
     system: system + (sandbox ? SANDBOX_NOTE : ""),
@@ -371,8 +372,9 @@ export async function streamAgent(opts: AgentOptions & { messages: any[] }) {
   const { messages, conversationKey, unidadeId, sandbox, customerContext, activePromotions } = opts;
   const { effectiveUnitId, effectiveUnitName } = await resolveEffectiveUnit({ conversationKey, agentUnitId: unidadeId });
   
-  const provider = createLovableAiGatewayProvider(process.env.LOVABLE_AI_GATEWAY_KEY || "");
-  const model = provider("gemini-1.5-flash");
+  const gatewayKey = process.env.LOVABLE_AI_GATEWAY_KEY || process.env.LOVABLE_API_KEY || "";
+  const provider = createLovableAiGatewayProvider(gatewayKey);
+  const model = provider("google/gemini-2.5-flash");
 
   const system = assembleSystemPrompt({
     contactName: opts.contactName,

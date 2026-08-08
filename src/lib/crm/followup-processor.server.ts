@@ -442,17 +442,19 @@ async function resolveFollowupCustomerName(followup: any, conversation: any, tra
 }
 
 async function generateAiFollowup(followup: any, nameData: any) {
-  const providerName = "google";
-  const modelName = "google/gemini-2.5-flash"; 
+    const providerName = "lovable";
+    const modelName = "gemini-1.5-flash"; 
+
   const startTime = Date.now();
   
   try {
-    const { getAiKey } = await import("../ai-gateway.server");
-    const apiKey = await getAiKey();
+    // createLovableAiGatewayProvider já está importado no topo
+    const apiKey = process.env.LOVABLE_AI_GATEWAY_KEY || process.env.LOVABLE_API_KEY || "";
     
     if (!apiKey) {
-      throw new Error("LOVABLE_AI_GATEWAY_KEY not found in environment");
+      throw new Error("API KEY not found in environment (LOVABLE_AI_GATEWAY_KEY or LOVABLE_API_KEY)");
     }
+
 
     const namePrompt = nameData.fullName 
       ? `O cliente se chama ${nameData.fullName} (primeiro nome: ${nameData.firstName}). Use saudação personalizada: "Olá, ${nameData.firstName}!".`
@@ -474,7 +476,7 @@ INSTRUÇÕES CRÍTICAS:
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiKey}`, // Usar Authorization: Bearer para o Gateway
+        "Lovable-API-Key": apiKey,
         "X-Lovable-AIG-SDK": "fetch-raw"
       },
       body: JSON.stringify({
@@ -483,6 +485,7 @@ INSTRUÇÕES CRÍTICAS:
         temperature: 0.7
       })
     });
+
 
 
     if (!response.ok) {
