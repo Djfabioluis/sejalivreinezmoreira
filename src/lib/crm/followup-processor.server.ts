@@ -360,7 +360,7 @@ async function resolveFollowupCustomerName(followup: any, conversation: any, tra
 
 async function generateAiFollowup(followup: any, nameData: any) {
   const providerName = "google";
-  const modelName = "gemini-1.5-flash";
+  const modelName = "google:gemini-1.5-flash"; // Prefixo obrigatório para provedores genéricos do gateway
   const startTime = Date.now();
   
   try {
