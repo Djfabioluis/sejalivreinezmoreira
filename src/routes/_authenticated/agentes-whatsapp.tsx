@@ -117,6 +117,7 @@ function AgentesWhatsAppPage() {
   const [tipo, setTipo] = useState<"feminino" | "masculino">("feminino");
   const [telefone, setTelefone] = useState("");
   const [saving, setSaving] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const [qrOpen, setQrOpen] = useState(false);
   const [qrData, setQrData] = useState<string | null>(null);
@@ -292,8 +293,40 @@ function AgentesWhatsAppPage() {
         <Button className="flex-1" size="lg" onClick={() => setAddOpen(true)}>
           <Plus className="mr-2 h-4 w-4" /> Adicionar agente
         </Button>
-        <Button variant="outline" size="lg" onClick={() => void syncEvolutionInstances().then(() => reload())}>
-          <RefreshCw className="mr-2 h-4 w-4" /> Sincronizar
+        <Button 
+          variant="outline" 
+          size="lg" 
+          disabled={syncing}
+          onClick={async () => {
+            setSyncing(true);
+            try {
+              const res = await syncEvolutionInstances();
+              await reload();
+              
+              if (res.stats.updatedCount > 0) {
+                toast.success("Agentes sincronizados com sucesso");
+              } else {
+                toast.info("Agentes já estão sincronizados");
+              }
+            } catch (err) {
+              console.error("[AGENTS_SYNC_ERROR]", err);
+              toast.error("Erro ao sincronizar agentes");
+            } finally {
+              setSyncing(false);
+            }
+          }}
+        >
+          {syncing ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Sincronizando...
+            </>
+          ) : (
+            <>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Sincronizar
+            </>
+          )}
         </Button>
       </div>
 
