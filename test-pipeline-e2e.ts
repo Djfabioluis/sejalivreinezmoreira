@@ -17,6 +17,7 @@ async function runEndToEndTest() {
       status: "READY",
       scheduled_at: scheduledAt,
       message_template: "Olá! Este é um teste automático do pipeline de envio Julia AI. 💜",
+      stage: "FOLLOWUP", // Adicionando campo obrigatório
       metadata: { 
         test_type: "e2e_pipeline_fix",
         contact_name: "Fabio Teste",
