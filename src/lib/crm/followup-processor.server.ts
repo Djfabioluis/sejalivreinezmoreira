@@ -125,9 +125,9 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     const { data: previousSent } = await supabaseAdmin
       .from("crm_followups")
       .select("id, status, message_id, sent_at")
-      .eq("phone", followup.phone)
+      .eq("phone", currentFollowup.phone)
       .eq("status", "SENT")
-      .neq("id", followup.id)
+      .neq("id", currentFollowup.id)
       .maybeSingle();
 
     if (previousSent) {
