@@ -364,7 +364,6 @@ async function generateAiFollowup(followup: any, nameData: any) {
   const startTime = Date.now();
   
   try {
-    // Busca a chave da API do Lovable AI Gateway
     const { getAiKey } = await import("../ai-gateway.server");
     const apiKey = await getAiKey();
     
@@ -372,10 +371,10 @@ async function generateAiFollowup(followup: any, nameData: any) {
       throw new Error("LOVABLE_AI_GATEWAY_KEY not found in environment");
     }
 
-    const { createOpenAICompatible } = await import("@ai-sdk/openai-compatible");
-    const provider = createOpenAICompatible({
-      name: "lovable",
-      baseURL: "https://ai.gateway.lovable.dev/v1",
+    const { createGoogleGenerativeAI } = await import("@ai-sdk/google");
+    const provider = createGoogleGenerativeAI({
+      apiKey,
+      baseURL: "https://ai.gateway.lovable.dev/v1/google",
       headers: {
         "Lovable-API-Key": apiKey,
       }
