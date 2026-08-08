@@ -2,6 +2,7 @@
 // Nunca importar em código de browser.
 import { sanitizeCustomerText } from "@/lib/text-sanitize";
 import { logger } from "./observability/logger.server";
+import { logEvent } from "./evolution/logger.server";
 import { AppError } from "./core/errors";
 import { 
   enforceNoCpfInSubscriptionFlow, 
