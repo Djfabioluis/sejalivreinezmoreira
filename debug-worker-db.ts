@@ -12,6 +12,7 @@ async function runTest() {
     .insert({
       phone: testPhone,
       status: "READY",
+      stage: "DEBUG",
       scheduled_at: new Date().toISOString(),
       metadata: { 
         test_run: true,
