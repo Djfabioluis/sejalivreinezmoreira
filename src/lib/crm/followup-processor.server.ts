@@ -100,7 +100,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
         }
       } as any)
       .eq("id", followup.id)
-      .in("status", ["PENDING", "READY", "PENDENTE", "READY_TO_SEND", "PROCESSING"]) // Permite re-travar se necessário
+      .in("status", ["PENDING", "READY", "PENDENTE", "READY_TO_SEND", "PROCESSING"])
       .select('id')
       .single();
 

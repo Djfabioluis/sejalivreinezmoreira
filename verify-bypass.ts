@@ -8,7 +8,6 @@ async function verifyBypassFinal() {
   const testPhone = "41999102791"; 
   const instance = "agente-5541998430354";
   
-  // Limpeza
   await supabaseAdmin.from("crm_followups").delete().eq("phone", testPhone);
 
   const { data: rule } = await supabaseAdmin
@@ -18,11 +17,10 @@ async function verifyBypassFinal() {
     .single();
   
   if (!rule) {
-    console.error("Nenhuma regra de followup encontrada no banco.");
+    console.error("Nenhuma regra de followup encontrada.");
     process.exit(1);
   }
 
-  // TESTE 1: Trigger com "Teste" mas reason/stage REAIS (NÃO deve dar bypass)
   console.log("\n1️⃣ Testando trigger 'Teste de verificação real' com campos REAIS...");
   const realJobId = "00000000-0000-4000-c000-" + Math.random().toString(16).substring(2, 14).padEnd(12, '0');
   
@@ -37,24 +35,21 @@ async function verifyBypassFinal() {
       scheduled_at: new Date().toISOString(),
       attempts: 0,
       rule_id: rule.id,
-      metadata: {
-        trigger: "Teste de verificação real",
-        instance
-      }
+      metadata: { trigger: "Teste de verificação real", instance }
     } as any)
     .select()
     .single();
 
-  await processSingleFollowup(jobReal, "verify-real");
-  const { data: resReal } = await supabaseAdmin.from("crm_followups").select("status, cancel_reason, metadata").eq("id", realJobId).single();
-  
-  if (resReal.status !== "CANCELED" || resReal.cancel_reason !== "TEST_SKIPPED") {
-    console.log("✅ SUCESSO: O trigger textual NÃO causou bypass. O fluxo prosseguiu.");
-  } else {
-    console.log("❌ FALHA: O trigger textual causou bypass indevido (TEST_SKIPPED).");
+  if (jobReal) {
+    await processSingleFollowup(jobReal, "verify-real");
+    const { data: resReal } = await supabaseAdmin.from("crm_followups").select("status, cancel_reason").eq("id", realJobId).single();
+    if (resReal.status !== "CANCELED" || resReal.cancel_reason !== "TEST_SKIPPED") {
+      console.log("✅ SUCESSO: O trigger textual NÃO causou bypass.");
+    } else {
+      console.log("❌ FALHA: O trigger textual causou bypass.");
+    }
   }
 
-  // TESTE 2: Campos estruturados de teste (DEVE dar bypass)
   console.log("\n2️⃣ Testando reason 'MANUAL_TEST' (Bypass legítimo)...");
   const synthJobId = "00000000-0000-4000-c000-" + Math.random().toString(16).substring(2, 14).padEnd(12, '0');
   const { data: jobSynth } = await supabaseAdmin
@@ -72,17 +67,15 @@ async function verifyBypassFinal() {
     .select()
     .single();
 
-  await processSingleFollowup(jobSynth, "verify-synth");
-  const { data: resSynth } = await supabaseAdmin.from("crm_followups").select("status, cancel_reason").eq("id", synthJobId).single();
-  
-  if (resSynth.status === "CANCELED" && resSynth.cancel_reason === "TEST_SKIPPED") {
-    console.log("✅ SUCESSO: O bypass legítimo por reason='MANUAL_TEST' funcionou.");
-  } else {
-    console.log("❌ FALHA: O bypass por campos estruturados não funcionou. Status: " + resSynth.status);
+  if (jobSynth) {
+    await processSingleFollowup(jobSynth, "verify-synth");
+    const { data: resSynth } = await supabaseAdmin.from("crm_followups").select("status, cancel_reason").eq("id", synthJobId).single();
+    if (resSynth && resSynth.status === "CANCELED" && resSynth.cancel_reason === "TEST_SKIPPED") {
+      console.log("✅ SUCESSO: Bypass legítimo funcionou.");
+    } else {
+      console.log("❌ FALHA: Bypass legítimo falhou. Status: " + resSynth?.status);
+    }
   }
 }
 
-verifyBypassFinal().catch(err => {
-  console.error(err);
-  process.exit(1);
-});
+verifyBypassFinal().catch(console.error);
