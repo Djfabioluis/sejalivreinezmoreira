@@ -6,7 +6,7 @@ async function testFollowupResolution() {
   console.log("🚀 Iniciando teste de resolução de conversa por telefone...");
 
   // 1. Criar um job de teste com customer_id = null
-  const testJobId = `test-${Math.random().toString(36).substring(7)}`;
+  const testJobId = "00000000-0000-0000-0000-" + Math.random().toString(36).substring(2, 14).padEnd(12, '0');
   const testPhone = "41999102791";
 
   // Limpar jobs anteriores com este telefone para evitar idempotência
