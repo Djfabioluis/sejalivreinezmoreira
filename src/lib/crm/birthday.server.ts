@@ -62,7 +62,7 @@ export async function processBirthdays() {
   }
 }
 
-async function createBirthdayFollowup(customer: any, traceId: string) {
+export async function createBirthdayFollowup(customer: any, traceId: string) {
   const phone = customer.phone;
   const contactName = customer.customer_name || "cliente";
   const firstName = contactName.split(' ')[0];
