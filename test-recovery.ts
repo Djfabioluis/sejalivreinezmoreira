@@ -18,14 +18,13 @@ async function testGenericAbandonment() {
   await supabaseAdmin
     .from('crm_recoveries')
     .delete()
-    .eq('phone', TEST_PHONE)
-    .gt('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+    .eq('phone', TEST_PHONE);
     
   await supabaseAdmin
     .from('crm_followups')
     .delete()
-    .eq('phone', TEST_PHONE)
-    .eq('stage', 'ABANDONED_BOOKING');
+    .eq('phone', TEST_PHONE);
+
 
   // 3. Upsert pipeline to ABANDONED state
   console.log(`[TEST] Inserting ABANDONADO stage into pipeline...`);

@@ -122,7 +122,7 @@ function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans selection:bg-primary/20 scroll-smooth">
-      <div className="hidden">Execute esta instrucao no projeto: verificar o porque a IA esta colocando a unidade do centro civico como opcao? Nao estamos mais nessa unidade</div>
+      <div className="hidden">Execute esta instrucao no projeto: # Prompt para o Lovable — Testar recuperação de abandono genérico (dados realistas)</div>
       <PaymentTestModeBanner />
       
       {/* Decorative Background Elements */}
