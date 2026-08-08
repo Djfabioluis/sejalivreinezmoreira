@@ -1,55 +1,24 @@
 
-import { simulateRealCustomer } from "./src/lib/crm.functions";
 import { supabaseAdmin } from "./src/integrations/supabase/client.server";
 
 async function test() {
-  const phone = "5541998432791"; // Telefone citado pelo usuário
-  const scenario = "ABANDONMENT_GENERIC";
+  const phone = "5541999102791"; 
+  const instance = "agente-5541998430354";
   
   console.log(`🚀 Iniciando simulação para ${phone}...`);
   
   try {
-    // 1. Simular o cliente (isso agora usa a lógica unificada e aguarda a conversa)
-    // Nota: Como estamos em um script externo, precisamos simular o contexto do serverFn se possível,
-    // mas aqui vamos apenas chamar a lógica ou verificar o resultado após o disparo.
-    
-    // Como simulateRealCustomer é um serverFn que usa middleware de auth, 
-    // em um script de teste direto pode ser difícil chamar. 
-    // Vou disparar a lógica manualmente aqui para validar os componentes.
-    
     const { normalizeBrazilianPhone } = await import("./src/lib/phone");
     const normalized = normalizeBrazilianPhone(phone);
     const normalizedPhone = normalized?.full || phone.replace(/\D/g, '');
-    const instance = "agente-5541998430354";
     const conversationKey = `${instance}:${normalizedPhone}`;
 
     console.log(`📱 Telefone normalizado: ${normalizedPhone}`);
     console.log(`🔑 Chave da conversa: ${conversationKey}`);
 
-    // Limpar jobs anteriores para este telefone para ter um teste limpo
+    // Limpar jobs anteriores
     await supabaseAdmin.from("crm_followups").delete().eq("phone", normalizedPhone);
-    console.log("🧹 Histórico de followups limpo para o teste.");
-
-    // Disparar a simulação via a lógica que implementamos no serverFn
-    // (Simulando o que o serverFn faz)
-    
-    const { data: conv } = await supabaseAdmin
-      .from("wa_conversas")
-      .select("phone")
-      .eq("phone", conversationKey)
-      .maybeSingle();
-
-    if (!conv) {
-      console.log("🆕 Criando nova conversa...");
-      await supabaseAdmin.from("wa_conversas").insert({
-        phone: conversationKey,
-        phone_number: normalizedPhone,
-        contact_name: "Cliente Simulação Teste",
-        instance: instance,
-        attendance_mode: "AI",
-        status: "novo"
-      } as any);
-    }
+    console.log("🧹 Histórico de followups limpo.");
 
     const { updateCustomerPipeline } = await import("./src/lib/crm.server");
     await updateCustomerPipeline({
@@ -57,7 +26,7 @@ async function test() {
       stage: 'ABANDONADO' as any,
       abandonmentReason: 'Sem resposta após escolher serviço'
     });
-    console.log("📈 Pipeline atualizado para ABANDONADO.");
+    console.log("📈 Pipeline atualizado.");
 
     const { processAutomatedRecoveries } = await import("./src/lib/crm/recovery.server");
     await processAutomatedRecoveries();
@@ -89,9 +58,10 @@ async function test() {
     console.log(`🔍 FOUND BY: ${result.metadata?.found_by || 'NULL'}`);
 
     if (result.status === 'SENT' && result.metadata?.found_by === 'phone_lookup') {
-      console.log("🎉 TESTE BEM-SUCEDIDO: Lógica unificada funcionou e encontrou a conversa por telefone!");
+      console.log("🎉 TESTE BEM-SUCEDIDO!");
     } else {
       console.log("⚠️ ALERTA: O resultado não atingiu os critérios esperados.");
+      console.log("Metadata completo:", JSON.stringify(result.metadata, null, 2));
     }
 
   } catch (error) {
