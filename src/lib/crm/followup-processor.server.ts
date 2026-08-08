@@ -278,15 +278,26 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       return;
     }
 
+    // 1. Auditando o fluxo completo: resolveFollowupCustomerName()
+    const nameData = await resolveFollowupCustomerName(followup, conversation, traceId);
+    
+    logger.info("FOLLOWUP_NAME_RESOLVED", `Resolução de nome para o job ${followup.id}`, { 
+      traceId, 
+      job_id: followup.id,
+      customerFirstName: nameData.firstName,
+      customerName: nameData.fullName,
+      source: nameData.source,
+      timestamp: new Date().toISOString()
+    });
+
     // Adiciona log de início de geração
     await updateFollowupStep(followup.id, "FOLLOWUP_GENERATION_STARTED", traceId);
 
     let messageText = followup.message_template;
     if (!messageText) {
-       messageText = await generateAiFollowup(followup, conversation, traceId);
+       messageText = await generateAiFollowup(followup, conversation, traceId, nameData);
     } else {
-      // 6. TEMPLATE FIXO (Se vier de uma regra com mensagem fixa)
-      const nameData = await resolveFollowupCustomerName(followup, conversation, traceId);
+      // 6. TEMPLATE FIXO
       if (nameData.firstName) {
         messageText = messageText.replace(/{{nome}}/g, nameData.fullName || "");
         messageText = messageText.replace(/{{primeiro_nome}}/g, nameData.firstName || "");
@@ -295,6 +306,13 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
         messageText = messageText.replace(/,?\s?{{primeiro_nome}}/g, "");
       }
     }
+
+    logger.info("FOLLOWUP_MESSAGE_GENERATED", `Mensagem final gerada para o job ${followup.id}`, {
+      traceId,
+      job_id: followup.id,
+      messageText,
+      timestamp: new Date().toISOString()
+    });
 
     if (!messageText) {
       throw new Error("MESSAGE_GENERATION_FAILED: O retorno da IA ou template fixo está vazio.");
