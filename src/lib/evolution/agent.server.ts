@@ -150,6 +150,24 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       return;
     }
 
+    // NOVO: Double-check attendance mode immediately before AI invocation to prevent race conditions
+    const { data: finalCheck } = await supabaseAdmin
+      .from("wa_conversas")
+      .select("attendance_mode")
+      .or(`phone.eq.${conversationKey},phone.eq.${contactPhone},phone_number.eq.${contactPhone}`)
+      .maybeSingle();
+      
+    if (finalCheck?.attendance_mode === "HUMAN") {
+      await logEvent({
+        instance,
+        messageId,
+        event: "agent_flow_aborted_race_condition",
+        status: "aborted",
+        payload: { traceId, reason: "Human takeover detected just before AI run" }
+      });
+      return;
+    }
+
     const text = textOverride?.trim() || extractMessageText(msg.message);
     if (!text) {
       await logEvent({ instance, messageId, event: "agent_flow", status: "empty_text_skipped", payload: { traceId } });
