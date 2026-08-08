@@ -1,27 +1,47 @@
-{/* Execute esta instrucao no projeto: # Prompt para o Lovable — Message ID retornado mas mensagem não chegou (instância sem sessão ativa)
+{/* Execute esta instrucao no projeto: # Prompt para o Lovable — Limpeza final pós-correção (higiene, não é bug)
 
 ## Contexto
 
-Depois da última correção ("instância `julia-main` não existia na API, corrigido"), o sistema reportou envio bem-sucedido com Message ID `3EB06E21E4E905556DAF64`, mas a mensagem **não chegou** no WhatsApp do número de teste — que é meu número real e está ativo.
-
-**Hipótese:** ao corrigir o problema de "instância não existe", pode ter sido criada uma instância **nova** na Evolution API (via `createInstance()`), mas essa instância nova não tem nenhuma sessão de WhatsApp autenticada — ninguém escaneou o QR Code para conectá-la a um número real. Isso explicaria por que a API aceita o envio e retorna um Message ID válido (gerado localmente pelo Baileys/Evolution ao montar a mensagem) sem que a entrega de fato aconteça pela rede do WhatsApp.
+Os 4 problemas reportados (validação por CPF, promoção de mechas, follow-up sem envio, telefone não encontrando plano no BEMP) já foram corrigidos e validados de ponta a ponta — inclusive com uma mensagem real chegando no WhatsApp. Faltam só três itens de organização antes de considerar o ciclo fechado.
 
 ## Tarefa
 
-1. Identifique qual é o nome exato da instância que está configurada **agora** (depois da última correção) em `base_conhecimento` (id=20, campo de configuração da Evolution) ou nas variáveis de ambiente `EVOLUTION_API_URL`/instância padrão usada por `sendEvolutionText`.
-2. Rode `getConnectionState(instance)` para essa instância específica (não a antiga `julia-main`) e me diga o resultado exato: `conectado`, `desconectado` ou `aguardando_qr`.
-3. Se o resultado **não** for `conectado`:
-   - Gere o QR Code com `getQrCode(instance)` e exiba na tela `/configuracao-whatsapp` (ou me dê uma forma de visualizá-lo agora).
-   - Eu vou escanear esse QR Code com o WhatsApp do número `41999102791` para autenticar a sessão de verdade.
-   - Depois de eu confirmar que escaneei, rode `getConnectionState` de novo e só prossiga quando o status vier `conectado`.
-4. Depois de confirmado `conectado`, repita o envio de teste (pode ser o mesmo botão "Teste de 2 minutos" ou um follow-up manual com dados realistas) e me informe o novo Message ID e horário exato.
-5. **Importante:** não confie apenas no `res.ok`/Message ID retornado pela Evolution API como prova de entrega — isso só confirma que a mensagem foi aceita e enfileirada, não que chegou ao destinatário. Se a Evolution API expuser algum endpoint de status de entrega (webhook de `ack`/`DELIVERY_ACK`/`READ`, ou endpoint de consulta de status da mensagem por ID), use-o para confirmar a entrega real antes de reportar sucesso. Se não existir tal mecanismo hoje, sinalize isso como uma lacuna a corrigir: o sistema não tem como diferenciar "aceito pela API" de "efetivamente entregue".
+### 1. Publicar a versão corrigida
+
+Se ainda não foi feito nesta sessão: publique o projeto (botão "Publish") para que todas as correções valham no ambiente real usado pelas clientes do salão, não só no preview do editor.
+
+### 2. Limpar registros de teste acumulados
+
+1. Rode uma contagem antes de apagar, só para eu ver o volume:
+   ```sql
+   SELECT count(*), min(scheduled_at), max(scheduled_at)
+   FROM crm_followups
+   WHERE reason = 'MANUAL_TEST' OR stage = 'TEST_EXECUTION';
+   ```
+2. Apague apenas os registros sintéticos de teste, preservando qualquer follow-up real:
+   ```sql
+   DELETE FROM crm_followups
+   WHERE reason = 'MANUAL_TEST' OR stage = 'TEST_EXECUTION';
+   ```
+3. Confirme depois que a contagem de registros restantes bate com o esperado (só follow-ups reais).
+4. Se existir alguma tabela auxiliar de logs/auditoria (ex.: a que alimenta o painel "Job Audit & Correlation") com volume grande de entradas de teste, avalie se vale manter um histórico limitado (ex.: só os últimos 30 dias) em vez de apagar tudo — isso pode ser útil para auditoria futura. Não apague logs de auditoria sem necessidade; o pedido aqui é só limpar a fila operacional (`crm_followups`) de lixo de teste.
+
+### 3. Confirmar que o cron está rodando sozinho, sem intervenção manual
+
+1. Aguarde um ciclo completo do cron (o intervalo configurado, ex.: 15 minutos) sem disparar nenhum teste manual.
+2. Depois, rode:
+   ```sql
+   SELECT jobid, jobname, schedule, active FROM cron.job;
+   SELECT * FROM cron.job_run_details ORDER BY start_time DESC LIMIT 10;
+   ```
+3. Confirme para mim:
+   - Que existe pelo menos uma execução **recente** (dentro do último intervalo esperado) com `status = 'succeeded'`, sem eu ter clicado em nada manualmente.
+   - Que não há execuções falhando repetidamente (`status != 'succeeded'`) no histórico.
+4. Se houver algum follow-up real pendente na fila nesse momento (não sintético), confirme que ele foi processado automaticamente por essa execução do cron, sem intervenção manual — esse é o teste definitivo de que o sistema está operando sozinho em produção.
 
 ## Resultado esperado
 
-- Confirmação do status real da instância (`conectado` de verdade, com sessão ativa).
-- QR Code gerado e escaneado, se necessário.
-- Novo teste de envio com confirmação (por mim, checando o WhatsApp) de que a mensagem chegou.
+Um resumo confirmando: publicação feita, fila de testes limpa, e pelo menos uma execução automática do cron (sem clique manual) processando um job com sucesso.
 */}
 
 
