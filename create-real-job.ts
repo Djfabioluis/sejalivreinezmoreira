@@ -2,7 +2,7 @@
 import { supabaseAdmin } from "./src/integrations/supabase/client.server";
 
 async function main() {
-  const myPhone = "551198430354"; // Substitua pelo seu número real se necessário
+  const myPhone = "554198430354"; // DDD 41 (conforme wa_conversas)
   
   console.log(`Criando job REAL para o número: ${myPhone}`);
   
