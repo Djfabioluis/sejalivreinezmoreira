@@ -1,5 +1,4 @@
 import { NormalizedEvolutionMessage } from "./types";
-
 import { logEvent } from "./logger.server";
 import { extractMessageText } from "./message-text";
 import { normalizePhone, buildConversationKey } from "./contact";
@@ -63,21 +62,23 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
   try {
     const agent = await findAgentByInstance(instance);
-    const phone = normalizePhone(msg.remoteJid);
+    const contactPhone = normalizePhone(msg.remoteJid);
     const conversationKey = buildConversationKey(instance, msg.remoteJid);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { HUMAN_TAKEOVER_TIMEOUT_MINUTES } = await import("../config");
 
-    // BUSCA CONVERSA PARA CHECAR ATTENDANCE MODE
+    // BUSCA CONVERSA PARA CHECAR ATTENDANCE MODE (usando any para bypassar erros de tipagem até o gerador rodar)
     const { data: conversation } = await supabaseAdmin
-      .from("wa_conversas")
+      .from("wa_conversas" as any)
       .select("id, attendance_mode, human_takeover_at")
       .eq("instance", instance)
-      .eq("phone", phone)
+      .eq("phone", contactPhone)
       .maybeSingle();
 
-    if (conversation?.attendance_mode === "HUMAN") {
-      const takeoverAt = conversation.human_takeover_at ? new Date(conversation.human_takeover_at).getTime() : 0;
+    const conv = conversation as any;
+
+    if (conv?.attendance_mode === "HUMAN") {
+      const takeoverAt = conv.human_takeover_at ? new Date(conv.human_takeover_at).getTime() : 0;
       const minutesSinceTakeover = (Date.now() - takeoverAt) / 60000;
 
       if (minutesSinceTakeover < HUMAN_TAKEOVER_TIMEOUT_MINUTES) {
@@ -93,9 +94,9 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
       // Expirou -> volta para AI
       await supabaseAdmin
-        .from("wa_conversas")
+        .from("wa_conversas" as any)
         .update({ attendance_mode: "AI", human_takeover_at: null })
-        .eq("id", conversation.id);
+        .eq("id", conv.id);
 
       await logEvent({ 
         instance, 
@@ -117,7 +118,6 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     }
 
     const iaEnabled = isIAEnabled(agent);
-
 
     if (!iaEnabled) {
       const status = String(agent?.status || "").toLowerCase().trim();
@@ -145,10 +145,6 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       return;
     }
 
-
-    const phone = normalizePhone(msg.remoteJid);
-    const conversationKey = buildConversationKey(instance, msg.remoteJid);
-
     // Chama o orquestrador da IA Julia com logging e traceId
     const { runAgentWithLogging } = await import("@/lib/chat.server");
     await runAgentWithLogging({
@@ -157,7 +153,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       contactName: msg.pushName || undefined,
       text,
       unidadeId: agent.unidade_id,
-      contactPhone: phone,
+      contactPhone,
       conversationKey,
       traceId
     } as any);

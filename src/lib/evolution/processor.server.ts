@@ -66,8 +66,9 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
             status: "skipped",
             payload: { traceId }
           });
-          continue;
-        }
+        continue; 
+      }
+
 
         // fromMe=true mas NÃO foi a IA -> HUMANO assumiu
         const phone = normalizePhone(msg.remoteJid);
