@@ -81,8 +81,7 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
             attendance_mode: "HUMAN", 
             human_takeover_at: new Date().toISOString() 
           })
-          .eq("instance", msg.instance)
-          .eq("phone", phone);
+          .or(`phone.eq.${conversationKey},phone.eq.${phone},phone_number.eq.${phone}`);
 
         await logEvent({
           instance: msg.instance,
