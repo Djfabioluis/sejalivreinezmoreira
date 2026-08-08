@@ -103,7 +103,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       const { error: updateError } = await supabaseAdmin
         .from("wa_conversas")
         .update({ attendance_mode: "AI", human_takeover_at: null })
-        .eq("phone", contactPhone);
+        .or(`phone.eq.${conversationKey},phone.eq.${contactPhone},phone_number.eq.${contactPhone}`);
 
       if (updateError) {
         console.error("[takeover-debug] Error updating attendance mode:", updateError);
