@@ -5,7 +5,7 @@ async function testAI() {
   console.log("=== TESTE DIRETO DA IA JULIA ===");
   try {
     const opts = {
-      messages: [{ role: "user", content: "Responda apenas OK" }],
+      messages: [{ role: "user", content: [{ type: "text", text: "Responda apenas OK" }] }],
       contactName: "Tester",
       contactPhone: "5541999999999",
       traceId: "test-direct-ai-" + Date.now(),
