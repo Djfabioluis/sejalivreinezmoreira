@@ -101,19 +101,13 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       // Se chegamos aqui, ou passou o tempo ou o timestamp é inválido/futuro
       console.log(`[takeover-debug] Reactivating AI for ${contactPhone} (minsElapsed: ${minutesSinceTakeover.toFixed(2)})`);
       
-      // TENTATIVA 1: ID
       const { error: updateError } = await supabaseAdmin
-        .from("wa_conversas" as any)
-        .update({ attendance_mode: "AI", human_takeover_at: null } as any)
-        .eq("id", conv.id);
+        .from("wa_conversas")
+        .update({ attendance_mode: "AI", human_takeover_at: null })
+        .eq("phone", contactPhone);
 
       if (updateError) {
-        console.error("[takeover-debug] Update by ID failed, trying by phone:", updateError);
-        // TENTATIVA 2: PHONE
-        await supabaseAdmin
-          .from("wa_conversas" as any)
-          .update({ attendance_mode: "AI", human_takeover_at: null } as any)
-          .eq("phone", contactPhone);
+        console.error("[takeover-debug] Error updating attendance mode:", updateError);
       }
 
       await logEvent({ 
