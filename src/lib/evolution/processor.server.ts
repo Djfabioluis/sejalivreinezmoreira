@@ -268,7 +268,8 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
         }
 
         // 7. Fluxo da IA (uma única chamada por mensagem)
-        if (isIAActive && agentText) {
+        // NUNCA responde a mensagens enviadas pelo próprio número (fromMe)
+        if (isIAActive && agentText && !isFromMe(msg.fromMe)) {
           await runAgentFlow(
             {
               ...msg,
@@ -277,6 +278,7 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
             agentText
           );
         }
+
 
 
         await markEventProcessed(msg.instance, finalMessageId);
