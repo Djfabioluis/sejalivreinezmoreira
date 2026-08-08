@@ -372,13 +372,18 @@ async function generateAiFollowup(followup: any, nameData: any) {
     }
 
     const { createGoogleGenerativeAI } = await import("@ai-sdk/google");
-    const provider = createGoogleGenerativeAI({
+    const google = createGoogleGenerativeAI({
       apiKey,
-      baseURL: "https://ai.gateway.lovable.dev/v1/google",
       headers: {
         "Lovable-API-Key": apiKey,
       }
     });
+    
+    // O Lovable AI Gateway para Google deve ser usado injetando o baseURL
+    // Mas o SDK da Vercel muitas vezes não lida bem com baseURL customizado para Google.
+    // Vamos tentar a abordagem padrão do projeto via ai-gateway util.
+    const { createLovableAiGatewayProvider } = await import("../ai-gateway.server");
+    const provider = createLovableAiGatewayProvider(apiKey);
     
     const model = provider(modelName);
     const prompt = `Aja como Julia, uma assistente humanizada de um salão de beleza. O cliente se chama ${nameData.fullName} (primeiro nome: ${nameData.firstName || 'cliente'}). Gere uma mensagem curta, acolhedora e personalizada de follow-up para este cliente. Nunca use a palavra "Cliente" como se fosse o nome dele.`;
