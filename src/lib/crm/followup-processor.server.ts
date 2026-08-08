@@ -64,6 +64,11 @@ export async function processPendingFollowups() {
 }
 
 export async function processSingleFollowup(followup: any, parentTraceId: string) {
+  if (!followup?.id) {
+    logger.warn("WORKER_EMPTY_JOB", "Worker recebeu um job inválido ou sem ID");
+    return;
+  }
+
   const phone_last4 = followup.phone ? followup.phone.slice(-4) : "0000";
   const traceId = `${parentTraceId}-${followup.id.split('-')[0]}`;
   const worker_id = "JuliaFollowupProcessorV5";
@@ -85,7 +90,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
         status: "PROCESSING", 
         updated_at: now,
         metadata: { 
-          ...(followup.metadata || {}), 
+          ...(typeof followup.metadata === 'object' ? followup.metadata : {}), 
           trace_id: traceId, 
           last_step: "FOLLOWUP_PROCESSING",
           started_at: now,
@@ -95,21 +100,26 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
         }
       } as any)
       .eq("id", followup.id)
-      .in("status", ["PENDING", "READY", "PENDENTE", "READY_TO_SEND"])
-      .select('id')
+      .in("status", ["PENDING", "READY", "PENDENTE", "READY_TO_SEND", "PROCESSING", "FAILED", "CANCELED"])
+      .select('*')
       .single();
 
     if (lockError || !lockedJob) {
-      logger.warn("WORKER_JOB_GRAB_FAILED", "Worker não conseguiu travar o job", { ...logContext, reason: "Race condition or status change" });
+      // Se não conseguimos travar, mas o job já existe, podemos tentar processar o objeto atual 
+      // ou apenas registrar o log. Para fins de robustez, mantemos o retorno aqui.
+      logger.warn("WORKER_JOB_GRAB_FAILED", "Worker não conseguiu travar o job", { ...logContext, reason: lockError?.message || "Job not found or status mismatch" });
       return;
     }
 
+    const currentFollowup = lockedJob;
     logger.info("FOLLOWUP_PROCESSING", "Iniciando processamento do job", logContext);
 
-    // 1.5 Filtro de Testes Manuais (Tratar isoladamente ou descartar)
-    if (followup.reason === "MANUAL_TEST" || followup.stage === "TEST_EXECUTION") {
-      logger.info("FOLLOWUP_TEST_BYPASS", "Job de teste manual detectado. Cancelando sem envio real.", logContext);
-      await blockFollowup(followup.id, "TEST_SKIPPED", "Manual test job ignored by processor", traceId, logContext);
+    // 1.5 Filtro de Testes Sintéticos (Baseado exclusivamente em campos estruturados)
+    const isSyntheticTest = currentFollowup.reason === "MANUAL_TEST" || currentFollowup.stage === "TEST_EXECUTION";
+
+    if (isSyntheticTest) {
+      logger.info("FOLLOWUP_TEST_BYPASS", "Job de teste sintético detectado. Cancelando sem envio real.", logContext);
+      await blockFollowup(currentFollowup.id, "TEST_SKIPPED", "Synthetic test job ignored by processor", traceId, logContext);
       return;
     }
 
@@ -117,9 +127,9 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     const { data: previousSent } = await supabaseAdmin
       .from("crm_followups")
       .select("id, status, message_id, sent_at")
-      .eq("phone", followup.phone)
+      .eq("phone", currentFollowup.phone)
       .eq("status", "SENT")
-      .neq("id", followup.id)
+      .neq("id", currentFollowup.id)
       .maybeSingle();
 
     if (previousSent) {
@@ -136,28 +146,29 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
         cancel_reason: cancelReason,
         updated_at: new Date().toISOString(),
         metadata: {
-          ...(followup.metadata || {}),
+          ...(typeof currentFollowup.metadata === 'object' ? currentFollowup.metadata : {}),
           ...logContext,
           original_job_id: previousSent.id,
           original_message_id: previousSent.message_id,
           original_sent_at: previousSent.sent_at,
           cancel_code: cancelReason
         }
-      } as any).eq("id", followup.id);
+      } as any).eq("id", currentFollowup.id);
       return;
     }
-
+    
     // 3. Normalização do Telefone
     const { normalizeBrazilianPhone } = await import("@/lib/phone");
-    const normalized = normalizeBrazilianPhone(followup.phone);
+    const normalized = normalizeBrazilianPhone(currentFollowup.phone);
     
     if (!normalized || normalized.reason) {
-      await blockFollowup(followup.id, "INVALID_PHONE", `Telefone inválido: ${normalized?.reason || "FORMAT_NOT_RECOGNIZED"}`, traceId, logContext);
+      await blockFollowup(currentFollowup.id, "INVALID_PHONE", `Telefone inválido: ${normalized?.reason || "FORMAT_NOT_RECOGNIZED"}`, traceId, logContext);
       return;
     }
 
     // 4. Busca ou Criação de Conversa (Priorizando Telefone se customer_id for null)
-    const instance = followup.metadata?.instance || "agente-5541998430354";
+    const followupMetadata = typeof currentFollowup.metadata === 'object' ? (currentFollowup.metadata as any) : {};
+    const instance = followupMetadata?.instance || "agente-5541998430354";
     let conversation: any;
     
     try {
@@ -171,7 +182,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
         conversation = await ConversationService.findOrCreate({
           instance,
           phone_number: normalized.full,
-          contact_name: followup.metadata?.contact_name || 'Cliente',
+          contact_name: (typeof currentFollowup.metadata === 'object' ? (currentFollowup.metadata as any)?.contact_name : null) || 'Cliente',
           metadata: logContext
         });
       }
@@ -189,7 +200,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
         stack: convErr.stack,
         timestamp: new Date().toISOString()
       };
-      await blockFollowup(followup.id, "CONVERSATION_CREATION_FAILED", `Erro ao resolver conversa: ${convErr.message}`, traceId, { ...logContext, last_error: errorInfo });
+      await blockFollowup(currentFollowup.id, "CONVERSATION_CREATION_FAILED", `Erro ao resolver conversa: ${convErr.message}`, traceId, { ...logContext, last_error: errorInfo });
       return;
     }
 
@@ -197,16 +208,16 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     const attendanceMode = ctx.attendance_mode || (conversation as any).attendance_mode;
     
     if (attendanceMode === "human" || conversation.status === "atendido_humano") {
-      await blockFollowup(followup.id, "HUMAN_TAKEOVER", "Cliente em atendimento humano", traceId, logContext);
+      await blockFollowup(currentFollowup.id, "HUMAN_TAKEOVER", "Cliente em atendimento humano", traceId, logContext);
       return;
     }
 
     // 5. Resolução de Nome e Geração de Mensagem
-    const nameData = await resolveFollowupCustomerName(followup, conversation, traceId);
+    const nameData = await resolveFollowupCustomerName(currentFollowup, conversation, traceId);
     
-    let messageText = followup.message_template;
+    let messageText = currentFollowup.message_template;
     if (!messageText) {
-       messageText = await generateAiFollowup(followup, nameData);
+       messageText = await generateAiFollowup(currentFollowup, nameData);
     } else {
       if (nameData.firstName) {
         messageText = messageText.replace(/{{nome}}/g, nameData.fullName || "");
@@ -261,7 +272,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     // Tentamos atualizar o histórico e o job. Se falhar, logamos mas o status lógico é SENT.
     try {
       await (supabaseAdmin.rpc("append_wa_message" as any, {
-        p_phone: followup.phone,
+        p_phone: currentFollowup.phone,
         p_message: { 
           id: messageId || `fup-${Date.now()}`, 
           role: 'assistant', 
@@ -279,14 +290,14 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
 
     const updatePayload = {
       status: "SENT",
-      attempts: (followup.attempts || 0) + 1,
+      attempts: (currentFollowup.attempts || 0) + 1,
       sent_at: completionTime,
       completed_at: completionTime,
       message_template: messageText,
       message_id: messageId,
       updated_at: completionTime,
       metadata: {
-        ...(followup.metadata || {}),
+        ...(typeof currentFollowup.metadata === 'object' ? currentFollowup.metadata : {}),
         ...logContext,
         conversationId: conversation.id,
         evolution_response: evolutionData,
@@ -297,7 +308,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     const { data: updateData, error: updateError } = await supabaseAdmin
       .from("crm_followups")
       .update(updatePayload as any)
-      .eq("id", followup.id)
+      .eq("id", currentFollowup.id)
       .select('*');
 
     if (updateError || !updateData?.length) {
@@ -330,11 +341,11 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       status: "FAILED",
       updated_at: new Date().toISOString(),
       metadata: {
-        ...(followup.metadata || {}),
+        ...(typeof followup?.metadata === 'object' ? followup.metadata : {}),
         ...logContext,
         last_error: errorDetails
       }
-    } as any).eq("id", followup.id);
+    } as any).eq("id", followup?.id || logContext.job_id);
   }
 }
 
@@ -353,7 +364,8 @@ async function blockFollowup(id: string, reason: string, detail: string, traceId
 }
 
 async function resolveFollowupCustomerName(followup: any, conversation: any, traceId: string) {
-  const fullName = followup.metadata?.contact_name || conversation.contact_name || "Cliente";
+  const followupMetadata = typeof followup.metadata === 'object' ? (followup.metadata as any) : {};
+  const fullName = followupMetadata?.contact_name || conversation.contact_name || "Cliente";
   const firstName = fullName !== "Cliente" ? fullName.split(' ')[0] : null;
   return { fullName, firstName, source: "metadata" };
 }
