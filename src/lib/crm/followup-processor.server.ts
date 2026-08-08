@@ -379,7 +379,6 @@ async function generateAiFollowup(followup: any, nameData: any) {
     const { text } = await generateText({
       model,
       prompt,
-      maxCompletionTokens: 500,
     });
     
     return text;
