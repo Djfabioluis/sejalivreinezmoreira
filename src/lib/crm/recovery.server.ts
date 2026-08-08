@@ -10,27 +10,28 @@ import { getBempConfig, bempFetch } from "@/lib/bemp.server";
 export async function processAutomatedRecoveries() {
   console.log("[crm-recovery] Starting recovery pass...");
 
-  // 1. Find abandoned customers with specific reasons
-  const { data: abandoned, error } = await supabaseAdmin
+  // 1. Find abandoned customers
+  const { data: allAbandoned, error } = await supabaseAdmin
     .from("crm_customer_pipeline")
     .select("phone, abandonment_reason, last_interaction_at")
-    .eq("current_stage", "ABANDONADO")
-    .in("abandonment_reason", ["PROFESSIONAL_UNAVAILABLE", "SATURDAY_FULL"]);
+    .eq("current_stage", "ABANDONADO");
 
-  if (error || !abandoned) {
+  if (error || !allAbandoned) {
     if (error) console.error("[crm-recovery] Error fetching abandoned:", error.message);
     return;
   }
 
-  for (const customer of abandoned) {
+  const GENERIC_ABANDONMENT_REASONS_TO_SKIP = ["PRICE"];
+
+  for (const customer of allAbandoned) {
     try {
-      if (customer.abandonment_reason === 'PRICE') {
+      if (GENERIC_ABANDONMENT_REASONS_TO_SKIP.includes(customer.abandonment_reason)) {
         // "Se abandonment_reason == PRICE ↓ não insistir."
         continue;
       }
 
-      // Check if we already tried recovering this recently
-      const { data: existing } = await supabaseAdmin
+      // Check if we already tried recovering this recently (24h)
+      const { data: existingRecovery } = await supabaseAdmin
         .from("crm_recoveries")
         .select("id")
         .eq("phone", customer.phone)
@@ -38,12 +39,26 @@ export async function processAutomatedRecoveries() {
         .gt("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
         .maybeSingle();
 
-      if (existing) continue;
+      if (existingRecovery) continue;
+
+      // Also check crm_followups to avoid duplicates if we use that table
+      const { data: existingFollowup } = await supabaseAdmin
+        .from("crm_followups")
+        .select("id")
+        .eq("phone", customer.phone)
+        .in("status", ["PENDING", "READY", "SENT"])
+        .eq("stage", "ABANDONED_BOOKING")
+        .gt("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+        .maybeSingle();
+
+      if (existingFollowup) continue;
 
       if (customer.abandonment_reason === 'PROFESSIONAL_UNAVAILABLE') {
         await handleProfessionalRecovery(customer);
       } else if (customer.abandonment_reason === 'SATURDAY_FULL') {
         await handleSaturdayRecovery(customer);
+      } else {
+        await handleGenericAbandonmentRecovery(customer);
       }
     } catch (err) {
       console.error(`[crm-recovery] Failed for ${customer.phone}:`, err);
@@ -52,8 +67,7 @@ export async function processAutomatedRecoveries() {
 }
 
 async function handleProfessionalRecovery(customer: any) {
-  // Logic: "Se surgier horário ↓ enviar automaticamente"
-  // We check Bemp for slots for the preferred professional (stored in context usually)
+  // Logic: "Se surgir horário ↓ enviar automaticamente"
   const { data: conv } = await supabaseAdmin
     .from("wa_conversas")
     .select("customer_context, instance, phone_number, contact_name, unidade_id")
@@ -67,7 +81,6 @@ async function handleProfessionalRecovery(customer: any) {
 
   if (!profId || !svcId || !unitId) return;
 
-  // Check slots for tomorrow or near future
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const dateStr = tomorrow.toISOString().split('T')[0];
@@ -107,7 +120,6 @@ async function handleSaturdayRecovery(customer: any) {
 
   if (!svcId || !unitId) return;
 
-  // Find next Saturday
   const today = new Date();
   const nextSat = new Date();
   nextSat.setDate(today.getDate() + (6 - today.getDay() + 7) % 7);
@@ -130,43 +142,101 @@ async function handleSaturdayRecovery(customer: any) {
   }
 }
 
+/**
+ * NEW: Generic abandonment recovery.
+ * Creates a standard follow-up via crm_followups.
+ */
+async function handleGenericAbandonmentRecovery(customer: any) {
+  console.log(`[crm-recovery] Handling generic recovery for ${customer.phone} (Reason: ${customer.abandonment_reason})`);
+  
+  // 1. Get conversation to check name and context
+  const { data: conv } = await supabaseAdmin
+    .from("wa_conversas")
+    .select("contact_name, customer_context, instance")
+    .eq("phone", customer.phone)
+    .maybeSingle();
+
+  const contactName = conv?.contact_name || "cliente";
+  const firstName = contactName.split(' ')[0];
+  const instance = conv?.instance || "agente-5541998430354";
+
+  // 2. Create standard follow-up
+  const messageTemplate = `Oi {{primeiro_nome}}! Notei que você não finalizou seu agendamento. Ainda tem interesse? Posso te ajudar a escolher um horário 😊`;
+
+  const { data: newFollowup, error } = await supabaseAdmin
+    .from("crm_followups")
+    .insert({
+      phone: customer.phone,
+      stage: "ABANDONED_BOOKING",
+      reason: customer.abandonment_reason || "GENERIC_ABANDONMENT",
+      status: "READY",
+      scheduled_at: new Date().toISOString(),
+      message_template: messageTemplate,
+      priority: 50,
+      metadata: {
+        source: "recovery_engine",
+        original_reason: customer.abandonment_reason,
+        instance
+      }
+    } as any)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("[crm-recovery] Failed to create generic follow-up:", error.message);
+  } else {
+    // Also record in crm_recoveries to avoid duplicate recovery attempts (from this engine)
+    await supabaseAdmin.from("crm_recoveries").insert({
+      phone: customer.phone,
+      reason: customer.abandonment_reason,
+      status: 'PENDING_FOLLOWUP',
+      metadata: { followup_id: newFollowup.id }
+    });
+    
+    console.log(`[crm-recovery] Created follow-up ${newFollowup.id} for ${customer.phone}`);
+  }
+}
+
 async function sendRecoveryMessage(phone: string, text: string, conv: any, reason: string, metadata: any) {
   const { sendEvolutionText } = await import("@/lib/evolution.server");
   
-  await sendEvolutionText(conv.instance, conv.phone_number, text);
+  const result = await sendEvolutionText(conv.instance, conv.phone_number, text);
   
   // Log recovery
   await supabaseAdmin.from("crm_recoveries").insert({
     phone,
     reason,
-    status: 'ENVIADO',
+    status: result.success ? 'ENVIADO' : 'FALHA',
     sent_at: new Date().toISOString(),
-    metadata
+    metadata: { ...metadata, evolution_response: result.data }
   });
 
-  // Append to chat
-  await supabaseAdmin.rpc("append_wa_message", {
-    p_phone: phone,
-    p_message: {
-      id: `rec-${Date.now()}`,
-      role: 'assistant',
-      parts: [{ type: 'text', text }],
-      createdAt: new Date().toISOString()
-    },
-    p_instance: conv.instance,
-    p_phone_number: conv.phone_number,
-    p_increment_unread: false,
-    p_new_status: "aguardando"
-  });
+  if (result.success) {
+    const messageId = result.data?.key?.id || result.data?.id || result.data?.message?.key?.id;
+    
+    // Append to chat
+    await supabaseAdmin.rpc("append_wa_message", {
+      p_phone: phone,
+      p_message: {
+        id: messageId || `rec-${Date.now()}`,
+        role: 'assistant',
+        parts: [{ type: 'text', text }],
+        createdAt: new Date().toISOString()
+      },
+      p_instance: conv.instance,
+      p_phone_number: conv.phone_number,
+      p_increment_unread: false,
+      p_new_status: "aguardando"
+    });
 
-  // Update pipeline to identify they are being recovered
-  const { updateCustomerPipeline } = await import("../crm.server");
-  await updateCustomerPipeline({
-    phone,
-    stage: 'IDENTIFYING_SERVICE', // Bring them back to life
-    nextAction: 'Recovery sent'
-  });
+    // Update pipeline to bring them back to life
+    const { updateCustomerPipeline } = await import("../crm.server");
+    await updateCustomerPipeline({
+      phone,
+      stage: 'IDENTIFICANDO_SERVICO', 
+      nextAction: 'Recovery sent'
+    });
 
-
-  console.log(`[crm-recovery] Sent recovery to ${phone} for ${reason}`);
+    console.log(`[crm-recovery] Sent direct recovery to ${phone} for ${reason}`);
+  }
 }
