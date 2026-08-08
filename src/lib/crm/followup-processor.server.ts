@@ -144,7 +144,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
         cancel_reason: cancelReason,
         updated_at: new Date().toISOString(),
         metadata: {
-          ...(currentFollowup.metadata || {}),
+          ...(typeof currentFollowup.metadata === 'object' ? currentFollowup.metadata : {}),
           ...logContext,
           original_job_id: previousSent.id,
           original_message_id: previousSent.message_id,
