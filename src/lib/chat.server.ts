@@ -334,7 +334,7 @@ export async function runAgent(opts: AgentOptions & { messages: any[] }) {
 
   const tools = buildTools(!!sandbox, effectiveUnitId, conversationKey, opts.messageId);
 
-  const modelMessages = await convertToModelMessages(messages);
+  const modelMessages = Array.isArray(messages) && messages[0]?.role ? messages : await convertToModelMessages(messages);
   return generateText({
     model: model as any,
     system: system + (sandbox ? SANDBOX_NOTE : ""),

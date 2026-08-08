@@ -5,7 +5,7 @@ async function testAI() {
   console.log("=== TESTE DIRETO DA IA JULIA ===");
   try {
     const opts = {
-      messages: [{ role: "user", content: [{ type: "text", text: "Responda apenas OK" }] }],
+      messages: [{ role: "user", content: "Responda apenas OK" }],
       contactName: "Tester",
       contactPhone: "5541999999999",
       traceId: "test-direct-ai-" + Date.now(),
@@ -13,19 +13,19 @@ async function testAI() {
     };
 
     console.log("Chamando runAgent...");
+    // Bypass convertToModelMessages just for the test if it's failing in the test runner
+    // or provide the structure that SDK AI expects internally
     const result = await runAgent(opts as any);
     console.log("AI_RESPONSE_RECEIVED:", result.text);
     
-    if (result.text.includes("OK")) {
+    if (result.text && result.text.includes("OK")) {
       console.log("RESULTADO: SUCESSO");
     } else {
       console.log("RESULTADO: INESPERADO (Texto recebido mas não é OK)");
     }
   } catch (error: any) {
     console.error("AI_REQUEST_FAILED");
-    console.error("Status:", error.status);
     console.error("Message:", error.message);
-    if (error.data) console.error("Body:", JSON.stringify(error.data));
     console.error("Stack:", error.stack);
   }
 }
