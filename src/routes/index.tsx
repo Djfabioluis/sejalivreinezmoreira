@@ -1,48 +1,4 @@
-{/* Execute esta instrucao no projeto: # Prompt para o Lovable — Limpeza final pós-correção (higiene, não é bug)
-
-## Contexto
-
-Os 4 problemas reportados (validação por CPF, promoção de mechas, follow-up sem envio, telefone não encontrando plano no BEMP) já foram corrigidos e validados de ponta a ponta — inclusive com uma mensagem real chegando no WhatsApp. Faltam só três itens de organização antes de considerar o ciclo fechado.
-
-## Tarefa
-
-### 1. Publicar a versão corrigida
-
-Se ainda não foi feito nesta sessão: publique o projeto (botão "Publish") para que todas as correções valham no ambiente real usado pelas clientes do salão, não só no preview do editor.
-
-### 2. Limpar registros de teste acumulados
-
-1. Rode uma contagem antes de apagar, só para eu ver o volume:
-   ```sql
-   SELECT count(*), min(scheduled_at), max(scheduled_at)
-   FROM crm_followups
-   WHERE reason = 'MANUAL_TEST' OR stage = 'TEST_EXECUTION';
-   ```
-2. Apague apenas os registros sintéticos de teste, preservando qualquer follow-up real:
-   ```sql
-   DELETE FROM crm_followups
-   WHERE reason = 'MANUAL_TEST' OR stage = 'TEST_EXECUTION';
-   ```
-3. Confirme depois que a contagem de registros restantes bate com o esperado (só follow-ups reais).
-4. Se existir alguma tabela auxiliar de logs/auditoria (ex.: a que alimenta o painel "Job Audit & Correlation") com volume grande de entradas de teste, avalie se vale manter um histórico limitado (ex.: só os últimos 30 dias) em vez de apagar tudo — isso pode ser útil para auditoria futura. Não apague logs de auditoria sem necessidade; o pedido aqui é só limpar a fila operacional (`crm_followups`) de lixo de teste.
-
-### 3. Confirmar que o cron está rodando sozinho, sem intervenção manual
-
-1. Aguarde um ciclo completo do cron (o intervalo configurado, ex.: 15 minutos) sem disparar nenhum teste manual.
-2. Depois, rode:
-   ```sql
-   SELECT jobid, jobname, schedule, active FROM cron.job;
-   SELECT * FROM cron.job_run_details ORDER BY start_time DESC LIMIT 10;
-   ```
-3. Confirme para mim:
-   - Que existe pelo menos uma execução **recente** (dentro do último intervalo esperado) com `status = 'succeeded'`, sem eu ter clicado em nada manualmente.
-   - Que não há execuções falhando repetidamente (`status != 'succeeded'`) no histórico.
-4. Se houver algum follow-up real pendente na fila nesse momento (não sintético), confirme que ele foi processado automaticamente por essa execução do cron, sem intervenção manual — esse é o teste definitivo de que o sistema está operando sozinho em produção.
-
-## Resultado esperado
-
-Um resumo confirmando: publicação feita, fila de testes limpa, e pelo menos uma execução automática do cron (sem clique manual) processando um job com sucesso.
-*/}
+{/* Execute esta instrucao no projeto: feito */}
 
 
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
