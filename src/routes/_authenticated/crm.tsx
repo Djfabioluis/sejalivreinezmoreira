@@ -399,12 +399,64 @@ function CRMPage() {
 
 
           {selectedExecution && (
-            <div className="mt-8 space-y-8">
+            <div className="space-y-8 animate-in fade-in slide-in-from-right duration-300">
+              {/* MODO DEBUG OBRIGATÓRIO */}
+              <Card className="bg-slate-950 text-slate-50 border-slate-800 shadow-2xl overflow-hidden">
+                <CardHeader className="py-3 px-4 bg-slate-900/50 border-b border-slate-800">
+                  <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] flex items-center gap-2 text-primary">
+                    <ShieldCheck className="h-3 w-3" /> System Audit Mode (Real-Time Data)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 space-y-4">
+                   <div className="grid grid-cols-2 gap-3 text-[10px] font-mono">
+                      <div className="space-y-1">
+                        <span className="text-slate-500 block">JOB ID:</span>
+                        <span className="text-primary truncate block">{selectedExecution.id}</span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-slate-500 block">STATUS:</span>
+                        <Badge variant="outline" className={`h-4 text-[9px] uppercase border-primary/30 text-primary ${selectedExecution.status === 'PROCESSING' ? 'animate-pulse' : ''}`}>
+                          {selectedExecution.status}
+                        </Badge>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-slate-500 block">CONVERSATION ID:</span>
+                        <span className={selectedExecution.metadata?.conversationId ? "text-emerald-400" : "text-red-500"}>
+                          {selectedExecution.metadata?.conversationId || "NULL / NOT_FOUND"}
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        <span className="text-slate-500 block">MESSAGE ID:</span>
+                        <span className={selectedExecution.metadata?.message_id || selectedExecution.metadata?.evolution_response?.key?.id ? "text-emerald-400" : "text-red-500"}>
+                          {selectedExecution.metadata?.message_id || selectedExecution.metadata?.evolution_response?.key?.id || "NULL / NOT_SENT"}
+                        </span>
+                      </div>
+                   </div>
+
+                   <div className="pt-2 border-t border-slate-800">
+                      <p className="text-[9px] text-slate-500 uppercase font-black mb-2">Supabase Query Context</p>
+                      <code className="text-[9px] bg-black/40 p-2 rounded block text-emerald-500/80 leading-tight">
+                        SELECT * FROM crm_followups WHERE id = '{selectedExecution.id}'
+                      </code>
+                   </div>
+
+                   <div className="pt-2">
+                      <p className="text-[9px] text-slate-500 uppercase font-black mb-2">RAW DB RECORD (JSON)</p>
+                      <ScrollArea className="h-40 w-full rounded border border-slate-800 bg-black/20 p-2">
+                        <pre className="text-[9px] leading-tight text-slate-300">
+                          {JSON.stringify(selectedExecution, null, 2)}
+                        </pre>
+                      </ScrollArea>
+                   </div>
+                </CardContent>
+              </Card>
+
               {/* Timeline Section */}
               <div className="space-y-4">
                 <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
                   <Clock className="h-3 w-3" /> Timeline da Operação
                 </h4>
+
                 
                 <div className="relative pl-6 space-y-6 border-l border-border ml-2">
                   {[
