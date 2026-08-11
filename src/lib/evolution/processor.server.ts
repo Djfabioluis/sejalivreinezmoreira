@@ -229,9 +229,26 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
 
         if (agent) {
           const { updateConversationMetadata } = await import("./conversation.server");
+          
+          // RESOLUÇÃO DE UNIDADE DETERMINÍSTICA PELO NÚMERO RECEPTOR
+          const unitId = agent.unidade_id;
+          
+          await logEvent({
+            instance: msg.instance,
+            messageId: finalMessageId,
+            event: "UNIT_RESOLVED_FROM_INCOMING_NUMBER",
+            status: unitId ? "success" : "warning",
+            payload: { 
+              traceId,
+              instance: msg.instance,
+              unitId: unitId,
+              source: "wa_agentes_lookup"
+            }
+          });
+
           await updateConversationMetadata(conversationKey, {
             agent_id: agent.id,
-            unidade_id: agent.unidade_id,
+            unidade_id: unitId,
             contact_name: msg.pushName || undefined
           });
         }
