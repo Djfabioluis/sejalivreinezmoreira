@@ -423,6 +423,14 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       unitId: agent.unidade_id
     });
 
+    if (bookingContext.conversationGreeted !== true) {
+      await patchCustomerContext(conversationKey, {
+        bookingContext: { ...bookingContext, conversationGreeted: true },
+      });
+    }
+
+
+
 
     await logEvent({ instance, messageId, event: "OUTBOUND_SENT", status: "success", payload: { traceId } });
   } catch (error) {
