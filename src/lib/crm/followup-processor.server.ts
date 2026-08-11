@@ -378,6 +378,12 @@ async function resolveFollowupCustomerName(followup: any, conversation: any, tra
   const normalizedPhone = normalizeBrazilianPhone(phone)?.full;
 
   // Hierarquia de busca
+  // 0. Metadata do followup (injetado por simulação ou processos determinísticos)
+  if (followupMetadata.contact_name && isValidCustomerName(followupMetadata.contact_name)) {
+    resolvedName = followupMetadata.contact_name;
+    source = "followup_metadata";
+  }
+
   // 1. Cadastro principal do CRM (crm_customer_pipeline)
   if (!resolvedName && phone) {
     const { data } = await supabaseAdmin
