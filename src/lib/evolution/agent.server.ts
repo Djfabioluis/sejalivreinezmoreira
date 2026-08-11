@@ -236,6 +236,52 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       messageId
     );
 
+    // 1. Extração Proativa de Intenção (Serviço) antes da IA
+    let extractedService: any = null;
+    const { normalizeServiceSearchText } = await import("@/lib/service-utils");
+    const normalizedText = normalizeServiceSearchText(text);
+    
+    if (normalizedText && agent?.unidade_id) {
+      const { BempService } = await import("@/lib/bemp-service.server");
+      try {
+        const services = await BempService.listServices(agent.unidade_id);
+        // Busca exata ou muito próxima
+        extractedService = services.find((s: any) => 
+          normalizeServiceSearchText(s.name) === normalizedText || 
+          s.name.toLowerCase().includes(normalizedText.toLowerCase())
+        );
+
+        if (extractedService) {
+          await logEvent({
+            instance,
+            messageId,
+            event: "SERVICE_EXTRACTED_FROM_MESSAGE",
+            status: "success",
+            payload: { traceId, serviceName: extractedService.name, serviceId: extractedService.id }
+          });
+          
+          // Persistir no contexto para o slot filling
+          const { patchCustomerContext } = await import("@/lib/chat.server");
+          await patchCustomerContext(conversationKey, {
+            service_id: extractedService.id,
+            service_name: extractedService.name
+          });
+          
+          // Recarregar conversa para pegar o contexto atualizado
+          const { data: updatedConv } = await supabaseAdmin
+            .from("wa_conversas")
+            .select("customer_context")
+            .eq("phone", conversationKey)
+            .maybeSingle();
+          if (updatedConv) {
+            conv.customer_context = updatedConv.customer_context;
+          }
+        }
+      } catch (err) {
+        console.error("[agent] Error extracting service intent:", err);
+      }
+    }
+
     // Chama o orquestrador da IA Julia com logging e traceId
     const { runAgentWithLogging } = await import("@/lib/chat.server");
     
@@ -244,7 +290,14 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       messageId,
       event: "AI_REQUEST_STARTED",
       status: "started",
-      payload: { traceId, unitId: agent.unidade_id }
+      payload: { 
+        traceId, 
+        unitId: agent.unidade_id,
+        slots_identified: {
+          service: extractedService?.name || "UNKNOWN",
+          unit: agent.unidade_id
+        }
+      }
     });
 
     const result: any = await runAgentWithLogging({

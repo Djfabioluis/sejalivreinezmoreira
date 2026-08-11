@@ -9,6 +9,7 @@ import { logger } from "@/lib/observability/logger.server";
 import { classifyFailure, describeError, sanitizeErrorText } from "./evolution/failure";
 import { updateCustomerPipeline, inferStageFromTool } from "@/lib/crm.server";
 import { normalizeServiceSearchText, SERVICE_CATEGORY_ALIASES, type ServiceCategory } from "./service-utils";
+export { normalizeServiceSearchText };
 import { PromotionService, type Promotion } from "./promotion-service.server";
 import { EvolutionService } from "./evolution/evolution-service.server";
 import {
@@ -24,18 +25,17 @@ export const MANDATORY_SYSTEM_RULES = `REGRAS OBRIGATÓRIAS DO SISTEMA (NUNCA IG
 - NUNCA invente nomes. Se o nome for desconhecido ou genérico (como "Cliente"), use apenas "Olá! Tudo bem?".
 - JAMAIS exiba ícones de placeholder ou a palavra "Cliente" como se fosse o nome da pessoa.
 - ENDEREÇO DA UNIDADE CENTRO: O endereço OBRIGATÓRIO é "Rua Marechal Floriano Peixoto, 45". Nunca invente nem use endereços antigos ou "2º andar".
-- Se "Unidade operacional" estiver preenchida, NUNCA pergunte qual unidade o cliente deseja.
-- NUNCA ofereça troca de unidade nem interprete menção a outras unidades como mudança operacional.
-- NÃO reinicie o atendimento a cada mensagem.
-- NÃO repita perguntas já respondidas.
+- UNIDADE OPERACIONAL: A unidade ativa é determinada pelo número de WhatsApp que recebeu a conversa. 
+- Se a "Unidade operacional" ({{unitName}}) estiver preenchida, você está PROIBIDA de perguntar qual unidade o cliente deseja. Considere esta a unidade escolhida.
+- NÃO ofereça troca de unidade nem pergunte "Centro ou outra unidade?" a menos que o cliente peça explicitamente para mudar.
+- NÃO repita perguntas já respondidas. Verifique o bloco "DADOS JÁ CONHECIDOS" e a mensagem atual do cliente antes de perguntar.
+- Se o cliente já informou o serviço (mesmo que seja apenas uma intenção como "escova"), NÃO pergunte "Qual serviço deseja realizar?". Avance para data/horário.
 - Se o profissional desejado não tiver agenda, informe o cliente e ofereça lista de espera (join_waiting_list).
 - Faça apenas uma pergunta por vez.
 - Use um tom caloroso, mas profissional. Emojis com moderação.
 - Quando a intenção MECHAS for detectada e a promoção PACOTE_MECHAS_MENSAL estiver ativa, você DEVE oferecer obrigatoriamente o "Pacote de Mechas" por "R$ 289,90" antes de qualquer outra coisa.
-- Se a promoção PACOTE_MECHAS_MENSAL estiver no bloco de PROMOÇÕES ATIVAS, ela DEVE ser citada na resposta se o assunto for cabelos ou mechas.
-- Para identificar assinantes, utilize EXCLUSIVAMENTE o telefone cadastrado. NUNCA mencione a palavra "CPF" ou solicite qualquer documento de identificação nacional.
-- Formate preços como R$ XX,XX.
-- Promoção do mês: Planos de assinatura SEM TAXA DE ADESÃO.`;
+- Para identificar assinantes, utilize EXCLUSIVAMENTE o telefone cadastrado. NUNCA mencione a palavra "CPF".
+- Formate preços como R$ XX,XX.`;
 
 export const DEFAULT_KNOWLEDGE_PROMPT = `Você é a Julia, a secretária virtual humanizada do Salão Seja Livre.
 Sua missão é realizar agendamentos e vender planos de assinatura de forma acolhedora, eficiente e natural.
@@ -46,6 +46,7 @@ Telefone: {{contactPhone}}
 Unidade: {{unitName}}
 TraceID: {{traceId}}
 
+DADOS JÁ CONHECIDOS (NÃO PERGUNTE ESTES):
 {{customer_context_summary}}
 
 PROMOÇÕES ATIVAS E CONFIRMADAS:
@@ -187,10 +188,31 @@ export async function patchCustomerContext(
 }
 
 export function subscriptionContextLine(ctx: Record<string, any>): string {
+  const lines = [];
+  
   if (ctx?.subscriptionPhoneValidated === true) {
-    return `- Plano validado nesta conversa: SIM (telefone final ${ctx.subscriptionPhoneLast4 || "****"}). Cliente BEMP: ${ctx.bempCustomerId || "n/a"}. Plano: ${ctx.subscriptionPlanName || "n/a"} (${ctx.subscriptionStatus || "status desconhecido"})`;
+    lines.push(`- Plano validado nesta conversa: SIM (telefone final ${ctx.subscriptionPhoneLast4 || "****"}). Cliente BEMP: ${ctx.bempCustomerId || "n/a"}. Plano: ${ctx.subscriptionPlanName || "n/a"} (${ctx.subscriptionStatus || "status desconhecido"})`);
+  } else {
+    lines.push("- Plano validado nesta conversa: NÃO — valide o telefone da assinatura antes de prosseguir com benefícios.");
   }
-  return "- Plano validado nesta conversa: NÃO — valide o telefone da assinatura antes de prosseguir com benefícios.";
+
+  if (ctx?.service_id || ctx?.service_name) {
+    lines.push(`- Serviço identificado: ${ctx.service_name || ctx.service_id}`);
+  }
+
+  if (ctx?.date) {
+    lines.push(`- Data identificada: ${ctx.date}`);
+  }
+
+  if (ctx?.time) {
+    lines.push(`- Horário identificado: ${ctx.time}`);
+  }
+
+  if (ctx?.professional_id || ctx?.professional_name) {
+    lines.push(`- Profissional identificado: ${ctx.professional_name || ctx.professional_id}`);
+  }
+
+  return lines.length > 0 ? lines.join("\n") : "- Nenhum dado adicional conhecido.";
 }
 
 export function replacePromptVariables(prompt: string, vars: Record<string, string>) {
