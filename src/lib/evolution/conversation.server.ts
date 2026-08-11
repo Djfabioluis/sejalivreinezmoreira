@@ -29,9 +29,9 @@ export async function appendIncomingMessage(params: {
     p_phone_number: params.phone,
     p_contact_name: params.contactName ?? null,
     p_increment_unread: true,
-    p_new_status: "aberta", // Sempre aberta se entrou mensagem (ou conforme lógica de unidade)
+    p_new_status: "aberta", 
     p_customer_context: null
-  });
+  }).select("id, messages, customer_context, contact_name, attendance_mode, human_takeover_at, human_takeover_detected, human_takeover_requested_at, human_transfer_message_sent, ai_paused_at, ai_pause_reason, last_human_message_at, phone, instance, unidade_id").single();
 
   if (error) {
     await logEvent({ 
