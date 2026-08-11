@@ -176,7 +176,8 @@ async function handleGenericAbandonmentRecovery(customer: any) {
       metadata: {
         source: "recovery_engine",
         original_reason: customer.abandonment_reason,
-        instance
+        instance,
+        contact_name: contactName !== "cliente" ? contactName : null
       }
     } as any)
     .select()
