@@ -236,22 +236,64 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       messageId
     );
 
-    // 1. Extração Proativa de Intenção (Serviço) antes da IA
+    // ============================================================
+    // CONTEXTO DETERMINÍSTICO DE AGENDAMENTO (load → extract → merge)
+    // ============================================================
+    const {
+      extractBookingSlots,
+      mergeBookingContext,
+      detectSubscriptionIntent,
+      nextRequiredSlot,
+      knownSlots,
+    } = await import("@/lib/booking/context");
+    const { patchCustomerContext } = await import("@/lib/chat.server");
+
+    const customerContext = (conv?.customer_context as any) || {};
+
+    // 1. Carregar contexto anterior (compatível com chaves legadas soltas)
+    const previousContext = {
+      unitId: customerContext.bookingContext?.unitId ?? agent.unidade_id ?? null,
+      serviceId: customerContext.bookingContext?.serviceId ?? customerContext.service_id ?? null,
+      serviceName: customerContext.bookingContext?.serviceName ?? customerContext.service_name ?? null,
+      serviceText: customerContext.bookingContext?.serviceText ?? null,
+      date: customerContext.bookingContext?.date ?? customerContext.date ?? null,
+      period: customerContext.bookingContext?.period ?? null,
+      time: customerContext.bookingContext?.time ?? customerContext.time ?? null,
+      professionalId: customerContext.bookingContext?.professionalId ?? customerContext.professional_id ?? null,
+      professionalName: customerContext.bookingContext?.professionalName ?? customerContext.professional_name ?? null,
+      subscriptionIntent: customerContext.bookingContext?.subscriptionIntent === true,
+      conversationGreeted: customerContext.bookingContext?.conversationGreeted === true,
+    };
+
+    await logEvent({
+      instance,
+      messageId,
+      event: "BOOKING_CONTEXT_LOADED",
+      status: "success",
+      payload: { traceId, ...knownSlots(previousContext), subscriptionIntent: previousContext.subscriptionIntent }
+    });
+
+    // 2. Extrair slots APENAS da mensagem atual
+    const extracted: any = extractBookingSlots(text);
+
+    // 2b. Serviço via BEMP (proativo) — nunca limpa o serviço anterior
     let extractedService: any = null;
     const { normalizeServiceSearchText } = await import("@/lib/service-utils");
     const normalizedText = normalizeServiceSearchText(text);
-    
+
     if (normalizedText && agent?.unidade_id) {
       const { BempService } = await import("@/lib/bemp-service.server");
       try {
         const services = await BempService.listServices(agent.unidade_id);
-        // Busca exata ou muito próxima
-        extractedService = services.find((s: any) => 
-          normalizeServiceSearchText(s.name) === normalizedText || 
-          s.name.toLowerCase().includes(normalizedText.toLowerCase())
+        extractedService = services.find((s: any) =>
+          normalizeServiceSearchText(s.name) === normalizedText ||
+          normalizeServiceSearchText(text).includes(normalizeServiceSearchText(s.name))
         );
 
         if (extractedService) {
+          extracted.serviceId = String(extractedService.id);
+          extracted.serviceName = String(extractedService.name);
+          extracted.serviceText = text;
           await logEvent({
             instance,
             messageId,
@@ -259,44 +301,79 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
             status: "success",
             payload: { traceId, serviceName: extractedService.name, serviceId: extractedService.id }
           });
-          
-          // Persistir no contexto para o slot filling
-          const { patchCustomerContext } = await import("@/lib/chat.server");
-          await patchCustomerContext(conversationKey, {
-            service_id: extractedService.id,
-            service_name: extractedService.name
-          });
-          
-          // Recarregar conversa para pegar o contexto atualizado
-          const { data: updatedConv } = await supabaseAdmin
-            .from("wa_conversas")
-            .select("customer_context")
-            .eq("phone", conversationKey)
-            .maybeSingle();
-          if (updatedConv) {
-            conv.customer_context = updatedConv.customer_context;
-          }
         }
       } catch (err) {
         console.error("[agent] Error extracting service intent:", err);
       }
     }
 
+    await logEvent({
+      instance,
+      messageId,
+      event: "BOOKING_SLOTS_EXTRACTED",
+      status: "success",
+      payload: { traceId, extracted }
+    });
+
+    // 3. Intenção de assinatura — SOMENTE explícita
+    const explicitSubscription = detectSubscriptionIntent(text);
+    if (explicitSubscription) {
+      extracted.subscriptionIntent = true;
+      await logEvent({
+        instance,
+        messageId,
+        event: "SUBSCRIPTION_INTENT_DETECTED",
+        status: "success",
+        payload: { traceId, source: "customer_message", textSnippet: text.slice(0, 80) }
+      });
+    }
+
+    // 4. MERGE (nunca substitui o contexto inteiro)
+    const bookingContext = mergeBookingContext(previousContext, extracted);
+    if (agent.unidade_id) bookingContext.unitId = String(agent.unidade_id);
+
+    await logEvent({
+      instance,
+      messageId,
+      event: "BOOKING_CONTEXT_MERGED",
+      status: "success",
+      payload: { traceId, ...knownSlots(bookingContext), subscriptionIntent: bookingContext.subscriptionIntent === true }
+    });
+
+    const requiredSlot = nextRequiredSlot(bookingContext);
+    await logEvent({
+      instance,
+      messageId,
+      event: "NEXT_REQUIRED_SLOT",
+      status: "success",
+      payload: { traceId, slot: requiredSlot }
+    });
+
+    console.log(
+      `[BOOKING_CONTEXT_MERGED] traceId=${traceId} service=${bookingContext.serviceName ?? "UNKNOWN"} date=${bookingContext.date ?? "UNKNOWN"} subscriptionIntent=${bookingContext.subscriptionIntent === true} nextSlot=${requiredSlot}`
+    );
+
+    // 5. Persistir contexto mesclado
+    await patchCustomerContext(conversationKey, {
+      bookingContext,
+      service_id: bookingContext.serviceId ?? null,
+      service_name: bookingContext.serviceName ?? null,
+      subscriptionIntent: bookingContext.subscriptionIntent === true,
+    });
+
     // Chama o orquestrador da IA Julia com logging e traceId
     const { runAgentWithLogging } = await import("@/lib/chat.server");
-    
+
     await logEvent({
       instance,
       messageId,
       event: "AI_REQUEST_STARTED",
       status: "started",
-      payload: { 
-        traceId, 
+      payload: {
+        traceId,
         unitId: agent.unidade_id,
-        slots_identified: {
-          service: extractedService?.name || "UNKNOWN",
-          unit: agent.unidade_id
-        }
+        slots_identified: knownSlots(bookingContext),
+        nextRequiredSlot: requiredSlot
       }
     });
 
@@ -309,9 +386,11 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       unidadeId: agent.unidade_id,
       contactPhone,
       conversationKey,
-      customerContext: conv?.customer_context || {},
+      customerContext: { ...customerContext, bookingContext },
+      bookingContext,
       traceId
     } as any);
+
 
     await logEvent({
       instance,
@@ -343,6 +422,14 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       traceId,
       unitId: agent.unidade_id
     });
+
+    if (bookingContext.conversationGreeted !== true) {
+      await patchCustomerContext(conversationKey, {
+        bookingContext: { ...bookingContext, conversationGreeted: true },
+      });
+    }
+
+
 
 
     await logEvent({ instance, messageId, event: "OUTBOUND_SENT", status: "success", payload: { traceId } });

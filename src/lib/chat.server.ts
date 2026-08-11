@@ -11,6 +11,12 @@ import { updateCustomerPipeline, inferStageFromTool } from "@/lib/crm.server";
 import { normalizeServiceSearchText, SERVICE_CATEGORY_ALIASES, type ServiceCategory } from "./service-utils";
 export { normalizeServiceSearchText };
 import { PromotionService, type Promotion } from "./promotion-service.server";
+import {
+  buildBookingContextBlock,
+  enforceNoSubscriptionFlow,
+  type BookingContext,
+} from "@/lib/booking/context";
+
 import { EvolutionService } from "./evolution/evolution-service.server";
 import {
   BempService,
@@ -30,13 +36,18 @@ export const MANDATORY_SYSTEM_RULES = `REGRAS OBRIGATÓRIAS DO SISTEMA (NUNCA IG
 - Se a "Unidade operacional" ({{unitName}}) estiver preenchida, você está PROIBIDA de perguntar qual unidade o cliente deseja. Considere esta a unidade escolhida.
 
 - NÃO ofereça troca de unidade nem pergunte "Centro ou outra unidade?" a menos que o cliente peça explicitamente para mudar.
-- NÃO repita perguntas já respondidas. Verifique o bloco "DADOS JÁ CONHECIDOS" e a mensagem atual do cliente antes de perguntar.
-- Se o cliente já informou o serviço (mesmo que seja apenas uma intenção como "escova"), NÃO pergunte "Qual serviço deseja realizar?". Avance para data/horário.
+- NÃO repita perguntas já respondidas. O bloco "CONTEXTO DE AGENDAMENTO" é a VERDADE do atendimento: tudo que estiver diferente de UNKNOWN já foi informado e está PROIBIDO perguntar novamente.
+- Pergunte SOMENTE o campo indicado em "PRÓXIMO CAMPO A OBTER".
+- Se o serviço já estiver no contexto, NUNCA pergunte "Qual serviço deseja realizar?", mesmo que a mensagem atual fale apenas de data, período ou horário.
+- ASSINATURA/PLANO: só existe fluxo de assinatura quando "Intenção de assinatura/plano declarada pelo cliente" for SIM. Caso seja NÃO, está TERMINANTEMENTE PROIBIDO: chamar validate_subscription_phone, pedir "telefone cadastrado", perguntar "você possui assinatura?", oferecer validar plano/benefício ou mencionar plano/assinatura/benefício. Siga o agendamento comum.
+- O fato de um serviço também existir em algum plano NÃO significa que o cliente quer usar assinatura. Nunca investigue plano por conta própria.
+- Quando o cliente responder "isso", "sim", "correto" ou "exatamente", trate como resposta à SUA última pergunta e siga o fluxo. Não reinicie o atendimento.
+- SAUDAÇÃO: cumprimente apenas quando "Cliente já foi saudado nesta conversa" for NÃO. Se for SIM, continue a conversa naturalmente, sem "Olá, {{contactName}}!".
 - Se o profissional desejado não tiver agenda, informe o cliente e ofereça lista de espera (join_waiting_list).
 - Faça apenas uma pergunta por vez.
 - Use um tom caloroso, mas profissional. Emojis com moderação.
 - Quando a intenção MECHAS for detectada e a promoção PACOTE_MECHAS_MENSAL estiver ativa, você DEVE oferecer obrigatoriamente o "Pacote de Mechas" por "R$ 289,90" antes de qualquer outra coisa.
-- Para identificar assinantes, utilize EXCLUSIVAMENTE o telefone cadastrado. NUNCA mencione a palavra "CPF".
+- Para identificar assinantes (somente com intenção explícita), utilize EXCLUSIVAMENTE o telefone cadastrado. NUNCA mencione a palavra "CPF".
 - Formate preços como R$ XX,XX.`;
 
 export const DEFAULT_KNOWLEDGE_PROMPT = `Você é a Julia, a secretária virtual humanizada do Salão Seja Livre.
@@ -48,11 +59,15 @@ Telefone: {{contactPhone}}
 Unidade: {{unitName}}
 TraceID: {{traceId}}
 
+CONTEXTO DE AGENDAMENTO (ESTADO OFICIAL — NÃO PERGUNTE O QUE JÁ ESTIVER PREENCHIDO):
+{{booking_context_block}}
+
 DADOS JÁ CONHECIDOS (NÃO PERGUNTE ESTES):
 {{customer_context_summary}}
 
 PROMOÇÕES ATIVAS E CONFIRMADAS:
 {{active_promotions_block}}`;
+
 
 export const DEFAULT_SYSTEM_PROMPT = `${MANDATORY_SYSTEM_RULES}
 
@@ -194,9 +209,10 @@ export function subscriptionContextLine(ctx: Record<string, any>): string {
   
   if (ctx?.subscriptionPhoneValidated === true) {
     lines.push(`- Plano validado nesta conversa: SIM (telefone final ${ctx.subscriptionPhoneLast4 || "****"}). Cliente BEMP: ${ctx.bempCustomerId || "n/a"}. Plano: ${ctx.subscriptionPlanName || "n/a"} (${ctx.subscriptionStatus || "status desconhecido"})`);
-  } else {
-    lines.push("- Plano validado nesta conversa: NÃO — valide o telefone da assinatura antes de prosseguir com benefícios.");
+  } else if (ctx?.subscriptionIntent === true) {
+    lines.push("- Plano validado nesta conversa: NÃO — o cliente pediu para usar o plano, então valide o telefone cadastrado antes de aplicar benefícios.");
   }
+
 
   if (ctx?.service_id || ctx?.service_name) {
     lines.push(`- Serviço identificado: ${ctx.service_name || ctx.service_id}`);
@@ -232,18 +248,21 @@ export function assembleSystemPrompt(opts: {
   traceId?: string;
   customer_context?: any;
   activePromotions?: any[];
+  bookingContext?: BookingContext | null;
 }) {
   const promoBlock = opts.activePromotions?.length
     ? opts.activePromotions.map(p => `- ${p.name}: ${p.description}`).join("\n")
     : "Nenhuma promoção ativa no momento.";
 
   const summary = subscriptionContextLine(opts.customer_context || {});
+  const booking = (opts.bookingContext ?? (opts.customer_context?.bookingContext as BookingContext | undefined)) || {};
 
   return replacePromptVariables(DEFAULT_SYSTEM_PROMPT, {
     contactName: opts.contactName || "Cliente",
     contactPhone: opts.contactPhone || "Desconhecido",
     unitName: opts.unitName || "Não selecionada",
     traceId: opts.traceId || "n/a",
+    booking_context_block: buildBookingContextBlock(booking),
     customer_context_summary: summary,
     active_promotions_block: promoBlock
   });
@@ -254,22 +273,35 @@ function buildTools(
   fallbackAgentUnitId?: string | null,
   conversationKey?: string,
   currentMessageId?: string | null,
+  subscriptionIntent?: boolean,
 ) {
   const safeToolLocal = <T,>(label: string, fn: () => Promise<T>) =>
     runTool(label, fn, { conversationKey, effectiveUnitId: fallbackAgentUnitId });
 
   return {
     validate_subscription_phone: tool({
-      description: "Valida se o cliente possui uma assinatura ativa pesquisando pelo telefone cadastrado.",
+      description:
+        "Valida se o cliente possui uma assinatura ativa pesquisando pelo telefone cadastrado. USE SOMENTE se o cliente pediu explicitamente para usar plano/assinatura/benefício.",
       inputSchema: z.object({
         phone_number: z.string().describe("Telefone completo com DDD"),
       }),
       execute: async ({ phone_number }) =>
         safeToolLocal("validate_subscription_phone", async () => {
+          if (subscriptionIntent !== true) {
+            console.warn("[chat] SUBSCRIPTION_TOOL_BLOCKED: sem intenção explícita do cliente");
+            return {
+              success: false,
+              blocked: true,
+              code: "SUBSCRIPTION_INTENT_REQUIRED",
+              message:
+                "O cliente não pediu para usar plano/assinatura. Não valide assinatura, não peça telefone cadastrado e siga o agendamento normal.",
+            };
+          }
           const { validateSubscriptionByPhone } = await import("@/lib/bemp/phone-validation.server");
           return validateSubscriptionByPhone(phone_number);
         }),
     }),
+
     list_units_info: tool({
       description: "Lista as unidades ativas na Bemp.",
       inputSchema: z.object({}),
@@ -373,16 +405,29 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
     });
   }
 
+  const bookingContext: BookingContext =
+    ((opts as any).bookingContext as BookingContext) ||
+    ((customerContext as any)?.bookingContext as BookingContext) ||
+    {};
+
   const system = assembleSystemPrompt({
     contactName: opts.contactName,
     contactPhone: opts.contactPhone,
     unitName: effectiveUnitName,
     traceId: opts.traceId,
     customer_context: customerContext,
-    activePromotions: activePromotions
+    activePromotions: activePromotions,
+    bookingContext
   });
 
-  const tools = buildTools(!!sandbox, effectiveUnitId, conversationKey, opts.messageId);
+  const tools = buildTools(
+    !!sandbox,
+    effectiveUnitId,
+    conversationKey,
+    opts.messageId,
+    bookingContext.subscriptionIntent === true,
+  );
+
 
   // Aceita tanto UIMessages (com parts) quanto ModelMessages (com content).
   const needsConversion = messages.some((m: any) => Array.isArray(m?.parts));
@@ -422,6 +467,11 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
 export async function runAgentWithLogging(opts: AgentOptions & { messages?: any[]; text?: string }) {
   const result = await runAgent(opts);
 
+  const bookingContext: BookingContext =
+    ((opts as any).bookingContext as BookingContext) ||
+    ((opts.customerContext as any)?.bookingContext as BookingContext) ||
+    {};
+
   // Garantia determinística da promoção de mechas (Bug 2)
   const last = Array.isArray(opts.messages) ? opts.messages[opts.messages.length - 1] : null;
   const lastMessage =
@@ -430,7 +480,9 @@ export async function runAgentWithLogging(opts: AgentOptions & { messages?: any[
     "";
   const isMechasIntent = /\bmechas?\b/i.test(`${lastMessage} ${opts.text ?? ""}`);
 
-  if (isMechasIntent && result.text) {
+  let finalText = String(result.text || "");
+
+  if (isMechasIntent && finalText) {
       const promoText = "Pacote de Mechas por R$ 289,90";
       // Reduzir repetição: só injeta se não houver menção no histórico recente ou na própria resposta
       const historyHasPromo = opts.messages?.some((m: any) => {
@@ -438,17 +490,23 @@ export async function runAgentWithLogging(opts: AgentOptions & { messages?: any[
         return text.includes("289,90");
       });
 
-      if (!result.text.includes("289,90") && !historyHasPromo) {
+      if (!finalText.includes("289,90") && !historyHasPromo) {
           console.log("[chat] forced_promotion_injection: mechas");
-          return {
-            ...result,
-            text: `Entendi! 💜 E já te adianto que estamos com uma promoção imperdível: *${promoText}*! \n\n${result.text}`
-          };
+          finalText = `Entendi! 💜 E já te adianto que estamos com uma promoção imperdível: *${promoText}*! \n\n${finalText}`;
       }
   }
 
-  return result;
+  // PROTEÇÃO FINAL: sem intenção explícita, nenhuma resposta pode puxar fluxo de assinatura.
+  const guarded = enforceNoSubscriptionFlow(finalText, bookingContext);
+  if (guarded.blocked) {
+    console.warn(
+      `[chat] [SUBSCRIPTION_OUTPUT_BLOCKED] resposta regenerada sem fluxo de assinatura (traceId=${opts.traceId ?? "n/a"})`,
+    );
+  }
+
+  return { ...result, text: guarded.text };
 }
+
 
 export async function streamAgent(opts: AgentOptions & { messages: any[] }) {
   const { messages, conversationKey, unidadeId, sandbox, customerContext, activePromotions } = opts;
@@ -458,16 +516,27 @@ export async function streamAgent(opts: AgentOptions & { messages: any[] }) {
   const provider = createLovableAiGatewayProvider(gatewayKey);
   const model = provider("google/gemini-2.5-flash");
 
+  const bookingContext: BookingContext =
+    ((customerContext as any)?.bookingContext as BookingContext) || {};
+
   const system = assembleSystemPrompt({
     contactName: opts.contactName,
     contactPhone: opts.contactPhone,
     unitName: effectiveUnitName,
     traceId: opts.traceId,
     customer_context: customerContext,
-    activePromotions: activePromotions
+    activePromotions: activePromotions,
+    bookingContext
   });
 
-  const tools = buildTools(!!sandbox, effectiveUnitId, conversationKey, opts.messageId);
+  const tools = buildTools(
+    !!sandbox,
+    effectiveUnitId,
+    conversationKey,
+    opts.messageId,
+    bookingContext.subscriptionIntent === true,
+  );
+
 
   const modelMessages = await convertToModelMessages(messages);
   return streamText({
