@@ -207,7 +207,21 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     const ctx = (conversation.customer_context as any) || {};
     const attendanceMode = ctx.attendance_mode || (conversation as any).attendance_mode;
     
-    if (attendanceMode === "human" || conversation.status === "atendido_humano") {
+    const humanMode =
+      String(attendanceMode || "").toUpperCase() === "HUMAN" ||
+      (conversation as any).human_takeover_detected === true ||
+      !!(conversation as any).ai_paused_at ||
+      conversation.status === "atendido_humano";
+
+    if (humanMode) {
+      logger.info("FOLLOWUP_SKIPPED_HUMAN_MODE", "Follow-up bloqueado: conversa em atendimento humano", {
+        ...logContext,
+        conversationId: (conversation as any).phone ?? null,
+        phoneLast4: String((conversation as any).phone_number || "").slice(-4),
+        unitId: (conversation as any).unidade_id ?? null,
+        agentId: (conversation as any).agent_id ?? null,
+        timestamp: new Date().toISOString(),
+      });
       await blockFollowup(currentFollowup.id, "HUMAN_TAKEOVER", "Cliente em atendimento humano", traceId, logContext);
       return;
     }
