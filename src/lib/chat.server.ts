@@ -203,9 +203,10 @@ export function subscriptionContextLine(ctx: Record<string, any>): string {
   
   if (ctx?.subscriptionPhoneValidated === true) {
     lines.push(`- Plano validado nesta conversa: SIM (telefone final ${ctx.subscriptionPhoneLast4 || "****"}). Cliente BEMP: ${ctx.bempCustomerId || "n/a"}. Plano: ${ctx.subscriptionPlanName || "n/a"} (${ctx.subscriptionStatus || "status desconhecido"})`);
-  } else {
-    lines.push("- Plano validado nesta conversa: NÃO — valide o telefone da assinatura antes de prosseguir com benefícios.");
+  } else if (ctx?.subscriptionIntent === true) {
+    lines.push("- Plano validado nesta conversa: NÃO — o cliente pediu para usar o plano, então valide o telefone cadastrado antes de aplicar benefícios.");
   }
+
 
   if (ctx?.service_id || ctx?.service_name) {
     lines.push(`- Serviço identificado: ${ctx.service_name || ctx.service_id}`);
