@@ -21,6 +21,7 @@ const PROFESSIONAL_PREFERENCE_NOTE = "com preferência";
 export const MANDATORY_SYSTEM_RULES = `REGRAS OBRIGATÓRIAS DO SISTEMA (NUNCA IGNORAR):
 - Se "Nome do cliente" estiver preenchido, NUNCA pergunte o nome.
 - Se "Unidade operacional" estiver preenchida, NUNCA pergunte qual unidade o cliente deseja.
+- ENDEREÇO DA UNIDADE CENTRO: O endereço OBRIGATÓRIO é "Rua Marechal Floriano Peixoto, 45". Nunca invente nem use endereços antigos ou "2º andar".
 - NUNCA ofereça troca de unidade nem interprete menção a outras unidades como mudança operacional.
 - NÃO reinicie o atendimento a cada mensagem.
 - NÃO repita perguntas já respondidas.
