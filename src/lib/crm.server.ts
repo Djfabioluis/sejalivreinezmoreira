@@ -96,7 +96,6 @@ export function inferStageFromTool(toolName: string, result: any): PipelineStage
       return 'CHOOSING_TIME';
     case 'validate_subscription_phone':
       return 'IDENTIFYING_SERVICE';
-      return 'IDENTIFYING_SERVICE';
     case 'create_appointment':
       if (result?.id || result?.success) return 'SCHEDULED';
       return null;
