@@ -116,7 +116,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { HUMAN_TAKEOVER_TIMEOUT_MINUTES } = await import("../config");
 
-    // BUSCA CONVERSA PARA CHECAR ATTENDANCE MODE
+    // [CONVERSATION_RESOLVED] BUSCA CONVERSA PARA CHECAR ATTENDANCE MODE
     // USAMOS HIERARQUIA: exact phone match > phone_number match
     const { data: conversation } = await supabaseAdmin
       .from("wa_conversas" as any)
@@ -127,6 +127,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     let conv = conversation as any;
 
     if (!conv) {
+      console.log(`[CONVERSATION_NOT_FOUND] Key: ${conversationKey}. Attempting fallback by number.`);
       const { data: fallbackConv } = await supabaseAdmin
         .from("wa_conversas" as any)
         .select("id, messages, customer_context, contact_name, attendance_mode, human_takeover_at, human_takeover_detected, human_takeover_requested_at, human_transfer_message_sent, ai_paused_at, ai_pause_reason, last_human_message_at, phone, instance, unidade_id")
@@ -138,6 +139,11 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
         conv = fallbackConv[0];
       }
     }
+
+    if (conv) {
+      console.log(`[CONVERSATION_MODE_CHECKED] ID: ${conv.phone} Mode: ${conv.attendance_mode} Paused: ${!!conv.ai_paused_at}`);
+    }
+
 
 
     const humanLogBase = {

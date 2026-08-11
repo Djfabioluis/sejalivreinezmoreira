@@ -16,12 +16,22 @@ const TYPING_PER_CHAR_MS = 25;
  * enquanto a conversa estiver em atendimento humano.
  */
 export function ensureAIAllowedToReply(conv: any): { allowed: boolean; reason?: string } {
-  if (!conv) return { allowed: true };
+  if (!conv) {
+    console.log("[AI_GLOBAL_STATE] No conversation context found, allowing AI by default (Fail-Open for missing records)");
+    return { allowed: true };
+  }
+  
+  // LOG DE AUDITORIA DE ESTADO
+  console.log(`[CONVERSATION_MODE_CHECKED] conversationId=${conv.phone || 'unknown'} mode=${conv.attendance_mode} paused=${!!conv.ai_paused_at}`);
+
   if (conv.attendance_mode === "HUMAN") return { allowed: false, reason: "ATTENDANCE_MODE_HUMAN" };
   if (conv.human_takeover_detected === true) return { allowed: false, reason: "HUMAN_TAKEOVER_DETECTED" };
   if (conv.ai_paused_at) return { allowed: false, reason: conv.ai_pause_reason || "AI_PAUSED" };
+  
+  console.log(`[AI_ALLOWED_FOR_CONVERSATION] conversationId=${conv.phone}`);
   return { allowed: true };
 }
+
 
 export async function replyToUser(params: {
   instance: string;
