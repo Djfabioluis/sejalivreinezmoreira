@@ -234,15 +234,20 @@ export async function sendEvolutionText(
   }
   
   // LOG OBRIGATÓRIO: EVOLUTION_REQUEST
+  const { url: baseUrl } = await getEvolutionConfig();
+  const fullEndpoint = `${baseUrl}/message/sendText/${encodeURIComponent(instance)}`;
+  
   await logEvent({
     instance,
-    event: "EVOLUTION_REQUEST",
+    event: "FOLLOWUP_EVOLUTION_REQUEST",
     status: "started",
     payload: {
       traceId,
       timestamp: new Date().toISOString(),
       to: number,
-      endpoint: `/message/sendText/${instance}`,
+      endpoint: fullEndpoint,
+      instanceName: instance,
+      method: "POST",
       textSnippet: text.slice(0, 50) + "..."
     }
   });
@@ -257,7 +262,7 @@ export async function sendEvolutionText(
   // LOG OBRIGATÓRIO: EVOLUTION_RESPONSE
   await logEvent({
     instance,
-    event: "EVOLUTION_RESPONSE",
+    event: "FOLLOWUP_EVOLUTION_RESPONSE",
     status: res.ok ? "success" : "error",
     payload: {
       traceId,
@@ -265,7 +270,8 @@ export async function sendEvolutionText(
       durationMs,
       status: res.status,
       ok: res.ok,
-      data: res.data
+      data: res.data,
+      responseBody: res.text
     }
   });
 
