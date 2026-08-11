@@ -212,7 +212,7 @@ export function nextRequiredSlot(ctx: BookingContext): BookingSlot {
   if (!known["unit"]) return "unit";
   if (!known["service"]) return "service";
   if (!known["date"]) return "date";
-  if (!known["time"]) return "availability";
+  if (!known["time"]) return "time";
   return "confirmation";
 }
 
