@@ -55,22 +55,41 @@ export async function replyToUser(params: {
   const activeUnitId = params.unitId || conv?.unidade_id;
   const incomingInstance = conv?.instance || params.instance;
 
-  if (activeUnitId) {
+  // REGRA 4 & 5: Se o cliente NÃO pediu troca de unidade (parâmetro unitId ausente ou igual ao da conversa),
+  // outboundInstance DEVE ser igual a inboundInstance.
+  if (!params.unitId || params.unitId === conv?.unidade_id) {
+    if (params.instance !== incomingInstance) {
+      logger.info("OUTBOUND_INSTANCE_FORCED_BY_INBOUND", `Mantendo instância original do inbound para responder: ${params.instance} -> ${incomingInstance}`, {
+        traceId,
+        incomingInstance,
+        currentInstance: params.instance
+      });
+      params.instance = incomingInstance;
+    }
+  } else if (activeUnitId) {
+    // Somente se houver pedido explícito de troca de unidade (activeUnitId != conv.unidade_id)
     const outboundRes = await resolveOutboundInstanceForUnit(activeUnitId);
     if (!outboundRes) {
-      await logEvent({
-        instance: params.instance,
-        messageId: params.messageId,
-        event: "OUTBOUND_INSTANCE_NOT_RESOLVED",
-        status: "error",
-        payload: { traceId, unitId: activeUnitId, conversationKey: params.conversationKey }
-      });
-      return false; // FAIL-CLOSED: Bloqueia envio se não resolver instância da unidade
-    }
-
-    // Se a instância resolvida for diferente da que o parâmetro pediu, trocamos para a correta da unidade
-    if (outboundRes.instanceId !== params.instance) {
-      logger.info("OUTBOUND_INSTANCE_SWITCHED", `Trocando instância para corresponder à unidade: ${params.instance} -> ${outboundRes.instanceId}`, {
+      // REGRA 6: Se o vínculo unitId estiver ausente mas inboundInstance for válida, não silenciar.
+      if (incomingInstance) {
+        logger.warn("UNIT_LINK_MISSING", `Vínculo de unidade ${activeUnitId} não resolvido, usando incomingInstance para não silenciar a Julia`, {
+          traceId,
+          incomingInstance,
+          activeUnitId
+        });
+        params.instance = incomingInstance;
+      } else {
+        await logEvent({
+          instance: params.instance,
+          messageId: params.messageId,
+          event: "OUTBOUND_INSTANCE_NOT_RESOLVED",
+          status: "error",
+          payload: { traceId, unitId: activeUnitId, conversationKey: params.conversationKey }
+        });
+        return false;
+      }
+    } else if (outboundRes.instanceId !== params.instance) {
+      logger.info("OUTBOUND_INSTANCE_SWITCHED", `Trocando instância para corresponder à NOVA unidade: ${params.instance} -> ${outboundRes.instanceId}`, {
         traceId,
         unitId: activeUnitId,
         originalInstance: params.instance,
