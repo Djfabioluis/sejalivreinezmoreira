@@ -467,6 +467,11 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
 export async function runAgentWithLogging(opts: AgentOptions & { messages?: any[]; text?: string }) {
   const result = await runAgent(opts);
 
+  const bookingContext: BookingContext =
+    ((opts as any).bookingContext as BookingContext) ||
+    ((opts.customerContext as any)?.bookingContext as BookingContext) ||
+    {};
+
   // Garantia determinística da promoção de mechas (Bug 2)
   const last = Array.isArray(opts.messages) ? opts.messages[opts.messages.length - 1] : null;
   const lastMessage =
@@ -475,7 +480,9 @@ export async function runAgentWithLogging(opts: AgentOptions & { messages?: any[
     "";
   const isMechasIntent = /\bmechas?\b/i.test(`${lastMessage} ${opts.text ?? ""}`);
 
-  if (isMechasIntent && result.text) {
+  let finalText = String(result.text || "");
+
+  if (isMechasIntent && finalText) {
       const promoText = "Pacote de Mechas por R$ 289,90";
       // Reduzir repetição: só injeta se não houver menção no histórico recente ou na própria resposta
       const historyHasPromo = opts.messages?.some((m: any) => {
@@ -483,17 +490,23 @@ export async function runAgentWithLogging(opts: AgentOptions & { messages?: any[
         return text.includes("289,90");
       });
 
-      if (!result.text.includes("289,90") && !historyHasPromo) {
+      if (!finalText.includes("289,90") && !historyHasPromo) {
           console.log("[chat] forced_promotion_injection: mechas");
-          return {
-            ...result,
-            text: `Entendi! 💜 E já te adianto que estamos com uma promoção imperdível: *${promoText}*! \n\n${result.text}`
-          };
+          finalText = `Entendi! 💜 E já te adianto que estamos com uma promoção imperdível: *${promoText}*! \n\n${finalText}`;
       }
   }
 
-  return result;
+  // PROTEÇÃO FINAL: sem intenção explícita, nenhuma resposta pode puxar fluxo de assinatura.
+  const guarded = enforceNoSubscriptionFlow(finalText, bookingContext);
+  if (guarded.blocked) {
+    console.warn(
+      `[chat] [SUBSCRIPTION_OUTPUT_BLOCKED] resposta regenerada sem fluxo de assinatura (traceId=${opts.traceId ?? "n/a"})`,
+    );
+  }
+
+  return { ...result, text: guarded.text };
 }
+
 
 export async function streamAgent(opts: AgentOptions & { messages: any[] }) {
   const { messages, conversationKey, unidadeId, sandbox, customerContext, activePromotions } = opts;
