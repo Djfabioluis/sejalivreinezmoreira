@@ -177,7 +177,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
         : null,
     });
 
-    // Atualizar conv com dados recém-salvos para ter histórico e contexto
+    // Atualizar conv com dados recém-salvos para ter histórico e contexto GARANTIDO (sem delay de transação)
     if (savedConv) {
       conv = savedConv;
     }
