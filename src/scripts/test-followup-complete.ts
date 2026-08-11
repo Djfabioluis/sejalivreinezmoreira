@@ -2,21 +2,19 @@ import { supabaseAdmin } from "../integrations/supabase/client.server";
 import { processPendingFollowups } from "../lib/crm/followup-processor.server";
 
 async function runFollowupTest() {
-  const testPhone = "5541998430354"; 
+  const testPhone = "5541998430" + Math.floor(Math.random() * 99); // Numero "unico" para pular idempotencia
   const unitId = "1377"; 
   const ruleId = "69ad75fe-ba2a-4985-9065-3efdd36cc017"; 
   
   console.log(`[TEST_FOLLOWUP_START] Unidade: ${unitId}, Telefone: ${testPhone}`);
   
   try {
-    await supabaseAdmin.from("crm_followups").delete().eq("phone", testPhone).eq("stage", "AUTO_TEST_404");
-
     const { data: followup, error } = await supabaseAdmin.from("crm_followups").insert({
       phone: testPhone,
       status: "READY",
       scheduled_at: new Date().toISOString(),
       rule_id: ruleId,
-      stage: "AUTO_TEST_404",
+      stage: "AUTO_TEST_404_UNIQUE",
       metadata: { unit_id: unitId, is_test: true }
     } as any).select("*").single();
 
