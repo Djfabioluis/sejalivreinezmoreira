@@ -62,9 +62,34 @@ export async function replyToUser(params: {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data: conv } = await supabaseAdmin
     .from("wa_conversas")
-    .select("unidade_id, instance, attendance_mode, customer_context")
+    .select("id, unidade_id, instance, attendance_mode, customer_context, human_takeover_detected, ai_paused_at, ai_pause_reason")
     .eq("phone", params.conversationKey)
     .maybeSingle();
+
+  // PROTEÇÃO FINAL FAIL-CLOSED: bloquear qualquer outbound automático em modo humano
+  if (!params.allowDuringHumanMode) {
+    const gate = ensureAIAllowedToReply(conv as any);
+    if (!gate.allowed) {
+      const blockLog = {
+        conversationId: (conv as any)?.id ?? params.conversationKey,
+        phoneLast4: String(params.phone || "").slice(-4),
+        unitId: params.unitId ?? (conv as any)?.unidade_id ?? null,
+        timestamp: new Date().toISOString(),
+        traceId,
+        reason: gate.reason,
+      };
+      console.log(`[AI_RESPONSE_BLOCKED_HUMAN_MODE] ${JSON.stringify(blockLog)}`);
+      await logEvent({
+        instance: params.instance,
+        messageId: params.messageId,
+        event: "AI_RESPONSE_BLOCKED_HUMAN_MODE",
+        status: "blocked",
+        payload: blockLog
+      });
+      return false;
+    }
+  }
+
 
   const activeUnitId = params.unitId || conv?.unidade_id;
   const incomingInstance = conv?.instance || params.instance;
