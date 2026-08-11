@@ -403,12 +403,15 @@ export async function runAgentWithLogging(opts: AgentOptions & { messages?: any[
     "";
   const isMechasIntent = /\bmechas?\b/i.test(`${lastMessage} ${opts.text ?? ""}`);
 
-  
   if (isMechasIntent && result.text) {
       const promoText = "Pacote de Mechas por R$ 289,90";
-      // Removemos o check de mechasPromotionPresented e a lógica de flag de contexto
-      // Confiamos na injeção determinística se a oferta não estiver presente no texto
-      if (!result.text.includes("289,90") && !result.text.includes("mechas")) {
+      // Reduzir repetição: só injeta se não houver menção no histórico recente ou na própria resposta
+      const historyHasPromo = opts.messages?.some((m: any) => {
+        const text = typeof m.content === 'string' ? m.content : (Array.isArray(m.parts) ? m.parts.map((p: any) => p.text).join(' ') : '');
+        return text.includes("289,90");
+      });
+
+      if (!result.text.includes("289,90") && !historyHasPromo) {
           console.log("[chat] forced_promotion_injection: mechas");
           return {
             ...result,
