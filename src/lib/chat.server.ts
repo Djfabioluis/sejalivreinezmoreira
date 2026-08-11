@@ -11,6 +11,12 @@ import { updateCustomerPipeline, inferStageFromTool } from "@/lib/crm.server";
 import { normalizeServiceSearchText, SERVICE_CATEGORY_ALIASES, type ServiceCategory } from "./service-utils";
 export { normalizeServiceSearchText };
 import { PromotionService, type Promotion } from "./promotion-service.server";
+import {
+  buildBookingContextBlock,
+  enforceNoSubscriptionFlow,
+  type BookingContext,
+} from "@/lib/booking/context";
+
 import { EvolutionService } from "./evolution/evolution-service.server";
 import {
   BempService,
