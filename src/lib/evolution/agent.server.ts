@@ -147,6 +147,36 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       console.log(`[CONVERSATION_RESOLVED] ID: ${finalKey} Mode: ${conv.attendance_mode} Paused: ${!!conv.ai_paused_at}`);
     }
 
+    // 6. Persistência imediata (mídia aparece na Caixa de Entrada antes da análise)
+    const { normalizeIncomingMessage } = await import("./media-normalizer");
+    const { mediaPlaceholderText } = await import("./media-pipeline.server");
+    const normalized = normalizeIncomingMessage(msg.message, messageId);
+    const isMedia = normalized.messageType !== "text";
+    const displayText = isMedia ? mediaPlaceholderText(normalized) : text || "[Mídia/Outro]";
+    const isIAActive = isIAEnabled(agent);
+
+    const { appendIncomingMessage } = await import("./conversation.server");
+    await appendIncomingMessage({
+      conversationKey: finalKey,
+      messageId: messageId,
+      text: displayText,
+      instance: msg.instance,
+      phone: contactPhone,
+      contactName: (msg as any).pushName || undefined,
+      isIAActive,
+      metadata: isMedia
+        ? {
+            sourceType: normalized.messageType,
+            mediaStatus: "queued",
+            mimeType: normalized.mimeType ?? null,
+            fileName: normalized.fileName ?? null,
+            duration: normalized.duration ?? null,
+            caption: normalized.caption || null,
+            mediaReference: `${msg.instance}:${messageId}`,
+          }
+        : null,
+    });
+
 
 
     const humanLogBase = {
