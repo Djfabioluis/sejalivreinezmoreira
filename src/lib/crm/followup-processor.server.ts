@@ -272,7 +272,8 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       const evolutionError = {
         stage: "EVOLUTION_SEND",
         provider: "evolution-api",
-        endpoint: "sendText",
+        endpoint: `/message/sendText/${targetInstance}`,
+        instanceName: targetInstance,
         status: evolutionData?.status || 400,
         error_code: evolutionData?.code || "EVOLUTION_HTTP_ERROR",
         message: evolutionData?.message || "Erro desconhecido na Evolution API",
