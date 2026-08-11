@@ -77,6 +77,19 @@ function addDays(base: Date, days: number): Date {
   return d;
 }
 
+const SERVICE_PATTERNS: Array<{ re: RegExp; name: string }> = [
+  { re: /\bmanicure\b/i, name: "MANICURE" },
+  { re: /\bpedicure\b/i, name: "PEDICURE" },
+  { re: /\bp[ée]\s+e\s+m[ãa]o\b/i, name: "PÉ E MÃO" },
+  { re: /\bcabelo\b/i, name: "CABELO" },
+  { re: /\bescova\b/i, name: "ESCOVA" },
+  { re: /\bcorte\b/i, name: "CORTE" },
+  { re: /\bdepila[çc][ãa]o\b/i, name: "DEPILAÇÃO" },
+  { re: /\bsobrancelha\b/i, name: "SOBRANCELHA" },
+  { re: /\bdesign\b/i, name: "SOBRANCELHA" },
+  { re: /\bmassagem\b/i, name: "MASSAGEM" },
+];
+
 /** Extrai apenas os campos presentes na mensagem atual. Ausência = undefined (nunca null destrutivo). */
 export function extractBookingSlots(
   text: string | null | undefined,
@@ -110,13 +123,23 @@ export function extractBookingSlots(
       if (wd) {
         const todayIdx = now.getDay();
         const targetIdx = wd.index;
-        // Se for hoje, pode ser hoje mesmo ou próxima semana se já passou do horário
-        // Mas para simplicidade, se for o mesmo dia, consideramos hoje.
-        // Se for diferente, pegamos o próximo dia X da semana.
         let diff = (targetIdx - todayIdx + 7) % 7;
-        if (diff === 0 && !/\bhoje\b/i.test(t)) diff = 7; // Se pedir "segunda" e hoje é segunda, provavelmente é a próxima.
+        if (diff === 0 && !/\bhoje\b/i.test(t)) diff = 7;
         out.date = isoDate(addDays(now, diff));
       }
+    }
+  }
+
+  // --- Serviço ---
+  const svc = SERVICE_PATTERNS.find((s) => s.re.test(t));
+  if (svc) {
+    out.serviceName = svc.name;
+    out.serviceText = t;
+  } else if (t.length > 3 && t.length < 30 && !out.date && !/manh[ãa]|tarde|noite/i.test(t)) {
+    // Heurística: se for uma frase curta que não é data/período, pode ser um serviço novo
+    // Mas evitamos sobrescrever se parecer apenas uma saudação como "Oi"
+    if (!/^(oi|ol[aá]|bom\s+dia|boa\s+tarde|boa\s+noite)$/i.test(t)) {
+      // out.serviceText = t; // Removido para evitar falsos positivos agressivos
     }
   }
 
