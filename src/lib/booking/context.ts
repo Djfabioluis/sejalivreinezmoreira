@@ -89,8 +89,8 @@ export function extractBookingSlots(
 
   // --- Data ---
   if (/\bhoje\b/i.test(t)) out.date = isoDate(now);
-  else if (/\bdepois\s+de\s+amanh[ãa]\b/i.test(t)) out.date = isoDate(addDays(now, 2));
-  else if (/\bamanh[ãa]\b/i.test(t)) out.date = isoDate(addDays(now, 1));
+  else if (/depois\s+de\s+amanh[ãa]/i.test(t)) out.date = isoDate(addDays(now, 2));
+  else if (/amanh[ãa]/i.test(t)) out.date = isoDate(addDays(now, 1));
   else {
     const dm = t.match(/\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/);
     if (dm) {
@@ -110,7 +110,7 @@ export function extractBookingSlots(
   }
 
   // --- Período ---
-  if (/\bmanh[ãa]\b/i.test(t)) out.period = "manhã";
+  if (/manh[ãa]/i.test(t)) out.period = "manhã";
   else if (/\btarde\b/i.test(t)) out.period = "tarde";
   else if (/\bnoite\b/i.test(t)) out.period = "noite";
 
