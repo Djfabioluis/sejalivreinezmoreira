@@ -156,7 +156,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     const isIAActive = isIAEnabled(agent);
 
     const { appendIncomingMessage } = await import("./conversation.server");
-    await appendIncomingMessage({
+    const savedConv = await appendIncomingMessage({
       conversationKey: finalKey,
       messageId: messageId,
       text: displayText,
@@ -176,6 +176,11 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
           }
         : null,
     });
+
+    // Atualizar conv com dados recém-salvos para ter histórico e contexto
+    if (savedConv) {
+      conv = savedConv;
+    }
 
 
 
