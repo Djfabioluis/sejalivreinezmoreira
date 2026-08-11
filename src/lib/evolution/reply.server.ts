@@ -62,7 +62,7 @@ export async function replyToUser(params: {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data: conv } = await supabaseAdmin
     .from("wa_conversas")
-    .select("id, unidade_id, instance, attendance_mode, customer_context, human_takeover_detected, ai_paused_at, ai_pause_reason")
+    .select("unidade_id, instance, attendance_mode, customer_context, human_takeover_detected, ai_paused_at, ai_pause_reason")
     .eq("phone", params.conversationKey)
     .maybeSingle();
 
@@ -71,7 +71,7 @@ export async function replyToUser(params: {
     const gate = ensureAIAllowedToReply(conv as any);
     if (!gate.allowed) {
       const blockLog = {
-        conversationId: (conv as any)?.id ?? params.conversationKey,
+        conversationId: params.conversationKey,
         phoneLast4: String(params.phone || "").slice(-4),
         unitId: params.unitId ?? (conv as any)?.unidade_id ?? null,
         timestamp: new Date().toISOString(),
