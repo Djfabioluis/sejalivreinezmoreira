@@ -102,7 +102,14 @@ async function evoFetch(
   }
 
   if (debug || !res.ok) {
-    logger.debug("EVOLUTION_API_RESPONSE", `Status: ${res.status}`, { durationMs, path, data, text });
+    logger.debug("EVOLUTION_API_RESPONSE", `Status: ${res.status}`, { 
+      durationMs, 
+      path, 
+      data, 
+      text,
+      url: `${base}${path}`,
+      method: init.method ?? "GET"
+    });
   }
 
   return { ok: res.ok, status: res.status, data, text };
