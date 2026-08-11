@@ -137,11 +137,49 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       
       if (fallbackConv && fallbackConv.length > 0) {
         conv = fallbackConv[0];
+        console.log(`[CONVERSATION_RESOLVED_FALLBACK] Found existing conversation for ${contactPhone} (ID: ${conv.phone})`);
       }
     }
 
+    const finalKey = conv?.phone || conversationKey;
+
     if (conv) {
-      console.log(`[CONVERSATION_MODE_CHECKED] ID: ${conv.phone} Mode: ${conv.attendance_mode} Paused: ${!!conv.ai_paused_at}`);
+      console.log(`[CONVERSATION_RESOLVED] ID: ${finalKey} Mode: ${conv.attendance_mode} Paused: ${!!conv.ai_paused_at}`);
+    }
+
+    // 6. Persistência imediata (mídia aparece na Caixa de Entrada antes da análise)
+    const { normalizeIncomingMessage } = await import("./media-normalizer");
+    const { mediaPlaceholderText } = await import("./media-pipeline.server");
+    const normalized = normalizeIncomingMessage(msg.message, messageId);
+    const isMedia = normalized.messageType !== "text";
+    const displayText = isMedia ? mediaPlaceholderText(normalized) : text || "[Mídia/Outro]";
+    const isIAActive = isIAEnabled(agent);
+
+    const { appendIncomingMessage } = await import("./conversation.server");
+    const savedConv = await appendIncomingMessage({
+      conversationKey: finalKey,
+      messageId: messageId,
+      text: displayText,
+      instance: msg.instance,
+      phone: contactPhone,
+      contactName: (msg as any).pushName || undefined,
+      isIAActive,
+      metadata: isMedia
+        ? {
+            sourceType: normalized.messageType,
+            mediaStatus: "queued",
+            mimeType: normalized.mimeType ?? null,
+            fileName: normalized.fileName ?? null,
+            duration: normalized.duration ?? null,
+            caption: normalized.caption || null,
+            mediaReference: `${msg.instance}:${messageId}`,
+          }
+        : null,
+    });
+
+    // Atualizar conv com dados recém-salvos para ter histórico e contexto GARANTIDO (sem delay de transação)
+    if (savedConv) {
+      conv = savedConv;
     }
 
 
@@ -200,7 +238,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
           ai_paused_at: null,
           ai_pause_reason: null,
         })
-        .eq("phone", conv?.phone || conversationKey);
+        .eq("phone", finalKey);
 
 
       console.log(`[CONVERSATION_MODE_CHANGED_TO_AI] ${JSON.stringify(humanLogBase)}`);
@@ -253,7 +291,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
             ai_pause_reason: AI_PAUSE_REASON_CUSTOMER,
             human_transfer_message_sent: true,
           })
-          .eq("phone", conv?.phone || conversationKey);
+          .eq("phone", finalKey);
 
         console.log(`[CONVERSATION_MODE_CHANGED_TO_HUMAN] ${JSON.stringify(humanLogBase)}`);
         await logEvent({
@@ -271,7 +309,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
             instance,
             phone: contactPhone,
             text: HUMAN_TRANSFER_MESSAGE,
-            conversationKey,
+            conversationKey: finalKey,
             messageId,
             traceId,
             unitId: agent?.unidade_id ?? null,
@@ -338,7 +376,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     const { data: finalCheck } = await supabaseAdmin
       .from("wa_conversas")
       .select("attendance_mode")
-      .eq("phone", conv?.phone || conversationKey)
+      .eq("phone", finalKey)
       .maybeSingle();
 
       
@@ -377,6 +415,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     } = await import("@/lib/booking/context");
     const { patchCustomerContext } = await import("@/lib/chat.server");
 
+    // Carregar contexto do conv (que agora tem o estado mais recente após appendIncomingMessage/refreshedConv)
     const customerContext = (conv?.customer_context as any) || {};
 
     // 1. Carregar contexto anterior (compatível com chaves legadas soltas)
@@ -393,6 +432,8 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       subscriptionIntent: customerContext.bookingContext?.subscriptionIntent === true,
       conversationGreeted: customerContext.bookingContext?.conversationGreeted === true,
     };
+
+    console.log(`[CONVERSATION_CONTEXT_LOADED] conversationId=${finalKey} historyCount=${(conv?.messages as any[])?.length || 0} service=${previousContext.serviceName || 'null'} date=${previousContext.date || 'null'} time=${previousContext.time || 'null'} unitId=${previousContext.unitId}`);
 
     await logEvent({
       instance,
@@ -435,6 +476,8 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
         console.error("[agent] Error extracting service intent:", err);
       }
     }
+
+    console.log(`[CONVERSATION_CORRELATION] phone=${contactPhone} instanceId=${instance} conversationId=${conv?.id || 'new'} sameConversation=${!!conv}`);
 
     await logEvent({
       instance,
@@ -483,7 +526,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     );
 
     // 5. Persistir contexto mesclado
-    await patchCustomerContext(conversationKey, {
+    await patchCustomerContext(finalKey, {
       bookingContext,
       service_id: bookingContext.serviceId ?? null,
       service_name: bookingContext.serviceName ?? null,
@@ -514,7 +557,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       text,
       unidadeId: agent.unidade_id,
       contactPhone,
-      conversationKey,
+      conversationKey: finalKey,
       customerContext: { ...customerContext, bookingContext },
       bookingContext,
       traceId
@@ -546,14 +589,14 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       instance,
       phone: contactPhone,
       text: replyText,
-      conversationKey,
+      conversationKey: finalKey,
       messageId,
       traceId,
       unitId: agent.unidade_id
     });
 
     if (bookingContext.conversationGreeted !== true) {
-      await patchCustomerContext(conversationKey, {
+      await patchCustomerContext(finalKey, {
         bookingContext: { ...bookingContext, conversationGreeted: true },
       });
     }
