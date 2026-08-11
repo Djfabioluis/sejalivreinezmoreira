@@ -236,15 +236,19 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
           await logEvent({
             instance: msg.instance,
             messageId: finalMessageId,
-            event: "UNIT_RESOLVED_FROM_INCOMING_NUMBER",
+            event: "INBOUND_INSTANCE_RESOLVED", // Nome solicitado no requisito
             status: unitId ? "success" : "warning",
             payload: { 
               traceId,
-              instance: msg.instance,
+              instanceId: msg.instance, // instanceId conforme requisito
+              instanceName: msg.instance,
+              agentId: agent.id,
               unitId: unitId,
+              unitName: agent.nome, // Agente costuma ter o nome da Julia/Unidade
               source: "wa_agentes_lookup"
             }
           });
+
 
           await updateConversationMetadata(conversationKey, {
             agent_id: agent.id,
