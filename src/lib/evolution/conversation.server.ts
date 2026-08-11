@@ -33,18 +33,6 @@ export async function appendIncomingMessage(params: {
     p_customer_context: null
   });
 
-  // Se a RPC funcionou, recarregamos a linha para garantir que temos o objeto completo (messages, customer_context, etc)
-  // O id da conversa é o que a RPC retorna ou o params.conversationKey se for o phone
-  let refreshedData = data;
-  if (!error && params.conversationKey) {
-    const { data: conv } = await supabaseAdmin
-      .from("wa_conversas" as any)
-      .select("id, messages, customer_context, contact_name, attendance_mode, human_takeover_at, human_takeover_detected, human_takeover_requested_at, human_transfer_message_sent, ai_paused_at, ai_pause_reason, last_human_message_at, phone, instance, unidade_id")
-      .eq("phone", params.conversationKey)
-      .maybeSingle();
-    if (conv) refreshedData = conv;
-  }
-
   if (error) {
     await logEvent({ 
       instance: params.instance, 
@@ -56,15 +44,25 @@ export async function appendIncomingMessage(params: {
     throw new Error(`Failed to append message: ${error.message}`);
   }
 
+  // Se a RPC funcionou, recarregamos a linha para garantir que temos o objeto completo (messages, customer_context, etc)
+  let refreshedData = data;
+  if (params.conversationKey) {
+    const { data: conv } = await supabaseAdmin
+      .from("wa_conversas" as any)
+      .select("id, messages, customer_context, contact_name, attendance_mode, human_takeover_at, human_takeover_detected, human_takeover_requested_at, human_transfer_message_sent, ai_paused_at, ai_pause_reason, last_human_message_at, phone, instance, unidade_id")
+      .eq("phone", params.conversationKey)
+      .maybeSingle();
+    if (conv) refreshedData = conv;
+  }
+
   // Update CRM on new incoming message
-  if (data?.id) {
+  if (refreshedData?.id) {
     await updateCustomerPipeline({
       phone: params.phone,
-      conversationId: data.id,
+      conversationId: refreshedData.id,
       stage: 'NEW_LEAD', // Base stage on message, IA/Tools will refine it
       customerName: params.contactName
     });
-
   }
 
   await logEvent({ 
@@ -74,7 +72,7 @@ export async function appendIncomingMessage(params: {
     status: "message_saved" 
   });
   
-  return data;
+  return refreshedData;
 }
 
 export async function updateConversationMetadata(conversationKey: string, metadata: {
@@ -103,7 +101,6 @@ export async function updateConversationMetadata(conversationKey: string, metada
       status: "conversation_update_failed", 
       errorDetail: error.message 
     });
-    // Não lançamos erro aqui para não interromper o fluxo se o save da mensagem deu certo
   }
 }
 
