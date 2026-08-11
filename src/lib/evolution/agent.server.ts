@@ -557,7 +557,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       text,
       unidadeId: agent.unidade_id,
       contactPhone,
-      conversationKey,
+      conversationKey: finalKey,
       customerContext: { ...customerContext, bookingContext },
       bookingContext,
       traceId
