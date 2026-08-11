@@ -516,16 +516,27 @@ export async function streamAgent(opts: AgentOptions & { messages: any[] }) {
   const provider = createLovableAiGatewayProvider(gatewayKey);
   const model = provider("google/gemini-2.5-flash");
 
+  const bookingContext: BookingContext =
+    ((customerContext as any)?.bookingContext as BookingContext) || {};
+
   const system = assembleSystemPrompt({
     contactName: opts.contactName,
     contactPhone: opts.contactPhone,
     unitName: effectiveUnitName,
     traceId: opts.traceId,
     customer_context: customerContext,
-    activePromotions: activePromotions
+    activePromotions: activePromotions,
+    bookingContext
   });
 
-  const tools = buildTools(!!sandbox, effectiveUnitId, conversationKey, opts.messageId);
+  const tools = buildTools(
+    !!sandbox,
+    effectiveUnitId,
+    conversationKey,
+    opts.messageId,
+    bookingContext.subscriptionIntent === true,
+  );
+
 
   const modelMessages = await convertToModelMessages(messages);
   return streamText({
