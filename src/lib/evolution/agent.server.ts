@@ -596,7 +596,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     });
 
     if (bookingContext.conversationGreeted !== true) {
-      await patchCustomerContext(conversationKey, {
+      await patchCustomerContext(finalKey, {
         bookingContext: { ...bookingContext, conversationGreeted: true },
       });
     }
