@@ -457,6 +457,7 @@ async function generateAiFollowup(followup: any, nameData: any) {
 ${namePrompt}
 Gere uma mensagem curta, acolhedora e personalizada de follow-up para este cliente. 
 INSTRUÇÕES CRÍTICAS: 
+- ENDEREÇO DA UNIDADE CENTRO: O endereço OBRIGATÓRIO é "Rua Marechal Floriano Peixoto, 45". Nunca invente nem use endereços antigos ou "2º andar".
 - Nunca use a palavra "Cliente", "Usuario", "Usuário" ou similares como nome.
 - Se o nome do cliente for null ou inválido, use exclusivamente saudação natural sem nome.
 - Mantenha o tom profissional e caloroso.`;
