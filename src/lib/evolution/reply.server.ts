@@ -1,6 +1,8 @@
 import { sendEvolutionText, sendEvolutionPresence } from "@/lib/evolution.server";
 import { logEvent } from "./logger.server";
 import { logger } from "@/lib/observability/logger.server";
+import { resolveOutboundInstanceForUnit, validateOutboundInstance } from "./outbound-resolver.server";
+
 
 
 
@@ -16,7 +18,9 @@ export async function replyToUser(params: {
   conversationKey: string;
   messageId?: string;
   traceId?: string;
+  unitId?: string | null;
 }) {
+
   const traceId = params.traceId || `${params.instance}:${params.messageId || Math.random().toString(36).substring(7)}`;
 
   // INSTRUMENTAÇÃO DE AUDITORIA: registrar origem da resposta
@@ -40,22 +44,52 @@ export async function replyToUser(params: {
     });
   }
 
+  // PROTEÇÃO DE INSTÂNCIA POR UNIDADE
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: conv } = await supabaseAdmin
+    .from("wa_conversas")
+    .select("unidade_id, instance, attendance_mode, customer_context")
+    .eq("phone", params.conversationKey)
+    .maybeSingle();
+
+  const activeUnitId = params.unitId || conv?.unidade_id;
+  const incomingInstance = conv?.instance || params.instance;
+
+  if (activeUnitId) {
+    const outboundRes = await resolveOutboundInstanceForUnit(activeUnitId);
+    if (!outboundRes) {
+      await logEvent({
+        instance: params.instance,
+        messageId: params.messageId,
+        event: "OUTBOUND_INSTANCE_NOT_RESOLVED",
+        status: "error",
+        payload: { traceId, unitId: activeUnitId, conversationKey: params.conversationKey }
+      });
+      return false; // FAIL-CLOSED: Bloqueia envio se não resolver instância da unidade
+    }
+
+    // Se a instância resolvida for diferente da que o parâmetro pediu, trocamos para a correta da unidade
+    if (outboundRes.instanceId !== params.instance) {
+      logger.info("OUTBOUND_INSTANCE_SWITCHED", `Trocando instância para corresponder à unidade: ${params.instance} -> ${outboundRes.instanceId}`, {
+        traceId,
+        unitId: activeUnitId,
+        originalInstance: params.instance,
+        newInstance: outboundRes.instanceId
+      });
+      params.instance = outboundRes.instanceId;
+    }
+  }
+
   // PROTEÇÃO FINAL DE SAÍDA: nenhuma mensagem do fluxo de assinatura pode mencionar CPF.
   try {
     const { enforceNoCpfInSubscriptionFlow, containsCpfSolicitation, PHONE_REQUEST_MESSAGE } = await import("@/lib/subscription-policy.server");
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     
     // Detector rápido sem depender de Supabase
     const cpfRequested = containsCpfSolicitation(params.text);
 
-    const { data: conv } = await supabaseAdmin
-      .from("wa_conversas")
-      .select("customer_context")
-      .eq("phone", params.conversationKey)
-      .maybeSingle();
-    
     const ctx = (conv?.customer_context as any) || null;
     const enforced = enforceNoCpfInSubscriptionFlow(params.text, ctx);
+
 
     
     if (enforced.blocked) {
