@@ -340,8 +340,10 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       text: replyText,
       conversationKey,
       messageId,
-      traceId
+      traceId,
+      unitId: agent.unidade_id
     });
+
 
     await logEvent({ instance, messageId, event: "OUTBOUND_SENT", status: "success", payload: { traceId } });
   } catch (error) {

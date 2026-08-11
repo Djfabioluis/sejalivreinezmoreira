@@ -306,7 +306,9 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
               conversationKey,
               messageId: finalMessageId,
               traceId,
+              unitId: unitId
             });
+
             await logEvent({
               instance: msg.instance,
               messageId: finalMessageId,

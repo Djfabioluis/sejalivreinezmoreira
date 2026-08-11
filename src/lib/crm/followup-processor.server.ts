@@ -237,12 +237,32 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       throw new Error("MESSAGE_GENERATION_FAILED");
     }
 
-    // 6. Envio via Evolution API
-    logger.info("FOLLOWUP_EVOLUTION_STARTED", "Iniciando envio via Evolution", logContext);
+    // 6. Envio via Evolution API com resolução de instância por unidade
+    const { resolveOutboundInstanceForUnit } = await import("../evolution/outbound-resolver.server");
+    const followupMetadata = typeof currentFollowup.metadata === 'object' ? (currentFollowup.metadata as any) : {};
+    
+    // Prioridade de unidade: metadata do job -> conversa -> unidade do agente padrão
+    const unitId = followupMetadata.unit_id || conversation.unidade_id || instance.split('-')[1]; // Fallback heurístico se tudo falhar
+    
+    let targetInstance = conversation.instance || instance;
+    
+    if (unitId) {
+      const outbound = await resolveOutboundInstanceForUnit(unitId);
+      if (outbound) {
+        targetInstance = outbound.instanceId;
+        logger.info("FOLLOWUP_OUTBOUND_RESOLVED", `Instância de follow-up resolvida por unidade`, {
+          ...logContext,
+          unitId,
+          targetInstance
+        });
+      }
+    }
+
+    logger.info("FOLLOWUP_EVOLUTION_STARTED", "Iniciando envio via Evolution", { ...logContext, targetInstance });
     
     const { sendEvolutionText } = await import("@/lib/evolution.server");
-    const targetInstance = conversation.instance || instance;
     const evoResult = await sendEvolutionText(targetInstance, conversation.phone_number, messageText);
+
     const success = evoResult.success;
     const evolutionData = evoResult.data;
     const messageId = evolutionData?.key?.id || evolutionData?.id || evolutionData?.message?.key?.id;
