@@ -119,50 +119,75 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     // BUSCA CONVERSA PARA CHECAR ATTENDANCE MODE
     const { data: conversation } = await supabaseAdmin
       .from("wa_conversas" as any)
-      .select("id, messages, customer_context, contact_name, attendance_mode, human_takeover_at")
+      .select("id, messages, customer_context, contact_name, attendance_mode, human_takeover_at, human_takeover_detected, human_takeover_requested_at, human_transfer_message_sent, ai_paused_at, ai_pause_reason, last_human_message_at")
       .or(`phone.eq.${conversationKey},phone.eq.${contactPhone},phone_number.eq.${contactPhone}`)
       .maybeSingle();
 
     const conv = conversation as any;
 
-    if (conv?.attendance_mode === "HUMAN") {
+    const humanLogBase = {
+      conversationId: conv?.id ?? conversationKey,
+      phoneLast4: contactPhone.slice(-4),
+      agentId: agent?.id ?? null,
+      unitId: agent?.unidade_id ?? null,
+      timestamp: new Date().toISOString(),
+      traceId,
+    };
+
+    const isHumanMode =
+      conv?.attendance_mode === "HUMAN" ||
+      conv?.human_takeover_detected === true ||
+      !!conv?.ai_paused_at;
+
+    if (isHumanMode) {
       await logEvent({
         instance,
         messageId,
         event: "ATTENDANCE_MODE_CHECKED",
         status: "success",
-        payload: { traceId, mode: "HUMAN", human_takeover_at: conv.human_takeover_at }
+        payload: { ...humanLogBase, mode: "HUMAN", ai_pause_reason: conv?.ai_pause_reason }
       });
 
-      const takeoverAtStr = conv.human_takeover_at;
+      const customerRequested = conv?.ai_pause_reason === "CUSTOMER_REQUESTED_HUMAN";
+      const takeoverAtStr = conv?.human_takeover_at;
       const takeoverAt = takeoverAtStr ? new Date(takeoverAtStr).getTime() : 0;
-      const now = Date.now();
-      
-      const diffMs = now - takeoverAt;
-      const minutesSinceTakeover = diffMs / 60000;
+      const minutesSinceTakeover = takeoverAt > 0 ? (Date.now() - takeoverAt) / 60000 : 0;
 
-      if (takeoverAt > 0 && minutesSinceTakeover < HUMAN_TAKEOVER_TIMEOUT_MINUTES) {
-        await logEvent({ 
-          instance, 
-          messageId, 
-          event: "AI_BLOCKED_BY_HUMAN_MODE",
+      // Pausa solicitada pelo cliente NUNCA expira por tempo: só encerramento explícito reativa a IA.
+      const stillPaused =
+        customerRequested || takeoverAt === 0 || minutesSinceTakeover < HUMAN_TAKEOVER_TIMEOUT_MINUTES;
+
+      if (stillPaused) {
+        console.log(`[AI_RESPONSE_BLOCKED_HUMAN_MODE] ${JSON.stringify(humanLogBase)}`);
+        await logEvent({
+          instance,
+          messageId,
+          event: "AI_RESPONSE_BLOCKED_HUMAN_MODE",
           status: "skipped",
-          payload: { traceId, minutesSinceTakeover, human_takeover_at: conv.human_takeover_at }
+          payload: { ...humanLogBase, minutesSinceTakeover, reason: conv?.ai_pause_reason || "HUMAN_MODE" }
         });
         return;
       }
 
-      const { error: updateError } = await supabaseAdmin
+      await supabaseAdmin
         .from("wa_conversas")
-        .update({ attendance_mode: "AI", human_takeover_at: null })
+        .update({
+          attendance_mode: "AI",
+          human_takeover_at: null,
+          human_takeover_detected: false,
+          human_transfer_message_sent: false,
+          ai_paused_at: null,
+          ai_pause_reason: null,
+        })
         .or(`phone.eq.${conversationKey},phone.eq.${contactPhone},phone_number.eq.${contactPhone}`);
 
-      await logEvent({ 
-        instance, 
-        messageId, 
-        event: "human_takeover_expired_ai_reactivated",
+      console.log(`[CONVERSATION_MODE_CHANGED_TO_AI] ${JSON.stringify(humanLogBase)}`);
+      await logEvent({
+        instance,
+        messageId,
+        event: "CONVERSATION_MODE_CHANGED_TO_AI",
         status: "reactivated",
-        payload: { traceId, minutesSinceTakeover }
+        payload: { ...humanLogBase, minutesSinceTakeover }
       });
     } else {
       await logEvent({
@@ -170,9 +195,90 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
         messageId,
         event: "ATTENDANCE_MODE_CHECKED",
         status: "success",
-        payload: { traceId, mode: conv?.attendance_mode || "AI" }
+        payload: { ...humanLogBase, mode: conv?.attendance_mode || "AI" }
       });
     }
+
+    // ============================================================
+    // PEDIDO EXPLÍCITO DE ATENDIMENTO HUMANO (determinístico)
+    // ============================================================
+    if (text) {
+      const { detectHumanTakeoverIntent, HUMAN_TRANSFER_MESSAGE, AI_PAUSE_REASON_CUSTOMER } =
+        await import("@/lib/human-takeover");
+
+      if (detectHumanTakeoverIntent(text)) {
+        console.log(`[HUMAN_TAKEOVER_INTENT_DETECTED] ${JSON.stringify(humanLogBase)}`);
+        await logEvent({
+          instance,
+          messageId,
+          event: "HUMAN_TAKEOVER_INTENT_DETECTED",
+          status: "success",
+          payload: { ...humanLogBase, textSnippet: text.slice(0, 80) }
+        });
+
+        const alreadySent = conv?.human_transfer_message_sent === true;
+        const nowIso = new Date().toISOString();
+
+        // 1) Persistir estado HUMAN antes de qualquer outra automação
+        await supabaseAdmin
+          .from("wa_conversas")
+          .update({
+            attendance_mode: "HUMAN",
+            human_takeover_detected: true,
+            human_takeover_at: nowIso,
+            human_takeover_requested_at: nowIso,
+            ai_paused_at: nowIso,
+            ai_pause_reason: AI_PAUSE_REASON_CUSTOMER,
+            human_transfer_message_sent: true,
+          })
+          .or(`phone.eq.${conversationKey},phone.eq.${contactPhone},phone_number.eq.${contactPhone}`);
+
+        console.log(`[CONVERSATION_MODE_CHANGED_TO_HUMAN] ${JSON.stringify(humanLogBase)}`);
+        await logEvent({
+          instance,
+          messageId,
+          event: "CONVERSATION_MODE_CHANGED_TO_HUMAN",
+          status: "success",
+          payload: { ...humanLogBase, reason: AI_PAUSE_REASON_CUSTOMER }
+        });
+
+        // 2) Enviar a mensagem de transferência UMA ÚNICA vez por takeover
+        if (!alreadySent) {
+          const { replyToUser } = await import("./reply.server");
+          await replyToUser({
+            instance,
+            phone: contactPhone,
+            text: HUMAN_TRANSFER_MESSAGE,
+            conversationKey,
+            messageId,
+            traceId,
+            unitId: agent?.unidade_id ?? null,
+            allowDuringHumanMode: true,
+          });
+
+          console.log(`[HUMAN_TRANSFER_MESSAGE_SENT] ${JSON.stringify(humanLogBase)}`);
+          await logEvent({
+            instance,
+            messageId,
+            event: "HUMAN_TRANSFER_MESSAGE_SENT",
+            status: "success",
+            payload: humanLogBase
+          });
+        } else {
+          await logEvent({
+            instance,
+            messageId,
+            event: "HUMAN_TRANSFER_MESSAGE_SKIPPED_DUPLICATE",
+            status: "skipped",
+            payload: humanLogBase
+          });
+        }
+
+        // 3) Encerrar processamento: nenhuma chamada de IA
+        return;
+      }
+    }
+
     
     if (agent) {
       await logEvent({ 

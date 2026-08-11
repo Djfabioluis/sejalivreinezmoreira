@@ -98,7 +98,11 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
           .from("wa_conversas")
           .update({ 
             attendance_mode: "HUMAN", 
-            human_takeover_at: new Date().toISOString() 
+            human_takeover_at: new Date().toISOString(),
+            human_takeover_detected: true,
+            ai_paused_at: new Date().toISOString(),
+            ai_pause_reason: "HUMAN_AGENT_REPLIED",
+            last_human_message_at: new Date().toISOString()
           })
           .or(`phone.eq.${conversationKey},phone.eq.${phone},phone_number.eq.${phone}`);
 
@@ -109,7 +113,7 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
         await logEvent({
           instance: msg.instance,
           messageId: msg.messageId,
-          event: "human_takeover_detected",
+          event: "HUMAN_MESSAGE_DETECTED",
           status: "attendance_mode_set_to_human",
           payload: { traceId, phone, conversationKey, remoteJid: msg.remoteJid, updateError, fromMe: msg.fromMe }
         });

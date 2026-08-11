@@ -11,6 +11,18 @@ const TYPING_MIN_MS = 1200;
 const TYPING_MAX_MS = 3500;
 const TYPING_PER_CHAR_MS = 25;
 
+/**
+ * PROTEÇÃO FINAL (fail-closed): nenhuma mensagem automática pode sair
+ * enquanto a conversa estiver em atendimento humano.
+ */
+export function ensureAIAllowedToReply(conv: any): { allowed: boolean; reason?: string } {
+  if (!conv) return { allowed: true };
+  if (conv.attendance_mode === "HUMAN") return { allowed: false, reason: "ATTENDANCE_MODE_HUMAN" };
+  if (conv.human_takeover_detected === true) return { allowed: false, reason: "HUMAN_TAKEOVER_DETECTED" };
+  if (conv.ai_paused_at) return { allowed: false, reason: conv.ai_pause_reason || "AI_PAUSED" };
+  return { allowed: true };
+}
+
 export async function replyToUser(params: {
   instance: string;
   phone: string;
@@ -19,7 +31,9 @@ export async function replyToUser(params: {
   messageId?: string;
   traceId?: string;
   unitId?: string | null;
+  allowDuringHumanMode?: boolean;
 }) {
+
 
   const traceId = params.traceId || `${params.instance}:${params.messageId || Math.random().toString(36).substring(7)}`;
 
@@ -48,9 +62,34 @@ export async function replyToUser(params: {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data: conv } = await supabaseAdmin
     .from("wa_conversas")
-    .select("unidade_id, instance, attendance_mode, customer_context")
+    .select("unidade_id, instance, attendance_mode, customer_context, human_takeover_detected, ai_paused_at, ai_pause_reason")
     .eq("phone", params.conversationKey)
     .maybeSingle();
+
+  // PROTEÇÃO FINAL FAIL-CLOSED: bloquear qualquer outbound automático em modo humano
+  if (!params.allowDuringHumanMode) {
+    const gate = ensureAIAllowedToReply(conv as any);
+    if (!gate.allowed) {
+      const blockLog = {
+        conversationId: params.conversationKey,
+        phoneLast4: String(params.phone || "").slice(-4),
+        unitId: params.unitId ?? (conv as any)?.unidade_id ?? null,
+        timestamp: new Date().toISOString(),
+        traceId,
+        reason: gate.reason,
+      };
+      console.log(`[AI_RESPONSE_BLOCKED_HUMAN_MODE] ${JSON.stringify(blockLog)}`);
+      await logEvent({
+        instance: params.instance,
+        messageId: params.messageId,
+        event: "AI_RESPONSE_BLOCKED_HUMAN_MODE",
+        status: "blocked",
+        payload: blockLog
+      });
+      return false;
+    }
+  }
+
 
   const activeUnitId = params.unitId || conv?.unidade_id;
   const incomingInstance = conv?.instance || params.instance;

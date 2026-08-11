@@ -125,7 +125,7 @@ export const sendManualWAMessage = createServerFn({ method: "POST" })
     
     const { data: conv, error: convErr } = await supabaseAdmin
       .from("wa_conversas" as never)
-      .select("instance, phone_number")
+      .select("instance, phone_number, unidade_id")
       .eq("phone", data.phone)
       .maybeSingle();
     
@@ -151,6 +151,62 @@ export const sendManualWAMessage = createServerFn({ method: "POST" })
     });
 
     if (rpcErr) throw new Error(`Mensagem enviada, mas falha ao salvar no histórico: ${rpcErr.message}`);
+
+    // Atendente humano respondeu: manter conversa em modo HUMANO e IA pausada
+    const nowIso = new Date().toISOString();
+    await supabaseAdmin
+      .from("wa_conversas" as never)
+      .update({
+        attendance_mode: "HUMAN",
+        human_takeover_detected: true,
+        human_takeover_at: nowIso,
+        ai_paused_at: nowIso,
+        ai_pause_reason: "HUMAN_AGENT_REPLIED",
+        last_human_message_at: nowIso,
+      } as never)
+      .eq("phone", data.phone);
+
+    console.log(`[HUMAN_MESSAGE_DETECTED] ${JSON.stringify({
+      conversationId: data.phone,
+      phoneLast4: String(phone_number).slice(-4),
+      agentId: null,
+      unitId: (conv as any).unidade_id ?? null,
+      timestamp: nowIso,
+    })}`);
+
+    return { success: true };
+  });
+
+/** Encerra o atendimento humano e reativa a Julia (ação explícita do atendente). */
+export const endHumanTakeover = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(z.object({ phone: z.string() }))
+  .handler(async ({ data, context }) => {
+    await assertPermission(context, "agendar");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+    const { error } = await supabaseAdmin
+      .from("wa_conversas" as never)
+      .update({
+        attendance_mode: "AI",
+        human_takeover_detected: false,
+        human_takeover_at: null,
+        human_takeover_requested_at: null,
+        human_transfer_message_sent: false,
+        ai_paused_at: null,
+        ai_pause_reason: null,
+      } as never)
+      .eq("phone", data.phone);
+
+    if (error) throw new Error(error.message);
+
+    console.log(`[CONVERSATION_MODE_CHANGED_TO_AI] ${JSON.stringify({
+      conversationId: data.phone,
+      phoneLast4: data.phone.slice(-4),
+      agentId: null,
+      unitId: null,
+      timestamp: new Date().toISOString(),
+    })}`);
 
     return { success: true };
   });

@@ -1552,11 +1552,17 @@ export type Database = {
       wa_conversas: {
         Row: {
           agent_id: string | null
+          ai_pause_reason: string | null
+          ai_paused_at: string | null
           attendance_mode: string | null
           contact_name: string | null
           customer_context: Json | null
           human_takeover_at: string | null
+          human_takeover_detected: boolean
+          human_takeover_requested_at: string | null
+          human_transfer_message_sent: boolean
           instance: string | null
+          last_human_message_at: string | null
           last_read_at: string | null
           messages: Json
           origin_unit_id: string | null
@@ -1573,11 +1579,17 @@ export type Database = {
         }
         Insert: {
           agent_id?: string | null
+          ai_pause_reason?: string | null
+          ai_paused_at?: string | null
           attendance_mode?: string | null
           contact_name?: string | null
           customer_context?: Json | null
           human_takeover_at?: string | null
+          human_takeover_detected?: boolean
+          human_takeover_requested_at?: string | null
+          human_transfer_message_sent?: boolean
           instance?: string | null
+          last_human_message_at?: string | null
           last_read_at?: string | null
           messages?: Json
           origin_unit_id?: string | null
@@ -1594,11 +1606,17 @@ export type Database = {
         }
         Update: {
           agent_id?: string | null
+          ai_pause_reason?: string | null
+          ai_paused_at?: string | null
           attendance_mode?: string | null
           contact_name?: string | null
           customer_context?: Json | null
           human_takeover_at?: string | null
+          human_takeover_detected?: boolean
+          human_takeover_requested_at?: string | null
+          human_transfer_message_sent?: boolean
           instance?: string | null
+          last_human_message_at?: string | null
           last_read_at?: string | null
           messages?: Json
           origin_unit_id?: string | null
