@@ -117,13 +117,28 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     const { HUMAN_TAKEOVER_TIMEOUT_MINUTES } = await import("../config");
 
     // BUSCA CONVERSA PARA CHECAR ATTENDANCE MODE
+    // USAMOS HIERARQUIA: exact phone match > phone_number match
     const { data: conversation } = await supabaseAdmin
       .from("wa_conversas" as any)
-      .select("id, messages, customer_context, contact_name, attendance_mode, human_takeover_at, human_takeover_detected, human_takeover_requested_at, human_transfer_message_sent, ai_paused_at, ai_pause_reason, last_human_message_at")
-      .or(`phone.eq.${conversationKey},phone.eq.${contactPhone},phone_number.eq.${contactPhone}`)
+      .select("id, messages, customer_context, contact_name, attendance_mode, human_takeover_at, human_takeover_detected, human_takeover_requested_at, human_transfer_message_sent, ai_paused_at, ai_pause_reason, last_human_message_at, phone, instance, unidade_id")
+      .eq("phone", conversationKey)
       .maybeSingle();
 
-    const conv = conversation as any;
+    let conv = conversation as any;
+
+    if (!conv) {
+      const { data: fallbackConv } = await supabaseAdmin
+        .from("wa_conversas" as any)
+        .select("id, messages, customer_context, contact_name, attendance_mode, human_takeover_at, human_takeover_detected, human_takeover_requested_at, human_transfer_message_sent, ai_paused_at, ai_pause_reason, last_human_message_at, phone, instance, unidade_id")
+        .eq("phone_number", contactPhone)
+        .order("updated_at", { ascending: false })
+        .limit(1);
+      
+      if (fallbackConv && fallbackConv.length > 0) {
+        conv = fallbackConv[0];
+      }
+    }
+
 
     const humanLogBase = {
       conversationId: conv?.id ?? conversationKey,
@@ -179,7 +194,8 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
           ai_paused_at: null,
           ai_pause_reason: null,
         })
-        .or(`phone.eq.${conversationKey},phone.eq.${contactPhone},phone_number.eq.${contactPhone}`);
+        .eq("phone", conv?.phone || conversationKey);
+
 
       console.log(`[CONVERSATION_MODE_CHANGED_TO_AI] ${JSON.stringify(humanLogBase)}`);
       await logEvent({
@@ -231,7 +247,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
             ai_pause_reason: AI_PAUSE_REASON_CUSTOMER,
             human_transfer_message_sent: true,
           })
-          .or(`phone.eq.${conversationKey},phone.eq.${contactPhone},phone_number.eq.${contactPhone}`);
+          .eq("phone", conv?.phone || conversationKey);
 
         console.log(`[CONVERSATION_MODE_CHANGED_TO_HUMAN] ${JSON.stringify(humanLogBase)}`);
         await logEvent({
@@ -316,8 +332,9 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     const { data: finalCheck } = await supabaseAdmin
       .from("wa_conversas")
       .select("attendance_mode")
-      .or(`phone.eq.${conversationKey},phone.eq.${contactPhone},phone_number.eq.${contactPhone}`)
+      .eq("phone", conv?.phone || conversationKey)
       .maybeSingle();
+
       
     if (finalCheck?.attendance_mode === "HUMAN") {
       await logEvent({

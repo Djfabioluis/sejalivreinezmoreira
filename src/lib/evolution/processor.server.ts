@@ -104,7 +104,7 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
             ai_pause_reason: "HUMAN_AGENT_REPLIED",
             last_human_message_at: new Date().toISOString()
           })
-          .or(`phone.eq.${conversationKey},phone.eq.${phone},phone_number.eq.${phone}`);
+          .eq("phone", conversationKey);
 
         if (updateError) {
           console.error("[takeover] Error updating to HUMAN mode:", updateError);
