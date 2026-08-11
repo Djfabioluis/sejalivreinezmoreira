@@ -405,16 +405,29 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
     });
   }
 
+  const bookingContext: BookingContext =
+    ((opts as any).bookingContext as BookingContext) ||
+    ((customerContext as any)?.bookingContext as BookingContext) ||
+    {};
+
   const system = assembleSystemPrompt({
     contactName: opts.contactName,
     contactPhone: opts.contactPhone,
     unitName: effectiveUnitName,
     traceId: opts.traceId,
     customer_context: customerContext,
-    activePromotions: activePromotions
+    activePromotions: activePromotions,
+    bookingContext
   });
 
-  const tools = buildTools(!!sandbox, effectiveUnitId, conversationKey, opts.messageId);
+  const tools = buildTools(
+    !!sandbox,
+    effectiveUnitId,
+    conversationKey,
+    opts.messageId,
+    bookingContext.subscriptionIntent === true,
+  );
+
 
   // Aceita tanto UIMessages (com parts) quanto ModelMessages (com content).
   const needsConversion = messages.some((m: any) => Array.isArray(m?.parts));
