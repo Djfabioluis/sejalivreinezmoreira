@@ -415,6 +415,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     } = await import("@/lib/booking/context");
     const { patchCustomerContext } = await import("@/lib/chat.server");
 
+    // Carregar contexto do conv (que agora tem o estado mais recente após appendIncomingMessage/refreshedConv)
     const customerContext = (conv?.customer_context as any) || {};
 
     // 1. Carregar contexto anterior (compatível com chaves legadas soltas)
@@ -432,7 +433,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       conversationGreeted: customerContext.bookingContext?.conversationGreeted === true,
     };
 
-    console.log(`[CONVERSATION_CONTEXT_LOADED] conversationId=${conversationKey} historyCount=${(conv?.messages as any[])?.length || 0} service=${previousContext.serviceName || 'null'} date=${previousContext.date || 'null'} time=${previousContext.time || 'null'} unitId=${previousContext.unitId}`);
+    console.log(`[CONVERSATION_CONTEXT_LOADED] conversationId=${finalKey} historyCount=${(conv?.messages as any[])?.length || 0} service=${previousContext.serviceName || 'null'} date=${previousContext.date || 'null'} time=${previousContext.time || 'null'} unitId=${previousContext.unitId}`);
 
     await logEvent({
       instance,
