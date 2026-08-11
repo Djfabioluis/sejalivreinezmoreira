@@ -31,7 +31,19 @@ export async function appendIncomingMessage(params: {
     p_increment_unread: true,
     p_new_status: "aberta", 
     p_customer_context: null
-  }).select("id, messages, customer_context, contact_name, attendance_mode, human_takeover_at, human_takeover_detected, human_takeover_requested_at, human_transfer_message_sent, ai_paused_at, ai_pause_reason, last_human_message_at, phone, instance, unidade_id").single();
+  });
+
+  // Se a RPC funcionou, recarregamos a linha para garantir que temos o objeto completo (messages, customer_context, etc)
+  // O id da conversa é o que a RPC retorna ou o params.conversationKey se for o phone
+  let refreshedData = data;
+  if (!error && params.conversationKey) {
+    const { data: conv } = await supabaseAdmin
+      .from("wa_conversas" as any)
+      .select("id, messages, customer_context, contact_name, attendance_mode, human_takeover_at, human_takeover_detected, human_takeover_requested_at, human_transfer_message_sent, ai_paused_at, ai_pause_reason, last_human_message_at, phone, instance, unidade_id")
+      .eq("phone", params.conversationKey)
+      .maybeSingle();
+    if (conv) refreshedData = conv;
+  }
 
   if (error) {
     await logEvent({ 
