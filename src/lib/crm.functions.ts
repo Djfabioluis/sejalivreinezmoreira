@@ -411,7 +411,11 @@ export const simulateRealCustomer = createServerFn({ method: "POST" })
     
     if (!normalizedPhone || normalizedPhone.length < 10) throw new Error("Telefone inválido");
 
-    const instance = "agente-5541998430354"; // Instância oficial principal
+    // 1.5. Resolve correct instance for unit if available
+    const { resolveOutboundInstanceForUnit } = await import("./evolution/outbound-resolver.server");
+    const outbound = await resolveOutboundInstanceForUnit("1"); // Default unit for simulation
+    const instance = outbound?.instanceId || "agente-5541998430354"; 
+
     const conversationKey = `${instance}:${normalizedPhone}`;
 
     // 2. Ensure wa_conversas entry and wait for it

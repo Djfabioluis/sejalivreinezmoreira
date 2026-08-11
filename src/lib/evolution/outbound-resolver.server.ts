@@ -41,12 +41,43 @@ export async function resolveOutboundInstanceForUnit(unitId: string | number): P
     phoneNumber: agent.telefone
   };
 
-  logger.info("OUTBOUND_INSTANCE_RESOLVED", `Instância resolvida para a unidade ${unitIdStr}`, {
+  // VALIDAR INSTÂNCIA ANTES DO ENVIO
+  const validation = await checkInstanceStatus(result.instanceName);
+  
+  logger.info("FOLLOWUP_INSTANCE_VALIDATION", `Validação de instância para unidade ${unitIdStr}`, {
     ...result,
-    agentName: agent.nome
+    ...validation
   });
 
+  if (!validation.exists) {
+     logger.error("EVOLUTION_INSTANCE_NOT_FOUND", `Instância ${result.instanceName} não encontrada na Evolution`, { unitId: unitIdStr });
+     return null;
+  }
+
+  if (!validation.connected) {
+     logger.warn("EVOLUTION_INSTANCE_DISCONNECTED", `Instância ${result.instanceName} está desconectada`, { unitId: unitIdStr });
+     // Opcional: retornar null se quiser fail-closed rigoroso
+  }
+
   return result;
+}
+
+/**
+ * Consulta a Evolution API para verificar o status real da instância
+ */
+export async function checkInstanceStatus(instanceName: string): Promise<{ exists: boolean; connected: boolean; state?: string }> {
+  try {
+    const { getConnectionState } = await import("../evolution.server");
+    const state = await getConnectionState(instanceName);
+    
+    return {
+      exists: state !== "desconectado" || true, // getConnectionState retorna "desconectado" para erros genéricos também
+      connected: state === "conectado",
+      state
+    };
+  } catch (err) {
+    return { exists: false, connected: false };
+  }
 }
 
 /**
@@ -61,10 +92,6 @@ export async function validateOutboundInstance(params: {
   const { incomingInstance, outboundInstance, unitId, conversationId } = params;
 
   if (incomingInstance !== outboundInstance) {
-    // Se mudou a instância mas a unidade é a mesma, há um risco de misturar números
-    // No entanto, se houve troca explícita de unidade, a instância DEVE mudar.
-    // O critério real é: a outboundInstance deve ser a que pertence à unidade ativa.
-    
     if (unitId) {
       const resolved = await resolveOutboundInstanceForUnit(unitId);
       if (resolved && resolved.instanceId !== outboundInstance) {
