@@ -223,7 +223,9 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
           } 
         });
 
+        let unitId: string | null = null;
         // 5. Agente e Unidade
+
         const agent = await findAgentByInstance(msg.instance);
         const isIAActive = isIAEnabled(agent);
 
@@ -231,24 +233,28 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
           const { updateConversationMetadata } = await import("./conversation.server");
           
           // RESOLUÇÃO DE UNIDADE DETERMINÍSTICA PELO NÚMERO RECEPTOR
-          const unitId = agent.unidade_id;
+          unitId = agent.unidade_id;
           
           await logEvent({
             instance: msg.instance,
             messageId: finalMessageId,
-            event: "UNIT_RESOLVED_FROM_INCOMING_NUMBER",
+            event: "INBOUND_INSTANCE_RESOLVED", // Nome solicitado no requisito
             status: unitId ? "success" : "warning",
             payload: { 
               traceId,
-              instance: msg.instance,
+              instanceId: msg.instance, // instanceId conforme requisito
+              instanceName: msg.instance,
+              agentId: agent.id,
               unitId: unitId,
+              unitName: agent.nome, // Agente costuma ter o nome da Julia/Unidade
               source: "wa_agentes_lookup"
             }
           });
 
+
           await updateConversationMetadata(conversationKey, {
             agent_id: agent.id,
-            unidade_id: unitId,
+            unidade_id: unitId || undefined,
             contact_name: msg.pushName || undefined
           });
         }
@@ -302,7 +308,9 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
               conversationKey,
               messageId: finalMessageId,
               traceId,
+              unitId: unitId
             });
+
             await logEvent({
               instance: msg.instance,
               messageId: finalMessageId,
