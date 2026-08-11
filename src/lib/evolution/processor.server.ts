@@ -254,7 +254,7 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
 
           await updateConversationMetadata(conversationKey, {
             agent_id: agent.id,
-            unidade_id: unitId,
+            unidade_id: unitId || undefined,
             contact_name: msg.pushName || undefined
           });
         }
