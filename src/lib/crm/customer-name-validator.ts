@@ -4,7 +4,8 @@
 export const GENERIC_NAMES = [
   "usuario", "usuário", "user", "cliente", "contato", "lead", 
   "desconhecido", "sem nome", "visitante", "whatsapp", "sem_nome",
-  "null", "undefined", "nan", "voce", "você", "n/a", "unknown"
+  "null", "undefined", "nan", "voce", "você", "n/a", "unknown",
+  "agendamento", "notificação", "aviso", ".", "...", "-"
 ];
 
 /**

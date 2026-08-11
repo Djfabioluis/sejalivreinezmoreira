@@ -311,7 +311,7 @@ function CRMPage() {
                       {executions.map((e: any) => (
                         <tr key={e.id} className="hover:bg-muted/20 transition-colors">
                            <td className="px-6 py-4 font-mono text-[10px] text-muted-foreground">{e.id.split('-')[0]}</td>
-                           <td className="px-6 py-4 font-bold">{formatPhone(e.phone)}</td>
+                           <td className="px-6 py-4 font-bold">{e.metadata?.contact_name || formatPhone(e.phone)}</td>
                            <td className="px-6 py-4">{e.rule?.name || 'Manual'}</td>
                            <td className="px-6 py-4 text-muted-foreground">{format(new Date(e.scheduled_at), 'dd/MM HH:mm', { locale: ptBR })}</td>
                            <td className="px-6 py-4">
@@ -368,7 +368,7 @@ function CRMPage() {
                       {history.map((h: any) => (
                         <tr key={h.id} className="hover:bg-muted/20 transition-colors">
                            <td className="px-6 py-4 font-mono text-[10px] text-muted-foreground">{h.id.split('-')[0]}</td>
-                           <td className="px-6 py-4 font-bold">{formatPhone(h.phone)}</td>
+                           <td className="px-6 py-4 font-bold">{h.metadata?.contact_name || formatPhone(h.phone)}</td>
                            <td className="px-6 py-4">{h.rule?.name || 'Manual'}</td>
                            <td className="px-6 py-4 font-mono text-[10px]">{h.message_id || '-'}</td>
                             <td className="px-6 py-4 max-w-xs">

@@ -98,7 +98,8 @@ export async function createBirthdayFollowup(customer: any, traceId: string) {
       metadata: {
         source: "birthday_engine",
         instance,
-        traceId
+        traceId,
+        contact_name: contactName !== "cliente" ? contactName : null
       }
     } as any);
 
