@@ -137,11 +137,14 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       
       if (fallbackConv && fallbackConv.length > 0) {
         conv = fallbackConv[0];
+        console.log(`[CONVERSATION_RESOLVED_FALLBACK] Found existing conversation for ${contactPhone} (ID: ${conv.phone})`);
       }
     }
 
+    const finalKey = conv?.phone || conversationKey;
+
     if (conv) {
-      console.log(`[CONVERSATION_MODE_CHECKED] ID: ${conv.phone} Mode: ${conv.attendance_mode} Paused: ${!!conv.ai_paused_at}`);
+      console.log(`[CONVERSATION_RESOLVED] ID: ${finalKey} Mode: ${conv.attendance_mode} Paused: ${!!conv.ai_paused_at}`);
     }
 
 
@@ -200,7 +203,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
           ai_paused_at: null,
           ai_pause_reason: null,
         })
-        .eq("phone", conv?.phone || conversationKey);
+        .eq("phone", finalKey);
 
 
       console.log(`[CONVERSATION_MODE_CHANGED_TO_AI] ${JSON.stringify(humanLogBase)}`);
@@ -253,7 +256,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
             ai_pause_reason: AI_PAUSE_REASON_CUSTOMER,
             human_transfer_message_sent: true,
           })
-          .eq("phone", conv?.phone || conversationKey);
+          .eq("phone", finalKey);
 
         console.log(`[CONVERSATION_MODE_CHANGED_TO_HUMAN] ${JSON.stringify(humanLogBase)}`);
         await logEvent({
@@ -271,7 +274,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
             instance,
             phone: contactPhone,
             text: HUMAN_TRANSFER_MESSAGE,
-            conversationKey,
+            conversationKey: finalKey,
             messageId,
             traceId,
             unitId: agent?.unidade_id ?? null,
@@ -338,7 +341,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     const { data: finalCheck } = await supabaseAdmin
       .from("wa_conversas")
       .select("attendance_mode")
-      .eq("phone", conv?.phone || conversationKey)
+      .eq("phone", finalKey)
       .maybeSingle();
 
       
@@ -394,6 +397,8 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       conversationGreeted: customerContext.bookingContext?.conversationGreeted === true,
     };
 
+    console.log(`[CONVERSATION_CONTEXT_LOADED] conversationId=${conversationKey} historyCount=${(conv?.messages as any[])?.length || 0} service=${previousContext.serviceName || 'null'} date=${previousContext.date || 'null'} time=${previousContext.time || 'null'} unitId=${previousContext.unitId}`);
+
     await logEvent({
       instance,
       messageId,
@@ -435,6 +440,8 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
         console.error("[agent] Error extracting service intent:", err);
       }
     }
+
+    console.log(`[CONVERSATION_CORRELATION] phone=${contactPhone} instanceId=${instance} conversationId=${conv?.id || 'new'} sameConversation=${!!conv}`);
 
     await logEvent({
       instance,
@@ -483,7 +490,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     );
 
     // 5. Persistir contexto mesclado
-    await patchCustomerContext(conversationKey, {
+    await patchCustomerContext(finalKey, {
       bookingContext,
       service_id: bookingContext.serviceId ?? null,
       service_name: bookingContext.serviceName ?? null,

@@ -88,10 +88,14 @@ export function extractBookingSlots(
   const t = text.trim();
 
   // --- Data ---
-  if (/\bhoje\b/i.test(t)) out.date = isoDate(now);
-  else if (/depois\s+de\s+amanh[ãa]/i.test(t)) out.date = isoDate(addDays(now, 2));
-  else if (/amanh[ãa]/i.test(t)) out.date = isoDate(addDays(now, 1));
-  else {
+  if (/\bhoje\b/i.test(t)) {
+    out.date = isoDate(now);
+  } else if (/depois\s+de\s+amanh[ãa]/i.test(t)) {
+    out.date = isoDate(addDays(now, 2));
+  } else if (/amanh[ãa]/i.test(t)) {
+    out.date = isoDate(addDays(now, 1));
+  } else {
+    // Tenta data no formato DD/MM
     const dm = t.match(/\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/);
     if (dm) {
       const day = Number(dm[1]);
@@ -101,9 +105,16 @@ export function extractBookingSlots(
         out.date = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
       }
     } else {
+      // Tenta dias da semana
       const wd = WEEKDAYS.find((w) => w.re.test(t));
       if (wd) {
-        const diff = (wd.index - now.getDay() + 7) % 7 || 7;
+        const todayIdx = now.getDay();
+        const targetIdx = wd.index;
+        // Se for hoje, pode ser hoje mesmo ou próxima semana se já passou do horário
+        // Mas para simplicidade, se for o mesmo dia, consideramos hoje.
+        // Se for diferente, pegamos o próximo dia X da semana.
+        let diff = (targetIdx - todayIdx + 7) % 7;
+        if (diff === 0 && !/\bhoje\b/i.test(t)) diff = 7; // Se pedir "segunda" e hoje é segunda, provavelmente é a próxima.
         out.date = isoDate(addDays(now, diff));
       }
     }
@@ -115,10 +126,10 @@ export function extractBookingSlots(
   else if (/\bnoite\b/i.test(t)) out.period = "noite";
 
   // --- Horário ---
-  const time = t.match(/\b([01]?\d|2[0-3])\s*(?::|h|hs|horas?)\s*([0-5]\d)?\b/i);
-  if (time) {
-    const hh = String(Number(time[1])).padStart(2, "0");
-    const mm = time[2] ? time[2] : "00";
+  const timeMatch = t.match(/\b([01]?\d|2[0-3])\s*(?::|h|hs|horas?)\s*([0-5]\d)?\b/i);
+  if (timeMatch) {
+    const hh = String(Number(timeMatch[1])).padStart(2, "0");
+    const mm = timeMatch[2] ? timeMatch[2] : "00";
     out.time = `${hh}:${mm}`;
   }
 
