@@ -589,7 +589,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       instance,
       phone: contactPhone,
       text: replyText,
-      conversationKey,
+      conversationKey: finalKey,
       messageId,
       traceId,
       unitId: agent.unidade_id
