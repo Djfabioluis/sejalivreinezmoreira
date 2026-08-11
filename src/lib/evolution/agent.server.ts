@@ -238,7 +238,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
     // 1. Extração Proativa de Intenção (Serviço) antes da IA
     let extractedService: any = null;
-    const { normalizeServiceSearchText } = await import("@/lib/chat.server");
+    const { normalizeServiceSearchText } = await import("@/lib/service-utils");
     const normalizedText = normalizeServiceSearchText(text);
     
     if (normalizedText && agent?.unidade_id) {

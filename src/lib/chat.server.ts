@@ -9,6 +9,7 @@ import { logger } from "@/lib/observability/logger.server";
 import { classifyFailure, describeError, sanitizeErrorText } from "./evolution/failure";
 import { updateCustomerPipeline, inferStageFromTool } from "@/lib/crm.server";
 import { normalizeServiceSearchText, SERVICE_CATEGORY_ALIASES, type ServiceCategory } from "./service-utils";
+export { normalizeServiceSearchText };
 import { PromotionService, type Promotion } from "./promotion-service.server";
 import { EvolutionService } from "./evolution/evolution-service.server";
 import {
