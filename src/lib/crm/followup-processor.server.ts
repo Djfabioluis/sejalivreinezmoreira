@@ -239,10 +239,11 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
 
     // 6. Envio via Evolution API com resolução de instância por unidade
     const { resolveOutboundInstanceForUnit } = await import("../evolution/outbound-resolver.server");
-    const followupMetadata = typeof currentFollowup.metadata === 'object' ? (currentFollowup.metadata as any) : {};
+    const followupMetadataForSend = typeof currentFollowup.metadata === 'object' ? (currentFollowup.metadata as any) : {};
+
     
     // Prioridade de unidade: metadata do job -> conversa -> unidade do agente padrão
-    const unitId = followupMetadata.unit_id || conversation.unidade_id || instance.split('-')[1]; // Fallback heurístico se tudo falhar
+    const unitId = followupMetadataForSend.unit_id || conversation.unidade_id || instance.split('-')[1]; // Fallback heurístico se tudo falhar
     
     let targetInstance = conversation.instance || instance;
     

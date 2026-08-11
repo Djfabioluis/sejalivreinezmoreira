@@ -223,7 +223,9 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
           } 
         });
 
+        let unitId: string | null = null;
         // 5. Agente e Unidade
+
         const agent = await findAgentByInstance(msg.instance);
         const isIAActive = isIAEnabled(agent);
 
@@ -231,7 +233,7 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
           const { updateConversationMetadata } = await import("./conversation.server");
           
           // RESOLUÇÃO DE UNIDADE DETERMINÍSTICA PELO NÚMERO RECEPTOR
-          const unitId = agent.unidade_id;
+          unitId = agent.unidade_id;
           
           await logEvent({
             instance: msg.instance,
