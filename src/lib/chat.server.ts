@@ -242,18 +242,21 @@ export function assembleSystemPrompt(opts: {
   traceId?: string;
   customer_context?: any;
   activePromotions?: any[];
+  bookingContext?: BookingContext | null;
 }) {
   const promoBlock = opts.activePromotions?.length
     ? opts.activePromotions.map(p => `- ${p.name}: ${p.description}`).join("\n")
     : "Nenhuma promoção ativa no momento.";
 
   const summary = subscriptionContextLine(opts.customer_context || {});
+  const booking = (opts.bookingContext ?? (opts.customer_context?.bookingContext as BookingContext | undefined)) || {};
 
   return replacePromptVariables(DEFAULT_SYSTEM_PROMPT, {
     contactName: opts.contactName || "Cliente",
     contactPhone: opts.contactPhone || "Desconhecido",
     unitName: opts.unitName || "Não selecionada",
     traceId: opts.traceId || "n/a",
+    booking_context_block: buildBookingContextBlock(booking),
     customer_context_summary: summary,
     active_promotions_block: promoBlock
   });
@@ -264,22 +267,35 @@ function buildTools(
   fallbackAgentUnitId?: string | null,
   conversationKey?: string,
   currentMessageId?: string | null,
+  subscriptionIntent?: boolean,
 ) {
   const safeToolLocal = <T,>(label: string, fn: () => Promise<T>) =>
     runTool(label, fn, { conversationKey, effectiveUnitId: fallbackAgentUnitId });
 
   return {
     validate_subscription_phone: tool({
-      description: "Valida se o cliente possui uma assinatura ativa pesquisando pelo telefone cadastrado.",
+      description:
+        "Valida se o cliente possui uma assinatura ativa pesquisando pelo telefone cadastrado. USE SOMENTE se o cliente pediu explicitamente para usar plano/assinatura/benefício.",
       inputSchema: z.object({
         phone_number: z.string().describe("Telefone completo com DDD"),
       }),
       execute: async ({ phone_number }) =>
         safeToolLocal("validate_subscription_phone", async () => {
+          if (subscriptionIntent !== true) {
+            console.warn("[chat] SUBSCRIPTION_TOOL_BLOCKED: sem intenção explícita do cliente");
+            return {
+              success: false,
+              blocked: true,
+              code: "SUBSCRIPTION_INTENT_REQUIRED",
+              message:
+                "O cliente não pediu para usar plano/assinatura. Não valide assinatura, não peça telefone cadastrado e siga o agendamento normal.",
+            };
+          }
           const { validateSubscriptionByPhone } = await import("@/lib/bemp/phone-validation.server");
           return validateSubscriptionByPhone(phone_number);
         }),
     }),
+
     list_units_info: tool({
       description: "Lista as unidades ativas na Bemp.",
       inputSchema: z.object({}),
