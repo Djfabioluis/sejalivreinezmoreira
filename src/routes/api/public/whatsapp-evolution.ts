@@ -10,12 +10,25 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
   server: {
     handlers: {
       GET: async () => {
-        return new Response(JSON.stringify({ ok: true, service: "whatsapp-evolution-webhook" }), {
+        const { isEvolutionConfigured } = await import("@/lib/evolution.server");
+        const { isIAConfigured } = await import("@/lib/chat.server");
+        
+        const evoOk = await isEvolutionConfigured();
+        const aiOk = await isIAConfigured();
+        
+        return new Response(JSON.stringify({ 
+          ok: evoOk && aiOk, 
+          service: "whatsapp-evolution-webhook",
+          diagnostics: {
+            evolution: evoOk ? "configured" : "missing",
+            ai: aiOk ? "configured" : "missing"
+          }
+        }), {
           headers: { "Content-Type": "application/json" },
         });
       },
       POST: async ({ request }) => {
-        const traceId = `webhook-entry-${Date.now()}`;
+        const traceId = `webhook-${Date.now()}`;
         
         // 1. Autenticação
         const auth = await authenticateWebhook(request);
@@ -34,9 +47,12 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           await logEvent({ instance: "unknown", event: "webhook_received", status: "invalid_payload" });
           return new Response(JSON.stringify({ error: "Invalid JSON" }), { status: 400, headers: { "Content-Type": "application/json" } });
         }
+        
+        logger.info("WEBHOOK_RECEIVED", "Payload detectado", { traceId, event: payload.event });
 
         // 3. Normalização do Evento
         const eventData = normalizeEvolutionEvent(payload);
+        logger.info("EVENT_NORMALIZED", "Evento extraído", { traceId, event: eventData.event, instance: eventData.instance });
         
         if (eventData.event === "unknown") {
           logger.info("WEBHOOK_IGNORED", "Evento desconhecido ou não suportado", { traceId, event: payload.event });
@@ -62,7 +78,7 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
         // 4. Delegação assíncrona (AWAIT OBRIGATÓRIO PARA SERVERLESS)
         if (eventData.event === "connection.update") {
           await processConnectionUpdate(payload).catch(err => 
-            logger.error("ASYNC_CONNECTION_UPDATE_ERROR", err.message, { traceId })
+            logger.error("CONNECTION_UPDATE_ERROR", err.message, { traceId })
           );
         } else if (eventData.event === "messages.upsert") {
           (payload as any)._traceId = traceId;
@@ -78,10 +94,11 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           }
         } else if (eventData.event === "messages.ack") {
           await processMessageAck(payload).catch(err => 
-            logger.error("ASYNC_ACK_PROCESS_ERROR", err.message, { traceId })
+            logger.error("ACK_PROCESS_ERROR", err.message, { traceId })
           );
         }
 
+        logger.info("WEBHOOK_COMPLETED", "Processamento finalizado", { traceId });
         return new Response("OK");
       }
     }
