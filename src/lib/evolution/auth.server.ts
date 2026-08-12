@@ -1,5 +1,6 @@
 import { getEvolutionConfig } from "@/lib/evolution.server";
 import { logEvent } from "./logger.server";
+import { logger } from "@/lib/observability/logger.server";
 
 export async function authenticateWebhook(request: Request): Promise<{ authenticated: boolean; error?: string }> {
   const config = await getEvolutionConfig();
@@ -15,9 +16,6 @@ export async function authenticateWebhook(request: Request): Promise<{ authentic
     providedSecret = authHeader.substring(7).trim();
   }
 
-  // A Evolution API pode enviar o segredo configurado no campo "Segredo" das configurações globais 
-  // ou da instância. Geralmente ela envia no cabeçalho x-webhook-secret ou Authorization.
-  
   const requireSecret = process.env.EVOLUTION_REQUIRE_WEBHOOK_SECRET === "true";
 
   if (!config.webhookSecret) {
