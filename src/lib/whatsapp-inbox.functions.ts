@@ -139,7 +139,8 @@ export const sendManualWAMessage = createServerFn({ method: "POST" })
     const message = {
       id: `m-${Date.now()}`,
       role: "operator",
-      parts: [{ type: "text", text: data.text }]
+      parts: [{ type: "text", text: data.text }],
+      createdAt: new Date().toISOString()
     };
 
     const { error: rpcErr } = await supabaseAdmin.rpc("append_wa_message", {
@@ -147,7 +148,8 @@ export const sendManualWAMessage = createServerFn({ method: "POST" })
       p_message: message,
       p_instance: instance,
       p_phone_number: phone_number,
-      p_increment_unread: false
+      p_increment_unread: false,
+      p_new_status: "aguardando_cliente"
     });
 
     if (rpcErr) throw new Error(`Mensagem enviada, mas falha ao salvar no histórico: ${rpcErr.message}`);
