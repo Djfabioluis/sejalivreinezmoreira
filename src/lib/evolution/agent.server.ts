@@ -231,9 +231,16 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     const iaEnabled = isIAActive;
 
     if (!iaEnabled) {
+      trace?.record("MESSAGE_PROCESSING_ABORTED", { 
+        stage: "IA_STATUS_CHECK", 
+        reason: "ia_disabled_for_agent",
+        traceId,
+        agentId: agent?.id
+      });
       trace?.record("TOTAL_PROCESSING_COMPLETED", { reason: "ia_disabled" });
       return;
     }
+
 
     // Double-check race condition
     const { data: finalCheck } = await supabaseAdmin
@@ -243,9 +250,15 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       .maybeSingle();
 
     if (finalCheck?.attendance_mode === "HUMAN") {
+      trace?.record("MESSAGE_PROCESSING_ABORTED", { 
+        stage: "RACE_CONDITION_CHECK", 
+        reason: "human_mode_detected_late",
+        traceId
+      });
       trace?.record("TOTAL_PROCESSING_COMPLETED", { reason: "race_condition_human" });
       return;
     }
+
 
     if (!text) {
       trace?.record("TOTAL_PROCESSING_COMPLETED", { reason: "empty_text" });
