@@ -28,6 +28,13 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
     return;
   }
 
+  // Pre-load common imports for all messages in the loop
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { markEventProcessed, markEventFailed } = await import("./idempotency.server");
+  const { normalizeIncomingMessage } = await import("./media-normalizer");
+  const { mediaPlaceholderText } = await import("./media-pipeline.server");
+  const { appendIncomingMessage } = await import("./conversation.server");
+
   for (const msg of messages) {
     const traceId = (payload as any)._traceId || `trace-${msg.instance}-${msg.messageId}`;
     
@@ -45,7 +52,6 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
       // 2. fromMe (mensagem enviada pelo próprio número) → diferenciar IA vs Humano
       if (isFromMe(msg.fromMe)) {
         trace.record("MESSAGE_PARSED", { direction: "OUTBOUND_ECHO" });
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         
         // Verifica se é eco da IA (Rápido via Index)
         const { data: aiMessage } = await supabaseAdmin
@@ -166,7 +172,8 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
       try {
         let unitId: string = agent.unidade_id;
         
-        const { updateConversationMetadata } = await import("./conversation.server");
+        // 5. Agente e Unidade (Pre-resolvido antes do lock)
+        trace.record("METADATA_UPDATE_STARTED");
         
         // Non-blocking update
         updateConversationMetadata(conversationKey, {
