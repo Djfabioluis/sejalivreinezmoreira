@@ -30,10 +30,13 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
       POST: async ({ request }) => {
         const traceId = `webhook-${Date.now()}`;
         
-        // 1. Autenticação
+        // 1. Autenticação (Requisito 7)
         const auth = await authenticateWebhook(request);
         if (!auth.authenticated) {
-          logger.warn("WEBHOOK_UNAUTHORIZED", "Tentativa de acesso não autorizado ao webhook", { traceId });
+          logger.warn("WEBHOOK_UNAUTHORIZED", "Tentativa de acesso não autorizado ao webhook", { 
+            traceId,
+            hasSecret: !!request.headers.get("x-webhook-secret") || !!new URL(request.url).searchParams.get("webhook_secret")
+          });
           return new Response(auth.error || "Unauthorized", { status: 401 });
         }
 
@@ -75,31 +78,36 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           processorVersion: "await-v1"
         });
  
-        // 4. Delegação assíncrona (AWAIT OBRIGATÓRIO PARA SERVERLESS)
-        if (eventData.event === "connection.update") {
-          await processConnectionUpdate(payload).catch(err => 
-            logger.error("CONNECTION_UPDATE_ERROR", err.message, { traceId })
-          );
-        } else if (eventData.event === "messages.upsert") {
-          (payload as any)._traceId = traceId;
-          try {
+        // 4. Delegação (AWAIT OBRIGATÓRIO PARA SERVERLESS - Requisito 1)
+        try {
+          if (eventData.event === "connection.update") {
+            await processConnectionUpdate(payload);
+          } else if (eventData.event === "messages.upsert") {
+            (payload as any)._traceId = traceId;
             await processMessagesUpsert(payload, request.url);
-          } catch (err: any) {
-            logger.error("MESSAGE_PROCESS_ERROR", err.message, { traceId });
-            logger.audit("MESSAGE_PROCESSING_ABORTED", "Erro no processamento da mensagem", {
-              stage: "PROCESSOR",
-              traceId,
-              error: err.message
-            });
+          } else if (eventData.event === "messages.ack") {
+            await processMessageAck(payload);
           }
-        } else if (eventData.event === "messages.ack") {
-          await processMessageAck(payload).catch(err => 
-            logger.error("ACK_PROCESS_ERROR", err.message, { traceId })
-          );
+          
+          logger.info("WEBHOOK_COMPLETED", "Processamento finalizado com sucesso", { traceId });
+          return new Response("OK", { status: 200 });
+        } catch (err: any) {
+          logger.error("WEBHOOK_PROCESSING_FAILED", err.message, { 
+            traceId, 
+            event: eventData.event,
+            stack: err.stack 
+          });
+          
+          // Retornar 500 para falhas reais permite retry pela Evolution API (Requisito 1)
+          return new Response(JSON.stringify({ 
+            error: "Internal Processing Error", 
+            message: err.message,
+            traceId 
+          }), { 
+            status: 500, 
+            headers: { "Content-Type": "application/json" } 
+          });
         }
-
-        logger.info("WEBHOOK_COMPLETED", "Processamento finalizado", { traceId });
-        return new Response("OK");
       }
     }
   }

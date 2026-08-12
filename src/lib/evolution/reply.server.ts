@@ -159,10 +159,12 @@ export async function replyToUser(params: {
 
     return true;
   } else {
+    // Requisito 3: Falhas no envio devem lançar erro e marcar status
     if (params.messageId) {
       const { markResponseFailed } = await import("./idempotency.server");
       await markResponseFailed(params.instance, params.messageId, "evolution_send_failed");
     }
-    return false;
+    
+    throw new Error(`EVOLUTION_REPLY_SEND_FAILED: Failed to send message via instance ${params.instance}`);
   }
 }

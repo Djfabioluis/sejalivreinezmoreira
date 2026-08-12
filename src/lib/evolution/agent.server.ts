@@ -3,15 +3,25 @@ import { logEvent } from "./logger.server";
 import { extractMessageText } from "./message-text";
 import { normalizePhone, buildConversationKey } from "./contact";
 
+interface AgentRecord {
+  id: string;
+  status: string;
+  status_conexao: string;
+  ia_ativa: boolean;
+  unidade_id: string;
+  instancia: string;
+}
+
 export async function findAgentByInstance(instanceName: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const instance = instanceName.trim();
   
+  // Requisito 6: Buscar até 2 registros para detectar duplicidade
   const { data, error } = await supabaseAdmin
     .from("wa_agentes" as never)
     .select("id, status, status_conexao, ia_ativa, unidade_id, instancia")
     .eq("instancia", instance)
-    .maybeSingle();
+    .limit(2) as unknown as { data: AgentRecord[] | null, error: any };
 
   if (error) {
     await logEvent({ 
@@ -23,7 +33,7 @@ export async function findAgentByInstance(instanceName: string) {
     return null;
   }
 
-  if (!data) {
+  if (!data || data.length === 0) {
     await logEvent({ 
       instance, 
       event: "agent_lookup", 
@@ -32,7 +42,27 @@ export async function findAgentByInstance(instanceName: string) {
     return null;
   }
 
-  const agent = data as any;
+  // Requisito 6: Lógica de resolução de duplicidade
+  if (data.length > 1) {
+    console.warn(`[AGENT_DUPLICITY_DETECTED] Instance: ${instance}. Found ${data.length} agents.`);
+    // Priorizar agentes com IA ativa e unidade vinculada
+    const preferred = data.find((a: any) => a.ia_ativa !== false && !!a.unidade_id) || data[0];
+    
+    await logEvent({
+      instance,
+      event: "agent_lookup",
+      status: "duplicate_agents_resolved",
+      payload: { 
+        count: data.length, 
+        resolvedId: preferred.id,
+        reason: "priority_to_active_with_unit"
+      }
+    });
+    
+    return preferred;
+  }
+
+  const agent = data[0] as any;
   if (!agent.unidade_id) {
     await logEvent({ 
       instance, 
@@ -109,7 +139,6 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     trace?.record("CONVERSATION_LOOKUP_COMPLETED", { hasConv: !!conv });
 
     // REMOVIDO FALLBACK GLOBAL POR TELEFONE (Segurança Multi-instância)
-    // A conversa deve pertencer obrigatoriamente à instância que recebeu a mensagem.
     if (conv && conv.instance !== instance) {
       trace?.record("CROSS_INSTANCE_CONVERSATION_REJECTED", { 
         incomingInstance: instance,
@@ -448,7 +477,9 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
         traceId
       });
       trace?.record("TOTAL_PROCESSING_COMPLETED", { reason: "ai_empty_response" });
-      return;
+      
+      // Requisito 2: Resposta vazia da IA deve gerar erro recuperável
+      throw new Error("AI_EMPTY_RESPONSE: The AI returned an empty response.");
     }
 
 
@@ -473,5 +504,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     trace?.record("TOTAL_PROCESSING_COMPLETED", { status: "success" });
   } catch (error: any) {
     trace?.record("TOTAL_PROCESSING_COMPLETED", { status: "error", error: error.message });
+    // Propagar o erro para o processor (Requisito 2)
+    throw error;
   }
 }
