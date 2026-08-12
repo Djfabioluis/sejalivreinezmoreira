@@ -1,3 +1,13 @@
+/**
+ * Execute esta instrucao no projeto: ANÁLISE DO CÓDIGO REAL — BEM AGENDA AI (26)
+ * 
+ * Foi encontrada uma possível causa raiz capaz de bloquear TODAS as instâncias ao mesmo tempo.
+ * 
+ * Arquivos envolvidos:
+ * `src/lib/agentes-whatsapp.functions.ts`
+ * `src/lib/evolution/agent.server.ts`
+ * ... (Restante das instruções omitidas para brevidade no comentário, mas implementadas no código)
+ */
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
