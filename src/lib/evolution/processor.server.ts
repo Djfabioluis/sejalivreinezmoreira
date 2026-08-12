@@ -345,6 +345,8 @@ source: ${identity.identitySource}`);
           hasRefreshedData: !!refreshedConv,
           historyCount: refreshedConv?.messages?.length || 0 
         });
+        
+        isHumanMode = refreshedConv?.attendance_mode === "HUMAN" || !!refreshedConv?.ai_paused_at;
 
         let agentText: string | undefined = text || undefined;
 
