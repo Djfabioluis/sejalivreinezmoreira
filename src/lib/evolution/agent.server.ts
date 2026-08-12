@@ -209,7 +209,14 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
           })
           .eq("phone", finalKey);
 
+        trace?.record("MESSAGE_PROCESSING_ABORTED", { 
+          stage: "HUMAN_INTENT_CHECK", 
+          reason: "human_takeover_intent_detected",
+          traceId
+        });
+
         if (!alreadySent) {
+
           const { replyToUser } = await import("./reply.server");
           await replyToUser({
             instance,
