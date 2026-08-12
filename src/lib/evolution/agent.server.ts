@@ -3,6 +3,15 @@ import { logEvent } from "./logger.server";
 import { extractMessageText } from "./message-text";
 import { normalizePhone, buildConversationKey } from "./contact";
 
+interface AgentRecord {
+  id: string;
+  status: string;
+  status_conexao: string;
+  ia_ativa: boolean;
+  unidade_id: string;
+  instancia: string;
+}
+
 export async function findAgentByInstance(instanceName: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const instance = instanceName.trim();
@@ -12,7 +21,7 @@ export async function findAgentByInstance(instanceName: string) {
     .from("wa_agentes" as never)
     .select("id, status, status_conexao, ia_ativa, unidade_id, instancia")
     .eq("instancia", instance)
-    .limit(2);
+    .limit(2) as unknown as { data: AgentRecord[] | null, error: any };
 
   if (error) {
     await logEvent({ 

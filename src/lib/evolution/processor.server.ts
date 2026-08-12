@@ -312,6 +312,7 @@ source: ${identity.identitySource}`);
 
 
       try {
+        let isHumanMode = false;
         let unitId: string = agent.unidade_id;
         
         // 5. Agente e Unidade (Pre-resolvido antes do lock)
