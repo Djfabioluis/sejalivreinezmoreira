@@ -204,12 +204,6 @@ const ApiPublicWhatsappEvolutionRoute =
     path: '/api/public/whatsapp-evolution',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiPublicWhatsappEvolutionRoute =
-  ApiPublicWhatsappEvolutionRouteImport.update({
-    id: '/api/public/whatsapp-evolution',
-    path: '/api/public/whatsapp-evolution',
-    getParentRoute: () => rootRouteImport,
-  } as any)
 const ApiPublicWhatsappRoute = ApiPublicWhatsappRouteImport.update({
   id: '/api/public/whatsapp',
   path: '/api/public/whatsapp',
@@ -552,7 +546,6 @@ export interface RootRouteChildren {
   ApiPublicCrmCronRoute: typeof ApiPublicCrmCronRoute
   ApiPublicTestIaRoute: typeof ApiPublicTestIaRoute
   ApiPublicWhatsappRoute: typeof ApiPublicWhatsappRoute
-  ApiPublicWhatsappEvolutionRoute: typeof ApiPublicWhatsappEvolutionRoute
   ApiPublicWhatsappEvolutionRoute: typeof ApiPublicWhatsappEvolutionRouteWithChildren
   ApiPublicHooksLearningPatternsRoute: typeof ApiPublicHooksLearningPatternsRoute
   ApiPublicHooksLembretesRoute: typeof ApiPublicHooksLembretesRoute
@@ -765,13 +758,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicWhatsappEvolutionRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/whatsapp-evolution': {
-      id: '/api/public/whatsapp-evolution'
-      path: '/api/public/whatsapp-evolution'
-      fullPath: '/api/public/whatsapp-evolution'
-      preLoaderRoute: typeof ApiPublicWhatsappEvolutionRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/api/public/whatsapp': {
       id: '/api/public/whatsapp'
       path: '/api/public/whatsapp'
@@ -940,7 +926,6 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicCrmCronRoute: ApiPublicCrmCronRoute,
   ApiPublicTestIaRoute: ApiPublicTestIaRoute,
   ApiPublicWhatsappRoute: ApiPublicWhatsappRoute,
-  ApiPublicWhatsappEvolutionRoute: ApiPublicWhatsappEvolutionRoute,
   ApiPublicWhatsappEvolutionRoute: ApiPublicWhatsappEvolutionRouteWithChildren,
   ApiPublicHooksLearningPatternsRoute: ApiPublicHooksLearningPatternsRoute,
   ApiPublicHooksLembretesRoute: ApiPublicHooksLembretesRoute,
