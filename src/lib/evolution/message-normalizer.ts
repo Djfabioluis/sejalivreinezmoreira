@@ -44,6 +44,12 @@ export function normalizeEvolutionMessages(payload: any, requestUrl: string): No
     // EXTRAÇÃO NORMALIZADA conforme especificação
     const key = msg.key ?? {};
     const remoteJid = key.remoteJid ?? msg.remoteJid ?? null;
+    const remoteJidAlt = key.remoteJidAlt ?? msg.remoteJidAlt ?? null;
+    const participant = key.participant ?? msg.participant ?? null;
+    const participantAlt = key.participantAlt ?? msg.participantAlt ?? null;
+    const senderPn = msg.senderPn ?? null;
+    const senderLid = msg.senderLid ?? null;
+    
     const messageId = key.id ?? msg.messageId ?? undefined; // Não usar null aqui para não quebrar checkIdempotency
     const pushName = msg.pushName ?? payload.pushName ?? null;
     const messageContent = msg.message ?? msg;
@@ -64,11 +70,16 @@ export function normalizeEvolutionMessages(payload: any, requestUrl: string): No
     results.push({
       instance,
       remoteJid,
+      remoteJidAlt,
       messageId,
       pushName,
       message: messageContent,
       timestamp,
-      fromMe
+      fromMe,
+      participant,
+      participantAlt,
+      senderPn,
+      senderLid
     });
   }
 

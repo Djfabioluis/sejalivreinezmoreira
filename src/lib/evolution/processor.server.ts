@@ -4,7 +4,7 @@ import { updateConversationMetadata } from "./conversation.server";
 import { runAgentFlow, findAgentByInstance, isIAEnabled } from "./agent.server";
 import { logEvent } from "./logger.server";
 import { extractMessageText } from "./message-text";
-import { normalizePhone, buildConversationKey, normalizeContactName } from "./contact";
+import { normalizePhone, buildConversationKey, normalizeContactName, resolveCustomerIdentity } from "./contact";
 import { logger } from "@/lib/observability/logger.server";
 import { PerformanceTrace } from "./performance.server";
 
@@ -43,7 +43,7 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
       traceId,
       inboundMessageId: msg.messageId,
       instanceId: msg.instance,
-      phoneLast4: normalizePhone(msg.remoteJid).slice(-4)
+      phoneLast4: normalizePhone(msg.remoteJidAlt || msg.remoteJid).slice(-4)
     });
 
     trace.record("WEBHOOK_RECEIVED");
@@ -111,19 +111,55 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
       }
 
       const text = extractMessageText(msg.message);
-      const phone = normalizePhone(msg.remoteJid);
       
-      trace.record("MESSAGE_PARSED", { textSnippet: text?.slice(0, 30) });
+      // 3. Resolução de Identidade (NOVO)
+      const identity = resolveCustomerIdentity(msg);
+      const phone = identity.phone;
+      const conversationKey = buildConversationKey(msg.instance, identity.phone);
 
-      // Ignorar grupos, transmissões e status
-      if (msg.remoteJid.includes("@g.us") || msg.remoteJid.includes("@broadcast") || msg.remoteJid === "status@broadcast" || msg.remoteJid.includes("@lid")) {
+      console.log(`[WHATSAPP_IDENTITY_RESOLVED]
+instance: ${msg.instance}
+remoteJid: ${msg.remoteJid}
+remoteJidAlt: ${msg.remoteJidAlt || "none"}
+phone: ${identity.phone}
+lid: ${identity.lid || "none"}
+source: ${identity.identitySource}`);
+
+      trace.record("MESSAGE_PARSED", { 
+        textSnippet: text?.slice(0, 30),
+        identitySource: identity.identitySource,
+        isLid: !!identity.lid
+      });
+
+      // Ignorar grupos, transmissões e status (Removido @lid do descarte automático)
+      if (msg.remoteJid.includes("@g.us") || msg.remoteJid.includes("@broadcast") || msg.remoteJid === "status@broadcast") {
         const reason = msg.remoteJid.includes("@g.us") ? "group_message" : 
-                      msg.remoteJid.includes("@broadcast") ? "broadcast_message" : 
-                      msg.remoteJid === "status@broadcast" ? "status_update" : "lid_message";
-                      
+                      msg.remoteJid.includes("@broadcast") ? "broadcast_message" : "status_update";
+                       
         trace.record("MESSAGE_IGNORED", { reason, remoteJid: msg.remoteJid });
         trace.record("TOTAL_PROCESSING_COMPLETED", { reason });
         continue;
+      }
+
+      if (msg.remoteJid.includes("@lid")) {
+        trace.record("LID_MESSAGE_RECEIVED", { 
+          remoteJid: msg.remoteJid, 
+          resolvedPhone: identity.phone,
+          source: identity.identitySource 
+        });
+        
+        if (identity.identitySource === "lid_fallback") {
+           // Se não resolveu para um telefone real, ainda assim não descartamos silenciosamente, 
+           // mas logamos o aviso de falha de resolução ideal.
+           trace.record("LID_PHONE_RESOLUTION_FAILED", { 
+             remoteJid: msg.remoteJid,
+             payload: JSON.stringify({
+               remoteJidAlt: msg.remoteJidAlt,
+               participant: msg.participant,
+               senderPn: msg.senderPn
+             })
+           });
+        }
       }
 
 
@@ -162,7 +198,7 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
 
 
       // 4. Lock por conversa (Rápido via RPC)
-      const conversationKey = buildConversationKey(msg.instance, msg.remoteJid);
+      // conversationKey já definido acima na resolução de identidade
       trace.updateContext({ conversationId: conversationKey });
       
       // Otimização: Tentar resolver Agente ANTES do Lock para falhar rápido se não existir

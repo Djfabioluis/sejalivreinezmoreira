@@ -3,11 +3,16 @@ export type EvolutionEventName = "messages.upsert" | "connection.update" | "mess
 export interface NormalizedEvolutionMessage {
   instance: string;
   remoteJid: string;
+  remoteJidAlt?: string;
   messageId: string;
   pushName?: string;
   message: any;
   timestamp: number;
   fromMe: boolean;
+  participant?: string;
+  participantAlt?: string;
+  senderPn?: string;
+  senderLid?: string;
 }
 
 export interface NormalizedEvolutionEvent {
