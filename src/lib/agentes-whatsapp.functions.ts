@@ -318,22 +318,49 @@ export const syncEvolutionInstances = createServerFn({ method: "POST" })
     let ignoredCount = 0;
     
     for (const inst of instances) {
-      const name = inst.instanceName;
-      const statusConexao = inst.connectionStatus === "open" ? "conectado" : "desconectado";
-      const telefone = inst.owner?.replace(/\D/g, "") || null;
+      const name = inst.instanceName || inst.name;
+      if (!name) continue;
+
+      const rawStatus = String(inst.connectionStatus || inst.state || "").toLowerCase().trim();
+      
+      // Normalização centralizada conforme requisito 3
+      const CONNECTED_STATES = ["open", "connected", "conectado"];
+      const CONNECTING_STATES = ["connecting", "connecting...", "aguardando_qr", "qr_pending"];
+      
+      let statusConexao: "conectado" | "conectando" | "desconectado" = "desconectado";
+      if (CONNECTED_STATES.includes(rawStatus)) {
+        statusConexao = "conectado";
+      } else if (CONNECTING_STATES.includes(rawStatus)) {
+        statusConexao = "conectando";
+      }
+
+      const telefone = inst.owner?.replace(/\D/g, "") || inst.ownerJid?.replace(/\D/g, "") || null;
       
       const { data: dbAgent } = await supabaseAdmin
         .from("wa_agentes" as never)
-        .select("id, status, unidade_id")
+        .select("id, status, unidade_id, ia_ativa")
         .eq("instancia", name)
         .maybeSingle();
         
       if (dbAgent) {
         const agent = dbAgent as any;
-        // Preservar lógica de status: se conectado mas sem unidade, manter 'conectado_sem_unidade'
-        let newStatus = statusConexao === "conectado" 
-          ? (agent.unidade_id ? "ativo" : "conectado_sem_unidade")
-          : "inativo";
+        
+        // Requisito 4: Sincronização NÃO PODE desativar a IA ou o agente arbitrariamente
+        // Mantemos o status atual se a conexão estiver em transição ou desconhecida
+        let newStatus = agent.status;
+        
+        if (statusConexao === "conectado") {
+          newStatus = agent.unidade_id ? "ativo" : "conectado_sem_unidade";
+        } else if (statusConexao === "desconectado") {
+          // Só marca como inativo se realmente tivermos certeza da desconexão
+          // e não for um estado desconhecido
+          if (["open", "close", "refused", "disconnected"].includes(rawStatus) || !rawStatus) {
+             // Se o status anterior era ativo/conectado, podemos mover para inativo
+             if (agent.status === "ativo" || agent.status === "conectado_sem_unidade") {
+               newStatus = "inativo";
+             }
+          }
+        }
 
         await supabaseAdmin
           .from("wa_agentes" as never)
@@ -347,10 +374,6 @@ export const syncEvolutionInstances = createServerFn({ method: "POST" })
         
         updatedCount++;
       } else {
-        // Se não existe, podemos criar como um agente básico (Item 3.3)
-        // Mas o requisito 4 diz para proteger agentes existentes.
-        // Vamos apenas ignorar instâncias que não são agentes do sistema por enquanto para evitar duplicados indesejados, 
-        // a menos que o usuário queira criar automaticamente.
         ignoredCount++;
       }
     }
