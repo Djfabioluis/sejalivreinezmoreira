@@ -8,7 +8,7 @@ export async function findAgentByInstance(instance: string) {
   
   const { data, error } = await supabaseAdmin
     .from("wa_agentes" as never)
-    .select("id, status, unidade_id")
+    .select("id, status, status_conexao, ia_ativa, unidade_id, instancia")
     .eq("instancia", instance)
     .maybeSingle();
 
@@ -45,14 +45,30 @@ export async function findAgentByInstance(instance: string) {
 
 export function isIAEnabled(agent: any): boolean {
   if (!agent) return false;
-  
-  // Normalização de status conforme especificação
+
+  const instance = agent.instancia || "unknown";
+  const agentId = agent.id || "unknown";
+  const unitId = agent.unidade_id || null;
   const status = String(agent.status || "").toLowerCase().trim();
-  const blockedStates = ["inativo", "inactive", "disabled", "desativado", "false"];
-  const isBlocked = blockedStates.includes(status);
+  const statusConexao = agent.status_conexao || "unknown";
+  const iaAtiva = agent.ia_ativa !== false;
+
+  const administrativelyDisabled = ["desativado", "disabled"].includes(status);
   
-  // Libera se não estiver explicitamente bloqueado e tiver unidade
-  return !isBlocked && !!agent.unidade_id;
+  const result = iaAtiva && !!unitId && !administrativelyDisabled;
+  
+  // LOG OBRIGATÓRIO (Requisito 9)
+  console.log(`[AGENT_AI_STATUS_CHECK]
+instance: ${instance}
+agentId: ${agentId}
+unitId: ${unitId}
+status: ${status}
+statusConexao: ${statusConexao}
+iaAtiva: ${iaAtiva}
+result: ${result}
+${!result ? `reason: ${!iaAtiva ? "ia_desativada_pelo_usuario" : !unitId ? "sem_unidade_vinculada" : "agente_desativado_administrativamente"}` : ""}`);
+
+  return result;
 }
 
 export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride?: string) {
@@ -114,19 +130,21 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     const isIAActive = isIAEnabled(agent);
 
     const { appendIncomingMessage } = await import("./conversation.server");
-    const savedConv = await appendIncomingMessage({
-      conversationKey: conversationKey, // USAR SEMPRE A CHAVE CANÔNICA DA INSTÂNCIA ATUAL
-      messageId: messageId,
-      text: displayText,
-      instance: msg.instance,
-      phone: contactPhone,
-      contactName: (msg as any).pushName || undefined,
-      isIAActive,
-      metadata: isMedia ? { sourceType: normalized.messageType } : null,
-    });
-
-    if (savedConv) {
-      conv = savedConv;
+    
+    // Otimização (Requisito 10): Não duplicar persistência se já foi persistido no processor
+    let conv = conversation as any;
+    if (!conv || !conv.messages || conv.messages.length === 0) {
+      const savedConv = await appendIncomingMessage({
+        conversationKey: conversationKey, 
+        messageId: messageId,
+        text: displayText,
+        instance: msg.instance,
+        phone: contactPhone,
+        contactName: (msg as any).pushName || undefined,
+        isIAActive,
+        metadata: isMedia ? { sourceType: normalized.messageType } : null,
+      });
+      if (savedConv) conv = savedConv;
     }
     trace?.record("CONTEXT_LOAD_COMPLETED", { historyCount: conv?.messages?.length || 0 });
 
