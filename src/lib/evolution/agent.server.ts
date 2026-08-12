@@ -269,8 +269,8 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
     const extracted: any = extractBookingSlots(text);
 
-    // BEMP proativo - somente se necessário
-    if (!previousContext.serviceId && agent?.unidade_id) {
+    // BEMP proativo - OTIMIZADO: Somente se o texto parecer um serviço e não tivermos no contexto
+    if (!previousContext.serviceId && agent?.unidade_id && text.length > 3 && text.length < 50) {
       const { normalizeServiceSearchText } = await import("@/lib/service-utils");
       const normalizedText = normalizeServiceSearchText(text);
       if (normalizedText && normalizedText.length > 3) {
@@ -278,14 +278,16 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
         const { BempService } = await import("@/lib/bemp-service.server");
         try {
           const services = await BempService.listServices(agent.unidade_id);
-          const found = services.find((s: any) =>
-            normalizeServiceSearchText(s.name) === normalizedText ||
-            normalizeServiceSearchText(text).includes(normalizeServiceSearchText(s.name))
-          );
+          const found = services.find((s: any) => {
+            const sName = normalizeServiceSearchText(s.name);
+            return sName === normalizedText || normalizedText.includes(sName);
+          });
           if (found) {
             extracted.serviceId = String(found.id);
             extracted.serviceName = String(found.name);
             trace?.record("BEMP_SERVICE_LOOKUP_COMPLETED", { found: found.name });
+          } else {
+            trace?.record("BEMP_SERVICE_LOOKUP_COMPLETED", { found: null });
           }
         } catch (err) {}
       }

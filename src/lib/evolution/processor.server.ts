@@ -136,9 +136,21 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
       const conversationKey = buildConversationKey(msg.instance, msg.remoteJid);
       trace.updateContext({ conversationId: conversationKey });
       
-      trace.record("CONVERSATION_LOCK_STARTED");
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+      // Otimização: Tentar resolver Agente ANTES do Lock para falhar rápido se não existir
+      trace.record("INSTANCE_RESOLVED_STARTED");
+      const agent = await findAgentByInstance(msg.instance);
+      const isIAActive = isIAEnabled(agent);
+      trace.record("INSTANCE_RESOLVED_COMPLETED", { agentId: agent?.id, iaEnabled: isIAActive });
+
+      if (!agent) {
+        trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "agent_not_found" });
+        await markEventProcessed(msg.instance, finalMessageId);
+        continue;
+      }
+
+      trace.record("CONVERSATION_LOCK_STARTED");
       const { data: lockAcquired, error: lockError } = await supabaseAdmin.rpc("acquire_conversation_lock" as any, {
         p_conversation_key: conversationKey,
         p_trace_id: traceId
@@ -152,25 +164,16 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
       }
 
       try {
-        let unitId: string | null = null;
+        let unitId: string = agent.unidade_id;
         
-        // 5. Agente e Unidade (Rápido via maybeSingle)
-        trace.record("INSTANCE_RESOLVED_STARTED");
-        const agent = await findAgentByInstance(msg.instance);
-        const isIAActive = isIAEnabled(agent);
-        trace.record("INSTANCE_RESOLVED_COMPLETED", { agentId: agent?.id, iaEnabled: isIAActive });
-
-        if (agent) {
-          unitId = agent.unidade_id;
-          const { updateConversationMetadata } = await import("./conversation.server");
-          
-          // Non-blocking update
-          updateConversationMetadata(conversationKey, {
-            agent_id: agent.id,
-            unidade_id: unitId || undefined,
-            contact_name: msg.pushName || undefined
-          }).catch(() => {});
-        }
+        const { updateConversationMetadata } = await import("./conversation.server");
+        
+        // Non-blocking update
+        updateConversationMetadata(conversationKey, {
+          agent_id: agent.id,
+          unidade_id: unitId,
+          contact_name: msg.pushName || undefined
+        }).catch(() => {});
 
         // 6. Persistência e Contexto (Merge e Append)
         trace.record("CONTEXT_LOAD_STARTED");
