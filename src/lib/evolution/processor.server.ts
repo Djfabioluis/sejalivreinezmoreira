@@ -412,7 +412,14 @@ source: ${identity.identitySource}`);
         if (isIAActive && agentText) {
           trace.record("AI_STARTED", { traceId });
           await runAgentFlow(
-            { ...msg, messageId: finalMessageId, _trace: trace } as any, 
+            {
+              ...msg,
+              messageId: finalMessageId,
+              _trace: trace,
+              // Identidade já resolvida (inclusive @lid): a IA deve usar SEMPRE estes valores.
+              _resolvedPhone: phone,
+              _conversationKey: conversationKey,
+            } as any,
             agentText
           );
           trace.record("AI_COMPLETED", { traceId });
@@ -427,19 +434,12 @@ source: ${identity.identitySource}`);
         }
 
 
-        // Requisito 2: Só marcar como processado depois do envio com sucesso (feito dentro do replyToUser)
-        // await markEventProcessed(msg.instance, finalMessageId); 
-        // A função replyToUser agora lança erro se o envio falhar, então se chegamos aqui, 
-        // podemos marcar como processado caso a IA tenha sido ativa mas não tenha enviado (ex: bloqueio intencional)
-        // Mas o replyToUser já chama markResponseSent.
+        // Todo evento tratado com sucesso é finalizado como processed —
+        // inclusive quando a IA está pausada (modo humano) ou não há texto —
+        // para nunca deixar eventos presos em PROCESSING.
+        await markEventProcessed(msg.instance, finalMessageId);
         
-        // Se a IA estava ativa e não retornou erro, mas não chamou replyToUser por algum motivo (ex: human takeover)
-        // ainda precisamos marcar o evento como concluído.
-        if (isIAActive && !isHumanMode) {
-           await markEventProcessed(msg.instance, finalMessageId);
-        }
-        
-        trace.record("TOTAL_PROCESSING_COMPLETED", { status: "success" });
+        trace.record("TOTAL_PROCESSING_COMPLETED", { status: "success", humanMode: isHumanMode });
 
       } catch (innerError: any) {
         trace.record("TOTAL_PROCESSING_COMPLETED", { status: "error", error: innerError.message });
