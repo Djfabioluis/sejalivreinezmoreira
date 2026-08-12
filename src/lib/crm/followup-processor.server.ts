@@ -114,7 +114,14 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
       // Se não conseguimos travar, mas o job já existe, podemos tentar processar o objeto atual 
       // ou apenas registrar o log. Para fins de robustez, mantemos o retorno aqui.
       logger.warn("WORKER_JOB_GRAB_FAILED", "Worker não conseguiu travar o job", { ...logContext, reason: lockError?.message || "Job not found or status mismatch" });
+      logger.audit("MESSAGE_PROCESSING_ABORTED", "Follow-up abortado: falha ao travar o job ou status incompatível", {
+        stage: "FOLLOWUP_GRAB",
+        job_id: followup.id,
+        phone_last4: followup.phone?.slice(-4),
+        reason: lockError?.message || "Job not found"
+      });
       return;
+
     }
 
     const currentFollowup = lockedJob;
@@ -160,7 +167,14 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
           cancel_code: cancelReason
         }
       } as any).eq("id", currentFollowup.id);
+      logger.audit("MESSAGE_PROCESSING_ABORTED", "Follow-up abortado: já enviado anteriormente para este telefone", {
+        stage: "IDEMPOTENCY_CHECK",
+        job_id: currentFollowup.id,
+        phone_last4,
+        reason: "already_sent"
+      });
       return;
+
     }
     
     // 3. Normalização do Telefone
@@ -169,7 +183,14 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     
     if (!normalized || normalized.reason) {
       await blockFollowup(currentFollowup.id, "INVALID_PHONE", `Telefone inválido: ${normalized?.reason || "FORMAT_NOT_RECOGNIZED"}`, traceId, logContext);
+      logger.audit("MESSAGE_PROCESSING_ABORTED", "Follow-up abortado: telefone inválido", {
+        stage: "PHONE_VALIDATION",
+        job_id: currentFollowup.id,
+        phone: currentFollowup.phone,
+        reason: normalized?.reason || "invalid_format"
+      });
       return;
+
     }
 
     // 4. Busca de Conversa Unificada
@@ -223,7 +244,15 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
         timestamp: new Date().toISOString(),
       });
       await blockFollowup(currentFollowup.id, "HUMAN_TAKEOVER", "Cliente em atendimento humano", traceId, logContext);
+      logger.audit("MESSAGE_PROCESSING_ABORTED", "Follow-up abortado: cliente em modo humano", {
+        stage: "HUMAN_TAKEOVER_CHECK",
+        job_id: currentFollowup.id,
+        phone_last4,
+        reason: "human_mode_active",
+        conversationId: (conversation as any).phone
+      });
       return;
+
     }
 
     // 5. Resolução de Nome e Geração de Mensagem

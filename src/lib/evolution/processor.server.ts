@@ -23,8 +23,10 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
   const messages = normalizeEvolutionMessages(payload, requestUrl);
 
   if (messages.length === 0) {
+    logger.info("WEBHOOK_FILTERED", "Webhook ignorado: nenhuma mensagem válida no array", { instance });
     return;
   }
+
 
   // Pre-load common imports for all messages in the loop
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -60,14 +62,18 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
           .maybeSingle();
 
         if (aiMessage) {
+          trace.record("MESSAGE_PROCESSING_ABORTED", { stage: "OUTBOUND_CHECK", reason: "ai_echo_ignored", traceId });
           trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "ai_echo_ignored" });
           continue; 
         }
 
+
         // Ignorar se for mensagem de status/broadcast enviada por mim
         if (msg.remoteJid.includes("@broadcast") || msg.remoteJid === "status@broadcast") {
+          trace.record("MESSAGE_PROCESSING_ABORTED", { stage: "OUTBOUND_CHECK", reason: "status_broadcast_echo", traceId });
           continue;
         }
+
 
         // fromMe=true mas NÃO foi a IA -> HUMANO assumiu
         const phone = normalizePhone(msg.remoteJid);
@@ -110,10 +116,16 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
       trace.record("MESSAGE_PARSED", { textSnippet: text?.slice(0, 30) });
 
       // Ignorar grupos, transmissões e status
-      if (msg.remoteJid.includes("@g.us") || msg.remoteJid.includes("@broadcast") || msg.remoteJid === "status@broadcast") {
-        trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "ignored_jid_type" });
+      if (msg.remoteJid.includes("@g.us") || msg.remoteJid.includes("@broadcast") || msg.remoteJid === "status@broadcast" || msg.remoteJid.includes("@lid")) {
+        const reason = msg.remoteJid.includes("@g.us") ? "group_message" : 
+                      msg.remoteJid.includes("@broadcast") ? "broadcast_message" : 
+                      msg.remoteJid === "status@broadcast" ? "status_update" : "lid_message";
+                      
+        trace.record("MESSAGE_IGNORED", { reason, remoteJid: msg.remoteJid });
+        trace.record("TOTAL_PROCESSING_COMPLETED", { reason });
         continue;
       }
+
 
       // 3. Idempotência atômica (Rápido via RPC)
       trace.record("IDEMPOTENCY_CHECK_STARTED");
@@ -126,15 +138,28 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
         text: text || "",
         traceId
       });
+      
+      trace.record("MESSAGE_DUPLICATE_CHECK", { 
+        inboundMessageId: msg.messageId,
+        duplicate: !claimed,
+        source: "evolution_upsert"
+      });
+      
       trace.record("IDEMPOTENCY_CHECK_COMPLETED", { claimed, reason });
 
       if (!claimed) {
         if (reason === "already_processed" || reason === "processing") {
           trace.record("DUPLICATE_MESSAGE_SKIPPED", { reason });
         }
+        trace.record("MESSAGE_PROCESSING_ABORTED", { 
+          stage: "IDEMPOTENCY_CHECK", 
+          reason: reason || "duplicate",
+          traceId
+        });
         trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "not_claimed" });
         continue;
       }
+
 
       // 4. Lock por conversa (Rápido via RPC)
       const conversationKey = buildConversationKey(msg.instance, msg.remoteJid);
@@ -147,23 +172,45 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
       trace.record("INSTANCE_RESOLVED_COMPLETED", { agentId: agent?.id, iaEnabled: isIAActive });
 
       if (!agent) {
+        trace.record("MESSAGE_PROCESSING_ABORTED", { 
+          stage: "AGENT_RESOLUTION", 
+          reason: "agent_not_found",
+          traceId,
+          instance: msg.instance
+        });
         trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "agent_not_found" });
         await markEventProcessed(msg.instance, finalMessageId);
         continue;
       }
+
 
       trace.record("CONVERSATION_LOCK_STARTED");
       const { data: lockAcquired, error: lockError } = await supabaseAdmin.rpc("acquire_conversation_lock" as any, {
         p_conversation_key: conversationKey,
         p_trace_id: traceId
       });
+      
+      trace.record("LOCK_ACQUIRED", { 
+        acquired: lockAcquired === true, 
+        error: lockError?.message,
+        conversationId: conversationKey
+      });
+      
       trace.record("CONVERSATION_LOCK_COMPLETED", { acquired: lockAcquired === true, error: lockError?.message });
+
 
       if (lockError || lockAcquired !== true) {
         await markEventFailed(msg.instance, finalMessageId, "conversation_locked_retry");
+        trace.record("MESSAGE_PROCESSING_ABORTED", { 
+          stage: "CONVERSATION_LOCK", 
+          reason: lockError ? "lock_error" : "lock_not_acquired",
+          traceId,
+          error: lockError?.message
+        });
         trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "lock_failed" });
         continue;
       }
+
 
       try {
         let unitId: string = agent.unidade_id;
@@ -218,13 +265,21 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
         // 7. Fluxo da IA
         if (isIAActive && agentText) {
           trace.record("AGENT_FLOW_STARTED");
-          // runAgentFlow já deve gerenciar seus próprios traces internos para AI_REQUEST e EVOLUTION_REQUEST
           await runAgentFlow(
             { ...msg, messageId: finalMessageId, _trace: trace } as any, 
             agentText
           );
           trace.record("AGENT_FLOW_COMPLETED");
+        } else {
+          trace.record("MESSAGE_PROCESSING_ABORTED", { 
+            stage: "AGENT_FLOW", 
+            reason: !isIAActive ? "ia_disabled" : "no_text_content",
+            traceId,
+            iaEnabled: isIAActive,
+            hasText: !!agentText
+          });
         }
+
 
         await markEventProcessed(msg.instance, finalMessageId);
         trace.record("TOTAL_PROCESSING_COMPLETED", { status: "success" });
@@ -239,6 +294,8 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
           p_conversation_key: conversationKey,
           p_trace_id: traceId
         });
+        trace.record("LOCK_RELEASED", { success: !releaseError });
+
       }
     } catch (error: any) {
       console.error("[evolution] Error processing message", msg.messageId, error);

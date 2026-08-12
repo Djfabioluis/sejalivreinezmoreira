@@ -32,7 +32,7 @@ export class PerformanceTrace {
     this.instanceId = params.instanceId;
     this.phoneLast4 = params.phoneLast4;
     this.startTimestamp = Date.now();
-    this.record("TRACE_STARTED");
+    this.record("WHATSAPP_WEBHOOK_RECEIVED");
   }
 
   record(step: string, payload?: any, status: string = "success") {

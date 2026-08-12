@@ -59,9 +59,16 @@ export async function replyToUser(params: {
   if (!params.allowDuringHumanMode) {
     const gate = ensureAIAllowedToReply(conv as any);
     if (!gate.allowed) {
+      trace?.record("MESSAGE_PROCESSING_ABORTED", { 
+        stage: "OUTBOUND_INSTANCE_RESOLVED", 
+        reason: gate.reason || "human_takeover",
+        traceId: params.traceId,
+        conversationId: params.conversationKey
+      });
       trace?.record("AI_RESPONSE_BLOCKED", { reason: gate.reason });
       return false;
     }
+
   }
 
   const incomingInstance = conv?.instance || params.instance;
@@ -69,25 +76,42 @@ export async function replyToUser(params: {
   // REGRA: outboundInstance DEVE ser igual a inboundInstance.
   if (!params.unitId || params.unitId === conv?.unidade_id) {
     if (params.instance !== incomingInstance) {
+      trace?.record("INSTANCE_MISMATCH", { 
+        incoming: incomingInstance, 
+        current: params.instance,
+        action: "force_inbound_instance"
+      });
       params.instance = incomingInstance;
     }
   } else if (params.unitId) {
     const outboundRes = await resolveOutboundInstanceForUnit(params.unitId);
     if (outboundRes && outboundRes.instanceId !== params.instance) {
+      trace?.record("INSTANCE_MISMATCH", { 
+        requested_unit: params.unitId,
+        current: params.instance,
+        new: outboundRes.instanceId
+      });
       params.instance = outboundRes.instanceId;
     } else if (!outboundRes && incomingInstance) {
       params.instance = incomingInstance;
     }
   }
 
+
   // Idempotência de envio
   if (params.messageId) {
     const { claimResponseSlot } = await import("./idempotency.server");
     const allowed = await claimResponseSlot(params.instance, params.messageId);
     if (!allowed) {
+      trace?.record("MESSAGE_PROCESSING_ABORTED", { 
+        stage: "IDEMPOTENCY_CHECK", 
+        reason: "duplicate_response_slot",
+        traceId: params.traceId
+      });
       trace?.record("DUPLICATE_RESPONSE_PREVENTED");
       return false;
     }
+
   }
 
   // Digitação humanizada
