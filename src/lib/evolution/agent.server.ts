@@ -3,8 +3,9 @@ import { logEvent } from "./logger.server";
 import { extractMessageText } from "./message-text";
 import { normalizePhone, buildConversationKey } from "./contact";
 
-export async function findAgentByInstance(instance: string) {
+export async function findAgentByInstance(instanceName: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const instance = instanceName.trim();
   
   const { data, error } = await supabaseAdmin
     .from("wa_agentes" as never)

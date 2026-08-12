@@ -4,11 +4,24 @@ export function normalizeEvolutionEvent(payload: any): NormalizedEvolutionEvent 
   const rawEvent = (payload.event || "unknown").toLowerCase().replace(/_/g, ".");
   let eventName: EvolutionEventName = "unknown";
 
-  if (rawEvent.includes("messages.upsert") || rawEvent.includes("message.upsert")) {
+  if (
+    rawEvent === "messages.upsert" || 
+    rawEvent === "message.upsert" || 
+    rawEvent === "messages_upsert" || 
+    rawEvent === "message_upsert"
+  ) {
     eventName = "messages.upsert";
-  } else if (rawEvent.includes("connection.update")) {
+  } else if (
+    rawEvent === "connection.update" || 
+    rawEvent === "connection_update"
+  ) {
     eventName = "connection.update";
-  } else if (rawEvent.includes("messages.ack") || rawEvent.includes("message.ack")) {
+  } else if (
+    rawEvent === "messages.ack" || 
+    rawEvent === "message.ack" || 
+    rawEvent === "messages_ack" || 
+    rawEvent === "message_ack"
+  ) {
     eventName = "messages.ack";
   }
 

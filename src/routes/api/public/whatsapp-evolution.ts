@@ -9,23 +9,42 @@ import { logger } from "@/lib/observability/logger.server";
 export const Route = createFileRoute("/api/public/whatsapp-evolution")({
   server: {
     handlers: {
+      GET: async () => {
+        return new Response(JSON.stringify({ ok: true, service: "whatsapp-evolution-webhook" }), {
+          headers: { "Content-Type": "application/json" },
+        });
+      },
       POST: async ({ request }) => {
-        // 1. Autenticação (Rápida)
+        const traceId = `webhook-entry-${Date.now()}`;
+        
+        // 1. Autenticação
         const auth = await authenticateWebhook(request);
         if (!auth.authenticated) {
+          logger.warn("WEBHOOK_UNAUTHORIZED", "Tentativa de acesso não autorizado ao webhook", { traceId });
           return new Response(auth.error || "Unauthorized", { status: 401 });
         }
 
-        // 2. Parse do Payload (Rápido)
-        const payload = await request.json().catch(() => null);
+        // 2. Parse do Payload
+        const payload = await request.json().catch((err) => {
+          logger.error("WEBHOOK_INVALID_JSON", "Erro ao processar JSON do webhook", { traceId, error: err.message });
+          return null;
+        });
+
         if (!payload) {
           await logEvent({ instance: "unknown", event: "webhook_received", status: "invalid_payload" });
-          return new Response("Bad Request", { status: 400 });
+          return new Response(JSON.stringify({ error: "Invalid JSON" }), { status: 400, headers: { "Content-Type": "application/json" } });
         }
 
-        // 3. Normalização do Evento (Rápida)
+        // 3. Normalização do Evento
         const eventData = normalizeEvolutionEvent(payload);
-        const traceId = `webhook-${eventData.instance}-${Date.now()}`;
+        
+        if (eventData.event === "unknown") {
+          logger.info("WEBHOOK_IGNORED", "Evento desconhecido ou não suportado", { traceId, event: payload.event });
+          return new Response(JSON.stringify({ ok: true, ignored: true, reason: "unsupported_event" }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
         
         await logEvent({ 
           instance: eventData.instance, 
@@ -61,16 +80,8 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           await processMessageAck(payload).catch(err => 
             logger.error("ASYNC_ACK_PROCESS_ERROR", err.message, { traceId })
           );
-        } else {
-          logger.audit("MESSAGE_PROCESSING_ABORTED", "Evento Evolution não suportado pelo processor", {
-            stage: "WEBHOOK_ENTRY",
-            traceId,
-            event: eventData.event
-          });
         }
 
-
-        // Retorna HTTP 200 IMEDIATAMENTE para o Evolution API
         return new Response("OK");
       }
     }

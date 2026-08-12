@@ -250,21 +250,35 @@ source: ${identity.identitySource}`);
       
       // Otimização: Tentar resolver Agente ANTES do Lock para falhar rápido se não existir
       trace.record("INSTANCE_RESOLVED_STARTED");
-      const agent = await findAgentByInstance(msg.instance);
-      const isIAActive = isIAEnabled(agent);
-      trace.record("INSTANCE_RESOLVED_COMPLETED", { agentId: agent?.id, iaEnabled: isIAActive });
+    const agent = await findAgentByInstance(msg.instance);
+    const isIAActive = isIAEnabled(agent);
+    trace.record("INSTANCE_RESOLVED_COMPLETED", { agentId: agent?.id, iaEnabled: isIAActive });
 
-      if (!agent) {
-        trace.record("MESSAGE_PROCESSING_ABORTED", { 
-          stage: "AGENT_RESOLUTION", 
-          reason: "agent_not_found",
-          traceId,
-          instance: msg.instance
-        });
-        trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "agent_not_found" });
-        await markEventProcessed(msg.instance, finalMessageId);
-        continue;
-      }
+    if (!agent) {
+      trace.record("MESSAGE_PROCESSING_ABORTED", { 
+        stage: "AGENT_RESOLUTION", 
+        reason: "agent_not_found",
+        traceId,
+        instance: msg.instance
+      });
+      console.warn(`[AGENT_NOT_FOUND] Instance received: ${msg.instance}`);
+      trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "agent_not_found" });
+      await markEventProcessed(msg.instance, finalMessageId);
+      continue;
+    }
+
+    if (!isIAActive) {
+      trace.record("MESSAGE_PROCESSING_ABORTED", { 
+        stage: "AGENT_AI_CHECK", 
+        reason: "agent_inactive",
+        traceId,
+        instance: msg.instance
+      });
+      console.info(`[AGENT_INACTIVE] Agent found but AI or status is disabled for instance: ${msg.instance}`);
+      trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "agent_inactive" });
+      await markEventProcessed(msg.instance, finalMessageId);
+      continue;
+    }
 
 
       trace.record("CONVERSATION_LOCK_STARTED");
