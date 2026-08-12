@@ -145,7 +145,7 @@ function LandingPage() {
         5. PERSISTÊNCIA: A `conversationKey` agora é gerada a partir do telefone resolvido, garantindo isolamento correto mesmo com LIDs.
         
         EVIDÊNCIA DE TESTE REAL (12/08/2026):
-        - Inbound LID detectado -> Identidade resolvida via remoteJidAlt -> Fluxo AGENT_RESOLVED -> AI_RESPONSE -> MESSAGE_SENT (OK).
+        - Inbound LID detectado {"->"} Identidade resolvida via remoteJidAlt {"->"} Fluxo AGENT_RESOLVED {"->"} AI_RESPONSE {"->"} MESSAGE_SENT (OK).
         
         ESTADO FINAL: Julia restaurada para clientes com LID.
       </div>
