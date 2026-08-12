@@ -22,8 +22,10 @@ export function extractMessageText(message: any): string {
 
   if (typeof content === "string") return content;
   
-  // Recursão para mensagens aninhadas (ephemeral, viewOnce, etc)
+  // Recursão real e segura para mensagens aninhadas (ephemeral, viewOnce, etc)
   if (typeof content === "object" && content !== null) {
+    // Evitar loop infinito se o objeto for idêntico ao pai
+    if (content === message) return "";
     return extractMessageText(content);
   }
 

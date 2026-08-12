@@ -249,10 +249,10 @@ source: ${identity.identitySource}`);
       trace.updateContext({ conversationId: conversationKey });
       
       // Otimização: Tentar resolver Agente ANTES do Lock para falhar rápido se não existir
-      trace.record("INSTANCE_RESOLVED_STARTED");
-    const agent = await findAgentByInstance(msg.instance);
-    const isIAActive = isIAEnabled(agent);
-    trace.record("INSTANCE_RESOLVED_COMPLETED", { agentId: agent?.id, iaEnabled: isIAActive });
+      trace.record("AGENT_LOOKUP_STARTED", { instance: msg.instance });
+      const agent = await findAgentByInstance(msg.instance);
+      const isIAActive = isIAEnabled(agent);
+      trace.record("AGENT_RESOLVED", { agentId: agent?.id, iaEnabled: isIAActive });
 
     if (!agent) {
       trace.record("MESSAGE_PROCESSING_ABORTED", { 
@@ -361,12 +361,12 @@ source: ${identity.identitySource}`);
 
         // 7. Fluxo da IA
         if (isIAActive && agentText) {
-          trace.record("AGENT_FLOW_STARTED");
+          trace.record("AI_STARTED", { traceId });
           await runAgentFlow(
             { ...msg, messageId: finalMessageId, _trace: trace } as any, 
             agentText
           );
-          trace.record("AGENT_FLOW_COMPLETED");
+          trace.record("AI_COMPLETED", { traceId });
         } else {
           trace.record("MESSAGE_PROCESSING_ABORTED", { 
             stage: "AGENT_FLOW", 
