@@ -30,7 +30,7 @@ export const Route = createFileRoute("/api/chat")({
           const result = await streamAgent({ messages: uiMessages, sandbox });
           return result.toUIMessageStreamResponse({
             originalMessages: uiMessages,
-            onError: (err) => {
+            onError: (err: any) => {
               const message = err instanceof Error ? err.message : String(err);
               console.error("[chat] stream error:", message);
               return message;

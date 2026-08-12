@@ -10,20 +10,20 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        // 1. Autenticação
+        // 1. Autenticação (Rápida)
         const auth = await authenticateWebhook(request);
         if (!auth.authenticated) {
           return new Response(auth.error || "Unauthorized", { status: 401 });
         }
 
-        // 2. Parse do Payload
+        // 2. Parse do Payload (Rápido)
         const payload = await request.json().catch(() => null);
         if (!payload) {
           await logEvent({ instance: "unknown", event: "webhook_received", status: "invalid_payload" });
           return new Response("Bad Request", { status: 400 });
         }
 
-        // 3. Normalização do Evento
+        // 3. Normalização do Evento (Rápida)
         const eventData = normalizeEvolutionEvent(payload);
         const traceId = `webhook-${eventData.instance}-${Date.now()}`;
         
@@ -39,17 +39,24 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           event: eventData.event 
         });
  
-        // 4. Delegação ao Processor
+        // 4. Delegação assíncrona para o Processor (NON-BLOCKING)
         if (eventData.event === "connection.update") {
-          await processConnectionUpdate(payload);
+          processConnectionUpdate(payload).catch(err => 
+            logger.error("ASYNC_CONNECTION_UPDATE_ERROR", err.message, { traceId })
+          );
         } else if (eventData.event === "messages.upsert") {
-          // Passando o traceId para o processamento de mensagens
           (payload as any)._traceId = traceId;
-          await processMessagesUpsert(payload, request.url);
+          // Dispara o processamento em background e retorna OK imediatamente para evitar retries do Evolution
+          processMessagesUpsert(payload, request.url).catch(err => 
+            logger.error("ASYNC_MESSAGE_PROCESS_ERROR", err.message, { traceId })
+          );
         } else if (eventData.event === "messages.ack") {
-          await processMessageAck(payload);
+          processMessageAck(payload).catch(err => 
+            logger.error("ASYNC_ACK_PROCESS_ERROR", err.message, { traceId })
+          );
         }
 
+        // Retorna HTTP 200 IMEDIATAMENTE para o Evolution API
         return new Response("OK");
       }
     }

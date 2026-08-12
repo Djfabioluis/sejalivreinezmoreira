@@ -986,6 +986,48 @@ export type Database = {
         }
         Relationships: []
       }
+      evo_trace_logs: {
+        Row: {
+          conversation_id: string | null
+          duration_ms: number | null
+          id: string
+          inbound_message_id: string | null
+          instance_id: string | null
+          payload: Json | null
+          phone_last4: string | null
+          status: string | null
+          step: string
+          timestamp: string | null
+          trace_id: string
+        }
+        Insert: {
+          conversation_id?: string | null
+          duration_ms?: number | null
+          id?: string
+          inbound_message_id?: string | null
+          instance_id?: string | null
+          payload?: Json | null
+          phone_last4?: string | null
+          status?: string | null
+          step: string
+          timestamp?: string | null
+          trace_id: string
+        }
+        Update: {
+          conversation_id?: string | null
+          duration_ms?: number | null
+          id?: string
+          inbound_message_id?: string | null
+          instance_id?: string | null
+          payload?: Json | null
+          phone_last4?: string | null
+          status?: string | null
+          step?: string
+          timestamp?: string | null
+          trace_id?: string
+        }
+        Relationships: []
+      }
       evo_webhook_logs: {
         Row: {
           created_at: string | null

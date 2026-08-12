@@ -375,141 +375,30 @@ function buildTools(
   };
 }
 
-export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: string }) {
-  const { conversationKey, unidadeId, sandbox, customerContext, activePromotions } = opts;
-  // Resiliência: se não vier histórico, monta a partir do texto recebido.
-  const messages =
-    Array.isArray(opts.messages) && opts.messages.length > 0
-      ? opts.messages
-      : [{ role: "user", parts: [{ type: "text", text: opts.text ?? "" }] }];
+export async function runAgentWithLogging(opts: AgentOptions & { messages?: any[]; text?: string }) {
+  const { traceId, conversationKey } = opts;
+  const history = (opts.messages || []).slice(-8); 
+  return runAgent({ ...opts, messages: history });
+}
 
-  const { effectiveUnitId, effectiveUnitName } = await resolveEffectiveUnit({ conversationKey, agentUnitId: unidadeId });
-  
+export async function streamAgent(opts: { messages: any[]; sandbox?: boolean }) {
   const gatewayKey = process.env.LOVABLE_AI_GATEWAY_KEY || process.env.LOVABLE_API_KEY || "";
   const provider = createLovableAiGatewayProvider(gatewayKey);
-  const modelName = "google/gemini-2.5-flash";
-  const model = provider(modelName);
+  const model = provider("google/gemini-2.5-flash");
+  const modelMessages = await convertToModelMessages(opts.messages);
 
-  if (opts.traceId) {
-    await logEvent({
-      instance: opts.instance || "unknown",
-      messageId: opts.messageId || "unknown",
-      event: "AI_PROVIDER_RESOLVED",
-      status: "success",
-      payload: { 
-        traceId: opts.traceId, 
-        provider: "lovable-gateway", 
-        model: modelName,
-        apiKeyStatus: gatewayKey ? "OK" : "MISSING"
-      }
-    });
-  }
-
-  const bookingContext: BookingContext =
-    ((opts as any).bookingContext as BookingContext) ||
-    ((customerContext as any)?.bookingContext as BookingContext) ||
-    {};
-
-  const system = assembleSystemPrompt({
-    contactName: opts.contactName,
-    contactPhone: opts.contactPhone,
-    unitName: effectiveUnitName,
-    traceId: opts.traceId,
-    customer_context: customerContext,
-    activePromotions: activePromotions,
-    bookingContext
+  return streamText({
+    model,
+    system: DEFAULT_SYSTEM_PROMPT + (opts.sandbox ? SANDBOX_NOTE : ""),
+    messages: modelMessages,
+    maxSteps: 5,
   });
-
-  const tools = buildTools(
-    !!sandbox,
-    effectiveUnitId,
-    conversationKey,
-    opts.messageId,
-    bookingContext.subscriptionIntent === true,
-  );
-
-
-  // Aceita tanto UIMessages (com parts) quanto ModelMessages (com content).
-  const needsConversion = messages.some((m: any) => Array.isArray(m?.parts));
-  const modelMessages = needsConversion
-    ? await convertToModelMessages(messages as any)
-    : messages;
-
-  try {
-    return await generateText({
-      model: model as any,
-      system: system + (sandbox ? SANDBOX_NOTE : ""),
-      messages: modelMessages,
-      tools: tools as any,
-      maxSteps: 5,
-    } as any);
-  } catch (error: any) {
-    if (opts.traceId) {
-      await logEvent({
-        instance: opts.instance || "unknown",
-        messageId: opts.messageId || "unknown",
-        event: "AI_REQUEST_FAILED",
-        status: "error",
-        errorDetail: error.message,
-        payload: {
-          traceId: opts.traceId,
-          errorName: error.name,
-          errorStack: error.stack,
-          httpStatus: error.status,
-          model: modelName
-        }
-      });
-    }
-    throw error;
-  }
 }
 
-export async function runAgentWithLogging(opts: AgentOptions & { messages?: any[]; text?: string }) {
-  const result = await runAgent(opts);
+export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: string }) {
+  const { conversationKey, unidadeId, sandbox, customerContext, activePromotions, traceId } = opts;
+  const messages = Array.isArray(opts.messages) ? opts.messages : [];
 
-  const bookingContext: BookingContext =
-    ((opts as any).bookingContext as BookingContext) ||
-    ((opts.customerContext as any)?.bookingContext as BookingContext) ||
-    {};
-
-  // Garantia determinística da promoção de mechas (Bug 2)
-  const last = Array.isArray(opts.messages) ? opts.messages[opts.messages.length - 1] : null;
-  const lastMessage =
-    (typeof last?.content === "string" ? last.content : null) ??
-    (Array.isArray(last?.parts) ? last.parts.map((p: any) => p?.text ?? "").join(" ") : "") ??
-    "";
-  const isMechasIntent = /\bmechas?\b/i.test(`${lastMessage} ${opts.text ?? ""}`);
-
-  let finalText = String(result.text || "");
-
-  if (isMechasIntent && finalText) {
-      const promoText = "Pacote de Mechas por R$ 289,90";
-      // Reduzir repetição: só injeta se não houver menção no histórico recente ou na própria resposta
-      const historyHasPromo = opts.messages?.some((m: any) => {
-        const text = typeof m.content === 'string' ? m.content : (Array.isArray(m.parts) ? m.parts.map((p: any) => p.text).join(' ') : '');
-        return text.includes("289,90");
-      });
-
-      if (!finalText.includes("289,90") && !historyHasPromo) {
-          console.log("[chat] forced_promotion_injection: mechas");
-          finalText = `Entendi! 💜 E já te adianto que estamos com uma promoção imperdível: *${promoText}*! \n\n${finalText}`;
-      }
-  }
-
-  // PROTEÇÃO FINAL: sem intenção explícita, nenhuma resposta pode puxar fluxo de assinatura.
-  const guarded = enforceNoSubscriptionFlow(finalText, bookingContext);
-  if (guarded.blocked) {
-    console.warn(
-      `[chat] [SUBSCRIPTION_OUTPUT_BLOCKED] resposta regenerada sem fluxo de assinatura (traceId=${opts.traceId ?? "n/a"})`,
-    );
-  }
-
-  return { ...result, text: guarded.text };
-}
-
-
-export async function streamAgent(opts: AgentOptions & { messages: any[] }) {
-  const { messages, conversationKey, unidadeId, sandbox, customerContext, activePromotions } = opts;
   const { effectiveUnitId, effectiveUnitName } = await resolveEffectiveUnit({ conversationKey, agentUnitId: unidadeId });
   
   const gatewayKey = process.env.LOVABLE_AI_GATEWAY_KEY || process.env.LOVABLE_API_KEY || "";
@@ -517,33 +406,34 @@ export async function streamAgent(opts: AgentOptions & { messages: any[] }) {
   const model = provider("google/gemini-2.5-flash");
 
   const bookingContext: BookingContext =
-    ((customerContext as any)?.bookingContext as BookingContext) || {};
+    ((opts as any).bookingContext as BookingContext) ||
+    ((customerContext as any)?.bookingContext as BookingContext) ||
+    {};
 
-  const system = assembleSystemPrompt({
+  const systemPrompt = assembleSystemPrompt({
     contactName: opts.contactName,
     contactPhone: opts.contactPhone,
     unitName: effectiveUnitName,
-    traceId: opts.traceId,
+    traceId,
     customer_context: customerContext,
-    activePromotions: activePromotions,
+    activePromotions,
     bookingContext
   });
 
-  const tools = buildTools(
-    !!sandbox,
-    effectiveUnitId,
-    conversationKey,
-    opts.messageId,
-    bookingContext.subscriptionIntent === true,
-  );
-
-
   const modelMessages = await convertToModelMessages(messages);
-  return streamText({
-    model: model as any,
-    system: system + (sandbox ? SANDBOX_NOTE : ""),
+  const aiStartedAt = Date.now();
+  const response = await generateText({
+    model,
+    system: systemPrompt + (sandbox ? SANDBOX_NOTE : ""),
     messages: modelMessages,
-    tools: tools as any,
+    tools: buildTools(!!sandbox, effectiveUnitId, conversationKey, opts.messageId, bookingContext.subscriptionIntent),
     maxSteps: 5,
-  } as any);
+  });
+
+  return {
+    text: response.text,
+    toolResults: response.toolResults,
+    usage: response.usage,
+    durationMs: Date.now() - aiStartedAt
+  };
 }

@@ -42,31 +42,10 @@ export async function replyToUser(params: {
   traceId?: string;
   unitId?: string | null;
   allowDuringHumanMode?: boolean;
+  _trace?: any;
 }) {
-
-
-  const traceId = params.traceId || `${params.instance}:${params.messageId || Math.random().toString(36).substring(7)}`;
-
-  // INSTRUMENTAÇÃO DE AUDITORIA: registrar origem da resposta
-  const stack = new Error().stack;
-  logger.audit("OUTBOUND_MESSAGE_SOURCE", `Enviando mensagem para Evolution via replyToUser`, {
-    traceId,
-    conversationKey: params.conversationKey,
-    instance: params.instance,
-    textSnippet: params.text.slice(0, 100),
-    source_file: "src/lib/evolution/reply.server.ts",
-    source_function: "replyToUser",
-    stack
-  });
-
-  if (params.text.includes("CPF")) {
-    logger.audit("CPF_RESPONSE_GENERATED", `Uma resposta contendo CPF foi detectada em replyToUser`, {
-      traceId,
-      conversationKey: params.conversationKey,
-      text: params.text,
-      stack
-    });
-  }
+  const trace = params._trace;
+  const traceId = params.traceId || trace?.getTraceId() || `${params.instance}:${params.messageId || Math.random().toString(36).substring(7)}`;
 
   // PROTEÇÃO DE INSTÂNCIA POR UNIDADE
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -80,137 +59,33 @@ export async function replyToUser(params: {
   if (!params.allowDuringHumanMode) {
     const gate = ensureAIAllowedToReply(conv as any);
     if (!gate.allowed) {
-      const blockLog = {
-        conversationId: params.conversationKey,
-        phoneLast4: String(params.phone || "").slice(-4),
-        unitId: params.unitId ?? (conv as any)?.unidade_id ?? null,
-        timestamp: new Date().toISOString(),
-        traceId,
-        reason: gate.reason,
-      };
-      console.log(`[AI_RESPONSE_BLOCKED_HUMAN_MODE] ${JSON.stringify(blockLog)}`);
-      await logEvent({
-        instance: params.instance,
-        messageId: params.messageId,
-        event: "AI_RESPONSE_BLOCKED_HUMAN_MODE",
-        status: "blocked",
-        payload: blockLog
-      });
+      trace?.record("AI_RESPONSE_BLOCKED", { reason: gate.reason });
       return false;
     }
   }
 
-
-  const activeUnitId = params.unitId || conv?.unidade_id;
   const incomingInstance = conv?.instance || params.instance;
 
-  // REGRA 4 & 5: Se o cliente NÃO pediu troca de unidade (parâmetro unitId ausente ou igual ao da conversa),
-  // outboundInstance DEVE ser igual a inboundInstance.
+  // REGRA: outboundInstance DEVE ser igual a inboundInstance.
   if (!params.unitId || params.unitId === conv?.unidade_id) {
     if (params.instance !== incomingInstance) {
-      logger.info("OUTBOUND_INSTANCE_FORCED_BY_INBOUND", `Mantendo instância original do inbound para responder: ${params.instance} -> ${incomingInstance}`, {
-        traceId,
-        incomingInstance,
-        currentInstance: params.instance
-      });
       params.instance = incomingInstance;
     }
-  } else if (activeUnitId) {
-    // Somente se houver pedido explícito de troca de unidade (activeUnitId != conv.unidade_id)
-    const outboundRes = await resolveOutboundInstanceForUnit(activeUnitId);
-    if (!outboundRes) {
-      // REGRA 6: Se o vínculo unitId estiver ausente mas inboundInstance for válida, não silenciar.
-      if (incomingInstance) {
-        logger.warn("UNIT_LINK_MISSING", `Vínculo de unidade ${activeUnitId} não resolvido, usando incomingInstance para não silenciar a Julia`, {
-          traceId,
-          incomingInstance,
-          activeUnitId
-        });
-        params.instance = incomingInstance;
-      } else {
-        await logEvent({
-          instance: params.instance,
-          messageId: params.messageId,
-          event: "OUTBOUND_INSTANCE_NOT_RESOLVED",
-          status: "error",
-          payload: { traceId, unitId: activeUnitId, conversationKey: params.conversationKey }
-        });
-        return false;
-      }
-    } else if (outboundRes.instanceId !== params.instance) {
-      logger.info("OUTBOUND_INSTANCE_SWITCHED", `Trocando instância para corresponder à NOVA unidade: ${params.instance} -> ${outboundRes.instanceId}`, {
-        traceId,
-        unitId: activeUnitId,
-        originalInstance: params.instance,
-        newInstance: outboundRes.instanceId
-      });
+  } else if (params.unitId) {
+    const outboundRes = await resolveOutboundInstanceForUnit(params.unitId);
+    if (outboundRes && outboundRes.instanceId !== params.instance) {
       params.instance = outboundRes.instanceId;
+    } else if (!outboundRes && incomingInstance) {
+      params.instance = incomingInstance;
     }
   }
 
-  // PROTEÇÃO FINAL DE SAÍDA: nenhuma mensagem do fluxo de assinatura pode mencionar CPF.
-  try {
-    const { enforceNoCpfInSubscriptionFlow, containsCpfSolicitation, PHONE_REQUEST_MESSAGE } = await import("@/lib/subscription-policy.server");
-    
-    // Detector rápido sem depender de Supabase
-    const cpfRequested = containsCpfSolicitation(params.text);
-
-    const ctx = (conv?.customer_context as any) || null;
-    const enforced = enforceNoCpfInSubscriptionFlow(params.text, ctx);
-
-
-    
-    if (enforced.blocked) {
-      params = { ...params, text: enforced.text };
-      await logEvent({
-        instance: params.instance,
-        messageId: params.messageId,
-        event: "subscription_cpf_blocked_at_reply",
-        status: "blocked",
-        payload: {
-          traceId,
-          lookupStage: (ctx as { subscriptionLookupStage?: string } | null)?.subscriptionLookupStage ?? null,
-        },
-      });
-    }
-  } catch (error: any) {
-    // FAIL-CLOSED: Se a proteção falhar, mas o texto contiver CPF, bloqueamos.
-    const { containsCpfSolicitation, PHONE_REQUEST_MESSAGE } = await import("@/lib/subscription-policy.server");
-    if (containsCpfSolicitation(params.text)) {
-      params.text = PHONE_REQUEST_MESSAGE;
-      
-      logger.error("SUBSCRIPTION_PROTECTION_FAILED_FAIL_CLOSED", error.message, { traceId });
-      
-      await logEvent({
-        instance: params.instance,
-        messageId: params.messageId,
-        event: "subscription_policy_check_failed",
-        status: "warning",
-        payload: { traceId }
-      });
-    }
-  }
-  
-  await logEvent({ 
-    instance: params.instance, 
-    messageId: params.messageId,
-    event: "OUTBOUND_STARTED", 
-    status: "started",
-    payload: { traceId }
-  });
-
-  // Idempotência de envio: apenas um envio por mensagem de origem
+  // Idempotência de envio
   if (params.messageId) {
     const { claimResponseSlot } = await import("./idempotency.server");
     const allowed = await claimResponseSlot(params.instance, params.messageId);
     if (!allowed) {
-      await logEvent({
-        instance: params.instance,
-        messageId: params.messageId,
-        event: "duplicate_response_prevented",
-        status: "skipped",
-        payload: { traceId },
-      });
+      trace?.record("DUPLICATE_RESPONSE_PREVENTED");
       return false;
     }
   }
@@ -220,7 +95,9 @@ export async function replyToUser(params: {
     TYPING_MAX_MS,
     Math.max(TYPING_MIN_MS, params.text.length * TYPING_PER_CHAR_MS),
   );
-  const typingSent = await sendEvolutionPresence(
+  
+  trace?.record("EVOLUTION_REQUEST_STARTED", { instance: params.instance });
+  await sendEvolutionPresence(
     params.instance,
     params.phone,
     "composing",
@@ -229,25 +106,11 @@ export async function replyToUser(params: {
 
   // 9. ENVIO ÚNICO PELA EVOLUTION
   const sent = await sendEvolutionText(params.instance, params.phone, params.text, typingMs);
+  trace?.record("EVOLUTION_RESPONSE_RECEIVED", { success: !!sent });
 
   if (sent) {
     const sentMessageId = sent.data?.key?.id || sent.data?.message?.key?.id || params.messageId;
-    
-    await logEvent({ 
-      instance: params.instance, 
-      messageId: params.messageId,
-      event: "MESSAGE_SENT", 
-      status: "success",
-      payload: { 
-        traceId, 
-        sentMessageId,
-        outboundInstance: params.instance,
-        outboundDestination: params.phone,
-        evolutionResponse: sent.data,
-        inboundInstance: params.instance, // Auditoria de igualdade
-        destinationMatched: true // Validado pelo transporte Evolution
-      }
-    });
+    trace?.record("MESSAGE_SENT", { sentMessageId });
 
     // 10. PERSISTÊNCIA DA RESPOSTA (Atomicamente via RPC)
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -265,18 +128,6 @@ export async function replyToUser(params: {
       p_customer_context: null
     });
 
-    if (error) {
-      await logEvent({ 
-        instance: params.instance, 
-        messageId: params.messageId,
-        event: "assistant_message_save_failed", 
-        status: "error", 
-        errorDetail: error.message,
-        payload: { traceId }
-      });
-      return false;
-    }
-
     if (params.messageId) {
       const { markResponseSent } = await import("./idempotency.server");
       await markResponseSent(params.instance, params.messageId);
@@ -284,13 +135,6 @@ export async function replyToUser(params: {
 
     return true;
   } else {
-    await logEvent({ 
-      instance: params.instance, 
-      messageId: params.messageId,
-      event: "evolution_send_failed", 
-      status: "failed",
-      payload: { traceId }
-    });
     if (params.messageId) {
       const { markResponseFailed } = await import("./idempotency.server");
       await markResponseFailed(params.instance, params.messageId, "evolution_send_failed");
