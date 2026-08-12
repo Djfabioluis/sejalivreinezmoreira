@@ -69,6 +69,8 @@ export const listClientesAtendidos = createServerFn({ method: "GET" })
             .map((p: any) => p.text)
             .join(" ")
             .slice(0, 160);
+        } else if ("text" in last) {
+          lastText = String((last as { text: unknown }).text ?? "").slice(0, 160);
         }
       }
 
