@@ -81,7 +81,7 @@ export async function checkInstanceStatus(instanceName: string): Promise<{ exist
       connected,
       state
     };
-  } catch (err) {
+  } catch (err: any) {
     logger.error("EVOLUTION_STATUS_CHECK_FAILED", `Erro ao checar status da instância ${instanceName}`, { error: err.message });
     return { exists: false, connected: false };
   }
