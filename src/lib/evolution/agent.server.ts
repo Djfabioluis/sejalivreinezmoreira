@@ -91,17 +91,15 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     let conv = conversation as any;
     trace?.record("CONVERSATION_LOOKUP_COMPLETED", { hasConv: !!conv });
 
-    if (!conv) {
-      const { data: fallbackConv } = await supabaseAdmin
-        .from("wa_conversas" as any)
-        .select("id, messages, customer_context, contact_name, attendance_mode, human_takeover_at, human_takeover_detected, human_takeover_requested_at, human_transfer_message_sent, ai_paused_at, ai_pause_reason, last_human_message_at, phone, instance, unidade_id")
-        .eq("phone_number", contactPhone)
-        .order("updated_at", { ascending: false })
-        .limit(1);
-      
-      if (fallbackConv && fallbackConv.length > 0) {
-        conv = fallbackConv[0];
-      }
+    // REMOVIDO FALLBACK GLOBAL POR TELEFONE (Segurança Multi-instância)
+    // A conversa deve pertencer obrigatoriamente à instância que recebeu a mensagem.
+    if (conv && conv.instance !== instance) {
+      trace?.record("CROSS_INSTANCE_CONVERSATION_REJECTED", { 
+        incomingInstance: instance,
+        conversationInstance: conv.instance,
+        phoneLast4: contactPhone.slice(-4)
+      });
+      conv = null;
     }
 
     const finalKey = conv?.phone || conversationKey;
@@ -117,7 +115,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
     const { appendIncomingMessage } = await import("./conversation.server");
     const savedConv = await appendIncomingMessage({
-      conversationKey: finalKey,
+      conversationKey: conversationKey, // USAR SEMPRE A CHAVE CANÔNICA DA INSTÂNCIA ATUAL
       messageId: messageId,
       text: displayText,
       instance: msg.instance,
@@ -133,9 +131,21 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     trace?.record("CONTEXT_LOAD_COMPLETED", { historyCount: conv?.messages?.length || 0 });
 
     const isHumanMode =
-      conv?.attendance_mode === "HUMAN" ||
-      conv?.human_takeover_detected === true ||
-      !!conv?.ai_paused_at;
+      conv?.instance === instance && (
+        conv?.attendance_mode === "HUMAN" ||
+        conv?.human_takeover_detected === true ||
+        !!conv?.ai_paused_at
+      );
+
+    trace?.record("CONVERSATION_CORRELATION", {
+      incomingInstance: instance,
+      customerPhoneLast4: contactPhone.slice(-4),
+      expectedConversationKey: conversationKey,
+      loadedConversationKey: conv?.phone,
+      loadedConversationInstance: conv?.instance,
+      sameInstance: conv?.instance === instance,
+      attendanceMode: conv?.attendance_mode || "AI"
+    });
 
     if (isHumanMode) {
       const stage = "CONVERSATION_MODE_CHECKED";
