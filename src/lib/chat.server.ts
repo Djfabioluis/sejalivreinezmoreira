@@ -383,6 +383,11 @@ export async function runAgentWithLogging(opts: AgentOptions & { messages?: any[
   return runAgent({ ...opts, messages: history });
 }
 
+export async function isIAConfigured(): Promise<boolean> {
+  const gatewayKey = process.env.LOVABLE_AI_GATEWAY_KEY || process.env.LOVABLE_API_KEY;
+  return Boolean(gatewayKey && gatewayKey.length > 10);
+}
+
 export async function streamAgent(opts: { messages: any[]; sandbox?: boolean }) {
   const gatewayKey = process.env.LOVABLE_AI_GATEWAY_KEY || process.env.LOVABLE_API_KEY || "";
   const provider = createLovableAiGatewayProvider(gatewayKey);

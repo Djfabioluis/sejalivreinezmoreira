@@ -15,15 +15,13 @@ export async function authenticateWebhook(request: Request): Promise<{ authentic
     providedSecret = authHeader.substring(7).trim();
   }
 
-  // Fail-closed: sem segredo configurado, avisamos no log mas permitimos o tráfego 
-  // para evitar que o sistema pare por falta de configuração inicial no banco.
+  // A Evolution API pode enviar o segredo configurado no campo "Segredo" das configurações globais 
+  // ou da instância. Geralmente ela envia no cabeçalho x-webhook-secret ou Authorization.
+  
   if (!config.webhookSecret) {
-    await logEvent({
-      instance: "auth_gate",
-      event: "webhook_secret_missing_config",
-      status: "warning",
-      errorDetail: "Webhook secret não configurado na base_conhecimento (ID 20) ou ENV. Permitindo tráfego para evitar interrupção.",
-    });
+    // Se não há segredo configurado no banco/env, permitimos o tráfego 
+    // com um aviso no log (Segurança Fail-Open para ambiente inicial).
+    console.warn("[WEBHOOK_AUTH] EVOLUTION_WEBHOOK_SECRET not configured. Allowing traffic.");
     return { authenticated: true };
   }
 
