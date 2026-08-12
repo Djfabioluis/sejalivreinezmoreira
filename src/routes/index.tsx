@@ -133,9 +133,9 @@ function LandingPage() {
         2. ISOLAMENTO MULTI-INSTÂNCIA: Validado que `conversationKey` é derivado de `instance + phone`, impedindo que o modo HUMAN de uma unidade afete outra.
         3. AUDITORIA DE LOCKS: O sistema de `evo_conversation_locks` foi testado e está operando sem deadlocks, com liberação automática após cada ciclo.
         4. EVIDÊNCIA DE TESTE REAL (12/08/2026):
-           - Unidade 1378 (Boulevard): WEBHOOK -> AI_RESPONSE -> MESSAGE_SENT (OK)
-           - Unidade 1377 (Centro): WEBHOOK -> AI_RESPONSE -> MESSAGE_SENT (OK)
-           - Unidade 5258 (Ventura): WEBHOOK -> AI_RESPONSE -> MESSAGE_SENT (OK)
+           - Unidade 1378 (Boulevard): WEBHOOK {"->"} AI_RESPONSE {"->"} MESSAGE_SENT (OK)
+           - Unidade 1377 (Centro): WEBHOOK {"->"} AI_RESPONSE {"->"} MESSAGE_SENT (OK)
+           - Unidade 5258 (Ventura): WEBHOOK {"->"} AI_RESPONSE {"->"} MESSAGE_SENT (OK)
         
         ESTADO FINAL: Julia 100% autônoma e respondendo em todas as unidades.
       </div>
