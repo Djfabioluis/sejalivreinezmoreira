@@ -122,8 +122,10 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       aiEnabled: isIAEnabled(agent)
     });
 
-    const contactPhone = normalizePhone(msg.remoteJid);
-    const conversationKey = buildConversationKey(instance, msg.remoteJid);
+    // Identidade resolvida pelo processor (inclusive contatos @lid) tem prioridade
+    // absoluta sobre remoteJid, evitando abrir/enviar para uma conversa LID errada.
+    const contactPhone = (msg as any)._resolvedPhone || normalizePhone(msg.remoteJid);
+    const conversationKey = (msg as any)._conversationKey || buildConversationKey(instance, contactPhone);
     
     trace?.record("CONVERSATION_LOOKUP_STARTED", { conversationKey });
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
