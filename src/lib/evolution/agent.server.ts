@@ -138,7 +138,16 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       !!conv?.ai_paused_at;
 
     if (isHumanMode) {
-      trace?.record("ATTENDANCE_MODE_CHECKED", { mode: "HUMAN", reason: conv?.ai_pause_reason });
+      const stage = "CONVERSATION_MODE_CHECKED";
+      const reason = conv?.ai_pause_reason || "HUMAN_TAKEOVER_ACTIVE";
+      
+      trace?.record(stage, { 
+        mode: "HUMAN", 
+        human_takeover_detected: conv?.human_takeover_detected,
+        ai_paused_at: conv?.ai_paused_at,
+        ai_pause_reason: reason
+      });
+
       const customerRequested = conv?.ai_pause_reason === "CUSTOMER_REQUESTED_HUMAN";
       const takeoverAtStr = conv?.human_takeover_at;
       const takeoverAt = takeoverAtStr ? new Date(takeoverAtStr).getTime() : 0;
@@ -148,9 +157,18 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
         customerRequested || takeoverAt === 0 || minutesSinceTakeover < HUMAN_TAKEOVER_TIMEOUT_MINUTES;
 
       if (stillPaused) {
+        trace?.record("MESSAGE_PROCESSING_ABORTED", { 
+          stage, 
+          reason,
+          traceId,
+          conversationId: finalKey,
+          instanceId: instance,
+          phoneLast4: contactPhone.slice(-4)
+        });
         trace?.record("TOTAL_PROCESSING_COMPLETED", { reason: "human_mode_blocked" });
         return;
       }
+
 
       await supabaseAdmin
         .from("wa_conversas")
@@ -191,7 +209,14 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
           })
           .eq("phone", finalKey);
 
+        trace?.record("MESSAGE_PROCESSING_ABORTED", { 
+          stage: "HUMAN_INTENT_CHECK", 
+          reason: "human_takeover_intent_detected",
+          traceId
+        });
+
         if (!alreadySent) {
+
           const { replyToUser } = await import("./reply.server");
           await replyToUser({
             instance,
@@ -213,9 +238,16 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     const iaEnabled = isIAActive;
 
     if (!iaEnabled) {
+      trace?.record("MESSAGE_PROCESSING_ABORTED", { 
+        stage: "IA_STATUS_CHECK", 
+        reason: "ia_disabled_for_agent",
+        traceId,
+        agentId: agent?.id
+      });
       trace?.record("TOTAL_PROCESSING_COMPLETED", { reason: "ia_disabled" });
       return;
     }
+
 
     // Double-check race condition
     const { data: finalCheck } = await supabaseAdmin
@@ -225,14 +257,26 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       .maybeSingle();
 
     if (finalCheck?.attendance_mode === "HUMAN") {
+      trace?.record("MESSAGE_PROCESSING_ABORTED", { 
+        stage: "RACE_CONDITION_CHECK", 
+        reason: "human_mode_detected_late",
+        traceId
+      });
       trace?.record("TOTAL_PROCESSING_COMPLETED", { reason: "race_condition_human" });
       return;
     }
 
+
     if (!text) {
+      trace?.record("MESSAGE_PROCESSING_ABORTED", { 
+        stage: "FINAL_TEXT_CHECK", 
+        reason: "no_text_to_process",
+        traceId
+      });
       trace?.record("TOTAL_PROCESSING_COMPLETED", { reason: "empty_text" });
       return;
     }
+
 
     const { normalizeConversationHistory } = await import("./history");
     const history = normalizeConversationHistory(
@@ -370,9 +414,15 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
     const replyText = String(result?.text || "").trim();
     if (!replyText) {
+      trace?.record("MESSAGE_PROCESSING_ABORTED", { 
+        stage: "AI_RESPONSE_RECEIVED", 
+        reason: "empty_ai_response",
+        traceId
+      });
       trace?.record("TOTAL_PROCESSING_COMPLETED", { reason: "ai_empty_response" });
       return;
     }
+
 
     const { replyToUser } = await import("./reply.server");
     await replyToUser({

@@ -46,15 +46,26 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           );
         } else if (eventData.event === "messages.upsert") {
           (payload as any)._traceId = traceId;
-          // Dispara o processamento em background e retorna OK imediatamente para evitar retries do Evolution
-          processMessagesUpsert(payload, request.url).catch(err => 
-            logger.error("ASYNC_MESSAGE_PROCESS_ERROR", err.message, { traceId })
-          );
+          processMessagesUpsert(payload, request.url).catch(err => {
+            logger.error("ASYNC_MESSAGE_PROCESS_ERROR", err.message, { traceId });
+            logger.audit("MESSAGE_PROCESSING_ABORTED", "Erro catastrófico no processamento assíncrono", {
+              stage: "ASYNC_PROCESSOR",
+              traceId,
+              error: err.message
+            });
+          });
         } else if (eventData.event === "messages.ack") {
           processMessageAck(payload).catch(err => 
             logger.error("ASYNC_ACK_PROCESS_ERROR", err.message, { traceId })
           );
+        } else {
+          logger.audit("MESSAGE_PROCESSING_ABORTED", "Evento Evolution não suportado pelo processor", {
+            stage: "WEBHOOK_ENTRY",
+            traceId,
+            event: eventData.event
+          });
         }
+
 
         // Retorna HTTP 200 IMEDIATAMENTE para o Evolution API
         return new Response("OK");

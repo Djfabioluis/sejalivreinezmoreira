@@ -902,6 +902,24 @@ export type Database = {
           },
         ]
       }
+      evo_conversation_locks: {
+        Row: {
+          conversation_key: string
+          locked_at: string | null
+          trace_id: string
+        }
+        Insert: {
+          conversation_key: string
+          locked_at?: string | null
+          trace_id: string
+        }
+        Update: {
+          conversation_key?: string
+          locked_at?: string | null
+          trace_id?: string
+        }
+        Relationships: []
+      }
       evo_events: {
         Row: {
           assistant_response_id: string | null
@@ -1710,7 +1728,11 @@ export type Database = {
     }
     Functions: {
       acquire_conversation_lock: {
-        Args: { p_conversation_key: string; p_trace_id: string }
+        Args: {
+          p_conversation_key: string
+          p_timeout_seconds?: number
+          p_trace_id: string
+        }
         Returns: boolean
       }
       append_wa_message: {
@@ -1770,7 +1792,7 @@ export type Database = {
       }
       release_conversation_lock: {
         Args: { p_conversation_key: string; p_trace_id: string }
-        Returns: undefined
+        Returns: boolean
       }
       schedule_customer_followup: {
         Args: {
