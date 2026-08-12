@@ -132,7 +132,6 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     const { appendIncomingMessage } = await import("./conversation.server");
     
     // Otimização (Requisito 10): Não duplicar persistência se já foi persistido no processor
-    let conv = conversation as any;
     if (!conv || !conv.messages || conv.messages.length === 0) {
       const savedConv = await appendIncomingMessage({
         conversationKey: conversationKey, 
