@@ -18,6 +18,7 @@ export interface BookingContext {
   professionalName?: string | null;
   subscriptionIntent?: boolean;
   conversationGreeted?: boolean;
+  intent?: string | null;
 }
 
 export type BookingSlot =
@@ -90,6 +91,13 @@ const SERVICE_PATTERNS: Array<{ re: RegExp; name: string }> = [
   { re: /\bmassagem\b/i, name: "MASSAGEM" },
 ];
 
+const HARMONIZATION_INTENT_PATTERN = /\b(?:h|a)rmoniza[cç][aã]o\s+(?:de|do|da|gl[uú]tea|abdominal)?\s*(?:bumbum|gl[uú]teos?|barriga|abd[oô]men)\b/i;
+
+export function detectHarmonizationIntent(text: string | null | undefined): boolean {
+  if (!text) return false;
+  return HARMONIZATION_INTENT_PATTERN.test(text);
+}
+
 /** Extrai apenas os campos presentes na mensagem atual. Ausência = undefined (nunca null destrutivo). */
 export function extractBookingSlots(
   text: string | null | undefined,
@@ -159,6 +167,11 @@ export function extractBookingSlots(
   // --- Intenção de assinatura ---
   if (detectSubscriptionIntent(t)) out.subscriptionIntent = true;
 
+  // --- Intenção de Harmonização (Boulevard) ---
+  if (detectHarmonizationIntent(t)) {
+    out.intent = "harmonizacao_bumbum_barriga";
+  }
+
   return out;
 }
 
@@ -185,6 +198,7 @@ export function mergeBookingContext(
   }
 
   next.subscriptionIntent = prev.subscriptionIntent === true || extracted?.subscriptionIntent === true;
+  next.intent = extracted?.intent || prev.intent || null;
   return next;
 }
 
