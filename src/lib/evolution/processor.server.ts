@@ -101,6 +101,50 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
           }
         }
 
+        // Fallback seguro por fingerprint: a Evolution pode devolver o eco com
+        // um messageId diferente do retornado no envio. Nesse caso comparamos
+        // instância + telefone normalizado + janela curta + texto normalizado
+        // contra o FOLLOWUP_EVOLUTION_REQUEST anterior.
+        if (!aiMessage && outboundText) {
+          const { findEchoFingerprintMatch, ECHO_FINGERPRINT_WINDOW_MS } = await import("./echo-fingerprint");
+          const since = new Date(Date.now() - ECHO_FINGERPRINT_WINDOW_MS).toISOString();
+          const { data: outboundLogs } = await supabaseAdmin
+            .from("evo_webhook_logs")
+            .select("created_at, payload")
+            .eq("instance", msg.instance)
+            .eq("event", "FOLLOWUP_EVOLUTION_REQUEST")
+            .gte("created_at", since)
+            .order("created_at", { ascending: false })
+            .limit(20);
+
+          const echoMatch = findEchoFingerprintMatch({
+            outboundText,
+            phone: outboundIdentity.phone,
+            logs: (outboundLogs as any[]) || [],
+          });
+
+          if (echoMatch) {
+            aiMessage = { message_id: msg.messageId };
+            trace.record("AI_ECHO_CORRELATED_BY_FINGERPRINT", {
+              instance: msg.instance,
+              phoneLast4: outboundIdentity.phone.slice(-4),
+            });
+            await logEvent({
+              instance: msg.instance,
+              messageId: msg.messageId,
+              event: "AI_ECHO_CORRELATED_BY_FINGERPRINT",
+              status: "success",
+              payload: { traceId, conversationKey: outboundConversationKey },
+            });
+            await supabaseAdmin.from("ai_sent_messages").upsert({
+              instance: msg.instance,
+              message_id: msg.messageId,
+              phone: outboundIdentity.phone,
+              sent_at: new Date().toISOString(),
+            }, { onConflict: "instance,message_id" });
+          }
+        }
+
         if (aiMessage) {
           trace.record("MESSAGE_PROCESSING_ABORTED", { stage: "OUTBOUND_CHECK", reason: "ai_echo_ignored", traceId });
           trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "ai_echo_ignored" });
