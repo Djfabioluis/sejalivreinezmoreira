@@ -52,14 +52,54 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
       // 2. fromMe (mensagem enviada pelo próprio número) → diferenciar IA vs Humano
       if (isFromMe(msg.fromMe)) {
         trace.record("MESSAGE_PARSED", { direction: "OUTBOUND_ECHO" });
+        const outboundText = extractMessageText(msg.message)?.trim() || "";
+        const outboundIdentity = resolveCustomerIdentity(msg);
+        const outboundConversationKey = buildConversationKey(msg.instance, outboundIdentity.phone);
         
-        // Verifica se é eco da IA (Rápido via Index)
-        const { data: aiMessage } = await supabaseAdmin
-          .from("ai_sent_messages")
-          .select("message_id")
-          .eq("instance", msg.instance)
-          .eq("message_id", msg.messageId)
-          .maybeSingle();
+        // O webhook de eco pode chegar antes de sendEvolutionText persistir o ID.
+        // Faz uma segunda leitura curta e, por último, correlaciona o texto com a
+        // resposta assistant já salva na conversa para não confundir a Julia com humano.
+        let aiMessage: { message_id?: string } | null = null;
+        for (let attempt = 0; attempt < 2 && !aiMessage; attempt += 1) {
+          if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 500));
+          const { data } = await supabaseAdmin
+            .from("ai_sent_messages")
+            .select("message_id")
+            .eq("instance", msg.instance)
+            .eq("message_id", msg.messageId)
+            .maybeSingle();
+          aiMessage = data as { message_id?: string } | null;
+        }
+
+        if (!aiMessage && outboundText) {
+          const { data: outboundConversation } = await supabaseAdmin
+            .from("wa_conversas")
+            .select("messages")
+            .eq("phone", outboundConversationKey)
+            .maybeSingle();
+          const history = Array.isArray(outboundConversation?.messages)
+            ? outboundConversation.messages
+            : [];
+          const matchesRecentAssistant = history.slice(-6).some((item: any) => {
+            if (item?.role !== "assistant" || !Array.isArray(item.parts)) return false;
+            const savedText = item.parts
+              .filter((part: any) => part?.type === "text")
+              .map((part: any) => String(part.text || ""))
+              .join("\n")
+              .trim();
+            return savedText === outboundText;
+          });
+
+          if (matchesRecentAssistant) {
+            aiMessage = { message_id: msg.messageId };
+            await supabaseAdmin.from("ai_sent_messages").upsert({
+              instance: msg.instance,
+              message_id: msg.messageId,
+              phone: outboundIdentity.phone,
+              sent_at: new Date().toISOString(),
+            }, { onConflict: "instance,message_id" });
+          }
+        }
 
         if (aiMessage) {
           trace.record("MESSAGE_PROCESSING_ABORTED", { stage: "OUTBOUND_CHECK", reason: "ai_echo_ignored", traceId });
@@ -74,10 +114,17 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
           continue;
         }
 
+        // Eventos de sincronização/ack sem conteúdo não representam uma resposta humana.
+        if (!outboundText) {
+          trace.record("MESSAGE_PROCESSING_ABORTED", { stage: "OUTBOUND_CHECK", reason: "empty_outbound_event", traceId });
+          trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "empty_outbound_event" });
+          continue;
+        }
+
 
         // fromMe=true mas NÃO foi a IA -> HUMANO assumiu
-        const phone = normalizePhone(msg.remoteJid);
-        const conversationKey = buildConversationKey(msg.instance, msg.remoteJid);
+        const phone = outboundIdentity.phone;
+        const conversationKey = outboundConversationKey;
 
         trace.record("CONVERSATION_LOOKUP_STARTED", { conversationKey });
         const { error: updateError } = await supabaseAdmin

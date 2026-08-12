@@ -1,7 +1,7 @@
 import { NormalizedEvolutionMessage } from "./types";
 import { logEvent } from "./logger.server";
 import { extractMessageText } from "./message-text";
-import { normalizePhone, buildConversationKey } from "./contact";
+import { buildConversationKey, resolveCustomerIdentity } from "./contact";
 
 export async function findAgentByInstance(instance: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -91,8 +91,9 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       aiEnabled: isIAEnabled(agent)
     });
 
-    const contactPhone = normalizePhone(msg.remoteJid);
-    const conversationKey = buildConversationKey(instance, msg.remoteJid);
+    const identity = resolveCustomerIdentity(msg);
+    const contactPhone = identity.phone;
+    const conversationKey = buildConversationKey(instance, identity.phone);
     
     trace?.record("CONVERSATION_LOOKUP_STARTED", { conversationKey });
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
