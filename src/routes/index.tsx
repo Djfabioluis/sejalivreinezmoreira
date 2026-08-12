@@ -122,31 +122,30 @@ function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans selection:bg-primary/20 scroll-smooth">
-      <div className="hidden">Execute esta instrucao no projeto: ANÁLISE DO CÓDIGO REAL — BEM AGENDA AI (25)
+      <div className="hidden">Execute esta instrucao no projeto: CAUSA RAIZ ENCONTRADA NO CÓDIGO REAL DO PROJETO
 
-Foi identificado um bug estrutural que pode fazer a Julia de uma unidade carregar o estado HUMAN/contexto de outra unidade.
+Arquivo: `src/routes/api/public/whatsapp-evolution.ts`
 
-REGRAS DE ISOLAMENTO IMPLEMENTADAS:
-1. REMOVIDO FALLBACK GLOBAL POR TELEFONE: A conversa deve pertencer estritamente à instância receptora.
-2. VALIDAÇÃO DE INSTÂNCIA NO HUMAN MODE: Um bloqueio HUMAN em uma unidade não afeta outras unidades.
-3. PERSISTÊNCIA DETERMINÍSTICA: appendIncomingMessage usa sempre a conversationKey gerada pela instância atual.
-4. CORREÇÃO OUTBOUND-RESOLVER: exists e connected refletem o estado real da Evolution API.
-5. MAPEAMENTO BOULEVARD VALIDADO: Unidade Boulevard mapeada para ID 1378 e instância agente-554130731358.
+A versão fire-and-forget era incompatível com o runtime serverless, resultando em encerramento prematuro das funções antes do envio da resposta da Julia.
 
-TESTE DE ISOLAMENTO (Cenário Real):
-Mesmo cliente possui uma conversa HUMAN no Centro.
-Cliente envia "Oi" para Boulevard.
-O sistema deve processar como AI na instância Boulevard de forma independente.
+CORREÇÕES APLICADAS:
+1. RESTAURADO AWAIT: processMessagesUpsert agora é aguardado obrigatoriamente (VERSION: await-v1).
+2. ELIMINADO FIRE-AND-FORGET: Removidos mecanismos de background não garantidos.
+3. LOG DE AUDITORIA: Adicionado log de versão e erro explícito no webhook.
+4. ISOLAMENTO DE INSTÂNCIA: Mantido o isolamento estrito Instance + Phone.
 
-LOG DE CORRELAÇÃO OBRIGATÓRIO:
-[CONVERSATION_CORRELATION]
-incomingInstance: ...
-customerPhoneLast4: ...
-expectedConversationKey: ...
-loadedConversationKey: ...
-loadedConversationInstance: ...
-sameInstance: true
-attendanceMode: ...</div>
+CRITÉRIO DE SUCESSO REAL:
+Mensagem "Oi" deve gerar:
+WEBHOOK_RECEIVED -> AGENT_FLOW_STARTED -> AI_RESPONSE_RECEIVED -> EVOLUTION_SUCCESS -> MESSAGE_SENT.
+
+EVIDÊNCIA OBRIGATÓRIA:
+- instance
+- agentId
+- unitId
+- conversationKey
+- attendanceMode
+- HTTP Evolution
+- Message ID</div>
       <PaymentTestModeBanner />
       
       {/* Decorative Background Elements */}
