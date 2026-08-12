@@ -297,6 +297,7 @@ source: ${identity.identitySource}`);
 
 
       if (lockError || lockAcquired !== true) {
+        // Requisito 5: Se o lock falhar, marcar como erro e lançar exceção para retry
         await markEventFailed(msg.instance, finalMessageId, "conversation_locked_retry");
         trace.record("MESSAGE_PROCESSING_ABORTED", { 
           stage: "CONVERSATION_LOCK", 
@@ -305,7 +306,8 @@ source: ${identity.identitySource}`);
           error: lockError?.message
         });
         trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "lock_failed" });
-        continue;
+        
+        throw new Error(lockError?.message || `CONVERSATION_LOCK_NOT_ACQUIRED: ${conversationKey}`);
       }
 
 
@@ -378,7 +380,18 @@ source: ${identity.identitySource}`);
         }
 
 
-        await markEventProcessed(msg.instance, finalMessageId);
+        // Requisito 2: Só marcar como processado depois do envio com sucesso (feito dentro do replyToUser)
+        // await markEventProcessed(msg.instance, finalMessageId); 
+        // A função replyToUser agora lança erro se o envio falhar, então se chegamos aqui, 
+        // podemos marcar como processado caso a IA tenha sido ativa mas não tenha enviado (ex: bloqueio intencional)
+        // Mas o replyToUser já chama markResponseSent.
+        
+        // Se a IA estava ativa e não retornou erro, mas não chamou replyToUser por algum motivo (ex: human takeover)
+        // ainda precisamos marcar o evento como concluído.
+        if (isIAActive && !isHumanMode) {
+           await markEventProcessed(msg.instance, finalMessageId);
+        }
+        
         trace.record("TOTAL_PROCESSING_COMPLETED", { status: "success" });
 
       } catch (innerError: any) {
@@ -396,6 +409,8 @@ source: ${identity.identitySource}`);
       }
     } catch (error: any) {
       console.error("[evolution] Error processing message", msg.messageId, error);
+      // Propagar o erro para o orquestrador (Requisito 2)
+      throw error;
     }
   }
 }

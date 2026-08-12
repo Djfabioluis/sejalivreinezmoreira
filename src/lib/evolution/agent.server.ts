@@ -473,5 +473,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     trace?.record("TOTAL_PROCESSING_COMPLETED", { status: "success" });
   } catch (error: any) {
     trace?.record("TOTAL_PROCESSING_COMPLETED", { status: "error", error: error.message });
+    // Propagar o erro para o processor (Requisito 2)
+    throw error;
   }
 }

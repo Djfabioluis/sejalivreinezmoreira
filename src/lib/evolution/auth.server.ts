@@ -18,6 +18,8 @@ export async function authenticateWebhook(request: Request): Promise<{ authentic
   // A Evolution API pode enviar o segredo configurado no campo "Segredo" das configurações globais 
   // ou da instância. Geralmente ela envia no cabeçalho x-webhook-secret ou Authorization.
   
+  const requireSecret = process.env.EVOLUTION_REQUIRE_WEBHOOK_SECRET === "true";
+
   if (!config.webhookSecret) {
     // Se não há segredo configurado no banco/env, permitimos o tráfego 
     // com um aviso no log (Segurança Fail-Open para ambiente inicial).
@@ -25,6 +27,16 @@ export async function authenticateWebhook(request: Request): Promise<{ authentic
     return { authenticated: true };
   }
 
+  // Se o segredo está configurado mas não foi enviado
+  if (!providedSecret) {
+    if (requireSecret) {
+      logger.warn("WEBHOOK_AUTH_MISSING", "Segredo obrigatório não enviado", { url: request.url });
+      return { authenticated: false, error: "Unauthorized: Webhook secret required" };
+    }
+    // Compatibilidade: Avisar mas permitir se não for obrigatório (Requisito 7)
+    console.warn("[WEBHOOK_AUTH] Secret configured but not provided in request. Allowing for compatibility.");
+    return { authenticated: true };
+  }
 
   if (providedSecret !== config.webhookSecret) {
     await logEvent({
@@ -32,7 +44,7 @@ export async function authenticateWebhook(request: Request): Promise<{ authentic
       event: "webhook_authenticated",
       status: "unauthorized",
     });
-    return { authenticated: false, error: "Unauthorized" };
+    return { authenticated: false, error: "Unauthorized: Invalid secret" };
   }
 
   await logEvent({
