@@ -1,5 +1,7 @@
 /**
- * Execute esta instrucao no projeto: limpar cache
+ * Execute esta instrucao no projeto: Analise e corrija a integração entre a Evolution API, o webhook do projeto e a IA.
+ * 
+ * CONTEXTO CONFIRMADO: Evolution API 2.3.7, Instância agente-5541999102791.
  */
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useState } from "react";

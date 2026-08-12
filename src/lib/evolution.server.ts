@@ -192,7 +192,8 @@ export async function sendEvolutionText(
 ): Promise<{ success: boolean; data?: any }> {
   const { normalizeBrazilianPhone } = await import("./phone");
   const normalized = normalizeBrazilianPhone(to);
-  const number = normalized?.full || to.replace(/\D/g, "");
+  // Normalizar número removendo sufixos JID
+  const number = (normalized?.full || to).replace(/@s\.whatsapp\.net|@c\.us|@lid/g, "");
   const traceId = `out-${Math.random().toString(36).substring(7)}`;
   const startedAt = Date.now();
   
