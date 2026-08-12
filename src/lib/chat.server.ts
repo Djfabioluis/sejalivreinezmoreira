@@ -392,7 +392,7 @@ export async function streamAgent(opts: { messages: any[]; sandbox?: boolean }) 
     system: DEFAULT_SYSTEM_PROMPT + (opts.sandbox ? SANDBOX_NOTE : ""),
     messages: modelMessages,
     maxSteps: 5,
-  });
+  } as any);
 }
 
 export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: string }) {
@@ -428,7 +428,7 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
     messages: modelMessages,
     tools: buildTools(!!sandbox, effectiveUnitId, conversationKey, opts.messageId, bookingContext.subscriptionIntent),
     maxSteps: 5,
-  });
+  } as any);
 
   return {
     text: response.text,
