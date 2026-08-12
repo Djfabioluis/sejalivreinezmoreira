@@ -1,11 +1,9 @@
 import { normalizeEvolutionMessages } from "./message-normalizer";
-import { claimEvent, markEventProcessed, markEventFailed } from "./idempotency.server";
-import { appendIncomingMessage } from "./conversation.server";
+import { claimEvent } from "./idempotency.server";
+import { updateConversationMetadata } from "./conversation.server";
 import { runAgentFlow, findAgentByInstance, isIAEnabled } from "./agent.server";
 import { logEvent } from "./logger.server";
 import { extractMessageText } from "./message-text";
-import { normalizeIncomingMessage } from "./media-normalizer";
-import { mediaPlaceholderText } from "./media-pipeline.server";
 import { normalizePhone, buildConversationKey, normalizeContactName } from "./contact";
 import { logger } from "@/lib/observability/logger.server";
 import { PerformanceTrace } from "./performance.server";
@@ -142,8 +140,6 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
       const conversationKey = buildConversationKey(msg.instance, msg.remoteJid);
       trace.updateContext({ conversationId: conversationKey });
       
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
       // Otimização: Tentar resolver Agente ANTES do Lock para falhar rápido se não existir
       trace.record("INSTANCE_RESOLVED_STARTED");
       const agent = await findAgentByInstance(msg.instance);
