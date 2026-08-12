@@ -309,7 +309,46 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       service_id: bookingContext.serviceId ?? null,
       service_name: bookingContext.serviceName ?? null,
       subscriptionIntent: bookingContext.subscriptionIntent === true,
+      intent: bookingContext.intent ?? null,
     });
+
+    // REGRA DETERMINÍSTICA: BOULEVARD_HARMONIZATION_REFERRAL
+    const BOULEVARD_UNIT_ID = "1378";
+    if (String(agent.unidade_id) === BOULEVARD_UNIT_ID && bookingContext.intent === "harmonizacao_bumbum_barriga") {
+      const referralPhone = "(41) 99952-9624";
+      const referralText = "Esse procedimento é realizado pela clínica responsável parceira da nossa unidade. 💜 Para informações e agendamento sobre harmonização de bumbum ou barriga, você pode falar diretamente pelo número " + referralPhone + ".";
+      
+      trace?.record("BOULEVARD_HARMONIZATION_REFERRAL", { referralPhone });
+      
+      const { logEvent } = await import("./logger.server");
+      await logEvent({
+        instance,
+        messageId,
+        event: "BOULEVARD_HARMONIZATION_REFERRAL",
+        status: "success",
+        payload: {
+          customerPhone: contactPhone,
+          referralPhone,
+          intent: bookingContext.intent,
+          unitId: agent.unidade_id
+        }
+      });
+
+      const { replyToUser } = await import("./reply.server");
+      await replyToUser({
+        instance,
+        phone: contactPhone,
+        text: referralText,
+        conversationKey: finalKey,
+        messageId,
+        traceId,
+        unitId: agent.unidade_id,
+        _trace: trace
+      } as any);
+
+      trace?.record("TOTAL_PROCESSING_COMPLETED", { status: "success", reason: "boulevard_referral" });
+      return;
+    }
 
     const { runAgentWithLogging } = await import("@/lib/chat.server");
 
