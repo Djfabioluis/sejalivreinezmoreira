@@ -70,12 +70,19 @@ export async function checkInstanceStatus(instanceName: string): Promise<{ exist
     const { getConnectionState } = await import("../evolution.server");
     const state = await getConnectionState(instanceName);
     
+    // CORREÇÃO: Diferenciar status reais da Evolution
+    // getConnectionState retorna "desconectado" apenas quando a Evolution confirma ou em erro genérico.
+    // Se o estado for retornado pela API, a instância existe.
+    const exists = !!state && state !== "desconectado";
+    const connected = state === "conectado";
+
     return {
-      exists: state !== "desconectado" || true, // getConnectionState retorna "desconectado" para erros genéricos também
-      connected: state === "conectado",
+      exists,
+      connected,
       state
     };
   } catch (err) {
+    logger.error("EVOLUTION_STATUS_CHECK_FAILED", `Erro ao checar status da instância ${instanceName}`, { error: err.message });
     return { exists: false, connected: false };
   }
 }

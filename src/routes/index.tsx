@@ -122,281 +122,31 @@ function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground font-sans selection:bg-primary/20 scroll-smooth">
-      <div className="hidden">Execute esta instrucao no projeto: A JULIA AINDA ESTÁ IGNORANDO CLIENTES.
-
-NÃO ALTERAR:
-
-* Follow-up
-* CRM
-* BEMP
-* regras de assinatura
-* HUMAN takeover
-* layout
-* prompts de venda
-* agendamento
-
-PRIMEIRO DIAGNOSTICAR O FLUXO REAL.
-
-## 1. USAR UMA MENSAGEM REAL IGNORADA
-
-Pegar uma mensagem real enviada pelo WhatsApp que NÃO recebeu resposta.
-
-Usar o `messageId` real dessa mensagem.
-
-Gerar um `traceId` e acompanhar exatamente este evento.
-
-Registrar:
-
-* WHATSAPP_WEBHOOK_RECEIVED
-* MESSAGE_PARSED
-* INBOUND_INSTANCE_RESOLVED
-* CONVERSATION_RESOLVED
-* CONVERSATION_MODE_CHECKED
-* AGENT_RESOLVED
-* AI_REQUEST_STARTED
-* AI_RESPONSE_RECEIVED
-* OUTBOUND_INSTANCE_RESOLVED
-* EVOLUTION_REQUEST_STARTED
-* EVOLUTION_RESPONSE_RECEIVED
-* MESSAGE_SENT
-
-Informar obrigatoriamente:
-
-**LAST_CHECKPOINT = ...**
-
-Não usar teste simulado como prova.
-
-## 2. TODA INTERRUPÇÃO DEVE TER MOTIVO
-
-Hoje a mensagem está sendo ignorada silenciosamente.
-
-Eliminar qualquer fluxo que faça:
-
-`return`
-`return null`
-`return false`
-`return undefined`
-
-sem registrar motivo.
-
-Criar:
-
-`MESSAGE_PROCESSING_ABORTED`
-
-com:
-
-* stage
-* reason
-* traceId
-* conversationId
-* instanceId
-* phoneLast4
-
-## 3. VERIFICAR HUMAN SOMENTE NA CONVERSA ATUAL
-
-Mostrar para a mensagem ignorada:
-
-* conversationId
-* attendance_mode
-* human_takeover_detected
-* ai_paused_at
-* ai_pause_reason
-
-Se `attendance_mode = AI`, a Julia DEVE continuar.
-
-Outra conversa em HUMAN não pode bloquear esta.
-
-## 4. VERIFICAR LOCKS
-
-Pesquisar por:
-
-* processingLock
-* conversationLock
-* instanceLock
-* agentLock
-* unitLock
-* messageProcessing
-* isProcessing
-* mutex
-
-Verificar se algum lock ficou preso.
-
-Locks devem ser no máximo por `conversationId`.
-
-NUNCA bloquear toda:
-
-* instância
-* unidade
-* agente
-
-Adicionar:
-
-`LOCK_ACQUIRED`
-`LOCK_RELEASED`
-`LOCK_TIMEOUT`
-
-Se lock ficar preso, liberar automaticamente após timeout seguro.
-
-## 5. VERIFICAR DEDUPLICAÇÃO
-
-Pesquisar lógica de:
-
-* duplicate
-* alreadyProcessed
-* processedMessageIds
-* idempotency
-
-Confirmar se mensagens NOVAS estão sendo classificadas erroneamente como duplicadas.
-
-Registrar:
-
-`MESSAGE_DUPLICATE_CHECK`
-
-com:
-
-* inboundMessageId
-* duplicate=true/false
-* source
-
-Nunca descartar uma mensagem nova sem evidência.
-
-## 6. VERIFICAR FILTROS DO WEBHOOK
-
-Auditar filtros de:
-
-* fromMe
-* isGroup
-* broadcast
-* status@broadcast
-* unsupportedType
-* emptyMessage
-* participant
-* remoteJid
-* @lid
-* @s.whatsapp.net
-
-Para toda mensagem descartada registrar:
-
-`MESSAGE_IGNORED`
-
-e:
-
-`reason`
-
-## 7. VERIFICAR FILA
-
-Mostrar:
-
-* queueLength
-* processingCount
-* oldestJobAge
-* failedCount
-
-Se mensagens estiverem esperando em fila, identificar por quê.
-
-Uma conversa lenta não pode bloquear outras.
-
-## 8. MEDIR TEMPO DE CADA ETAPA
-
-Para cada mensagem:
-
-* webhook_ms
-* db_ms
-* context_ms
-* ai_ms
-* evolution_ms
-* total_ms
-
-Adicionar alerta:
-
-`SLOW_MESSAGE_PROCESSING`
-
-quando exceder o limite operacional.
-
-## 9. PROVIDER DA IA
-
-Executar teste direto:
-
-"Responda apenas OK"
-
-pela mesma função usada em produção.
-
-Mostrar:
-
-* provider
-* model
-* HTTP status
-* duration_ms
-
-Se responder OK, NÃO alterar Gemini.
-
-## 10. EVOLUTION
-
-Se houver `AI_RESPONSE_RECEIVED`, mas cliente não receber:
-
-mostrar:
-
-* incomingInstance
-* outboundInstance
-* endpoint
-* HTTP status
-* response body
-* messageId
-
-## 11. REGRA DE INSTÂNCIA
-
-Se cliente não pediu mudança de unidade:
-
-`outboundInstance = inboundInstance`
-
-Se houver divergência, registrar:
-
-`INSTANCE_MISMATCH`
-
-Não deixar silencioso.
-
-## 12. TESTE DE 10 MENSAGENS
-
-Executar 10 mensagens reais em pelo menos 3 conversas diferentes.
-
-Para cada uma mostrar:
-
-* Trace ID
-* Conversation ID
-* Last Checkpoint
-* Mode
-* AI duration
-* Evolution duration
-* Total duration
-* Message ID
-* Status final
-
-## 13. CRITÉRIO FINAL
-
-A correção só está concluída quando:
-
-1. nenhuma mensagem desaparece silenciosamente;
-2. toda mensagem tem último checkpoint;
-3. toda interrupção tem motivo;
-4. mensagens AI chegam até MESSAGE_SENT;
-5. conversations HUMAN continuam silenciosas;
-6. clientes diferentes não se bloqueiam;
-7. Evolution retorna Message ID válido quando o envio ocorre.
-
-AO FINAL INFORMAR:
-
-* causa raiz;
-* último checkpoint das mensagens ignoradas;
-* existência de lock preso;
-* existência de deduplicação incorreta;
-* existência de filtro incorreto;
-* queueLength;
-* p95 de resposta;
-* arquivo corrigido;
-* resultado das 10 mensagens reais.
-
-NÃO RESPONDER APENAS "CORRIGIDO".
-MOSTRAR EVIDÊNCIAS REAIS.</div>
+      <div className="hidden">Execute esta instrucao no projeto: ANÁLISE DO CÓDIGO REAL — BEM AGENDA AI (25)
+
+Foi identificado um bug estrutural que pode fazer a Julia de uma unidade carregar o estado HUMAN/contexto de outra unidade.
+
+REGRAS DE ISOLAMENTO IMPLEMENTADAS:
+1. REMOVIDO FALLBACK GLOBAL POR TELEFONE: A conversa deve pertencer estritamente à instância receptora.
+2. VALIDAÇÃO DE INSTÂNCIA NO HUMAN MODE: Um bloqueio HUMAN em uma unidade não afeta outras unidades.
+3. PERSISTÊNCIA DETERMINÍSTICA: appendIncomingMessage usa sempre a conversationKey gerada pela instância atual.
+4. CORREÇÃO OUTBOUND-RESOLVER: exists e connected refletem o estado real da Evolution API.
+5. MAPEAMENTO BOULEVARD VALIDADO: Unidade Boulevard mapeada para ID 1378 e instância agente-554130731358.
+
+TESTE DE ISOLAMENTO (Cenário Real):
+Mesmo cliente possui uma conversa HUMAN no Centro.
+Cliente envia "Oi" para Boulevard.
+O sistema deve processar como AI na instância Boulevard de forma independente.
+
+LOG DE CORRELAÇÃO OBRIGATÓRIO:
+[CONVERSATION_CORRELATION]
+incomingInstance: ...
+customerPhoneLast4: ...
+expectedConversationKey: ...
+loadedConversationKey: ...
+loadedConversationInstance: ...
+sameInstance: true
+attendanceMode: ...</div>
       <PaymentTestModeBanner />
       
       {/* Decorative Background Elements */}
