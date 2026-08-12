@@ -34,28 +34,31 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           payload: { traceId, event: eventData.event }
         });
         
-        logger.info("WEBHOOK_ENTRY", `Entrada de webhook Evolution [${traceId}]`, { 
+        logger.info("WEBHOOK_ENTRY", `Entrada de webhook Evolution [${traceId}] [VERSION: await-v1]`, { 
           instance: eventData.instance, 
-          event: eventData.event 
+          event: eventData.event,
+          processorVersion: "await-v1"
         });
  
-        // 4. Delegação assíncrona para o Processor (NON-BLOCKING)
+        // 4. Delegação assíncrona (AWAIT OBRIGATÓRIO PARA SERVERLESS)
         if (eventData.event === "connection.update") {
-          processConnectionUpdate(payload).catch(err => 
+          await processConnectionUpdate(payload).catch(err => 
             logger.error("ASYNC_CONNECTION_UPDATE_ERROR", err.message, { traceId })
           );
         } else if (eventData.event === "messages.upsert") {
           (payload as any)._traceId = traceId;
-          processMessagesUpsert(payload, request.url).catch(err => {
-            logger.error("ASYNC_MESSAGE_PROCESS_ERROR", err.message, { traceId });
-            logger.audit("MESSAGE_PROCESSING_ABORTED", "Erro catastrófico no processamento assíncrono", {
-              stage: "ASYNC_PROCESSOR",
+          try {
+            await processMessagesUpsert(payload, request.url);
+          } catch (err: any) {
+            logger.error("MESSAGE_PROCESS_ERROR", err.message, { traceId });
+            logger.audit("MESSAGE_PROCESSING_ABORTED", "Erro no processamento da mensagem", {
+              stage: "PROCESSOR",
               traceId,
               error: err.message
             });
-          });
+          }
         } else if (eventData.event === "messages.ack") {
-          processMessageAck(payload).catch(err => 
+          await processMessageAck(payload).catch(err => 
             logger.error("ASYNC_ACK_PROCESS_ERROR", err.message, { traceId })
           );
         } else {
