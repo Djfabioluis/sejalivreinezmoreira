@@ -261,9 +261,15 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
 
     if (!text) {
+      trace?.record("MESSAGE_PROCESSING_ABORTED", { 
+        stage: "FINAL_TEXT_CHECK", 
+        reason: "no_text_to_process",
+        traceId
+      });
       trace?.record("TOTAL_PROCESSING_COMPLETED", { reason: "empty_text" });
       return;
     }
+
 
     const { normalizeConversationHistory } = await import("./history");
     const history = normalizeConversationHistory(
