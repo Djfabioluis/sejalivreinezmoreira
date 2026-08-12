@@ -137,20 +137,39 @@ export async function replyToUser(params: {
     trace?.record("MESSAGE_SENT", { sentMessageId });
 
     // 10. PERSISTÊNCIA DA RESPOSTA (Atomicamente via RPC)
+    // A mensagem JÁ foi confirmada pela Evolution: uma falha aqui NUNCA pode
+    // lançar erro (isso provocaria reenvio duplicado). Apenas registramos.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.rpc("append_wa_message" as any, {
-      p_phone: params.conversationKey,
-      p_message: { 
-        id: `${params.instance}:${params.messageId}:assistant`, 
-        role: "assistant", 
-        parts: [{ type: "text", text: params.text }] 
-      },
-      p_instance: params.instance,
-      p_phone_number: params.phone,
-      p_increment_unread: false,
-      p_new_status: "aberta",
-      p_customer_context: null
-    });
+    try {
+      const { error } = await supabaseAdmin.rpc("append_wa_message" as any, {
+        p_phone: params.conversationKey,
+        p_message: { 
+          id: `${params.instance}:${params.messageId}:assistant`, 
+          role: "assistant", 
+          parts: [{ type: "text", text: params.text }] 
+        },
+        p_instance: params.instance,
+        p_phone_number: params.phone,
+        p_increment_unread: false,
+        p_new_status: "aberta",
+        p_customer_context: null
+      });
+      if (error) throw new Error(error.message);
+    } catch (persistError: any) {
+      trace?.record("AI_REPLY_HISTORY_PERSISTENCE_FAILED", {
+        traceId,
+        conversationId: params.conversationKey,
+        error: persistError?.message,
+      });
+      await logEvent({
+        instance: params.instance,
+        messageId: sentMessageId,
+        event: "AI_REPLY_HISTORY_PERSISTENCE_FAILED",
+        status: "error",
+        errorDetail: persistError?.message,
+        payload: { traceId, conversationKey: params.conversationKey },
+      }).catch(() => {});
+    }
 
     if (params.messageId) {
       const { markResponseSent } = await import("./idempotency.server");

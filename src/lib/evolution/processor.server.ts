@@ -101,6 +101,50 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
           }
         }
 
+        // Fallback seguro por fingerprint: a Evolution pode devolver o eco com
+        // um messageId diferente do retornado no envio. Nesse caso comparamos
+        // instância + telefone normalizado + janela curta + texto normalizado
+        // contra o FOLLOWUP_EVOLUTION_REQUEST anterior.
+        if (!aiMessage && outboundText) {
+          const { findEchoFingerprintMatch, ECHO_FINGERPRINT_WINDOW_MS } = await import("./echo-fingerprint");
+          const since = new Date(Date.now() - ECHO_FINGERPRINT_WINDOW_MS).toISOString();
+          const { data: outboundLogs } = await supabaseAdmin
+            .from("evo_webhook_logs")
+            .select("created_at, payload")
+            .eq("instance", msg.instance)
+            .eq("event", "FOLLOWUP_EVOLUTION_REQUEST")
+            .gte("created_at", since)
+            .order("created_at", { ascending: false })
+            .limit(20);
+
+          const echoMatch = findEchoFingerprintMatch({
+            outboundText,
+            phone: outboundIdentity.phone,
+            logs: (outboundLogs as any[]) || [],
+          });
+
+          if (echoMatch) {
+            aiMessage = { message_id: msg.messageId };
+            trace.record("AI_ECHO_CORRELATED_BY_FINGERPRINT", {
+              instance: msg.instance,
+              phoneLast4: outboundIdentity.phone.slice(-4),
+            });
+            await logEvent({
+              instance: msg.instance,
+              messageId: msg.messageId,
+              event: "AI_ECHO_CORRELATED_BY_FINGERPRINT",
+              status: "success",
+              payload: { traceId, conversationKey: outboundConversationKey },
+            });
+            await supabaseAdmin.from("ai_sent_messages").upsert({
+              instance: msg.instance,
+              message_id: msg.messageId,
+              phone: outboundIdentity.phone,
+              sent_at: new Date().toISOString(),
+            }, { onConflict: "instance,message_id" });
+          }
+        }
+
         if (aiMessage) {
           trace.record("MESSAGE_PROCESSING_ABORTED", { stage: "OUTBOUND_CHECK", reason: "ai_echo_ignored", traceId });
           trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "ai_echo_ignored" });
@@ -368,7 +412,14 @@ source: ${identity.identitySource}`);
         if (isIAActive && agentText) {
           trace.record("AI_STARTED", { traceId });
           await runAgentFlow(
-            { ...msg, messageId: finalMessageId, _trace: trace } as any, 
+            {
+              ...msg,
+              messageId: finalMessageId,
+              _trace: trace,
+              // Identidade já resolvida (inclusive @lid): a IA deve usar SEMPRE estes valores.
+              _resolvedPhone: phone,
+              _conversationKey: conversationKey,
+            } as any,
             agentText
           );
           trace.record("AI_COMPLETED", { traceId });
@@ -383,19 +434,12 @@ source: ${identity.identitySource}`);
         }
 
 
-        // Requisito 2: Só marcar como processado depois do envio com sucesso (feito dentro do replyToUser)
-        // await markEventProcessed(msg.instance, finalMessageId); 
-        // A função replyToUser agora lança erro se o envio falhar, então se chegamos aqui, 
-        // podemos marcar como processado caso a IA tenha sido ativa mas não tenha enviado (ex: bloqueio intencional)
-        // Mas o replyToUser já chama markResponseSent.
+        // Todo evento tratado com sucesso é finalizado como processed —
+        // inclusive quando a IA está pausada (modo humano) ou não há texto —
+        // para nunca deixar eventos presos em PROCESSING.
+        await markEventProcessed(msg.instance, finalMessageId);
         
-        // Se a IA estava ativa e não retornou erro, mas não chamou replyToUser por algum motivo (ex: human takeover)
-        // ainda precisamos marcar o evento como concluído.
-        if (isIAActive && !isHumanMode) {
-           await markEventProcessed(msg.instance, finalMessageId);
-        }
-        
-        trace.record("TOTAL_PROCESSING_COMPLETED", { status: "success" });
+        trace.record("TOTAL_PROCESSING_COMPLETED", { status: "success", humanMode: isHumanMode });
 
       } catch (innerError: any) {
         trace.record("TOTAL_PROCESSING_COMPLETED", { status: "error", error: innerError.message });
