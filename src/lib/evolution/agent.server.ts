@@ -571,11 +571,17 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     }
 
 
+    // Proteção contra perguntas duplicadas
+    const { text: cleanReply, blocked: questionBlocked } = ensureNoDuplicateBookingQuestion(replyText, bookingContext);
+    if (questionBlocked) {
+      trace?.record("DUPLICATE_BOOKING_QUESTION_BLOCKED");
+    }
+
     const { replyToUser } = await import("./reply.server");
     await replyToUser({
       instance,
       phone: contactPhone,
-      text: replyText,
+      text: cleanReply,
       conversationKey: finalKey,
       messageId,
       traceId,
