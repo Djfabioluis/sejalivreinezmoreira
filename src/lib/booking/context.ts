@@ -19,6 +19,15 @@ export interface BookingContext {
   subscriptionIntent?: boolean;
   conversationGreeted?: boolean;
   intent?: string | null;
+
+  // Lifecycle fields
+  selectedSlot?: string | null;
+  selectedSlotEnd?: string | null;
+  awaitingConfirmation?: boolean;
+  customerConfirmed?: boolean;
+  appointmentId?: string | null;
+  appointmentStatus?: "NONE" | "AWAITING_CONFIRMATION" | "CREATING" | "CONFIRMED" | "FAILED";
+  availableSlots?: string[];
 }
 
 export type BookingSlot =
@@ -29,7 +38,9 @@ export type BookingSlot =
   | "time"
   | "professional"
   | "availability"
-  | "confirmation";
+  | "confirmation"
+  | "create_appointment"
+  | "completed";
 
 /* ------------------------------------------------------------------ */
 /* Subscription intent                                                 */
@@ -222,12 +233,13 @@ export function knownSlots(ctx: BookingContext): Record<string, string> {
 }
 
 export function nextRequiredSlot(ctx: BookingContext): BookingSlot {
-  const known = knownSlots(ctx);
-  if (!known["unit"]) return "unit";
-  if (!known["service"]) return "service";
-  if (!known["date"]) return "date";
-  if (!known["time"]) return "time";
-  return "confirmation";
+  if (!ctx.unitId) return "unit";
+  if (!ctx.serviceId && !ctx.serviceName) return "service";
+  if (!ctx.date) return "date";
+  if (!ctx.selectedSlot && !ctx.time) return "availability";
+  if (ctx.appointmentStatus === "CONFIRMED") return "completed";
+  if (!ctx.customerConfirmed) return "confirmation";
+  return "create_appointment";
 }
 
 /** Bloco textual injetado no prompt com o estado determinístico da conversa. */
@@ -240,6 +252,8 @@ export function buildBookingContextBlock(ctx: BookingContext): string {
   lines.push(`- Data: ${known["date"] ?? "UNKNOWN"}`);
   lines.push(`- Período: ${known["period"] ?? "UNKNOWN"}`);
   lines.push(`- Horário: ${known["time"] ?? "UNKNOWN"}`);
+  lines.push(`- Horário Selecionado: ${ctx.selectedSlot ?? "NONE"}`);
+  lines.push(`- Status do Agendamento: ${ctx.appointmentStatus ?? "NONE"}`);
   lines.push(`- Profissional: ${known["professional"] ?? "UNKNOWN"}`);
   lines.push(`- Intenção de assinatura/plano declarada pelo cliente: ${ctx.subscriptionIntent === true ? "SIM" : "NÃO"}`);
   lines.push(`- Cliente já foi saudado nesta conversa: ${ctx.conversationGreeted === true ? "SIM" : "NÃO"}`);
@@ -311,4 +325,35 @@ const AFFIRMATIVE = /^(isso|isso\s*mesmo|sim|s|certo|correto|exatamente|exato|ok
 export function isShortAffirmative(text: string | null | undefined): boolean {
   if (!text) return false;
   return AFFIRMATIVE.test(text.trim());
+}
+
+/* ------------------------------------------------------------------ */
+/* Proteção de duplicidade                                             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Bloqueia perguntas que a IA faz sobre dados que já existem no contexto.
+ */
+export function ensureNoDuplicateBookingQuestion(text: string, ctx: BookingContext): { text: string; blocked: boolean } {
+  const t = text.toLowerCase();
+  
+  if (ctx.serviceId || ctx.serviceName) {
+    if (t.includes("qual serviço") || t.includes("que serviço") || t.includes("qual o procedimento")) {
+      return { text: fallbackQuestionFor(ctx), blocked: true };
+    }
+  }
+  
+  if (ctx.date) {
+    if (t.includes("qual dia") || t.includes("qual data") || t.includes("que dia")) {
+      return { text: fallbackQuestionFor(ctx), blocked: true };
+    }
+  }
+  
+  if (ctx.selectedSlot || ctx.time) {
+    if (t.includes("qual horário") || t.includes("que horas") || t.includes("qual hora")) {
+      return { text: fallbackQuestionFor(ctx), blocked: true };
+    }
+  }
+
+  return { text, blocked: false };
 }

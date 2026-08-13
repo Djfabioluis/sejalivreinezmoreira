@@ -84,16 +84,13 @@ async function processSlotOpportunity(opp: any) {
     // Registrar no chat
     await supabaseAdmin.rpc("append_wa_message", {
       p_phone: bestCandidate.phone,
-      p_message: {
+      p_new_message: {
         id: `rev-${Date.now()}`,
         role: 'assistant',
         parts: [{ type: 'text', text: message }],
         createdAt: new Date().toISOString(),
         metadata: { opportunity_id: opp.id }
       },
-      p_instance: (conv as any).instance,
-      p_phone_number: (conv as any).phone_number,
-      p_increment_unread: false
     });
   }
 }

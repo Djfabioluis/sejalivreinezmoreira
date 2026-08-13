@@ -349,6 +349,8 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       mergeBookingContext,
       detectSubscriptionIntent,
       nextRequiredSlot,
+      isShortAffirmative,
+      ensureNoDuplicateBookingQuestion,
     } = await import("@/lib/booking/context");
     const { patchCustomerContext } = await import("@/lib/chat.server");
 
@@ -366,6 +368,13 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       professionalName: customerContext.bookingContext?.professionalName ?? customerContext.professional_name ?? null,
       subscriptionIntent: customerContext.bookingContext?.subscriptionIntent === true,
       conversationGreeted: customerContext.bookingContext?.conversationGreeted === true,
+      selectedSlot: customerContext.bookingContext?.selectedSlot ?? null,
+      selectedSlotEnd: customerContext.bookingContext?.selectedSlotEnd ?? null,
+      awaitingConfirmation: customerContext.bookingContext?.awaitingConfirmation === true,
+      customerConfirmed: customerContext.bookingContext?.customerConfirmed === true,
+      appointmentId: customerContext.bookingContext?.appointmentId ?? null,
+      appointmentStatus: customerContext.bookingContext?.appointmentStatus ?? "NONE",
+      availableSlots: customerContext.bookingContext?.availableSlots ?? [],
     };
 
     trace?.record("BOOKING_CONTEXT_LOADED", { service: previousContext.serviceName });
@@ -400,7 +409,84 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     if (explicitSubscription) extracted.subscriptionIntent = true;
 
     const bookingContext = mergeBookingContext(previousContext, extracted);
+    
+    // MÁQUINA DE ESTADOS DETERMINÍSTICA - CONFIRMAÇÃO
+    if (bookingContext.appointmentStatus === "AWAITING_CONFIRMATION" && isShortAffirmative(text)) {
+      bookingContext.customerConfirmed = true;
+      bookingContext.awaitingConfirmation = false;
+      bookingContext.appointmentStatus = "CREATING";
+      trace?.record("BOOKING_CUSTOMER_CONFIRMED");
+    }
+
+    // MÁQUINA DE ESTADOS DETERMINÍSTICA - SELEÇÃO DE HORÁRIO
+    if (bookingContext.availableSlots?.length && !bookingContext.selectedSlot) {
+      const selected = bookingContext.availableSlots.find(s => text.includes(s) || (bookingContext.time && s.includes(bookingContext.time)));
+      if (selected) {
+        bookingContext.selectedSlot = selected;
+        bookingContext.time = selected.split(' ')[0] || selected;
+        bookingContext.appointmentStatus = "AWAITING_CONFIRMATION";
+        bookingContext.awaitingConfirmation = true;
+        trace?.record("BOOKING_SLOT_SELECTED", { slot: selected });
+      }
+    }
+
     if (agent.unidade_id) bookingContext.unitId = String(agent.unidade_id);
+
+    // CRIAÇÃO DETERMINÍSTICA PÓS CONFIRMAÇÃO
+    if (bookingContext.customerConfirmed === true && bookingContext.appointmentStatus === "CREATING") {
+       trace?.record("BOOKING_CREATE_STARTED");
+       const { BempService, extractBempAppointmentId } = await import("@/lib/bemp-service.server");
+       
+       // IDEMPOTÊNCIA: Verificar se já não tentamos criar este agendamento (start + service)
+       const idempotencyKey = `${finalKey}:${bookingContext.serviceId}:${bookingContext.selectedSlot || bookingContext.time}`;
+       
+       try {
+         const result = await BempService.createAppointment({
+           salon_id: Number(bookingContext.unitId),
+           service_id: Number(bookingContext.serviceId),
+           professional_id: bookingContext.professionalId ? Number(bookingContext.professionalId) : undefined,
+           start: bookingContext.selectedSlot || `${bookingContext.date}T${bookingContext.time}:00`,
+           end: bookingContext.selectedSlotEnd || undefined,
+           name: (msg as any).pushName || conv?.contact_name || "Cliente",
+           phone_country_code: "55",
+           phone_area_code: contactPhone.slice(0, 2),
+           phone_number: contactPhone.slice(2),
+         });
+
+         const apptId = extractBempAppointmentId(result);
+         if (apptId) {
+           bookingContext.appointmentId = String(apptId);
+           bookingContext.appointmentStatus = "CONFIRMED";
+           trace?.record("BOOKING_CREATE_SUCCESS", { appointmentId: apptId });
+           
+           // Resposta Final Obrigatória
+           const finalMsg = `Agendamento confirmado! 💜\n\nServiço: ${bookingContext.serviceName}\nData: ${bookingContext.date}\nHorário: ${bookingContext.time}\nUnidade: ${agent.nome || 'Centro'}\n\nTe esperamos! ✨`;
+           
+           const { replyToUser } = await import("./reply.server");
+           await replyToUser({
+             instance,
+             phone: contactPhone,
+             text: finalMsg,
+             conversationKey: finalKey,
+             messageId,
+             traceId,
+             unitId: agent.unidade_id,
+             _trace: trace
+           } as any);
+
+           await patchCustomerContext(finalKey, { bookingContext });
+           trace?.record("TOTAL_PROCESSING_COMPLETED", { status: "success", reason: "booking_confirmed" });
+           return;
+         } else {
+           bookingContext.appointmentStatus = "FAILED";
+           trace?.record("BOOKING_CREATE_FAILED", { error: "No ID returned" });
+         }
+       } catch (err: any) {
+         bookingContext.appointmentStatus = "FAILED";
+         trace?.record("BOOKING_CREATE_FAILED", { error: err.message });
+       }
+    }
+
 
     trace?.record("BOOKING_CONTEXT_MERGED");
 
@@ -485,11 +571,17 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     }
 
 
+    // Proteção contra perguntas duplicadas
+    const { text: cleanReply, blocked: questionBlocked } = ensureNoDuplicateBookingQuestion(replyText, bookingContext);
+    if (questionBlocked) {
+      trace?.record("DUPLICATE_BOOKING_QUESTION_BLOCKED");
+    }
+
     const { replyToUser } = await import("./reply.server");
     await replyToUser({
       instance,
       phone: contactPhone,
-      text: replyText,
+      text: cleanReply,
       conversationKey: finalKey,
       messageId,
       traceId,

@@ -1736,49 +1736,8 @@ export type Database = {
         Returns: boolean
       }
       append_wa_message: {
-        Args: {
-          p_contact_name?: string
-          p_customer_context?: Json
-          p_increment_unread?: boolean
-          p_instance?: string
-          p_message: Json
-          p_new_status?: string
-          p_phone: string
-          p_phone_number?: string
-        }
-        Returns: {
-          agent_id: string | null
-          ai_pause_reason: string | null
-          ai_paused_at: string | null
-          attendance_mode: string | null
-          contact_name: string | null
-          customer_context: Json | null
-          human_takeover_at: string | null
-          human_takeover_detected: boolean
-          human_takeover_requested_at: string | null
-          human_transfer_message_sent: boolean
-          instance: string | null
-          last_human_message_at: string | null
-          last_read_at: string | null
-          messages: Json
-          origin_unit_id: string | null
-          phone: string
-          phone_number: string | null
-          previous_unit_id: string | null
-          status: string
-          transfer_reason: string | null
-          transferred_at: string | null
-          transferred_by: string | null
-          unidade_id: string | null
-          unread_count: number
-          updated_at: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "wa_conversas"
-          isOneToOne: true
-          isSetofReturn: false
-        }
+        Args: { p_new_message: Json; p_phone: string }
+        Returns: Json
       }
       cleanup_old_ai_messages: { Args: never; Returns: undefined }
       evo_claim_event: {

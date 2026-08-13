@@ -330,7 +330,7 @@ function buildTools(
         safeToolLocal("list_professionals", async () => BempService.listProfessionals(salon_id, service_id)),
     }),
     list_slots: tool({
-      description: "Lista horários disponíveis.",
+      description: "Lista horários disponíveis. Após obter horários, informe-os ao cliente para que ele escolha um.",
       inputSchema: z.object({
         salon_id: z.number(),
         service_id: z.number(),
@@ -338,15 +338,27 @@ function buildTools(
         professional_id: z.number().optional()
       }),
       execute: async (input) =>
-        safeToolLocal("list_slots", async () => BempService.listAvailableSlots({
-          salonId: input.salon_id,
-          serviceId: input.service_id,
-          date: input.date,
-          professionalId: input.professional_id
-        })),
+        safeToolLocal("list_slots", async () => {
+          const slots = await BempService.listAvailableSlots({
+            salonId: input.salon_id,
+            serviceId: input.service_id,
+            date: input.date,
+            professionalId: input.professional_id
+          });
+          
+          // Salvar slots oferecidos no contexto
+          if (Array.isArray(slots) && conversationKey) {
+            const times = slots.map((s: any) => s.start.split('T')[1].substring(0, 5));
+            await patchCustomerContext(conversationKey, {
+              'bookingContext.availableSlots': times
+            });
+          }
+          
+          return slots;
+        }),
     }),
     create_appointment: tool({
-      description: "Cria um agendamento na Bemp.",
+      description: "Cria o agendamento real na Bemp somente após confirmação explícita do cliente. Se o bookingContext já estiver confirmado, execute a criação e nunca volte a perguntar serviço, data ou horário.",
       inputSchema: z.object({
         salon_id: z.number(),
         service_id: z.number(),
