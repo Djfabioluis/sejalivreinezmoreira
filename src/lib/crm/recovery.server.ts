@@ -218,16 +218,12 @@ async function sendRecoveryMessage(phone: string, text: string, conv: any, reaso
     // Append to chat
     await supabaseAdmin.rpc("append_wa_message", {
       p_phone: phone,
-      p_message: {
+      p_new_message: {
         id: messageId || `rec-${Date.now()}`,
         role: 'assistant',
         parts: [{ type: 'text', text }],
         createdAt: new Date().toISOString()
       },
-      p_instance: conv.instance,
-      p_phone_number: conv.phone_number,
-      p_increment_unread: false,
-      p_new_status: "aguardando"
     });
 
     // Update pipeline to bring them back to life
