@@ -23,9 +23,7 @@
  * - Testes unitários em `src/lib/booking/tests/lifecycle.test.ts` validados com sucesso.
  * - Build e Typecheck concluídos.
  */
- * 
- * CONTEXTO CONFIRMADO: Evolution API 2.3.7, Instância agente-5541999102791.
- */
+// CONTEXTO CONFIRMADO: Evolution API 2.3.7, Instância agente-5541999102791.
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
