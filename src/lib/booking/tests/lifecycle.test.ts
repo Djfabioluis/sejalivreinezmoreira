@@ -57,6 +57,6 @@ describe("Booking Context Lifecycle", () => {
     const question = "Qual serviço você deseja e qual o dia?";
     const { text, blocked } = ensureNoDuplicateBookingQuestion(question, ctx);
     expect(blocked).toBe(true);
-    expect(text).toContain("horários disponíveis"); // Fallback
+    expect(text).toContain("agendamento"); // Fallback "confirmation" status because service/date are set
   });
 });
