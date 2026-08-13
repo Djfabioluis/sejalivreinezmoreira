@@ -326,3 +326,34 @@ export function isShortAffirmative(text: string | null | undefined): boolean {
   if (!text) return false;
   return AFFIRMATIVE.test(text.trim());
 }
+
+/* ------------------------------------------------------------------ */
+/* Proteção de duplicidade                                             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Bloqueia perguntas que a IA faz sobre dados que já existem no contexto.
+ */
+export function ensureNoDuplicateBookingQuestion(text: string, ctx: BookingContext): { text: string; blocked: boolean } {
+  const t = text.toLowerCase();
+  
+  if (ctx.serviceId || ctx.serviceName) {
+    if (t.includes("qual serviço") || t.includes("que serviço") || t.includes("qual o procedimento")) {
+      return { text: fallbackQuestionFor(ctx), blocked: true };
+    }
+  }
+  
+  if (ctx.date) {
+    if (t.includes("qual dia") || t.includes("qual data") || t.includes("que dia")) {
+      return { text: fallbackQuestionFor(ctx), blocked: true };
+    }
+  }
+  
+  if (ctx.selectedSlot || ctx.time) {
+    if (t.includes("qual horário") || t.includes("que horas") || t.includes("qual hora")) {
+      return { text: fallbackQuestionFor(ctx), blocked: true };
+    }
+  }
+
+  return { text, blocked: false };
+}
