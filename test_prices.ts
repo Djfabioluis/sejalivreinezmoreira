@@ -13,7 +13,7 @@ async function test() {
     try {
       const services = await BempService.listServices(unit.id);
       const filtered = services.filter((s: any) => {
-        const name = (s.name || s.service_name || "").toLowerCase();
+        const name = (s.name || s.service_name || s.title || "").toLowerCase();
         return name.includes("manicure") || 
                name.includes("pé e mão") || 
                name.includes("escova") || 
@@ -21,13 +21,20 @@ async function test() {
       });
       
       for (const s of filtered) {
-        const price = s.price || s.valor || 0;
-        const duration = s.duration || s.tempo || 0;
-        const name = s.name || s.service_name || "N/A";
+        let priceRaw = s.price ?? s.valor ?? 0;
+        let price = typeof priceRaw === 'number' ? priceRaw : parseFloat(String(priceRaw));
+        if (isNaN(price)) price = 0;
+
+        let durationRaw = s.duration ?? s.tempo ?? 0;
+        let duration = typeof durationRaw === 'number' ? durationRaw : parseInt(String(durationRaw));
+        if (isNaN(duration)) duration = 0;
+
+        const name = s.name || s.service_name || s.title || "N/A";
         console.log(unit.name + " | " + s.id + " | " + name + " | R$ " + price.toFixed(2) + " | " + duration + "min");
       }
     } catch (err: any) {
       console.error("Erro na unidade " + unit.name + ": ", err.message);
+      console.error(err.stack);
     }
   }
 }
