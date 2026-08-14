@@ -305,9 +305,16 @@ source: ${identity.identitySource}`);
         traceId,
         instance: msg.instance
       });
-      console.warn(`[AGENT_NOT_FOUND] Instance received: ${msg.instance}`);
+      console.error(`[AGENT_NOT_FOUND] Instance received: ${msg.instance}, remoteJid: ${msg.remoteJid}, messageId: ${finalMessageId}`);
+      await logEvent({
+        instance: msg.instance,
+        messageId: finalMessageId,
+        event: "AGENT_NOT_FOUND",
+        status: "failed",
+        payload: { traceId, instance: msg.instance, remoteJid: msg.remoteJid, phone }
+      });
       trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "agent_not_found" });
-      await markEventProcessed(msg.instance, finalMessageId);
+      await markEventFailed(msg.instance, finalMessageId, "agent_not_found");
       continue;
     }
 
