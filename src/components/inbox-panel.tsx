@@ -14,7 +14,8 @@ import {
   ChevronLeft,
   ChevronRight,
   User,
-  Bot
+  Bot,
+  ArrowDown
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useServerFn } from "@tanstack/react-start";
@@ -50,6 +51,8 @@ export function InboxPanel() {
   const [page, setPage] = useState(0);
   const [total, setTotal] = useState(0);
   const [realtimeStatus, setRealtimeStatus] = useState<string>("connecting");
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
+  const [isAtBottom, setIsAtBottom] = useState(true);
 
   const selectedPhoneRef = useRef<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -145,8 +148,27 @@ export function InboxPanel() {
   }, [page]);
 
   useEffect(() => {
-    if (bottomRef.current) bottomRef.current.scrollIntoView({ behavior: "smooth" });
+    if (isAtBottom && bottomRef.current) {
+      bottomRef.current.scrollIntoView({ behavior: "smooth" });
+    } else if (selectedConversation?.messages?.length) {
+      // Se não está no fundo e chegou mensagem nova, mostra o botão
+      setShowScrollBottom(true);
+    }
   }, [selectedConversation?.messages?.length]);
+
+  const scrollToBottom = () => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    setIsAtBottom(true);
+    setShowScrollBottom(false);
+  };
+
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    const scrollBottom = target.scrollHeight - target.scrollTop - target.clientHeight;
+    const atBottom = scrollBottom < 100;
+    setIsAtBottom(atBottom);
+    if (atBottom) setShowScrollBottom(false);
+  };
 
   const handleSend = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -172,7 +194,7 @@ export function InboxPanel() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-[calc(100vh-200px)] gap-4 bg-background border rounded-xl overflow-hidden">
+    <div className="flex flex-col lg:flex-row h-[calc(100vh-140px)] min-h-0 gap-4 bg-background border rounded-xl overflow-hidden">
       {/* Lista */}
       <div className={`w-full lg:w-[350px] flex flex-col border-r bg-muted/10 ${selectedPhone ? 'hidden lg:flex' : 'flex'}`}>
         <div className="p-4 border-b space-y-3">
@@ -217,7 +239,7 @@ export function InboxPanel() {
           </div>
         </div>
 
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 min-h-0">
           {loading ? (
             <div className="p-4 space-y-3">
               {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-16 w-full rounded-lg" />)}
@@ -273,7 +295,7 @@ export function InboxPanel() {
       </div>
 
       {/* Chat */}
-      <div className={`flex-1 flex flex-col min-w-0 ${!selectedPhone ? 'hidden lg:flex items-center justify-center' : 'flex'}`}>
+      <div className={`flex-1 flex flex-col min-w-0 min-h-0 ${!selectedPhone ? 'hidden lg:flex items-center justify-center' : 'flex'}`}>
         {!selectedPhone ? (
           <div className="text-center space-y-3 opacity-30">
             <MessageSquare className="h-12 w-12 mx-auto" />
@@ -316,51 +338,67 @@ export function InboxPanel() {
               </div>
             </div>
 
-            <ScrollArea className="flex-1 p-4 bg-muted/5">
-              <div className="max-w-3xl mx-auto space-y-4">
-                {loadingConv && <div className="text-center py-4"><RefreshCcw className="h-5 w-5 animate-spin mx-auto opacity-20" /></div>}
-                {selectedConversation?.messages.map((m: any, i: number) => {
-                  const isAssistant = m.role === 'assistant' || m.role === 'operator';
-                  const isSystem = m.role === 'system';
-                  if (isSystem) return (
-                    <div key={i} className="flex justify-center py-2">
-                      <span className="text-[10px] bg-muted px-2 py-1 rounded-full text-muted-foreground border">
-                        {extractConversationMessageText(m)}
-                      </span>
-                    </div>
-                  );
-                  return (
-                    <div key={i} className={`flex gap-2 ${isAssistant ? 'justify-end' : 'justify-start'}`}>
-                      {!isAssistant && (
-                        <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center shrink-0">
-                          <User className="h-4 w-4" />
-                        </div>
-                      )}
-                      <div className={`max-w-[85%] lg:max-w-[70%] ${isAssistant ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
-                        <div className={`rounded-2xl px-4 py-2 text-sm ${
-                          isAssistant 
-                            ? 'bg-primary text-primary-foreground rounded-tr-none' 
-                            : 'bg-card border rounded-tl-none'
-                        }`}>
+            <div className="flex-1 relative min-h-0">
+              <ScrollArea 
+                className="h-full p-4 bg-muted/5" 
+                onScrollCapture={(e) => handleScroll(e as any)}
+              >
+                <div className="max-w-3xl mx-auto space-y-4">
+                  {loadingConv && <div className="text-center py-4"><RefreshCcw className="h-5 w-5 animate-spin mx-auto opacity-20" /></div>}
+                  {selectedConversation?.messages.map((m: any, i: number) => {
+                    const isAssistant = m.role === 'assistant' || m.role === 'operator';
+                    const isSystem = m.role === 'system';
+                    if (isSystem) return (
+                      <div key={i} className="flex justify-center py-2">
+                        <span className="text-[10px] bg-muted px-2 py-1 rounded-full text-muted-foreground border">
                           {extractConversationMessageText(m)}
+                        </span>
+                      </div>
+                    );
+                    return (
+                      <div key={i} className={`flex gap-2 ${isAssistant ? 'justify-end' : 'justify-start'}`}>
+                        {!isAssistant && (
+                          <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center shrink-0">
+                            <User className="h-4 w-4" />
+                          </div>
+                        )}
+                        <div className={`max-w-[85%] lg:max-w-[70%] ${isAssistant ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
+                          <div className={`rounded-2xl px-4 py-2 text-sm ${
+                            isAssistant 
+                              ? 'bg-primary text-primary-foreground rounded-tr-none' 
+                              : 'bg-card border rounded-tl-none'
+                          }`}>
+                            {extractConversationMessageText(m)}
+                          </div>
+                          {m.createdAt && (
+                            <span className="text-[9px] text-muted-foreground opacity-70">
+                               {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          )}
                         </div>
-                        {m.createdAt && (
-                          <span className="text-[9px] text-muted-foreground opacity-70">
-                             {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
+                        {isAssistant && (
+                          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                            <Bot className="h-4 w-4 text-primary" />
+                          </div>
                         )}
                       </div>
-                      {isAssistant && (
-                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                          <Bot className="h-4 w-4 text-primary" />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-                <div ref={bottomRef} />
-              </div>
-            </ScrollArea>
+                    );
+                  })}
+                  <div ref={bottomRef} />
+                </div>
+              </ScrollArea>
+              {showScrollBottom && (
+                <Button 
+                  size="sm" 
+                  variant="secondary"
+                  className="absolute bottom-4 left-1/2 -translate-x-1/2 shadow-lg rounded-full animate-bounce gap-2"
+                  onClick={scrollToBottom}
+                >
+                  <ArrowDown className="h-3 w-3" />
+                  Nova mensagem
+                </Button>
+              )}
+            </div>
 
             <div className="p-4 border-t bg-card">
               <form onSubmit={handleSend} className="max-w-3xl mx-auto flex gap-2 items-end">
