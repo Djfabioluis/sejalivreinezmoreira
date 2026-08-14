@@ -299,24 +299,32 @@ source: ${identity.identitySource}`);
       trace.record("AGENT_RESOLVED", { agentId: agent?.id, iaEnabled: isIAActive });
 
     if (!agent) {
-      trace.record("MESSAGE_PROCESSING_ABORTED", { 
+      trace.record("INBOUND_INSTANCE_NOT_RESOLVED", { 
         stage: "AGENT_RESOLUTION", 
         reason: "AGENT_NOT_FOUND",
         traceId,
         instance: msg.instance
       });
-      console.error(`[AGENT_NOT_FOUND] Instance received: ${msg.instance}, remoteJid: ${msg.remoteJid}, messageId: ${finalMessageId}`);
+      console.error(`[INBOUND_INSTANCE_NOT_RESOLVED] Instance received: ${msg.instance}, remoteJid: ${msg.remoteJid}, messageId: ${finalMessageId}`);
       await logEvent({
         instance: msg.instance,
         messageId: finalMessageId,
-        event: "AGENT_NOT_FOUND",
+        event: "INBOUND_INSTANCE_NOT_RESOLVED",
         status: "failed",
-        payload: { traceId, instance: msg.instance, remoteJid: msg.remoteJid, phone }
+        payload: { 
+          traceId, 
+          instance: msg.instance, 
+          remoteJid: msg.remoteJid, 
+          phone,
+          availableInstances: "Audit table for manual resolution"
+        }
       });
+
       trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "AGENT_NOT_FOUND" });
       await markEventFailed(msg.instance, finalMessageId, "AGENT_NOT_FOUND");
       continue;
     }
+
 
     if (!isIAActive) {
       const status = String(agent.status || "").toLowerCase().trim();

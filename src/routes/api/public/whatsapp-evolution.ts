@@ -46,16 +46,20 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           return null;
         });
 
-        if (!payload) {
-          await logEvent({ instance: "unknown", event: "webhook_received", status: "invalid_payload" });
-          return new Response(JSON.stringify({ error: "Invalid JSON" }), { status: 400, headers: { "Content-Type": "application/json" } });
-        }
-        
-        logger.info("WEBHOOK_RECEIVED", "Payload detectado", { traceId, event: payload.event });
+        // 3. Instrumentação imediata (Requisito 4)
+        logger.info("WEBHOOK_RAW_RECEIVED", "Payload detectado", { 
+          traceId, 
+          event: payload.event,
+          instance: payload.instance || payload.instanceName,
+          remoteJid: payload.data?.key?.remoteJid,
+          messageId: payload.data?.key?.id,
+          fromMe: payload.data?.key?.fromMe
+        });
 
-        // 3. Normalização do Evento
+        // 3b. Normalização do Evento
         const eventData = normalizeEvolutionEvent(payload);
-        logger.info("EVENT_NORMALIZED", "Evento extraído", { traceId, event: eventData.event, instance: eventData.instance });
+        logger.info("INSTANCE_RESOLVED", "Instância identificada", { traceId, instance: eventData.instance });
+
         
         if (eventData.event === "unknown") {
           logger.info("WEBHOOK_IGNORED", "Evento desconhecido ou não suportado", { traceId, event: payload.event });

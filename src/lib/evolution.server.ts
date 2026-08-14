@@ -128,7 +128,8 @@ export async function createInstance(instance: string, webhookUrl: string) {
         url: webhookUrl,
         byEvents: false,
         base64: true,
-        events: ["MESSAGES_UPSERT", "CONNECTION_UPDATE"],
+        events: ["MESSAGES_UPSERT", "CONNECTION_UPDATE", "MESSAGES_UPDATE", "SEND_MESSAGE"],
+
       },
     },
   });
@@ -150,7 +151,7 @@ export async function setWebhook(instance: string, webhookUrl: string) {
         url: webhookUrl,
         byEvents: false,
         base64: true,
-        events: ["MESSAGES_UPSERT", "CONNECTION_UPDATE"],
+        events: ["MESSAGES_UPSERT", "CONNECTION_UPDATE", "MESSAGES_UPDATE", "SEND_MESSAGE"],
       },
     },
   });
