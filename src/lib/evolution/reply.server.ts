@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { logEvent } from "./logger.server";
 import { sendEvolutionText, sendEvolutionPresence } from "../evolution.server";
-import { performanceTrace } from "./performance.server";
+import { PerformanceTrace } from "./performance.server";
 
 export const sendManualWAMessage = createServerFn({ method: "POST" })
   .inputValidator((data) => z.object({
@@ -14,7 +14,12 @@ export const sendManualWAMessage = createServerFn({ method: "POST" })
   }).parse(data))
   .handler(async ({ data: params }) => {
     const traceId = `manual-${Date.now()}`;
-    const trace = performanceTrace(traceId, params.instance);
+    // Usando PerformanceTrace corretamente
+    const trace = new PerformanceTrace({
+      traceId,
+      instanceId: params.instance,
+      conversationId: params.conversationKey
+    });
     
     try {
       const typingMs = Math.min(Math.max(params.text.length * 20, 1000), 3000);
@@ -82,6 +87,17 @@ export interface ReplyParams {
   text: string;
   conversationKey: string;
   messageId?: string;
+  unitId?: string | null;
+  allowDuringHumanMode?: boolean;
+  _trace?: PerformanceTrace;
+}
+
+/**
+ * Legado: Mapeia replyToUser para replyWithAI para manter compatibilidade.
+ */
+export async function replyToUser(params: ReplyParams) {
+  const traceId = `reply-${Date.now()}`;
+  return replyWithAI(params, traceId);
 }
 
 /**
@@ -89,7 +105,11 @@ export interface ReplyParams {
  * Requisito 3: A falha na persistência do histórico não bloqueia o envio.
  */
 export async function replyWithAI(params: ReplyParams, traceId: string) {
-  const trace = performanceTrace(traceId, params.instance);
+  const trace = params._trace || new PerformanceTrace({
+    traceId,
+    instanceId: params.instance,
+    conversationId: params.conversationKey
+  });
   const typingMs = Math.min(Math.max(params.text.length * 30, 2000), 5000);
 
   // 8. PRESENÇA (Composing...)
@@ -158,4 +178,15 @@ export async function replyWithAI(params: ReplyParams, traceId: string) {
     
     throw new Error(`EVOLUTION_REPLY_SEND_FAILED: Failed to send message via instance ${params.instance}`);
   }
+}
+
+/**
+ * Função utilitária para verificar se a IA pode responder.
+ */
+export function ensureAIAllowedToReply(conv: any) {
+  const isHuman = conv?.attendance_mode === 'HUMAN' || !!conv?.ai_paused_at;
+  if (isHuman) {
+    return { allowed: false, reason: "human_mode" };
+  }
+  return { allowed: true };
 }
