@@ -416,7 +416,10 @@ export async function streamAgent(opts: { messages: any[]; sandbox?: boolean }) 
 
 export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: string }) {
   const { conversationKey, unidadeId, sandbox, customerContext, activePromotions, traceId } = opts;
-  const messages = Array.isArray(opts.messages) ? opts.messages : [];
+  // Limite seguro de histórico para evitar recusa silenciosa (Gemini 2.5 Flash)
+  // Preserva 12 mensagens mais recentes (aprox. 6 turnos)
+  const rawMessages = Array.isArray(opts.messages) ? opts.messages : [];
+  const messages = rawMessages.slice(-12);
 
   const { effectiveUnitId, effectiveUnitName } = await resolveEffectiveUnit({ conversationKey, agentUnitId: unidadeId });
   
