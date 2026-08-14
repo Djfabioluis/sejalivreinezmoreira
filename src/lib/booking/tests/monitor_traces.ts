@@ -42,6 +42,7 @@ async function monitorTraces() {
     if (webhook?.payload) {
         const text = webhook.payload.message?.conversation || webhook.payload.text || parsed?.payload?.text || "...";
         console.log(`MENSAGEM DO CLIENTE: "${text}"`);
+        console.log(`PAYLOAD BRUTO: ${JSON.stringify(webhook.payload)}`);
     } else if (parsed?.payload?.text) {
         console.log(`MENSAGEM DO CLIENTE: "${parsed.payload.text}"`);
     }
