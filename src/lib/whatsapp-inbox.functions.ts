@@ -47,7 +47,7 @@ export const listWAConversations = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let query = supabaseAdmin
       .from("wa_conversas" as never)
-      .select("phone, instance, phone_number, contact_name, unread_count, status, updated_at, unidade_id", { count: "exact" })
+      .select("phone, instance, phone_number, contact_name, unread_count, status, updated_at, unidade_id, wa_agentes!wa_conversas_instance_fkey(unidade_id)", { count: "exact" })
       .order("updated_at", { ascending: false });
 
     if (data.instance) query = query.eq("instance", data.instance);
