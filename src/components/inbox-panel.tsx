@@ -273,7 +273,10 @@ export function InboxPanel() {
                   </div>
                   <div className="flex justify-between items-center mt-1">
                     <span className="text-[10px] text-muted-foreground truncate max-w-[180px]">
-                      {conv.unidade_id ? (unitNames[String(conv.unidade_id)] || `Unidade ${conv.unidade_id}`) : "Unidade não identificada"}
+                      {(() => {
+                        const uid = conv.unidade_id || (conv as any).wa_agentes?.unidade_id;
+                        return uid ? (unitNames[String(uid)] || `Unidade ${uid}`) : "Unidade não identificada";
+                      })()}
                     </span>
                     {conv.unread_count > 0 && (
                       <Badge className="h-5 min-w-5 rounded-full px-1.5 flex items-center justify-center text-[10px]">
