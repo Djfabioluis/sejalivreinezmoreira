@@ -284,7 +284,8 @@ function buildTools(
   currentMessageId?: string | null,
   subscriptionIntent?: boolean,
   traceId?: string,
-  messages: any[] = []
+  messages: any[] = [],
+  bookingContext: BookingContext | null = null
 ) {
   const safeToolLocal = <T,>(label: string, fn: () => Promise<T>) =>
     runTool(label, fn, { conversationKey, effectiveUnitId: fallbackAgentUnitId });
@@ -325,7 +326,7 @@ function buildTools(
     list_services: tool({
       description: "Lista serviços de uma unidade. USE SEMPRE para obter preços oficiais antes de responder ao cliente.",
       inputSchema: z.object({ salon_id: z.string().optional() }),
-      execute: async ({ salon_id }) =>
+      execute: async ({ salon_id }, { toolCallId, messages }) =>
         safeToolLocal("list_services", async () => {
           const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: salon_id || fallbackAgentUnitId });
           if (!effectiveUnitId) throw new Error("Unidade não resolvida.");
@@ -539,7 +540,7 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
     model,
     system: systemPrompt + (sandbox ? SANDBOX_NOTE : ""),
     messages: modelMessages,
-    tools: buildTools(!!sandbox, effectiveUnitId, conversationKey, opts.messageId, bookingContext.subscriptionIntent, traceId, messages),
+    tools: buildTools(!!sandbox, effectiveUnitId, conversationKey, opts.messageId, bookingContext.subscriptionIntent, traceId, messages, bookingContext),
     maxSteps: 5,
     onStepFinish: async (step: any) => {
       if (traceId) {
