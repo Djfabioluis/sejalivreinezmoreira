@@ -67,11 +67,11 @@ linha aproximada = 394
 
 Código:
 ```typescript
-export async function runAgentWithLogging(opts: AgentOptions & { messages?: any[]; text?: string }) {
-  const { traceId, conversationKey } = opts;
+export async function runAgentWithLogging(opts: AgentOptions & {"messages"}?: any[]; text?: string {"}"}) {"{"}
+  const {"{"} traceId, conversationKey {"}"} = opts;
   const history = (opts.messages || []).slice(-8); 
-  return runAgent({ ...opts, messages: history });
-}
+  return runAgent({"{"} ...opts, messages: history {"}"});
+{"}"}
 ```
 
 SELECT/LIMIT utilizado = O histórico total é carregado via `appendIncomingMessage` que faz um `maybeSingle()` na `wa_conversas`.
