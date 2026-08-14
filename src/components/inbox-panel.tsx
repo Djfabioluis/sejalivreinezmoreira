@@ -324,7 +324,10 @@ export function InboxPanel() {
                     {selectedConversation?.contact_name || formatPhoneDisplay(selectedPhone)}
                   </h3>
                   <p className="text-[10px] text-muted-foreground mt-1">
-                    {selectedConversation?.unidade_id ? (unitNames[String(selectedConversation.unidade_id)] || `Unidade ${selectedConversation.unidade_id}`) : "Unidade não identificada"} • {formatPhoneDisplay(selectedPhone)}
+                    {(() => {
+                      const uid = selectedConversation?.unidade_id || (selectedConversation as any)?.wa_agentes?.unidade_id;
+                      return uid ? (unitNames[String(uid)] || `Unidade ${uid}`) : "Unidade não identificada";
+                    })()} • {formatPhoneDisplay(selectedPhone)}
                   </p>
                 </div>
               </div>
