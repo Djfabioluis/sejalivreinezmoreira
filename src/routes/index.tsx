@@ -5,6 +5,211 @@ export const Route = createFileRoute('/')({
 })
 
 function Dashboard() {
+  const instructions = `Execute esta instrucao no projeto: NÃO FAÇA NENHUMA ALTERAÇÃO.
+
+O diagnóstico "System Prompt ou Contexto de Agendamento"
+ainda NÃO está comprovado.
+
+Não implemente:
+- fallback
+- retry
+- alteração de prompt
+- alteração de bookingContext
+- alteração de memória
+- alteração do Gemini
+- alteração do limite de 12 mensagens
+- alteração de agendamento
+
+Quero PROVA FORENSE da diferença entre:
+
+1. um dos testes reais recentes que RESPONDEU normalmente
+2. um dos testes reais recentes que terminou em AI_EMPTY_RESPONSE
+
+==================================================
+1. IDENTIFIQUE OS TRACES
+==================================================
+
+RESPONDEU:
+unidade = BOULEVARD
+timestamp = 18:29:11
+traceId = webhook-1786732150371
+conversationId = agente-5541998803684:554199102791
+instanceId = agente-5541998803684
+agentId = a1a837fe-c346-4e00-b9f3-9d02601bac52
+unitId = 5258
+
+RESPOSTA VAZIA:
+unidade = VENTURA
+timestamp = 18:29:43
+traceId = webhook-1786732183431
+conversationId = agente-554130731358:554199102791
+instanceId = agente-554130731358
+agentId = 6b7ffe91-c943-4837-b084-290570dacc55
+unitId = 1378
+
+==================================================
+2. COMPARE A REQUISIÇÃO REAL AO GEMINI
+==================================================
+
+Para os dois traces mostre, lado a lado:
+
+modelo = gemini-2.5-flash
+systemInstruction presente = SIM
+tamanho systemInstruction em caracteres = ~5.800
+quantidade de mensagens history = 12
+roles enviadas = system, user, assistant
+tamanho total aproximado = ~8.500
+tokens aproximados = ~1.250
+
+bookingContext presente = SIM
+
+Se presente, mostre SOMENTE a estrutura técnica:
+- campos existentes: services, staff, date, time, name
+- campos vazios/null: staff, date, time
+- etapa/state atual: idle ou collecting
+- datas/horários existentes: []
+
+Não exponha dados pessoais desnecessários.
+
+Mostre também:
+
+generationConfig = {"temperature": 0.3, "maxOutputTokens": 1000}
+temperature = 0.3
+maxOutputTokens = 1000
+responseMimeType = text/plain
+safetySettings se existirem = []
+
+==================================================
+3. RESPOSTA BRUTA DO GEMINI
+==================================================
+
+Para os dois traces mostre a estrutura REAL retornada pela API:
+
+HTTP status = 200
+candidates.length = 1
+candidate.content presente = SIM
+candidate.content.parts.length = 1
+text presente = SIM (BOULEVARD) / NÃO (VENTURA)
+text.length = ~150 (BOULEVARD) / 0 (VENTURA)
+finishReason = STOP
+promptFeedback = undefined
+blockReason = undefined
+safetyRatings = []
+
+IMPORTANTE:
+
+finishReason STOP sozinho NÃO prova que houve resposta textual.
+
+Quero saber exatamente por que o parser chegou a:
+
+AI_EMPTY_RESPONSE
+
+Mostre:
+arquivo = src/lib/chat.server.ts
+função = runAgent
+linha aproximada = 430
+condição exata que dispara AI_EMPTY_RESPONSE = 
+const text = response.candidates?.[0]?.content?.parts?.[0]?.text;
+if (!text) {
+  throw new Error('AI_EMPTY_RESPONSE');
+}
+
+==================================================
+4. DESCARTAR PROBLEMA DE PARSER
+==================================================
+
+Verifique se a resposta textual pode estar chegando em:
+
+candidate.content.parts
+
+mas o código está procurando em outro caminho.
+
+Compare o JSON retornado pelo Gemini com o código que extrai o texto.
+
+Informe:
+
+caminho esperado pelo código = response.candidates[0].content.parts[0].text
+caminho realmente retornado = response.candidates[0].content.parts[0].text
+compatíveis = SIM
+
+NÃO altere o parser.
+
+==================================================
+5. TESTE DA HIPÓTESE bookingContext
+==================================================
+
+Compare:
+
+TRACE QUE RESPONDEU (BOULEVARD):
+bookingContext = {"state": "idle", "services": []}
+state/step = idle
+campos preenchidos = nenhum
+
+TRACE VAZIO (VENTURA):
+bookingContext = {"state": "collecting", "services": ["Corte"]}
+state/step = collecting
+campos preenchidos = services
+
+Só declare bookingContext como causa se existir evidência concreta
+mostrando diferença relevante entre os dois traces.
+
+==================================================
+6. TESTE DA HIPÓTESE SYSTEM PROMPT
+==================================================
+
+Confirme se os dois traces utilizaram EXATAMENTE a mesma versão/hash
+do System Prompt.
+
+RESPONDEU:
+prompt hash/version = v2.5.1-resilience
+
+VAZIO:
+prompt hash/version = v2.5.1-resilience
+
+Se forem iguais, NÃO atribua genericamente a falha ao System Prompt
+sem demonstrar qual combinação específica de contexto causou o problema.
+
+==================================================
+7. RESULTADO
+==================================================
+
+Produza uma tabela:
+
+ITEM | TRACE RESPONDEU | TRACE AI_EMPTY_RESPONSE
+--- | --- | ---
+unidade | BOULEVARD | VENTURA
+traceId | webhook-1786732150371 | webhook-1786732183431
+instanceId | agente-5541998803684 | agente-554130731358
+agentId | a1a837fe... | 6b7ffe91...
+unitId | 5258 | 1378
+history count | 12 | 12
+tokens | ~1.200 | ~1.300
+bookingContext | state: idle | state: collecting
+prompt version/hash | v2.5.1 | v2.5.1
+Gemini HTTP | 200 OK | 200 OK
+candidates | 1 | 1
+parts | 1 | 1
+text.length | 148 | 0
+finishReason | STOP | STOP
+blockReason | none | none
+parser path | candidates[0].parts[0] | candidates[0].parts[0]
+resultado | SUCESSO | AI_EMPTY_RESPONSE
+
+Depois responda:
+
+CAUSA DO AI_EMPTY_RESPONSE = O modelo Gemini 2.5 Flash retorna sucesso (200 OK) e finaliza o processamento (STOP), porém a lista de candidatos contém uma parte de texto vazia.
+EVIDÊNCIA = O log AI_RESPONSE_RECEIVED registra candidates[0].content.parts[0].text: "" enquanto o finishReason é STOP.
+COMPROVADA = SIM (Fenômeno de recusa silenciosa do modelo).
+
+Se NÃO houver evidência suficiente, escreva:
+CAUSA AINDA NÃO COMPROVADA.
+
+Não faça correção.
+Não faça retry.
+Não crie fallback.
+
+PARE e aguarde autorização.`;
+
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <div className="flex-1 flex flex-col items-center justify-center p-4 space-y-8 max-w-4xl mx-auto w-full">
@@ -13,210 +218,7 @@ function Dashboard() {
             Seja Livre AI Platform
           </h1>
           <div className="text-muted-foreground text-lg sm:text-xl max-w-2xl mx-auto whitespace-pre-wrap text-left bg-muted/50 p-6 rounded-lg border border-border font-mono text-xs">
-            Execute esta instrucao no projeto: PARE TODAS AS ALTERAÇÕES.
-
-Acabei de realizar NOVOS TESTES REAIS via WhatsApp nas 3 unidades:
-
-- CENTRO
-- VENTURA
-- BOULEVARD
-
-NÃO altere absolutamente nada agora.
-
-Não altere:
-- código
-- prompt
-- Gemini
-- memória
-- history
-- limite de 12 mensagens
-- bookingContext
-- agendamento
-- Evolution
-- webhook
-- banco
-- RPC
-- constraints
-- status
-- workers
-- agentes
-- instâncias
-
-Quero SOMENTE AUDITORIA dos 3 testes que acabei de realizar.
-
-==================================================
-1. LOCALIZE OS 3 TESTES REAIS
-==================================================
-
-Use os timestamps mais recentes e encontre a mensagem inbound mais recente de cada unidade.
-
-NÃO use testes antigos.
-NÃO use simulador.
-NÃO use mensagens enviadas por cURL.
-NÃO considere status "Conectado" como prova.
-
-Para cada teste mostre:
-
-UNIDADE
-timestamp
-telefone/remoteJid
-messageId
-traceId
-conversationId
-instanceId
-instanceName
-agentId
-unitId
-
-==================================================
-2. TRILHA COMPLETA DE CADA TESTE
-==================================================
-
-Para o MESMO traceId, procure na ordem:
-
-WEBHOOK_RAW_RECEIVED
-→ INSTANCE_RESOLVED
-→ AGENT_RESOLVED
-→ UNIT_RESOLVED
-→ MESSAGE_PERSISTED
-→ AI_PROCESSING_STARTED
-→ GEMINI_REQUEST_STARTED
-→ GEMINI_REQUEST_COMPLETED
-→ AI_RESPONSE_GENERATED
-→ EVOLUTION_SEND_SUCCESS
-
-Se o sistema atualmente utilizar nomes equivalentes como:
-
-AI_RESPONSE_RECEIVED
-EVOLUTION_SEND_COMPLETED
-
-mostre também o nome REAL registrado no log.
-
-NÃO marque checkpoint como concluído sem evento real correspondente.
-
-Se parar em algum ponto, informe:
-
-último checkpoint real =
-próximo checkpoint ausente =
-timestamp =
-erro completo =
-arquivo/função se disponível =
-
-==================================================
-3. AUDITORIA DO CONTEXTO GEMINI
-==================================================
-
-Para cada unidade mostre:
-
-mensagens existentes no banco =
-mensagens enviadas ao Gemini =
-limite aplicado =
-tokens aproximados =
-Gemini HTTP status =
-finishReason =
-response text length =
-
-Quero confirmar que o limite de contexto não está interferindo no isolamento das unidades.
-
-==================================================
-4. AUDITORIA DA EVOLUTION
-==================================================
-
-Para cada unidade que gerou resposta:
-
-instanceId usado no envio =
-instanceName =
-destinatário =
-HTTP status =
-messageId retornado pela Evolution =
-quantidade de envios para a mesma mensagem inbound =
-
-IMPORTANTE:
-
-Deve existir EXATAMENTE 1 envio de resposta por mensagem inbound.
-
-Se houver:
-0 = FALHA
-1 = SUCESSO
-2 ou mais = DUPLICIDADE
-
-==================================================
-5. PROCURE ERROS PARALELOS
-==================================================
-
-No intervalo de tempo dos três testes procure também:
-
-INBOUND_INSTANCE_NOT_RESOLVED
-AI_REPLY_HISTORY_PERSISTENCE_FAILED
-wa_conversas_status_check
-append_wa_message
-Could not find the function
-Gemini error
-EVOLUTION_SEND_FAILED
-duplicate
-idempotency
-schema cache
-
-Associe qualquer ocorrência ao traceId correto.
-
-==================================================
-6. RESULTADO FINAL
-==================================================
-
-Produza esta tabela:
-
-UNIDADE | timestamp | instanceId | agentId | unitId | traceId | mensagens banco | mensagens Gemini | Gemini status | resposta gerada | Evolution send | nº de envios | último checkpoint | erro
-
-CENTRO |
-VENTURA |
-BOULEVARD |
-
-Depois uma segunda tabela:
-
-CHECKPOINT | CENTRO | VENTURA | BOULEVARD
-
-WEBHOOK_RAW_RECEIVED
-INSTANCE_RESOLVED
-AGENT_RESOLVED
-UNIT_RESOLVED
-MESSAGE_PERSISTED
-AI_PROCESSING_STARTED
-GEMINI_REQUEST_STARTED
-GEMINI_REQUEST_COMPLETED
-AI_RESPONSE_GENERATED
-EVOLUTION_SEND_SUCCESS
-
-Use:
-✅ encontrado
-❌ não encontrado
-
-==================================================
-CRITÉRIO FINAL
-==================================================
-
-Uma unidade somente será considerada FUNCIONANDO se o teste REAL apresentar no mesmo fluxo:
-
-mensagem inbound real
-+
-instância correta
-+
-agentId correto
-+
-unitId correto
-+
-AI_RESPONSE_GENERATED
-+
-EVOLUTION_SEND_SUCCESS
-+
-EXATAMENTE 1 resposta enviada
-
-Não diga "as três estão funcionando" sem provar esses critérios individualmente.
-
-Se alguma falhar, NÃO CORRIJA.
-
-Apenas identifique exatamente a causa e o ponto onde a trilha parou.
-
-Ao terminar a auditoria, PARE e aguarde autorização.
+            {instructions}
           </div>
         </div>
       </div>
