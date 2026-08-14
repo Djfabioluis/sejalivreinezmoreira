@@ -13,143 +13,28 @@ function Dashboard() {
         Seja Livre AI Platform
       </h1>
       <div className="text-muted-foreground text-lg sm:text-xl max-w-2xl mx-auto whitespace-pre-wrap text-left bg-muted/50 p-6 rounded-lg border border-border font-mono text-xs">
-        Execute esta instrucao no projeto: O diagnóstico agora isolou o problema.
+        Execute esta instrucao no projeto: Acabei de enviar 3 NOVAS mensagens REAIS pelo WhatsApp,
+uma para cada instância.
 
-As mensagens REAIS estão entrando corretamente nas três unidades:
+NÃO ALTERE NADA.
 
-- Centro
-- Ventura Shopping
-- Shopping Boulevard
+Não faça correção.
+Não faça redeploy.
+Não altere RPC.
+Não altere webhook.
+Não altere IA.
 
-Portanto NÃO ALTERE:
-- Evolution
-- webhooks
-- identificação de instância
-- agentId
-- unitId
-- prompt da Julia
-- Gemini
-- memória
-- fluxo de agendamento
-- máquina de estados
+Agora apenas AUDITE os logs produzidos por esses 3 testes.
 
-O problema atual está na persistência/RPC append_wa_message.
+Localize cada mensagem pelo conteúdo e horário atual.
 
-NÃO crie fallback.
-NÃO adicione try/catch.
-NÃO ignore o erro.
-NÃO crie outra função paralela.
-NÃO faça correção por tentativa.
+Para cada unidade:
 
-Quero corrigir a CAUSA RAIZ.
+CENTRO
+VENTURA
+BOULEVARD
 
-ETAPA 1 — INSPECIONAR O BANCO REAL
-
-Execute consulta no PostgreSQL para listar TODAS as funções:
-
-public.append_wa_message
-
-Mostre:
-
-- oid
-- proname
-- pg_get_function_identity_arguments
-- pg_get_function_arguments
-- pg_get_function_result
-
-Quero saber exatamente quantas versões de
-public.append_wa_message existem atualmente.
-
-ETAPA 2 — VERIFICAR AS ASSINATURAS
-
-Identifique:
-
-A) assinatura antiga de 7 parâmetros
-B) assinatura atual de 2 parâmetros
-
-Mostre os nomes e tipos exatos.
-
-Não altere nada ainda.
-
-ETAPA 3 — AUDITORIA GLOBAL DO CÓDIGO
-
-Faça busca em TODO o projeto por:
-
-append_wa_message
-
-Incluindo código server-side, workers e funções.
-
-Para cada ocorrência mostre:
-
-arquivo
-função
-quantidade de argumentos
-nomes dos argumentos
-assinatura esperada
-
-Não considere somente fallback.server.ts.
-
-ETAPA 4 — IDENTIFICAR A CHAMADA QUE AINDA FALHA
-
-Nos logs do meu teste REAL mais recente, encontre o erro:
-
-Could not find the function public.append_wa_message
-
-Mostre:
-
-timestamp
-unidade
-instanceId
-agentId
-unitId
-arquivo/função que realizou a chamada
-payload RPC enviado
-nomes dos parâmetros enviados
-erro completo retornado pelo Supabase/PostgREST
-
-Isso é essencial.
-
-Quero descobrir QUEM ainda está fazendo a chamada incompatível.
-
-ETAPA 5 — SCHEMA CACHE
-
-Verifique se o código já está correto mas o PostgREST está usando
-schema cache antigo.
-
-Se for cache, faça o reload oficial do schema do PostgREST/Supabase.
-
-Não altere a estrutura da função somente para satisfazer cache antigo.
-
-ETAPA 6 — SOMENTE DEPOIS CORRIGIR
-
-Se encontrar uma chamada antiga no código:
-corrija essa chamada para a assinatura REAL existente no banco.
-
-Se encontrar função duplicada/obsoleta no banco:
-primeiro informe qual é antes de remover.
-
-Se for apenas schema cache:
-recarregue o schema.
-
-Todas as unidades devem usar EXATAMENTE o mesmo caminho de persistência.
-
-ETAPA 7 — VALIDAÇÃO
-
-Depois da correção, faça uma consulta final e mostre:
-
-FUNÇÕES RPC EXISTENTES
-| função | assinatura | status |
-
-CHAMADAS NO CÓDIGO
-| arquivo | função chamadora | assinatura utilizada |
-
-E confirme que NÃO existe mais nenhuma chamada com a assinatura antiga.
-
-Não declare Centro/Ventura/Boulevard funcionando ainda.
-
-Depois dessa correção EU farei novos testes reais pelo WhatsApp.
-
-Só consideraremos resolvido quando uma mensagem real de cada unidade atingir:
+mostre a trilha REAL:
 
 WEBHOOK_RAW_RECEIVED
 → INSTANCE_RESOLVED
@@ -159,6 +44,89 @@ WEBHOOK_RAW_RECEIVED
 → AI_PROCESSING_STARTED
 → AI_RESPONSE_GENERATED
 → EVOLUTION_SEND_SUCCESS
+
+Quero esta tabela:
+
+Unidade
+| conteúdo recebido
+| timestamp
+| instanceId Evolution
+| agentId
+| unitId
+| MESSAGE_PERSISTED
+| AI_PROCESSING_STARTED
+| AI_RESPONSE_GENERATED
+| resposta gerada
+| outbound instanceId
+| EVOLUTION_SEND_SUCCESS
+| messageId Evolution
+| último checkpoint
+| erro
+
+Também procure nesses mesmos testes por:
+
+Could not find the function public.append_wa_message
+
+AI_REPLY_HISTORY_PERSISTENCE_FAILED
+
+INBOUND_INSTANCE_NOT_RESOLVED
+
+AGENT_NOT_RESOLVED
+
+UNIT_NOT_RESOLVED
+
+AI_PROCESSING_FAILED
+
+AI_RESPONSE_FAILED
+
+EVOLUTION_SEND_FAILED
+
+DUPLICATE_MESSAGE
+
+Não use registros antigos.
+
+Não use simulação.
+
+Não use cURL.
+
+Não considere status "Conectado" como prova.
+
+Não considere a mensagem aparecer na Caixa de Entrada como
+prova de que a IA respondeu.
+
+A prova de funcionamento é:
+
+mensagem REAL recebida
++
+instância correta resolvida
++
+IA processada
++
+resposta gerada
++
+EVOLUTION_SEND_SUCCESS
++
+messageId retornado pela Evolution.
+
+IMPORTANTE:
+
+Confirme também que a resposta saiu pela MESMA instância/unidade
+que recebeu a mensagem.
+
+Centro → Centro
+Ventura → Ventura
+Boulevard → Boulevard
+
+Não faça nenhuma alteração mesmo que encontre erro.
+
+Se algum teste parar no meio, informe:
+
+ÚLTIMO CHECKPOINT EXECUTADO
+PRÓXIMO CHECKPOINT NÃO EXECUTADO
+ERRO EXATO
+ARQUIVO/FUNÇÃO RESPONSÁVEL
+
+Quero primeiro o diagnóstico pós-correção do schema cache.
       </div>
     </div>
   </div>
