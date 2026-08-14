@@ -337,7 +337,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
     
     // Tentamos atualizar o histórico e o job. Se falhar, logamos mas o status lógico é SENT.
     try {
-      await supabaseAdmin.rpc("append_wa_message" as any, {
+      const { error: rpcError } = await supabaseAdmin.rpc("append_wa_message" as any, {
         p_phone: currentFollowup.phone,
         p_new_message: { 
           id: messageId || `fup-${Date.now()}`, 
@@ -346,6 +346,7 @@ export async function processSingleFollowup(followup: any, parentTraceId: string
           createdAt: completionTime 
         }
       });
+      if (rpcError) throw new Error(rpcError.message);
     } catch (auditErr: any) {
       logger.warn("AUDIT_SAVE_FAILED", "Falha ao salvar log de conversa, mas envio foi feito", { ...logContext, error: auditErr.message });
     }
