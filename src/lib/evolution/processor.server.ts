@@ -311,8 +311,15 @@ source: ${identity.identitySource}`);
         messageId: finalMessageId,
         event: "INBOUND_INSTANCE_NOT_RESOLVED",
         status: "failed",
-        payload: { traceId, instance: msg.instance, remoteJid: msg.remoteJid, phone }
+        payload: { 
+          traceId, 
+          instance: msg.instance, 
+          remoteJid: msg.remoteJid, 
+          phone,
+          availableInstances: "Audit table for manual resolution"
+        }
       });
+
       trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "AGENT_NOT_FOUND" });
       await markEventFailed(msg.instance, finalMessageId, "AGENT_NOT_FOUND");
       continue;
