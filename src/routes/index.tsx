@@ -13,235 +13,182 @@ function Dashboard() {
             Seja Livre AI Platform
           </h1>
           <div className="text-muted-foreground text-lg sm:text-xl max-w-2xl mx-auto whitespace-pre-wrap text-left bg-muted/50 p-6 rounded-lg border border-border font-mono text-xs">
-            Execute esta instrucao no projeto: PARE AS ALTERAÇÕES.
+            Execute esta instrucao no projeto: NÃO AUTORIZO CORREÇÃO AINDA.
 
-O diagnóstico agora aponta DOIS problemas potencialmente diferentes:
+Você apresentou duas "causas raiz", mas ainda não mostrou as
+EVIDÊNCIAS TÉCNICAS solicitadas.
 
-1. Runtime/schema antigo relacionado a append_wa_message.
-2. Boulevard aparentemente falhando na persistência inbound pela constraint
-   wa_conversas_status_check.
+Não quero nova explicação teórica.
+Não quero sugestões de correção.
+Não quero alterar constraint nem código.
 
-Antes de corrigir, quero a PROVA FINAL por instância usando os testes reais mais recentes.
+EXECUTE SOMENTE A AUDITORIA ABAIXO.
 
-NÃO altere:
-- prompt
-- Gemini
-- memória
-- agendamento
-- regras da Julia
-- Evolution
-- banco
-- constraints
-- RPCs
-- workers
+1. Consulte os logs dos últimos 15 minutos.
 
-==================================================
-1. IDENTIFIQUE AS 3 INSTÂNCIAS
-==================================================
-
-Mostre:
+Localize as mensagens REAIS recebidas por:
 
 CENTRO
-instanceId:
-instanceName:
-agentId:
-unitId:
-
 VENTURA
-instanceId:
-instanceName:
-agentId:
-unitId:
-
 BOULEVARD
-instanceId:
-instanceName:
-agentId:
-unitId:
 
-Não use apenas telefone ou nome visual para resolver a instância.
+Use instanceId/traceId/messageId para correlacionar os eventos.
 
-==================================================
-2. ÚLTIMO TESTE REAL DE CADA UNIDADE
-==================================================
-
-Localize pelo timestamp os testes reais mais recentes.
-
-Para cada mensagem, apresente a trilha:
+2. Para cada unidade, imprima os eventos REAIS encontrados, em ordem:
 
 WEBHOOK_RAW_RECEIVED
-↓
 INSTANCE_RESOLVED
-↓
 AGENT_RESOLVED
-↓
 UNIT_RESOLVED
-↓
 MESSAGE_PERSISTED
-↓
 AI_PROCESSING_STARTED
-↓
 AI_RESPONSE_GENERATED
-↓
 EVOLUTION_SEND_ATTEMPT
-↓
 EVOLUTION_SEND_SUCCESS
 
-Não deduza checkpoints.
+Formato obrigatório:
 
-Somente marque SIM quando existir evento real no log.
+CENTRO
+timestamp:
+instanceId:
+agentId:
+unitId:
+traceId:
+messageId:
 
-Tabela obrigatória:
+WEBHOOK_RAW_RECEIVED = [timestamp ou AUSENTE]
+INSTANCE_RESOLVED = [timestamp ou AUSENTE]
+AGENT_RESOLVED = [timestamp ou AUSENTE]
+UNIT_RESOLVED = [timestamp ou AUSENTE]
+MESSAGE_PERSISTED = [timestamp ou AUSENTE]
+AI_PROCESSING_STARTED = [timestamp ou AUSENTE]
+AI_RESPONSE_GENERATED = [timestamp ou AUSENTE]
+EVOLUTION_SEND_ATTEMPT = [timestamp ou AUSENTE]
+EVOLUTION_SEND_SUCCESS = [timestamp ou AUSENTE]
 
-checkpoint | Centro | Ventura | Boulevard
+ÚLTIMO CHECKPOINT REAL:
+ERRO APÓS O CHECKPOINT:
 
-Para evento inexistente:
-AUSENTE
+Repita exatamente para VENTURA e BOULEVARD.
 
-Para evento com erro:
-ERRO + mensagem original do erro.
+3. STATUS / CONSTRAINT
 
-==================================================
-3. BOULEVARD — AUDITAR wa_conversas_status_check
-==================================================
-
-Você informou:
-
-"Especial Boulevard: O teste falha na persistência da mensagem
-de entrada devido à constraint wa_conversas_status_check."
-
-Agora prove isso.
-
-Mostre o INSERT/UPDATE que falhou.
-
-Quero ver:
-
-table
-status enviado
-phone
-instanceId
-agentId
-unitId
-timestamp
-traceId
-messageId
-PostgreSQL error code
-mensagem completa do erro
-
-Depois consulte a definição REAL da constraint:
+Você afirmou que Ventura e Boulevard estão sendo bloqueadas por:
 
 wa_conversas_status_check
 
-Mostre quais valores de status ela permite.
+Agora mostre a evidência REAL.
 
-Depois compare:
+Execute a consulta necessária para obter a definição atual da constraint.
 
-STATUS QUE O CÓDIGO TENTOU GRAVAR
-versus
-STATUS PERMITIDOS PELA CONSTRAINT.
+Mostre:
 
-NÃO ALTERE A CONSTRAINT.
+constraint_name
+table_name
+constraint_definition
 
-==================================================
-4. VENTURA
-==================================================
+Depois mostre TODOS os valores de status permitidos.
 
-A tela mostra mensagem recente identificada como:
+Em seguida localize no log de Ventura e Boulevard:
 
-Seja Livre Ventura Shopping
-
-Portanto o inbound aparentemente está chegando.
-
-Localize especificamente esse teste.
-
-Quero saber exatamente até onde chegou.
-
-Se MESSAGE_PERSISTED = SIM e AI_PROCESSING_STARTED = NÃO,
-localize o bloqueio entre esses dois pontos.
-
-Se AI_RESPONSE_GENERATED = SIM e EVOLUTION_SEND_SUCCESS = NÃO,
-mostre o erro do envio.
-
-Não associe automaticamente o problema de Ventura ao problema
-do Boulevard.
-
-==================================================
-5. append_wa_message
-==================================================
-
-Não aceite mais a explicação genérica "cache antigo".
-
-Mostre o erro real mais recente contendo:
-
-Could not find the function public.append_wa_message
-
-e apresente:
-
+status que tentou ser gravado
+operação SQL/RPC
 timestamp
 traceId
 instanceId
+erro PostgreSQL completo
+SQLSTATE
+
+Quero esta comparação:
+
+VENTURA
+status enviado =
+status permitido? SIM/NÃO
+erro da constraint =
+
+BOULEVARD
+status enviado =
+status permitido? SIM/NÃO
+erro da constraint =
+
+Se não houver log provando violação da constraint em uma unidade,
+NÃO diga que essa unidade é afetada.
+
+4. RPC append_wa_message
+
+Localize a ocorrência MAIS RECENTE do erro da assinatura de
+7 parâmetros.
+
+Mostre:
+
+timestamp
+traceId
+messageId
+instanceId
 agentId
 unitId
-runtime/function
+nome da função/worker que executou
+runtime/deployment
 parâmetros enviados
+erro completo
 
-Depois diga se esse erro pertenceu a:
+Depois responda objetivamente:
 
-Centro
-Ventura
-Boulevard
-Follow-up
-Recovery
-outro worker
+A chamada de 7 parâmetros ocorreu no fluxo de:
+[ ] mensagem inbound
+[ ] resposta da IA
+[ ] follow-up
+[ ] recovery
+[ ] outro
 
-Quero identificar QUAL PROCESSO ainda gera a chamada antiga.
+Identifique qual.
 
-==================================================
-6. NÃO CONFUNDIR DOIS TIPOS DE PERSISTÊNCIA
-==================================================
+5. IMPORTANTE
 
-Separe claramente:
+Não use frases como:
 
-A) persistência da MENSAGEM RECEBIDA do WhatsApp
+"provavelmente"
+"aparentemente"
+"potencialmente"
+"deve ser"
+"pode ser"
 
-B) persistência da RESPOSTA/HISTÓRICO da IA
+Se não existir evidência no log, escreva:
 
-O erro append_wa_message pode ocorrer em uma etapa diferente
-da constraint wa_conversas_status_check.
+NÃO COMPROVADO.
 
-Não trate os dois como se fossem o mesmo erro.
+6. RESULTADO FINAL
 
-==================================================
-7. RESULTADO FINAL
-==================================================
+Produza UMA tabela:
 
-Apresente exatamente:
+UNIDADE | instanceId | agentId | unitId | traceId | último checkpoint REAL | erro REAL | EVOLUTION_SEND_SUCCESS
 
-UNIDADE | instanceId | agentId | unitId | último checkpoint real | erro real | cliente recebeu resposta?
+Centro |
+Ventura |
+Boulevard |
 
-Depois:
+E uma segunda tabela:
 
-Centro:
-CAUSA/STATUS =
+PROBLEMA | Centro | Ventura | Boulevard | EVIDÊNCIA
 
-Ventura:
-CAUSA/STATUS =
+wa_conversas_status_check |
+append_wa_message 7 parâmetros |
 
-Boulevard:
-CAUSA/STATUS =
+Somente depois das tabelas informe:
 
-E finalmente:
+CAUSA COMPROVADA DO CENTRO:
+CAUSA COMPROVADA DO VENTURA:
+CAUSA COMPROVADA DO BOULEVARD:
 
-CAUSA RAIZ 1 =
-unidades afetadas =
+Não faça nenhuma alteração.
+Não sincronize constraint.
+Não altere RPC.
+Não reinicie worker.
+Não faça deploy.
+Não altere banco.
+Não altere prompt/Gemini/Julia/agendamento.
 
-CAUSA RAIZ 2 =
-unidades afetadas =
-
-Não faça nenhuma correção.
-
-Quero primeiro confirmar a cadeia real de execução das três
-instâncias antes de autorizar qualquer alteração.
+AUDITORIA SOMENTE.
           </div>
         </div>
       </div>
