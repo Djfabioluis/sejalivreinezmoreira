@@ -5,146 +5,142 @@ export const Route = createFileRoute('/')({
 })
 
 function Dashboard() {
-  const instructions = `Execute esta instrucao no projeto: NÃO FAÇA NENHUMA ALTERAÇÃO NO CÓDIGO.
+  const instructions = `Execute esta instrucao no projeto: AUTORIZADO PROSSEGUIR SOMENTE COM A VALIDAÇÃO FUNCIONAL REAL END-TO-END.
 
-A correção atual obteve:
+NÃO ALTERE CÓDIGO.
+NÃO CORRIJA NADA.
+NÃO ALTERE PROMPT.
+NÃO ALTERE PREÇOS.
+NÃO ALTERE CONFIGURAÇÕES.
+NÃO CRIE SIMULAÇÕES.
 
-TOTAL DE TESTES = 24
-APROVADOS = 24
-FALHARAM = 0
+As instâncias já foram identificadas:
 
-Agora quero somente VALIDAÇÃO FUNCIONAL REAL END-TO-END.
+CENTRO:
+unitId = 1378
+instanceId = agente-554130731358
 
-Não implemente.
-Não refatore.
-Não altere prompt.
-Não altere preços.
-Não altere BEMP.
-Não altere Evolution.
-Não altere SERVICE_CLARIFICATION_REQUIRED.
-Não altere PRICE_MISMATCH_BLOCKED.
+VENTURA:
+unitId = 1377
+instanceId = agente-5541998430354
 
-OBJETIVO:
+BOULEVARD:
+unitId = 5258
+instanceId = agente-5541998803684
 
-Confirmar que o comportamento aprovado nos testes automatizados
-é exatamente o mesmo no fluxo real:
+Agora quero separar claramente:
 
-WHATSAPP
-→ EVOLUTION
-→ WEBHOOK
-→ JULIA
-→ LIST_SERVICES / BEMP
-→ RESOLUÇÃO DO SERVIÇO
-→ PREÇO OFICIAL
-→ EVOLUTION
-→ WHATSAPP
+1. TESTE AUTOMATIZADO
+2. TRACE ANTIGO
+3. MENSAGEM REAL NOVA RECEBIDA PELO WHATSAPP
 
-Faça a auditoria separadamente nas 3 unidades:
+Somente o item 3 será aceito como evidência do teste end-to-end.
 
-CENTRO
-VENTURA
-BOULEVARD
+==================================================
+FASE 1 — PREPARAR MONITORAMENTO
+==================================================
 
-Para cada unidade, identificar o número/instância real de WhatsApp
-e acompanhar os traces do início ao fim.
+Monitore as 3 instâncias reais.
 
-TESTES REAIS:
+Para cada nova mensagem recebida, registre:
 
-TESTE 1 — SERVIÇO INEQUÍVOCO
+- timestamp
+- instanceId
+- unitId
+- telefone/conversationId mascarado
+- webhook/traceId
+- texto recebido
+- chamada list_services
+- candidatos retornados pela BEMP
+- serviceId selecionado
+- officialPrice
+- SERVICE_CLARIFICATION_REQUIRED
+- SERVICE_PRICE_RESOLVED
+- PRICE_MISMATCH_BLOCKED
+- resposta produzida pela Julia
+- mensagem efetivamente enviada pela Evolution
 
-Enviar pelo WhatsApp uma pergunta com nome suficientemente
-específico de um serviço existente.
+Não use traces anteriores como aprovação.
 
-Validar:
+==================================================
+FASE 2 — AGUARDAR MINHAS MENSAGENS
+==================================================
 
-- unidade correta
-- list_services chamada
-- serviceId correto
-- officialPrice obtido do BEMP
-- SERVICE_PRICE_RESOLVED = true
-- preço enviado ao cliente = officialPrice
+Quando o monitoramento estiver pronto, NÃO invente resultados.
 
-TESTE 2 — SERVIÇO AMBÍGUO
+Informe apenas:
 
-Enviar pelo WhatsApp:
+MONITORAMENTO PRONTO
+
+CENTRO = pronto/não pronto
+VENTURA = pronto/não pronto
+BOULEVARD = pronto/não pronto
+
+E me diga exatamente PARA QUAL NÚMERO DE WHATSAPP devo enviar
+uma mensagem de teste para cada unidade.
+
+Se você não conseguir determinar o número público correspondente
+à instância, diga isso claramente.
+
+==================================================
+FASE 3 — TESTE REAL
+==================================================
+
+Depois que eu enviar pelo meu WhatsApp, capture o NOVO trace.
+
+Primeiro teste em cada unidade:
 
 "Quanto custa corte?"
 
-Validar:
+COMPORTAMENTO ESPERADO:
 
-- múltiplos candidatos reais encontrados
-- SERVICE_CLARIFICATION_REQUIRED
-- nenhum serviceId escolhido arbitrariamente
-- nenhum preço informado
-- Julia apresenta somente opções reais do BEMP
+Se houver mais de um serviço compatível:
+- NÃO escolher automaticamente
+- NÃO informar preço
+- SERVICE_CLARIFICATION_REQUIRED = true
+- apresentar opções reais retornadas pela BEMP
 
-Depois responder pelo WhatsApp:
+Depois eu responderei algo como:
 
 "a segunda"
 
-Validar:
+Então validar:
 
-- contexto de esclarecimento recuperado
-- opção correta selecionada
-- serviceId correto
-- officialPrice consultado
+- recuperação do contexto
+- serviço correto
+- serviceId real
+- preço consultado na BEMP
 - SERVICE_PRICE_RESOLVED = true
-- preço correto enviado
+- preço enviado = officialPrice
 
-TESTE 3 — SERVIÇO INEXISTENTE
+==================================================
+REGRA DE EVIDÊNCIA
+==================================================
 
-Perguntar pelo WhatsApp o preço de um serviço inexistente.
+Não marque APROVADO apenas porque a função funciona em teste.
 
-Validar:
+APROVADO somente se houver:
 
-- nenhum serviceId inventado
-- officialPrice = null
-- SERVICE_PRICE_RESOLVED = false
-- nenhum preço inventado enviado ao cliente
+MENSAGEM REAL WHATSAPP
+→ WEBHOOK NOVO
+→ INSTÂNCIA CORRETA
+→ BEMP
+→ JULIA
+→ EVOLUTION
+→ RESPOSTA REAL ENVIADA
 
-IMPORTANTE:
+Se não houver evidência de uma dessas etapas:
 
-NÃO simule resposta do WhatsApp.
-NÃO considere teste unitário como evidência deste teste.
-NÃO altere dados do BEMP.
-NÃO faça correções automaticamente.
+NÃO TESTADO.
 
-Se não for possível disparar mensagens reais de teste,
-identifique exatamente o que precisa ser feito manualmente
-por mim no WhatsApp e fique acompanhando os traces disponíveis.
+Se ocorrer erro:
 
-RELATÓRIO FINAL POR UNIDADE:
-
-UNIDADE:
-INSTÂNCIA:
-TRACE/ID:
-MENSAGEM DO CLIENTE:
-CANDIDATOS BEMP:
-SERVICE ID SELECIONADO:
-OFFICIAL PRICE:
-SERVICE_PRICE_RESOLVED:
-SERVICE_CLARIFICATION_REQUIRED:
-RESPOSTA FINAL DA JULIA:
-MENSAGEM ENVIADA PELO EVOLUTION:
-RESULTADO: APROVADO/FALHOU
-
-Ao final:
-
-CENTRO = APROVADO/FALHOU
-VENTURA = APROVADO/FALHOU
-BOULEVARD = APROVADO/FALHOU
-
-PREÇO BEMP = VALIDADO/NÃO VALIDADO
-AMBIGUIDADE = VALIDADA/NÃO VALIDADA
-SERVIÇO INEXISTENTE = VALIDADO/NÃO VALIDADO
-WHATSAPP END-TO-END = VALIDADO/NÃO VALIDADO
-
-Se encontrar qualquer falha:
 PARE.
 NÃO CORRIJA.
-Mostre o trace e a causa provável.
+Mostre o trace e a etapa exata da falha.
 
-PARE E AGUARDE MINHA AUTORIZAÇÃO.`;
+Agora apenas prepare o monitoramento e me informe quando estiver
+pronto para eu enviar as mensagens pelo WhatsApp.`;
 
   return (
     <div className="p-8 max-w-4xl mx-auto space-y-6">
