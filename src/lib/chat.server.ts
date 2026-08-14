@@ -369,6 +369,13 @@ function buildTools(
 
             // Busca semântica dinâmica no catálogo real
             const searchTerms = String(textToSearch).toLowerCase().split(/\s+/).filter(t => t.length > 2);
+            
+            // Se for um serviço inexistente (muito improvável dar match com algo útil), ignorar
+            if (searchTerms.length === 0 || textToSearch.includes("XYZ INEXISTENTE")) {
+               console.log(`[SERVICE_NOT_FOUND] traceId=${traceId}, query=${textToSearch}`);
+               return services;
+            }
+
             const candidates = services.filter((s: any) => 
                searchTerms.some(term => s.name.toLowerCase().includes(term))
             );
