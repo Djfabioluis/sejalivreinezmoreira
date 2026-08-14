@@ -283,6 +283,8 @@ function buildTools(
   conversationKey?: string,
   currentMessageId?: string | null,
   subscriptionIntent?: boolean,
+  traceId?: string,
+  messages: any[] = []
 ) {
   const safeToolLocal = <T,>(label: string, fn: () => Promise<T>) =>
     runTool(label, fn, { conversationKey, effectiveUnitId: fallbackAgentUnitId });
@@ -481,7 +483,7 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
     model,
     system: systemPrompt + (sandbox ? SANDBOX_NOTE : ""),
     messages: modelMessages,
-    tools: buildTools(!!sandbox, effectiveUnitId, conversationKey, opts.messageId, bookingContext.subscriptionIntent),
+    tools: buildTools(!!sandbox, effectiveUnitId, conversationKey, opts.messageId, bookingContext.subscriptionIntent, traceId, messages),
     maxSteps: 5,
     onStepFinish: async (step: any) => {
       if (traceId) {
