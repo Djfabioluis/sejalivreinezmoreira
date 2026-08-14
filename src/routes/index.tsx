@@ -1,27 +1,5 @@
 /**
- * Execute esta instrucao no projeto: ANÁLISE DO CÓDIGO REAL — BEM AGENDA AI (27)
- * 
- * PROBLEMAS CONFIRMADOS:
- * 1. Julia repete perguntas que já foram respondidas.
- * 2. Julia chega até confirmação, mas não finaliza o agendamento.
- * 3. O estado de booking não possui lifecycle completo.
- * 4. A confirmação do cliente não é persistida deterministicamente.
- * 5. create_appointment depende excessivamente da decisão do LLM.
- * 
- * SOLUÇÃO IMPLEMENTADA:
- * - Expandido BookingContext com campos de lifecycle (selectedSlot, appointmentStatus, etc).
- * - Máquina de estados determinística no Agent Flow: UNIT -> SERVICE -> DATE -> AVAILABILITY -> SLOT_SELECTED -> AWAITING_CONFIRMATION -> CUSTOMER_CONFIRMED -> CREATE_APPOINTMENT -> CONFIRMED.
- * - Correção da função `nextRequiredSlot()` para ser 100% determinística.
- * - Disponibilidade e seleção de horários agora salvam opções no contexto para validação imediata.
- * - Confirmação explícita via `isShortAffirmative` dispara o agendamento real no BEMP sem depender de nova decisão do LLM.
- * - Idempotência baseada em ID da conversa + serviço + horário.
- * - Bloqueio de perguntas duplicadas via `ensureNoDuplicateBookingQuestion` comparando resposta da IA com contexto.
- * - Logs detalhados de cada etapa do lifecycle (BOOKING_CREATE_STARTED, BOOKING_CREATE_SUCCESS, etc).
- * - Correção do RPC `append_wa_message` com poda ORDINALITY para conversas longas.
- * 
- * EVIDÊNCIA DE TESTES:
- * - Testes unitários em `src/lib/booking/tests/lifecycle.test.ts` validados com sucesso.
- * - Build e Typecheck concluídos.
+ * Execute esta instrucao no projeto: atualizar projeto
  */
 // CONTEXTO CONFIRMADO: Evolution API 2.3.7, Instância agente-5541999102791.
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
