@@ -6,140 +6,92 @@ export const Route = createFileRoute('/')({
 
 function Dashboard() {
   return (
-    <div className="flex flex-col min-h-screen bg-background">
-      <div className="flex-1 flex flex-col items-center justify-center p-4 space-y-8 max-w-4xl mx-auto w-full">
-        <div className="text-center space-y-4">
-          <h1 className="text-4xl font-bold tracking-tight sm:text-6xl text-foreground">
-            Seja Livre AI Platform
-          </h1>
-          <div className="text-muted-foreground text-lg sm:text-xl max-w-2xl mx-auto whitespace-pre-wrap text-left bg-muted/50 p-6 rounded-lg border border-border font-mono text-xs">
-            Execute esta instrucao no projeto: Agora temos uma causa técnica concreta:
+<div className="flex flex-col min-h-screen bg-background">
+  <div className="flex-1 flex flex-col items-center justify-center p-4 space-y-8 max-w-4xl mx-auto w-full">
+    <div className="text-center space-y-4">
+      <h1 className="text-4xl font-bold tracking-tight sm:text-6xl text-foreground">
+        Seja Livre AI Platform
+      </h1>
+      <div className="text-muted-foreground text-lg sm:text-xl max-w-2xl mx-auto whitespace-pre-wrap text-left bg-muted/50 p-6 rounded-lg border border-border font-mono text-xs">
+        Execute esta instrucao no projeto: Acabei de realizar NOVOS testes reais de WhatsApp após a correção
+de fallback.server.ts.
+
+Não faça nenhuma alteração agora.
+
+Localize exclusivamente as mensagens que acabei de enviar pelo horário
+e pelo conteúdo da mensagem.
+
+Para CENTRO, VENTURA e BOULEVARD, rastreie individualmente:
+
+WEBHOOK_RAW_RECEIVED
+→ INSTANCE_RESOLVED
+→ AGENT_RESOLVED
+→ UNIT_RESOLVED
+→ MESSAGE_PERSISTED
+→ AI_PROCESSING_STARTED
+→ AI_RESPONSE_GENERATED
+→ EVOLUTION_SEND_SUCCESS
+
+Mostre uma tabela:
+
+Unidade
+| telefone/instanceId
+| instanceId técnico Evolution
+| agentId
+| unitId
+| conteúdo recebido
+| horário
+| último checkpoint
+| resposta gerada
+| envio Evolution
+| erro
+
+IMPORTANTE:
+
+1. Não considere "Conectado" como funcionamento.
+
+2. Não use testes simulados, cURL ou registros antigos.
+
+3. Use SOMENTE os eventos gerados pelas mensagens reais que acabei
+de enviar pelo WhatsApp.
+
+4. Verifique também se apareceu novamente qualquer ocorrência de:
 
 Could not find the function public.append_wa_message
 
-O diagnóstico mostrou que ainda existe execução tentando chamar
-append_wa_message com a assinatura antiga de 7 parâmetros.
+AI_REPLY_HISTORY_PERSISTENCE_FAILED
 
-NÃO quero contornar esse erro.
-NÃO quero apenas capturar a exception e continuar.
-Quero eliminar a origem definitivamente.
+INBOUND_INSTANCE_NOT_RESOLVED
 
-Faça uma auditoria global no projeto e no runtime.
+AGENT_NOT_RESOLVED
 
-1. LOCALIZE TODAS AS CHAMADAS
+UNIT_NOT_RESOLVED
 
-Procure em todo o projeto por:
+EVOLUTION_SEND_FAILED
 
-append_wa_message
-rpc('append_wa_message'
-rpc("append_wa_message"
+5. Confirme especificamente se fallback.server.ts deixou de executar
+a assinatura antiga de 7 parâmetros.
 
-Incluindo:
-- server functions
-- edge functions
-- workers
-- processor.server.ts
-- conversation.server.ts
-- agent.server.ts
-- webhook handlers
-- follow-up
-- filas/retries
-- código legado
+6. Não altere:
+prompt,
+Gemini,
+memória,
+máquina de estados,
+agendamento,
+regras da Julia,
+webhooks,
+instâncias.
 
-Mostre arquivo + função + quantidade de parâmetros de CADA chamada encontrada.
+Primeiro apenas faça o diagnóstico dos três testes.
 
-2. AUDITE A FUNÇÃO REAL NO BANCO
+Se alguma unidade não chegar até EVOLUTION_SEND_SUCCESS,
+mostre exatamente o checkpoint onde parou e a mensagem de erro real.
 
-Consulte diretamente o PostgreSQL/Supabase e mostre a assinatura atualmente existente de:
-
-public.append_wa_message
-
-Quero ver:
-- nome dos parâmetros
-- tipos
-- ordem
-- quantidade de parâmetros
-- retorno
-
-Não presuma a assinatura pelo código TypeScript.
-
-3. COMPARE BANCO X CÓDIGO
-
-Identifique exatamente qual chamada ainda está enviando os 7 parâmetros antigos.
-
-Se houver mais de uma versão da função ou migration divergente, identificar.
-
-4. VERIFIQUE RUNTIME ANTIGO
-
-Como Centro funciona e Ventura/Boulevard apresentam o erro, verifique se existe:
-
-- worker antigo ainda executando;
-- Edge Function não redeployada;
-- versão antiga do processor;
-- fila contendo job criado por código antigo;
-- bundle/cache antigo;
-- função duplicada;
-- webhook apontando para endpoint/deployment diferente.
-
-Compare obrigatoriamente:
-
-CENTRO
-VENTURA
-BOULEVARD
-
-Quero saber qual endpoint/processador/runtime recebe cada uma.
-
-5. CORREÇÃO
-
-Depois de identificar a chamada antiga:
-
-corrija SOMENTE a incompatibilidade da RPC.
-
-Todas as instâncias devem utilizar a MESMA função e a MESMA assinatura.
-
-Não criar comportamento diferente por unidade.
-
-Não mascarar AI_REPLY_HISTORY_PERSISTENCE_FAILED.
-
-Depois da correção, faça redeploy/reload dos componentes server-side necessários para eliminar runtime antigo.
-
-6. NÃO ALTERAR
-
-Não alterar:
-- prompt da Julia
-- Gemini
-- memória
-- regras de atendimento
-- máquina de estados
-- fluxo de agendamento
-- identificação das unidades
-- configuração funcional da unidade Centro
-- regras de transferência para humano
-
-7. VALIDAÇÃO
-
-Depois da correção NÃO use somente teste manual de envio.
-
-Aguarde meus novos testes reais de WhatsApp.
-
-Antes disso, me entregue:
-
-TABELA 1 — RPC
-Local da chamada | parâmetros usados | correto/incorreto | correção
-
-TABELA 2 — RUNTIME
-Unidade | instanceId Evolution | agentId | unitId | endpoint webhook | worker/processador | versão/deployment
-
-TABELA 3 — SITUAÇÃO
-Centro | Ventura | Boulevard
-
-Para cada uma mostrar o último checkpoint REAL conhecido.
-
-IMPORTANTE:
-Não declare que "a Julia está funcionando" sem um novo teste inbound real chegando até EVOLUTION_SEND_SUCCESS.
-          </div>
-        </div>
+Não responda apenas "está funcionando".
+Quero a trilha técnica dos três testes.
       </div>
     </div>
+  </div>
+</div>
   )
 }
