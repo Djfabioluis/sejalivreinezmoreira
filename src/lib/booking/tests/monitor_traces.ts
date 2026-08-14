@@ -35,48 +35,45 @@ async function monitorTraces() {
     console.log(`Instância: ${firstStep.instance_id}`);
     console.log(`Timestamp: ${firstStep.timestamp}`);
     
-    // 1. Mensagem de entrada
-    const inbound = steps.find((s: any) => s.step === 'webhook_received' || s.step === 'inbound_message');
-    if (inbound?.payload) {
-        const text = inbound.payload.message?.conversation || inbound.payload.text || "...";
+    // 1. Mensagem de entrada (MESSAGE_PARSED contém o texto)
+    const parsed = steps.find((s: any) => s.step === 'MESSAGE_PARSED');
+    if (parsed?.payload) {
+        const text = parsed.payload.text || "...";
         console.log(`MENSAGEM DO CLIENTE: "${text}"`);
     }
 
-    // 2. Chamada da Tool
-    const listServices = steps.find((s: any) => s.step === 'tool_completed' && s.payload?.tool === 'list_services');
-    if (listServices) {
+    // 2. Chamada da Tool (BEMP_SERVICE_LOOKUP_STARTED/COMPLETED)
+    const lookup = steps.find((s: any) => s.step === 'BEMP_SERVICE_LOOKUP_COMPLETED');
+    if (lookup) {
         console.log(`LIST_SERVICES CHAMADA: SIM`);
     }
 
-    // 3. Resolução de Ambiguidade / Candidatos
-    const contextUpdate = steps.find((s: any) => s.payload?.context_patch);
-    if (contextUpdate?.payload?.context_patch) {
-        const patch = contextUpdate.payload.context_patch;
-        if (patch['bookingContext.candidates']) {
-            console.log(`CANDIDATOS BEMP: ${patch['bookingContext.candidates'].length} encontrados`);
+    // 3. Ambiguidade / Contexto
+    const contextMerged = steps.find((s: any) => s.step === 'BOOKING_CONTEXT_MERGED');
+    if (contextMerged?.payload) {
+        const ctx = contextMerged.payload.context || contextMerged.payload;
+        if (ctx.clarificationRequired) {
+            console.log(`CANDIDATOS BEMP: ${ctx.candidates?.length || "Múltiplos"} encontrados`);
             console.log(`SERVICE_CLARIFICATION_REQUIRED: true`);
         }
-        if (patch['bookingContext.serviceId']) {
-            console.log(`SERVICE ID SELECIONADO: ${patch['bookingContext.serviceId']}`);
+        if (ctx.serviceId) {
+            console.log(`SERVICE ID SELECIONADO: ${ctx.serviceId}`);
         }
     }
 
     // 4. Preço e Auditoria
-    const priceRes = steps.find((s: any) => s.step === 'price_resolved' || s.payload?.price_resolved);
-    if (priceRes) {
-        console.log(`OFFICIAL PRICE: ${priceRes.payload?.price || priceRes.payload?.officialPrice}`);
-        console.log(`SERVICE_PRICE_RESOLVED: true`);
-    }
-
     const blocked = steps.find((s: any) => s.step === 'PRICE_MISMATCH_BLOCKED');
     if (blocked) {
         console.log(`RESULTADO: PRICE_MISMATCH_BLOCKED (Alucinação impedida)`);
+        if (blocked.payload) {
+            console.log(`Detalhes: ${JSON.stringify(blocked.payload)}`);
+        }
     }
 
-    // 5. Resposta Final
-    const outbound = steps.find((s: any) => s.step === 'reply_sent' || s.step === 'outbound_message_sent');
-    if (outbound?.payload) {
-        const reply = outbound.payload.text || outbound.payload.message?.conversation || "...";
+    // 5. Resposta Final (EVOLUTION_SEND_STARTED contém o texto da Julia)
+    const evolution = steps.find((s: any) => s.step === 'EVOLUTION_SEND_STARTED');
+    if (evolution?.payload) {
+        const reply = evolution.payload.text || "...";
         console.log(`RESPOSTA FINAL DA JULIA: "${reply}"`);
     }
   }
