@@ -13,182 +13,118 @@ function Dashboard() {
             Seja Livre AI Platform
           </h1>
           <div className="text-muted-foreground text-lg sm:text-xl max-w-2xl mx-auto whitespace-pre-wrap text-left bg-muted/50 p-6 rounded-lg border border-border font-mono text-xs">
-            Execute esta instrucao no projeto: NÃO AUTORIZO CORREÇÃO AINDA.
+            Execute esta instrucao no projeto: NÃO ALTERE NADA.
 
-Você apresentou duas "causas raiz", mas ainda não mostrou as
-EVIDÊNCIAS TÉCNICAS solicitadas.
+Você já declarou que Ventura e Boulevard falham porque o código tenta
+gravar status = PROCESSING e a constraint wa_conversas_status_check
+bloqueia.
 
-Não quero nova explicação teórica.
-Não quero sugestões de correção.
-Não quero alterar constraint nem código.
+Agora NÃO repita o diagnóstico.
 
-EXECUTE SOMENTE A AUDITORIA ABAIXO.
+Execute e MOSTRE somente estas evidências do banco:
 
-1. Consulte os logs dos últimos 15 minutos.
-
-Localize as mensagens REAIS recebidas por:
-
-CENTRO
-VENTURA
-BOULEVARD
-
-Use instanceId/traceId/messageId para correlacionar os eventos.
-
-2. Para cada unidade, imprima os eventos REAIS encontrados, em ordem:
-
-WEBHOOK_RAW_RECEIVED
-INSTANCE_RESOLVED
-AGENT_RESOLVED
-UNIT_RESOLVED
-MESSAGE_PERSISTED
-AI_PROCESSING_STARTED
-AI_RESPONSE_GENERATED
-EVOLUTION_SEND_ATTEMPT
-EVOLUTION_SEND_SUCCESS
-
-Formato obrigatório:
-
-CENTRO
-timestamp:
-instanceId:
-agentId:
-unitId:
-traceId:
-messageId:
-
-WEBHOOK_RAW_RECEIVED = [timestamp ou AUSENTE]
-INSTANCE_RESOLVED = [timestamp ou AUSENTE]
-AGENT_RESOLVED = [timestamp ou AUSENTE]
-UNIT_RESOLVED = [timestamp ou AUSENTE]
-MESSAGE_PERSISTED = [timestamp ou AUSENTE]
-AI_PROCESSING_STARTED = [timestamp ou AUSENTE]
-AI_RESPONSE_GENERATED = [timestamp ou AUSENTE]
-EVOLUTION_SEND_ATTEMPT = [timestamp ou AUSENTE]
-EVOLUTION_SEND_SUCCESS = [timestamp ou AUSENTE]
-
-ÚLTIMO CHECKPOINT REAL:
-ERRO APÓS O CHECKPOINT:
-
-Repita exatamente para VENTURA e BOULEVARD.
-
-3. STATUS / CONSTRAINT
-
-Você afirmou que Ventura e Boulevard estão sendo bloqueadas por:
+1. Definição REAL da constraint:
 
 wa_conversas_status_check
 
-Agora mostre a evidência REAL.
+Mostre literalmente:
 
-Execute a consulta necessária para obter a definição atual da constraint.
+- tabela
+- coluna
+- definição completa da constraint
+- TODOS os valores permitidos
 
-Mostre:
-
-constraint_name
-table_name
-constraint_definition
-
-Depois mostre TODOS os valores de status permitidos.
-
-Em seguida localize no log de Ventura e Boulevard:
-
-status que tentou ser gravado
-operação SQL/RPC
-timestamp
-traceId
-instanceId
-erro PostgreSQL completo
-SQLSTATE
-
-Quero esta comparação:
-
-VENTURA
-status enviado =
-status permitido? SIM/NÃO
-erro da constraint =
-
-BOULEVARD
-status enviado =
-status permitido? SIM/NÃO
-erro da constraint =
-
-Se não houver log provando violação da constraint em uma unidade,
-NÃO diga que essa unidade é afetada.
-
-4. RPC append_wa_message
-
-Localize a ocorrência MAIS RECENTE do erro da assinatura de
-7 parâmetros.
-
-Mostre:
+2. Mostre o erro REAL mais recente de VENTURA:
 
 timestamp
 traceId
-messageId
 instanceId
 agentId
 unitId
-nome da função/worker que executou
-runtime/deployment
-parâmetros enviados
-erro completo
+status enviado
+SQLSTATE
+mensagem PostgreSQL completa
 
-Depois responda objetivamente:
+3. Mostre o erro REAL mais recente de BOULEVARD:
 
-A chamada de 7 parâmetros ocorreu no fluxo de:
-[ ] mensagem inbound
-[ ] resposta da IA
-[ ] follow-up
-[ ] recovery
-[ ] outro
+timestamp
+traceId
+instanceId
+agentId
+unitId
+status enviado
+SQLSTATE
+mensagem PostgreSQL completa
 
-Identifique qual.
+4. Mostre o código EXATO que tenta definir:
 
-5. IMPORTANTE
+status = PROCESSING
 
-Não use frases como:
+Informe:
 
-"provavelmente"
-"aparentemente"
-"potencialmente"
-"deve ser"
-"pode ser"
+arquivo
+linha
+função
 
-Se não existir evidência no log, escreva:
+5. Agora verifique qual status o CENTRO utiliza no MESMO ponto do fluxo.
 
-NÃO COMPROVADO.
+Quero comparação direta:
 
-6. RESULTADO FINAL
+CENTRO:
+status antes do AI_PROCESSING_STARTED = ?
 
-Produza UMA tabela:
+VENTURA:
+status antes do AI_PROCESSING_STARTED = ?
 
-UNIDADE | instanceId | agentId | unitId | traceId | último checkpoint REAL | erro REAL | EVOLUTION_SEND_SUCCESS
+BOULEVARD:
+status antes do AI_PROCESSING_STARTED = ?
 
-Centro |
-Ventura |
-Boulevard |
+Isso é fundamental.
 
-E uma segunda tabela:
+Se Centro passa pelo mesmo código mas NÃO tenta gravar PROCESSING,
+explique qual condição/estado faz Ventura e Boulevard entrarem nesse
+caminho diferente.
 
-PROBLEMA | Centro | Ventura | Boulevard | EVIDÊNCIA
+6. NÃO faça:
+- DROP da constraint
+- alteração da constraint
+- alteração de status
+- migration
+- deploy
+- restart
+- reload
+- alteração de RPC
+- alteração da Julia
+- alteração de prompt
+- alteração de Gemini
 
-wa_conversas_status_check |
-append_wa_message 7 parâmetros |
+Somente mostre as evidências.
 
-Somente depois das tabelas informe:
+RESULTADO FINAL OBRIGATÓRIO:
 
-CAUSA COMPROVADA DO CENTRO:
-CAUSA COMPROVADA DO VENTURA:
-CAUSA COMPROVADA DO BOULEVARD:
+STATUS PERMITIDOS:
+[...]
 
-Não faça nenhuma alteração.
-Não sincronize constraint.
-Não altere RPC.
-Não reinicie worker.
-Não faça deploy.
-Não altere banco.
-Não altere prompt/Gemini/Julia/agendamento.
+CENTRO:
+status utilizado =
+resultado =
 
-AUDITORIA SOMENTE.
+VENTURA:
+status utilizado =
+resultado =
+erro =
+
+BOULEVARD:
+status utilizado =
+resultado =
+erro =
+
+CÓDIGO QUE ENVIA PROCESSING:
+arquivo =
+linha =
+função =
+
+Depois PARE e aguarde autorização.
           </div>
         </div>
       </div>
