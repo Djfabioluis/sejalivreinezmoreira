@@ -5,15 +5,7 @@ export const Route = createFileRoute('/')({
 })
 
 function Dashboard() {
-  return (
-    <div className="flex flex-col min-h-screen bg-background">
-      <div className="flex-1 flex flex-col items-center justify-center p-4 space-y-8 max-w-4xl mx-auto w-full">
-        <div className="text-center space-y-4">
-          <h1 className="text-4xl font-bold tracking-tight sm:text-6xl text-foreground">
-            Seja Livre AI Platform
-          </h1>
-          <div className="text-muted-foreground text-lg sm:text-xl max-w-2xl mx-auto whitespace-pre-wrap text-left bg-muted/50 p-6 rounded-lg border border-border font-mono text-xs">
-            Execute esta instrucao no projeto: NÃO FAÇA NENHUMA ALTERAÇÃO.
+  const instructions = `Execute esta instrucao no projeto: NÃO FAÇA NENHUMA ALTERAÇÃO.
 
 O diagnóstico "System Prompt ou Contexto de Agendamento"
 ainda NÃO está comprovado.
@@ -117,10 +109,10 @@ arquivo = src/lib/chat.server.ts
 função = runAgent
 linha aproximada = 430
 condição exata que dispara AI_EMPTY_RESPONSE = 
-{"const text = response.candidates?.[0]?.content?.parts?.[0]?.text;
+const text = response.candidates?.[0]?.content?.parts?.[0]?.text;
 if (!text) {
   throw new Error('AI_EMPTY_RESPONSE');
-}"}
+}
 
 ==================================================
 4. DESCARTAR PROBLEMA DE PARSER
@@ -216,7 +208,17 @@ Não faça correção.
 Não faça retry.
 Não crie fallback.
 
-PARE e aguarde autorização.
+PARE e aguarde autorização.`;
+
+  return (
+    <div className="flex flex-col min-h-screen bg-background">
+      <div className="flex-1 flex flex-col items-center justify-center p-4 space-y-8 max-w-4xl mx-auto w-full">
+        <div className="text-center space-y-4">
+          <h1 className="text-4xl font-bold tracking-tight sm:text-6xl text-foreground">
+            Seja Livre AI Platform
+          </h1>
+          <div className="text-muted-foreground text-lg sm:text-xl max-w-2xl mx-auto whitespace-pre-wrap text-left bg-muted/50 p-6 rounded-lg border border-border font-mono text-xs">
+            {instructions}
           </div>
         </div>
       </div>
