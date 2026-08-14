@@ -553,6 +553,29 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       return;
     }
 
+    // REQUISITO 5: Fluxo Determinístico sem Gemini para perguntas estruturais
+    const { getDeterministicResponse } = await import("@/lib/booking/lifecycle");
+    const detResponse = getDeterministicResponse(bookingContext);
+    
+    if (detResponse) {
+      const { replyToUser } = await import("./reply.server");
+      trace?.record("DETERMINISTIC_RESPONSE_SENT", { slot: nextRequiredSlot(bookingContext) });
+      
+      await replyToUser({
+        instance,
+        phone: contactPhone,
+        text: detResponse,
+        conversationKey: finalKey,
+        messageId,
+        traceId,
+        unitId: agent.unidade_id,
+        _trace: trace
+      } as any);
+
+      trace?.record("TOTAL_PROCESSING_COMPLETED", { reason: "deterministic_reply" });
+      return;
+    }
+
     const { runAgentWithLogging } = await import("@/lib/chat.server");
 
     trace?.record("AI_REQUEST_STARTED", { model: "gemini-2.5-flash" });

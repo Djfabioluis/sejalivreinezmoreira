@@ -351,8 +351,14 @@ export function isShortAffirmative(text: string | null | undefined): boolean {
 export function ensureNoDuplicateBookingQuestion(text: string, ctx: BookingContext): { text: string; blocked: boolean } {
   const t = text.toLowerCase();
   
+/**
+ * Bloqueia perguntas que a IA faz sobre dados que já existem no contexto.
+ */
+export function ensureNoDuplicateBookingQuestion(text: string, ctx: BookingContext): { text: string; blocked: boolean } {
+  const t = text.toLowerCase();
+  
   if (ctx.serviceId || ctx.serviceName) {
-    if (t.includes("qual serviço") || t.includes("que serviço") || t.includes("qual o procedimento")) {
+    if (t.includes("qual serviço") || t.includes("que serviço") || t.includes("qual o procedimento") || t.includes("procedimento deseja")) {
       return { text: fallbackQuestionFor(ctx), blocked: true };
     }
   }
@@ -366,6 +372,13 @@ export function ensureNoDuplicateBookingQuestion(text: string, ctx: BookingConte
   if (ctx.selectedSlot || ctx.time) {
     if (t.includes("qual horário") || t.includes("que horas") || t.includes("qual hora")) {
       return { text: fallbackQuestionFor(ctx), blocked: true };
+    }
+  }
+
+  // REQUISITO 11: Se o agendamento já estiver confirmado, Gemini não deve reiniciar fluxo
+  if (ctx.appointmentStatus === "CONFIRMED") {
+    if (t.includes("agendar") || t.includes("marcar") || t.includes("horário") || t.includes("procedimento")) {
+      return { text: "Seu agendamento já está confirmado! 💜", blocked: true };
     }
   }
 
