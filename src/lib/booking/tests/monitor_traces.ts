@@ -35,16 +35,15 @@ async function monitorTraces() {
     console.log(`Instância: ${firstStep.instance_id}`);
     console.log(`Timestamp: ${firstStep.timestamp}`);
     
-    // 1. Mensagem de entrada (Inspecionando payload bruto se step step for WHATSAPP_WEBHOOK_RECEIVED)
-    const webhook = steps.find((s: any) => s.step === 'WHATSAPP_WEBHOOK_RECEIVED');
+    // 1. Mensagem de entrada (Buscando em MESSAGE_PARSED ou EVO_WEBHOOK_LOGS)
     const parsed = steps.find((s: any) => s.step === 'MESSAGE_PARSED');
+    const webhookLog = steps.find((s: any) => s.step === 'WHATSAPP_WEBHOOK_RECEIVED' && s.payload);
     
-    if (webhook?.payload) {
-        const text = webhook.payload.message?.conversation || webhook.payload.text || parsed?.payload?.text || "...";
-        console.log(`MENSAGEM DO CLIENTE: "${text}"`);
-        console.log(`PAYLOAD BRUTO: ${JSON.stringify(webhook.payload)}`);
-    } else if (parsed?.payload?.text) {
+    if (parsed?.payload?.text) {
         console.log(`MENSAGEM DO CLIENTE: "${parsed.payload.text}"`);
+    } else if (webhookLog?.payload) {
+        const text = webhookLog.payload.message?.conversation || webhookLog.payload.text || "...";
+        console.log(`MENSAGEM DO CLIENTE: "${text}"`);
     }
 
     // 2. Chamada da Tool
