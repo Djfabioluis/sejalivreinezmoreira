@@ -6,8 +6,8 @@ async function monitorTraces() {
   const { data: traces, error } = await supabaseAdmin
     .from('evo_trace_logs')
     .select('*')
-    .gt('timestamp', new Date(Date.now() - 60 * 60 * 1000).toISOString())
-    .order('timestamp', { ascending: true });
+    .gt('timestamp', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+    .order('timestamp', { ascending: false });
 
   if (error) {
     console.error("Erro ao buscar traces:", error);
@@ -35,11 +35,15 @@ async function monitorTraces() {
     console.log(`Instância: ${firstStep.instance_id}`);
     console.log(`Timestamp: ${firstStep.timestamp}`);
     
-    // 1. Mensagem de entrada (MESSAGE_PARSED contém o texto)
+    // 1. Mensagem de entrada (Inspecionando payload bruto se step step for WHATSAPP_WEBHOOK_RECEIVED)
+    const webhook = steps.find((s: any) => s.step === 'WHATSAPP_WEBHOOK_RECEIVED');
     const parsed = steps.find((s: any) => s.step === 'MESSAGE_PARSED');
-    if (parsed?.payload) {
-        const text = parsed.payload.text || "...";
+    
+    if (webhook?.payload) {
+        const text = webhook.payload.message?.conversation || webhook.payload.text || parsed?.payload?.text || "...";
         console.log(`MENSAGEM DO CLIENTE: "${text}"`);
+    } else if (parsed?.payload?.text) {
+        console.log(`MENSAGEM DO CLIENTE: "${parsed.payload.text}"`);
     }
 
     // 2. Chamada da Tool
