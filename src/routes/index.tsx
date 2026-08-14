@@ -5,270 +5,144 @@ export const Route = createFileRoute('/')({
 })
 
 function Dashboard() {
-  const instructions = `Execute esta instrucao no projeto: EXECUTE AGORA OS TESTES.
+  const instructions = `Execute esta instrucao no projeto: NÃO FAÇA NENHUMA ALTERAÇÃO NO CÓDIGO.
 
-Você apenas atualizou o painel com minhas instruções.
-Isso NÃO é execução do teste e NÃO é evidência.
+A correção atual obteve:
 
-NÃO altere a interface.
-NÃO crie página.
-NÃO atualize o dashboard.
-NÃO escreva minhas instruções no preview.
-NÃO altere código.
-NÃO implemente nada.
+TOTAL DE TESTES = 24
+APROVADOS = 24
+FALHARAM = 0
 
-Quero que você EXECUTE a auditoria/testes usando o backend,
-funções, logs e integrações reais disponíveis no projeto.
+Agora quero somente VALIDAÇÃO FUNCIONAL REAL END-TO-END.
 
-==================================================
-1. IDENTIFIQUE AS 3 INSTÂNCIAS REAIS
-==================================================
+Não implemente.
+Não refatore.
+Não altere prompt.
+Não altere preços.
+Não altere BEMP.
+Não altere Evolution.
+Não altere SERVICE_CLARIFICATION_REQUIRED.
+Não altere PRICE_MISMATCH_BLOCKED.
 
-Localize:
+OBJETIVO:
 
-CENTRO
-instanceId =
-unitId =
+Confirmar que o comportamento aprovado nos testes automatizados
+é exatamente o mesmo no fluxo real:
 
-VENTURA
-instanceId =
-unitId =
+WHATSAPP
+→ EVOLUTION
+→ WEBHOOK
+→ JULIA
+→ LIST_SERVICES / BEMP
+→ RESOLUÇÃO DO SERVIÇO
+→ PREÇO OFICIAL
+→ EVOLUTION
+→ WHATSAPP
 
-BOULEVARD
-instanceId =
-unitId =
-
-Não use apenas o nome visual.
-
-==================================================
-2. CONSULTE O CATÁLOGO REAL DE CADA UNIDADE
-==================================================
-
-Execute list_services separadamente para:
+Faça a auditoria separadamente nas 3 unidades:
 
 CENTRO
 VENTURA
 BOULEVARD
 
-Pesquise:
+Para cada unidade, identificar o número/instância real de WhatsApp
+e acompanhar os traces do início ao fim.
 
-corte
-corte feminino
-corte masculino
-manicure
-escova
+TESTES REAIS:
 
-Mostre os resultados REAIS retornados pela API.
+TESTE 1 — SERVIÇO INEQUÍVOCO
 
-Para cada resultado:
+Enviar pelo WhatsApp uma pergunta com nome suficientemente
+específico de um serviço existente.
 
-UNIDADE
-serviceId
-name
-price
-duration
+Validar:
 
-Não invente registros para completar a tabela.
+- unidade correta
+- list_services chamada
+- serviceId correto
+- officialPrice obtido do BEMP
+- SERVICE_PRICE_RESOLVED = true
+- preço enviado ao cliente = officialPrice
 
-==================================================
-3. TESTE A RESOLUÇÃO
-==================================================
+TESTE 2 — SERVIÇO AMBÍGUO
 
-Execute a lógica REAL implementada para estas frases:
-
-"Quanto custa corte?"
-"Quanto custa corte feminino?"
-"Quanto custa corte masculino?"
-"Quanto custa manicure?"
-"Quanto custa escova?"
-
-Faça isso nas 3 unidades.
-
-Quero saber quais candidatos o resolver encontrou ANTES de
-selecionar qualquer serviço.
-
-Mostre:
-
-mensagem
-unidade
-candidatos encontrados
-serviceId selecionado
-serviceName selecionado
-officialPrice
-resultado da resolução
-
-==================================================
-4. TESTE CRÍTICO DE AMBIGUIDADE
-==================================================
-
-Especialmente para:
+Enviar pelo WhatsApp:
 
 "Quanto custa corte?"
 
-Se a unidade possuir:
+Validar:
 
-Corte Feminino
-e
-Corte Masculino
+- múltiplos candidatos reais encontrados
+- SERVICE_CLARIFICATION_REQUIRED
+- nenhum serviceId escolhido arbitrariamente
+- nenhum preço informado
+- Julia apresenta somente opções reais do BEMP
 
-NÃO escolha automaticamente um deles.
+Depois responder pelo WhatsApp:
 
-Execute a lógica atual e mostre o que REALMENTE acontece.
+"a segunda"
 
-Se atualmente selecionar um automaticamente:
+Validar:
 
-RESULTADO = FALHOU
+- contexto de esclarecimento recuperado
+- opção correta selecionada
+- serviceId correto
+- officialPrice consultado
+- SERVICE_PRICE_RESOLVED = true
+- preço correto enviado
 
-Não corrija.
+TESTE 3 — SERVIÇO INEXISTENTE
 
-==================================================
-5. TESTE DE PREÇO
-==================================================
+Perguntar pelo WhatsApp o preço de um serviço inexistente.
 
-Para cada serviço inequivocamente resolvido:
+Validar:
 
-Mostre a cadeia REAL:
-
-BEMP
-↓
-list_services
-↓
-SERVICE_PRICE_RESOLVED
-↓
-Gemini
-↓
-price auditor
-↓
-Evolution/WhatsApp
-
-Mostre:
-
-officialPrice
-generatedPrice
-sentPrice
-
-Os três precisam ser numericamente iguais.
-
-==================================================
-6. TESTE DE ALUCINAÇÃO CONTROLADO
-==================================================
-
-Utilize o mecanismo de teste existente, sem enviar mensagem
-para cliente real.
-
-Exemplo:
-
-officialPrice = 100.00
-generatedPrice = 79.90
-
-Execute o price auditor.
-
-Resultado obrigatório:
-
-PRICE_MISMATCH_BLOCKED
-
-Comprove pelo log/trace que R$79,90 não atravessaria
-reply.server.ts para Evolution.
-
-==================================================
-7. SERVIÇO INEXISTENTE
-==================================================
-
-Teste:
-
-"Quanto custa o serviço XYZ INEXISTENTE 987?"
-
-nas três unidades.
-
-Resultado obrigatório:
-
-serviceId = null
-officialPrice = null
-SERVICE_PRICE_RESOLVED = false
-nenhum preço inventado
-
-Mostre qual resposta segura seria produzida.
-
-==================================================
-8. NÃO ENVIE WHATSAPP REAL
-==================================================
+- nenhum serviceId inventado
+- officialPrice = null
+- SERVICE_PRICE_RESOLVED = false
+- nenhum preço inventado enviado ao cliente
 
 IMPORTANTE:
 
-Não envie mensagens de teste para clientes reais.
+NÃO simule resposta do WhatsApp.
+NÃO considere teste unitário como evidência deste teste.
+NÃO altere dados do BEMP.
+NÃO faça correções automaticamente.
 
-Use execução interna, test runner, dry-run, funções,
-logs ou ambiente seguro disponível no projeto.
+Se não for possível disparar mensagens reais de teste,
+identifique exatamente o que precisa ser feito manualmente
+por mim no WhatsApp e fique acompanhando os traces disponíveis.
 
-Se alguma etapa somente puder ser comprovada enviando WhatsApp
-real, NÃO execute essa etapa.
+RELATÓRIO FINAL POR UNIDADE:
 
-Marque:
+UNIDADE:
+INSTÂNCIA:
+TRACE/ID:
+MENSAGEM DO CLIENTE:
+CANDIDATOS BEMP:
+SERVICE ID SELECIONADO:
+OFFICIAL PRICE:
+SERVICE_PRICE_RESOLVED:
+SERVICE_CLARIFICATION_REQUIRED:
+RESPOSTA FINAL DA JULIA:
+MENSAGEM ENVIADA PELO EVOLUTION:
+RESULTADO: APROVADO/FALHOU
 
-NÃO TESTADO — EXIGE ENVIO REAL
+Ao final:
 
-==================================================
-9. PROVA, NÃO DESCRIÇÃO
-==================================================
+CENTRO = APROVADO/FALHOU
+VENTURA = APROVADO/FALHOU
+BOULEVARD = APROVADO/FALHOU
 
-Não diga:
+PREÇO BEMP = VALIDADO/NÃO VALIDADO
+AMBIGUIDADE = VALIDADA/NÃO VALIDADA
+SERVIÇO INEXISTENTE = VALIDADO/NÃO VALIDADO
+WHATSAPP END-TO-END = VALIDADO/NÃO VALIDADO
 
-"está funcionando"
-"foi corrigido"
-"está protegido"
-"o sistema garante"
-
-sem apresentar resultado da execução correspondente.
-
-Quero OUTPUT REAL dos testes.
-
-==================================================
-10. RESULTADO FINAL
-==================================================
-
-Entregue:
-
-CENTRO
-corte genérico =
-corte feminino =
-corte masculino =
-manicure =
-escova =
-serviço inexistente =
-
-VENTURA
-corte genérico =
-corte feminino =
-corte masculino =
-manicure =
-escova =
-serviço inexistente =
-
-BOULEVARD
-corte genérico =
-corte feminino =
-corte masculino =
-manicure =
-escova =
-serviço inexistente =
-
-Depois:
-
-LIST_SERVICES TESTADA NAS 3 = SIM/NÃO
-PREÇOS CONFEREM COM BEMP = SIM/NÃO
-AMBIGUIDADE TRATADA = SIM/NÃO
-ALUCINAÇÃO BLOQUEADA = SIM/NÃO
-SERVIÇO INEXISTENTE SEGURO = SIM/NÃO
-
-TOTAL DE TESTES EXECUTADOS =
-APROVADOS =
-FALHARAM =
-NÃO TESTADOS =
-
-Se houver qualquer FALHA:
-mostre arquivo/função envolvida e trace.
-
-NÃO CORRIJA A FALHA.
+Se encontrar qualquer falha:
+PARE.
+NÃO CORRIJA.
+Mostre o trace e a causa provável.
 
 PARE E AGUARDE MINHA AUTORIZAÇÃO.`;
 
