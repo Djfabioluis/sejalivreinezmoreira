@@ -108,7 +108,22 @@ export async function replyWithAI(params: ReplyParams, traceId: string) {
   const priceRegex = /R\$\s?(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2}))/g;
   const foundPrices = params.text.match(priceRegex);
 
+  // REGRA DE AMBIGUIDADE (src/lib/booking/context.ts flag clarificationRequired)
+  const isClarificationRequired = (params as any).clarificationRequired === true;
+
   if (foundPrices && foundPrices.length > 0) {
+    if (isClarificationRequired) {
+      // Bloqueio total de preços em estado de ambiguidade
+      trace.record("PRICE_MISMATCH_BLOCKED", {
+        reason: "SERVICE_AMBIGUITY_PENDING",
+        generatedText: params.text,
+        traceId
+      });
+      console.warn(`[replyWithAI] PRICE_MISMATCH_BLOCKED: Citação de preço em estado de ambiguidade.`);
+      const fallbackText = "Temos algumas opções disponíveis. Qual delas você deseja? 💜";
+      return replyWithAI({ ...params, text: fallbackText }, `${traceId}-ambiguity-fallback`);
+    }
+
     if (!params.resolvedPrice) {
       // REGRA 3: Se a Julia citou preço mas não há SERVICE_PRICE_RESOLVED
       trace.record("PRICE_MISMATCH_BLOCKED", {

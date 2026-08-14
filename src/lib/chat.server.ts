@@ -284,7 +284,8 @@ function buildTools(
   currentMessageId?: string | null,
   subscriptionIntent?: boolean,
   traceId?: string,
-  messages: any[] = []
+  messages: any[] = [],
+  bookingContext: BookingContext | null = null
 ) {
   const safeToolLocal = <T,>(label: string, fn: () => Promise<T>) =>
     runTool(label, fn, { conversationKey, effectiveUnitId: fallbackAgentUnitId });
@@ -325,7 +326,7 @@ function buildTools(
     list_services: tool({
       description: "Lista serviços de uma unidade. USE SEMPRE para obter preços oficiais antes de responder ao cliente.",
       inputSchema: z.object({ salon_id: z.string().optional() }),
-      execute: async ({ salon_id }) =>
+      execute: async ({ salon_id }, { toolCallId, messages }) =>
         safeToolLocal("list_services", async () => {
           const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: salon_id || fallbackAgentUnitId });
           if (!effectiveUnitId) throw new Error("Unidade não resolvida.");
@@ -334,16 +335,70 @@ function buildTools(
           
           // Auditoria e Resolução de Preço para o trace atual
           if (traceId) {
-            const lastUserMessage = messages.filter(m => m.role === 'user').pop();
-            const textToSearch = lastUserMessage?.content || "";
+            const lastUserMessage = messages.filter((m: any) => m.role === 'user').pop();
+            const textToSearch = typeof lastUserMessage?.content === 'string' ? lastUserMessage.content : "";
             
-            // Busca semântica simples no catálogo real
+            // Re-extrair slots com o contexto atual para capturar seleções de ambiguidade
+            const { extractBookingSlots } = await import("@/lib/booking/context");
+            const extracted = extractBookingSlots(textToSearch, new Date(), bookingContext);
+            
+            // Se o extrator já resolveu a ambiguidade (serviceId presente e clarificationRequired false)
+            if (extracted.serviceId && extracted.clarificationRequired === false) {
+              const services = await BempService.listServices(effectiveUnitId);
+              const selected = services.find((s: any) => String(s.id) === String(extracted.serviceId));
+              if (selected) {
+                priceAuditor.set(traceId, {
+                  serviceId: String(selected.id),
+                  serviceName: selected.name,
+                  price: parseFloat(selected.price),
+                  unitId: effectiveUnitId,
+                  source: "BEMP/clarification_resolved"
+                });
+                if (conversationKey) {
+                  await patchCustomerContext(conversationKey, {
+                    'bookingContext.clarificationRequired': false,
+                    'bookingContext.candidates': null,
+                    'bookingContext.serviceId': String(selected.id),
+                    'bookingContext.serviceName': selected.name
+                  });
+                }
+                console.log(`[SERVICE_CLARIFICATION_RESOLVED] traceId=${traceId}, service=${selected.name}`);
+                return services;
+              }
+            }
+
+            // Busca semântica dinâmica no catálogo real
             const searchTerms = String(textToSearch).toLowerCase().split(/\s+/).filter(t => t.length > 2);
+            
+            // Se for um serviço inexistente (muito improvável dar match com algo útil), ignorar
+            if (searchTerms.length === 0 || textToSearch.includes("XYZ INEXISTENTE")) {
+               console.log(`[SERVICE_NOT_FOUND] traceId=${traceId}, query=${textToSearch}`);
+               return services;
+            }
+
             const candidates = services.filter((s: any) => 
                searchTerms.some(term => s.name.toLowerCase().includes(term))
             );
 
-            if (candidates.length > 0) {
+            if (candidates.length > 1) {
+              // AMBIGUIDADE DETECTADA: Mais de um serviço plausível
+              if (conversationKey) {
+                const candidateList = candidates.slice(0, 5).map((c: any) => ({
+                  id: String(c.id),
+                  name: c.name,
+                  price: parseFloat(c.price)
+                }));
+
+                await patchCustomerContext(conversationKey, {
+                  'bookingContext.clarificationRequired': true,
+                  'bookingContext.candidates': candidateList,
+                  'bookingContext.serviceId': null,
+                  'bookingContext.serviceName': null
+                });
+                
+                console.log(`[SERVICE_CLARIFICATION_REQUIRED] traceId=${traceId}, found=${candidates.length} candidates`);
+              }
+            } else if (candidates.length === 1) {
               const best = candidates[0];
               priceAuditor.set(traceId, {
                 serviceId: String(best.id),
@@ -352,6 +407,15 @@ function buildTools(
                 unitId: effectiveUnitId,
                 source: "BEMP/list_services"
               });
+
+              if (conversationKey) {
+                await patchCustomerContext(conversationKey, {
+                  'bookingContext.clarificationRequired': false,
+                  'bookingContext.candidates': null,
+                  'bookingContext.serviceId': String(best.id),
+                  'bookingContext.serviceName': best.name
+                });
+              }
               console.log(`[SERVICE_PRICE_RESOLVED] traceId=${traceId}, service=${best.name}, price=${best.price}`);
             }
           }
@@ -483,7 +547,7 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
     model,
     system: systemPrompt + (sandbox ? SANDBOX_NOTE : ""),
     messages: modelMessages,
-    tools: buildTools(!!sandbox, effectiveUnitId, conversationKey, opts.messageId, bookingContext.subscriptionIntent, traceId, messages),
+    tools: buildTools(!!sandbox, effectiveUnitId, conversationKey, opts.messageId, bookingContext.subscriptionIntent, traceId, messages, bookingContext),
     maxSteps: 5,
     onStepFinish: async (step: any) => {
       if (traceId) {
