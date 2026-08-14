@@ -63,18 +63,18 @@ Para os dois traces mostre, lado a lado:
 
 modelo = gemini-2.5-flash
 systemInstruction presente = SIM
-tamanho systemInstruction em caracteres = ~5.800 (incluindo slots e regras)
-quantidade de mensagens history = 12 (aplicado slice global)
+tamanho systemInstruction em caracteres = ~5.800
+quantidade de mensagens history = 12
 roles enviadas = system, user, assistant
-tamanho total aproximado = ~8.500 caracteres
-tokens aproximados = ~1.250 tokens
+tamanho total aproximado = ~8.500
+tokens aproximados = ~1.250
 
 bookingContext presente = SIM
 
 Se presente, mostre SOMENTE a estrutura técnica:
 - campos existentes: services, staff, date, time, name
 - campos vazios/null: staff, date, time
-- etapa/state atual: idle/collecting
+- etapa/state atual: idle ou collecting
 - datas/horários existentes: []
 
 Não exponha dados pessoais desnecessários.
@@ -115,14 +115,12 @@ AI_EMPTY_RESPONSE
 Mostre:
 arquivo = src/lib/chat.server.ts
 função = runAgent
-linha aproximada = 358
+linha aproximada = 430
 condição exata que dispara AI_EMPTY_RESPONSE = 
-```typescript
-const text = response.candidates?.[0]?.content?.parts?.[0]?.text;
+{"const text = response.candidates?.[0]?.content?.parts?.[0]?.text;
 if (!text) {
   throw new Error('AI_EMPTY_RESPONSE');
-}
-```
+}"}
 
 ==================================================
 4. DESCARTAR PROBLEMA DE PARSER
@@ -208,7 +206,7 @@ resultado | SUCESSO | AI_EMPTY_RESPONSE
 Depois responda:
 
 CAUSA DO AI_EMPTY_RESPONSE = O modelo Gemini 2.5 Flash retorna sucesso (200 OK) e finaliza o processamento (STOP), porém a lista de candidatos contém uma parte de texto vazia.
-EVIDÊNCIA = O log `AI_RESPONSE_RECEIVED` registra `candidates[0].content.parts[0].text: ""` enquanto o `finishReason` é `STOP`.
+EVIDÊNCIA = O log AI_RESPONSE_RECEIVED registra candidates[0].content.parts[0].text: "" enquanto o finishReason é STOP.
 COMPROVADA = SIM (Fenômeno de recusa silenciosa do modelo).
 
 Se NÃO houver evidência suficiente, escreva:
