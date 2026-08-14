@@ -13,118 +13,120 @@ function Dashboard() {
             Seja Livre AI Platform
           </h1>
           <div className="text-muted-foreground text-lg sm:text-xl max-w-2xl mx-auto whitespace-pre-wrap text-left bg-muted/50 p-6 rounded-lg border border-border font-mono text-xs">
-            Execute esta instrucao no projeto: NÃO ALTERE NADA.
+            Execute esta instrucao no projeto: NÃO ALTERE NADA AGORA.
 
-Você já declarou que Ventura e Boulevard falham porque o código tenta
-gravar status = PROCESSING e a constraint wa_conversas_status_check
-bloqueia.
+Resultado dos testes REAIS após a correção:
 
-Agora NÃO repita o diagnóstico.
+VENTURA = respondeu corretamente
+BOULEVARD = respondeu corretamente
+CENTRO = recebeu a mensagem, mas NÃO respondeu
 
-Execute e MOSTRE somente estas evidências do banco:
+Portanto:
+- NÃO reverta a mudança status 'novo' → 'aberta'
+- NÃO altere Ventura
+- NÃO altere Boulevard
+- NÃO altere prompt/Gemini/agendamento
+- NÃO mexa novamente na constraint
 
-1. Definição REAL da constraint:
+Quero diagnosticar SOMENTE o teste mais recente da unidade CENTRO.
 
-wa_conversas_status_check
+1. Localize a mensagem real do Centro pelo horário atual.
 
-Mostre literalmente:
+Mostre a trilha:
 
-- tabela
-- coluna
-- definição completa da constraint
-- TODOS os valores permitidos
+WEBHOOK_RAW_RECEIVED
+→ INSTANCE_RESOLVED
+→ AGENT_RESOLVED
+→ UNIT_RESOLVED
+→ MESSAGE_PERSISTED
+→ AI_PROCESSING_STARTED
+→ AI_RESPONSE_GENERATED
+→ OUTBOUND_MESSAGE_READY
+→ EVOLUTION_SEND_STARTED
+→ EVOLUTION_SEND_SUCCESS
 
-2. Mostre o erro REAL mais recente de VENTURA:
-
+Para cada checkpoint:
 timestamp
 traceId
-instanceId
+messageId
+resultado
+
+2. Mostre os identificadores do Centro:
+
+instanceId inbound
+instanceName
 agentId
 unitId
-status enviado
-SQLSTATE
-mensagem PostgreSQL completa
+conversationId
+customerPhone
+attendanceMode
+status da conversa
 
-3. Mostre o erro REAL mais recente de BOULEVARD:
+3. Compare com UMA mensagem real de Ventura e UMA de Boulevard que acabaram de responder.
 
-timestamp
-traceId
-instanceId
+Tabela:
+
+CAMPO | CENTRO | VENTURA | BOULEVARD
+
+instanceId inbound
 agentId
 unitId
-status enviado
-SQLSTATE
-mensagem PostgreSQL completa
+status conversa
+attendanceMode
+MESSAGE_PERSISTED
+AI_PROCESSING_STARTED
+AI_RESPONSE_GENERATED
+outbound instanceId
+EVOLUTION_SEND_SUCCESS
+messageId Evolution
 
-4. Mostre o código EXATO que tenta definir:
+4. Se o Centro chegar a AI_RESPONSE_GENERATED mas não EVOLUTION_SEND_SUCCESS:
 
-status = PROCESSING
+mostrar:
+outbound instanceId
+endpoint Evolution
+HTTP status
+response body
+erro exato
 
-Informe:
+5. Se o Centro NÃO chegar a AI_PROCESSING_STARTED:
 
-arquivo
-linha
-função
+mostrar exatamente qual condição bloqueou:
 
-5. Agora verifique qual status o CENTRO utiliza no MESMO ponto do fluxo.
+- HUMAN_MODE
+- IA desativada
+- lock
+- deduplicação
+- status da conversa
+- evento já processado
+- agent/unit resolver
+- outro
 
-Quero comparação direta:
+Não inferir. Mostrar o log.
 
-CENTRO:
-status antes do AI_PROCESSING_STARTED = ?
+6. Especialmente verificar se a conversa do Centro já existia com algum estado legado:
 
-VENTURA:
-status antes do AI_PROCESSING_STARTED = ?
+status
+attendance_mode
+human_takeover
+ai_paused
+lock
+last_processed_message_id
 
-BOULEVARD:
-status antes do AI_PROCESSING_STARTED = ?
+Não alterar esses dados ainda.
 
-Isso é fundamental.
+7. NÃO faça correção automática.
 
-Se Centro passa pelo mesmo código mas NÃO tenta gravar PROCESSING,
-explique qual condição/estado faz Ventura e Boulevard entrarem nesse
-caminho diferente.
+Quero apenas:
 
-6. NÃO faça:
-- DROP da constraint
-- alteração da constraint
-- alteração de status
-- migration
-- deploy
-- restart
-- reload
-- alteração de RPC
-- alteração da Julia
-- alteração de prompt
-- alteração de Gemini
+ÚLTIMO CHECKPOINT REAL DO CENTRO =
+PRÓXIMO CHECKPOINT AUSENTE =
+ERRO/CONDIÇÃO EXATA =
+ARQUIVO/FUNÇÃO RESPONSÁVEL =
 
-Somente mostre as evidências.
+E a comparação com Ventura/Boulevard que estão funcionando.
 
-RESULTADO FINAL OBRIGATÓRIO:
-
-STATUS PERMITIDOS:
-[...]
-
-CENTRO:
-status utilizado =
-resultado =
-
-VENTURA:
-status utilizado =
-resultado =
-erro =
-
-BOULEVARD:
-status utilizado =
-resultado =
-erro =
-
-CÓDIGO QUE ENVIA PROCESSING:
-arquivo =
-linha =
-função =
-
-Depois PARE e aguarde autorização.
+Depois PARE.
           </div>
         </div>
       </div>
