@@ -291,18 +291,17 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
         if (!alreadySent) {
 
-          const { replyToUser } = await import("./reply.server");
-          await replyToUser({
+          const { replyWithAI } = await import("./reply.server");
+          await replyWithAI({
             instance,
             phone: contactPhone,
             text: HUMAN_TRANSFER_MESSAGE,
             conversationKey: finalKey,
             messageId,
-            traceId,
             unitId: agent?.unidade_id ?? null,
-            allowDuringHumanMode: true,
-            _trace: trace
-          } as any);
+            allowDuringHumanMode: true
+          }, traceId);
+
         }
         trace?.record("TOTAL_PROCESSING_COMPLETED", { reason: "human_handoff" });
         return;
