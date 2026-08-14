@@ -139,21 +139,28 @@ export async function replyToUser(params: {
 
   trace?.record("EVOLUTION_SEND_SUCCESS", { evolutionId: sent.data?.key?.id || sent.data?.message?.key?.id || params.messageId });
 
+  // Requisito 3: REGRA CRÍTICA DE RESILIÊNCIA
+  // O envio pela Evolution DEVE ocorrer mesmo se a persistência falhar.
+  trace?.record("EVOLUTION_SEND_STARTED", { instance: params.instance });
+  const sent = await sendEvolutionText(params.instance, params.phone, params.text, typingMs);
+  
   if (sent) {
     const sentMessageId = sent.data?.key?.id || sent.data?.message?.key?.id || params.messageId;
+    trace?.record("EVOLUTION_SEND_SUCCESS", { evolutionId: sentMessageId });
     trace?.record("MESSAGE_SENT", { sentMessageId });
 
     // 10. PERSISTÊNCIA DA RESPOSTA (Atomicamente via RPC)
-    // A mensagem JÁ foi confirmada pela Evolution: uma falha aqui NUNCA pode
-    // lançar erro (isso provocaria reenvio duplicado). Apenas registramos.
+    // Uma falha aqui NUNCA pode interromper o fluxo ou lançar erro.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     try {
+      // Assinatura REAL confirmada no banco: append_wa_message(p_phone text, p_new_message jsonb)
       const { error } = await supabaseAdmin.rpc("append_wa_message" as any, {
         p_phone: params.conversationKey,
         p_new_message: { 
-          id: `${params.instance}:${params.messageId}:assistant`, 
+          id: `${params.instance}:${sentMessageId}:assistant`, 
           role: "assistant", 
-          parts: [{ type: "text", text: params.text }] 
+          parts: [{ type: "text", text: params.text }],
+          createdAt: new Date().toISOString()
         }
       });
       if (error) throw new Error(error.message);
@@ -180,7 +187,7 @@ export async function replyToUser(params: {
 
     return true;
   } else {
-    // Requisito 3: Falhas no envio devem lançar erro e marcar status
+    // Falha no envio pela Evolution (rede/API)
     if (params.messageId) {
       const { markResponseFailed } = await import("./idempotency.server");
       await markResponseFailed(params.instance, params.messageId, "evolution_send_failed");
