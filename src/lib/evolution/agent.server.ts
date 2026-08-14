@@ -291,18 +291,17 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
         if (!alreadySent) {
 
-          const { replyToUser } = await import("./reply.server");
-          await replyToUser({
+          const { replyWithAI } = await import("./reply.server");
+          await replyWithAI({
             instance,
             phone: contactPhone,
             text: HUMAN_TRANSFER_MESSAGE,
             conversationKey: finalKey,
             messageId,
-            traceId,
             unitId: agent?.unidade_id ?? null,
-            allowDuringHumanMode: true,
-            _trace: trace
-          } as any);
+            allowDuringHumanMode: true
+          }, traceId);
+
         }
         trace?.record("TOTAL_PROCESSING_COMPLETED", { reason: "human_handoff" });
         return;
@@ -480,17 +479,16 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
            // Resposta Final Obrigatória
            const finalMsg = `Agendamento confirmado! 💜\n\nServiço: ${bookingContext.serviceName}\nData: ${bookingContext.date}\nHorário: ${bookingContext.time}\nUnidade: ${agent.nome || 'Centro'}\n\nTe esperamos! ✨`;
            
-           const { replyToUser } = await import("./reply.server");
-           await replyToUser({
+           const { replyWithAI } = await import("./reply.server");
+           await replyWithAI({
              instance,
              phone: contactPhone,
              text: finalMsg,
              conversationKey: finalKey,
              messageId,
-             traceId,
              unitId: agent.unidade_id,
              _trace: trace
-           } as any);
+           }, traceId);
 
            await patchCustomerContext(finalKey, { bookingContext });
            trace?.record("TOTAL_PROCESSING_COMPLETED", { status: "success", reason: "booking_confirmed" });
@@ -541,17 +539,16 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
         }
       });
 
-      const { replyToUser } = await import("./reply.server");
-      await replyToUser({
+      const { replyWithAI } = await import("./reply.server");
+      await replyWithAI({
         instance,
         phone: contactPhone,
         text: referralText,
         conversationKey: finalKey,
         messageId,
-        traceId,
         unitId: agent.unidade_id,
         _trace: trace
-      } as any);
+      }, traceId);
 
       trace?.record("TOTAL_PROCESSING_COMPLETED", { status: "success", reason: "boulevard_referral" });
       return;
@@ -562,19 +559,18 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     const detResponse = getDeterministicResponse(bookingContext);
     
     if (detResponse) {
-      const { replyToUser } = await import("./reply.server");
+      const { replyWithAI } = await import("./reply.server");
       trace?.record("DETERMINISTIC_RESPONSE_SENT", { slot: nextRequiredSlot(bookingContext) });
       
-      await replyToUser({
+      await replyWithAI({
         instance,
         phone: contactPhone,
         text: detResponse,
         conversationKey: finalKey,
         messageId,
-        traceId,
         unitId: agent.unidade_id,
         _trace: trace
-      } as any);
+      }, traceId);
 
       trace?.record("TOTAL_PROCESSING_COMPLETED", { reason: "deterministic_reply" });
       return;
@@ -618,17 +614,16 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       trace?.record("DUPLICATE_BOOKING_QUESTION_BLOCKED", { original: replyText, clean: cleanReply });
     }
 
-    const { replyToUser } = await import("./reply.server");
-    await replyToUser({
+    const { replyWithAI } = await import("./reply.server");
+    await replyWithAI({
       instance,
       phone: contactPhone,
       text: cleanReply,
       conversationKey: finalKey,
       messageId,
-      traceId,
       unitId: agent.unidade_id,
       _trace: trace
-    } as any);
+    }, traceId);
 
     if (bookingContext.conversationGreeted !== true) {
       await patchCustomerContext(finalKey, {
