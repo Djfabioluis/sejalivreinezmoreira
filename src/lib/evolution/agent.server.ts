@@ -604,6 +604,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       trace?.record("TOTAL_PROCESSING_COMPLETED", { reason: "ai_empty_response" });
       
       // Requisito 2: Resposta vazia da IA deve gerar erro recuperável
+      logger.error("AI_EMPTY_RESPONSE", "A IA retornou uma resposta vazia", { traceId, instance, conversationKey: finalKey });
       throw new Error("AI_EMPTY_RESPONSE: The AI returned an empty response.");
     }
 

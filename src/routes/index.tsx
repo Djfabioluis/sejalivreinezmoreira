@@ -1,29 +1,32 @@
 /**
- * Execute esta instrucao no projeto: Acabei de realizar testes REAIS nas instâncias Ventura e Boulevard.
+ * Execute esta instrucao no projeto: DIAGNÓSTICO/CORREÇÃO CIRÚRGICA — CENTRO RESPONDE, VENTURA E BOULEVARD RECEBEM MAS NÃO RESPONDEM
+ *
+ * TESTE REAL CONFIRMADO:
  * 
- * Não faça novas alterações por tentativa.
- * 
- * Consulte agora os logs produzidos pelos testes que acabei de realizar e localize cada mensagem pelo horário atual.
- * 
- * Para cada instância, mostre a trilha REAL encontrada:
- * 
- * WEBHOOK_RAW_RECEIVED → INSTANCE_RESOLVED → AGENT_RESOLVED → UNIT_RESOLVED → MESSAGE_PERSISTED → AI_PROCESSING_STARTED → AI_RESPONSE_GENERATED → EVOLUTION_SEND_SUCCESS
- * 
- * Se a trilha parar, informe exatamente em qual checkpoint parou e mostre o erro.
- * 
- * Procure também por:
- * INBOUND_INSTANCE_NOT_RESOLVED
- * 
- * Quero uma tabela separada para:
- * Centro / Ventura / Boulevard
- * 
- * Não considere “Conectado” como prova de funcionamento.
- * Não altere prompt, Gemini, memória ou fluxo de agendamento.
- * Primeiro identifique a causa raiz usando os eventos dos testes reais que acabei de enviar.
- * 
- * Se não existir WEBHOOK_RAW_RECEIVED para Ventura ou Boulevard, audite diretamente na Evolution a configuração do webhook dessas instâncias e compare com a instância Centro que está funcionando.
- * 
- * Não finalize dizendo apenas “corrigido”. Mostre os identificadores técnicos das três instâncias e o último checkpoint real de cada uma.
+ * CENTRO:
+ * - mensagem inbound recebida
+ * - conversa persistida
+ * - Julia respondeu corretamente
+ * - sem duplicação
+ *
+ * VENTURA:
+ * - mensagem inbound recebida
+ * - aparece em Conversas
+ * - cliente NÃO recebe resposta
+ *
+ * BOULEVARD:
+ * - mensagem inbound recebida
+ * - aparece em Conversas
+ * - cliente NÃO recebe resposta
+ *
+ * O Centro é o fluxo de referência funcional.
+ *
+ * CAUSA RAIZ IDENTIFICADA:
+ * A IA está retornando respostas vazias (AI_EMPTY_RESPONSE) para as instâncias Ventura e Boulevard, possivelmente devido a um loop de ferramentas ou falha na geração do prompt para novos contextos nestas instâncias.
+ *
+ * CRITÉRIO FINAL:
+ * Apresentar tabela:
+ * Unidade | Inbound Instance | AgentId | UnitId | AI gerou | Outbound Instance | Evolution HTTP | Message ID | Cliente recebeu
  */
 // CONTEXTO CONFIRMADO: Evolution API 2.3.7, Instância agente-5541999102791.
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
