@@ -1,44 +1,5 @@
 /**
- * Execute esta instrucao no projeto: Execute o diagnóstico em produção agora. Não faça novas alterações antes de localizar exatamente onde a mensagem está parando.
- * 
- * Acabei de enviar uma mensagem real pelo WhatsApp e ela ainda não aparece imediatamente na Caixa de entrada.
- * 
- * Quero um teste ponta a ponta usando uma mensagem NOVA enviada agora.
- * 
- * Consulte evo_webhook_logs dos últimos 5 minutos.
- * Localize o webhook dessa mensagem.
- * Mostre o traceId, instance, remoteJid, messageId, event e horário recebido.
- * Mostre, em ordem, quais checkpoints realmente existem:
- * 
- * WEBHOOK_RECEIVED
- * EVENT_NORMALIZED
- * WHATSAPP_IDENTITY_RESOLVED
- * AGENT_RESOLVED
- * LOCK_ACQUIRED
- * CONTEXT_LOAD_COMPLETED
- * AI_STARTED
- * AI_COMPLETED
- * MESSAGE_SENT
- * 
- * Não presuma que funcionou. Informe exatamente o último checkpoint encontrado.
- * 
- * Se NÃO existir WEBHOOK_RECEIVED, pare o diagnóstico do código da IA e verifique a configuração da Evolution de TODAS as instâncias, URL do webhook, eventos habilitados e resposta HTTP do endpoint /api/public/whatsapp-evolution.
- * 
- * Se existir WEBHOOK_RECEIVED mas não AGENT_RESOLVED, mostre o nome exato da instance recebida e compare com agentes_whatsapp.
- * 
- * Se chegar em AGENT_RESOLVED mas não AI_STARTED, diagnostique lock, modo HUMAN/AI, deduplicação e carregamento da conversa.
- * 
- * Se chegar em AI_STARTED mas não AI_COMPLETED, mostre provider, modelo, status HTTP, timeout e erro bruto da chamada da IA.
- * 
- * Se chegar em AI_COMPLETED mas não MESSAGE_SENT, diagnostique exclusivamente o envio pela Evolution.
- * 
- * Também confirme se a mensagem recebida foi persistida em wa_messages e se a conversa teve updated_at atualizado.
- * 
- * No final, quero uma tabela com:
- * 
- * Etapa | Status | Horário | Evidência | Erro
- * 
- * Não responda apenas “corrigido”. Quero evidência do teste real.
+ * Execute esta instrucao no projeto: Implementar uma trilha de auditoria que registre, para cada mensagem, a sequência de estados (WEBHOOK_RECEIVED até MESSAGE_SENT ou motivo de bloqueio/failed) e exiba isso no dashboard em tempo real.
  */
 // CONTEXTO CONFIRMADO: Evolution API 2.3.7, Instância agente-5541999102791.
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
