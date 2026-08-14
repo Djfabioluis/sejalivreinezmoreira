@@ -6,7 +6,7 @@ async function monitorTraces() {
   const { data: traces, error } = await supabaseAdmin
     .from('evo_trace_logs')
     .select('*')
-    .gt('timestamp', new Date(Date.now() - 30 * 60 * 1000).toISOString())
+    .gt('timestamp', new Date(Date.now() - 60 * 60 * 1000).toISOString())
     .order('timestamp', { ascending: true });
 
   if (error) {
@@ -42,9 +42,9 @@ async function monitorTraces() {
         console.log(`MENSAGEM DO CLIENTE: "${text}"`);
     }
 
-    // 2. Chamada da Tool (BEMP_SERVICE_LOOKUP_STARTED/COMPLETED)
-    const lookup = steps.find((s: any) => s.step === 'BEMP_SERVICE_LOOKUP_COMPLETED');
-    if (lookup) {
+    // 2. Chamada da Tool
+    const toolCall = steps.find((s: any) => s.step === 'tool_started' || s.step === 'BEMP_SERVICE_LOOKUP_STARTED');
+    if (toolCall) {
         console.log(`LIST_SERVICES CHAMADA: SIM`);
     }
 
