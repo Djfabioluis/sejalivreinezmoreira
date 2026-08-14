@@ -351,11 +351,6 @@ export function isShortAffirmative(text: string | null | undefined): boolean {
 export function ensureNoDuplicateBookingQuestion(text: string, ctx: BookingContext): { text: string; blocked: boolean } {
   const t = text.toLowerCase();
   
-/**
- * Bloqueia perguntas que a IA faz sobre dados que já existem no contexto.
- */
-export function ensureNoDuplicateBookingQuestion(text: string, ctx: BookingContext): { text: string; blocked: boolean } {
-  const t = text.toLowerCase();
   
   if (ctx.serviceId || ctx.serviceName) {
     if (t.includes("qual serviço") || t.includes("que serviço") || t.includes("qual o procedimento") || t.includes("procedimento deseja")) {
