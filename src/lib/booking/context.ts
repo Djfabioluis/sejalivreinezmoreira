@@ -90,16 +90,17 @@ function addDays(base: Date, days: number): Date {
 }
 
 const SERVICE_PATTERNS: Array<{ re: RegExp; name: string }> = [
-  { re: /\bmanicure\b/i, name: "MANICURE" },
-  { re: /\bpedicure\b/i, name: "PEDICURE" },
-  { re: /\bp[ée]\s+e\s+m[ãa]o\b/i, name: "PÉ E MÃO" },
-  { re: /\bcabelo\b/i, name: "CABELO" },
-  { re: /\bescova\b/i, name: "ESCOVA" },
-  { re: /\bcorte\b/i, name: "CORTE" },
-  { re: /\bdepila[çc][ãa]o\b/i, name: "DEPILAÇÃO" },
-  { re: /\bsobrancelha\b/i, name: "SOBRANCELHA" },
-  { re: /\bdesign\b/i, name: "SOBRANCELHA" },
-  { re: /\bmassagem\b/i, name: "MASSAGEM" },
+  // Patterns agora extraem a INTENÇÃO sem forçar nomes de serviços rígidos
+  { re: /\bmanicure\b/i, name: "manicure" },
+  { re: /\bpedicure\b/i, name: "pedicure" },
+  { re: /\bp[ée]\s+e\s+m[ãa]o\b/i, name: "pé e mão" },
+  { re: /\bcabelo\b/i, name: "cabelo" },
+  { re: /\bescova\b/i, name: "escova" },
+  { re: /\bcorte\b/i, name: "corte" },
+  { re: /\bdepila[çc][ãa]o\b/i, name: "depilação" },
+  { re: /\bsobrancelha\b/i, name: "sobrancelha" },
+  { re: /\bdesign\b/i, name: "sobrancelha" },
+  { re: /\bmassagem\b/i, name: "massagem" },
 ];
 
 const HARMONIZATION_INTENT_PATTERN = /\b(?:h|a)rmoniza[cç][aã]o\s+(?:de|do|da|gl[uú]tea|abdominal)?\s*(?:bumbum|gl[uú]teos?|barriga|abd[oô]men)\b/i;

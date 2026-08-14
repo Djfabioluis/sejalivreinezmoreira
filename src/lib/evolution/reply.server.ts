@@ -14,7 +14,6 @@ export const sendManualWAMessage = createServerFn({ method: "POST" })
   }).parse(data))
   .handler(async ({ data: params }) => {
     const traceId = `manual-${Date.now()}`;
-    // Usando PerformanceTrace corretamente
     const trace = new PerformanceTrace({
       traceId,
       instanceId: params.instance,
@@ -32,9 +31,10 @@ export const sendManualWAMessage = createServerFn({ method: "POST" })
       ).catch(() => false);
 
       trace.record("AI_RESPONSE_GENERATED", { textSnippet: params.text.slice(0, 50) });
+      
+      // Validação de Preço (Manual também passa por auditoria se desejado, mas aqui mantemos o fluxo solicitado)
       trace.record("EVOLUTION_SEND_STARTED", { instance: params.instance });
 
-      // 9. ENVIO ÚNICO PELA EVOLUTION
       const sent = await sendEvolutionText(params.instance, params.phone, params.text, typingMs);
 
       if (sent) {
@@ -42,7 +42,6 @@ export const sendManualWAMessage = createServerFn({ method: "POST" })
         trace.record("EVOLUTION_SEND_SUCCESS", { evolutionId: sentMessageId });
         trace.record("MESSAGE_SENT", { sentMessageId });
 
-        // 10. PERSISTÊNCIA DA RESPOSTA (Atomicamente via RPC)
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         try {
           const { error } = await supabaseAdmin.rpc("append_wa_message" as any, {
@@ -61,14 +60,6 @@ export const sendManualWAMessage = createServerFn({ method: "POST" })
             conversationId: params.conversationKey,
             error: persistError?.message,
           });
-          await logEvent({
-            instance: params.instance,
-            messageId: sentMessageId,
-            event: "AI_REPLY_HISTORY_PERSISTENCE_FAILED",
-            status: "error",
-            errorDetail: persistError?.message,
-            payload: { traceId, conversationKey: params.conversationKey },
-          }).catch(() => {});
         }
 
         return { success: true, messageId: sentMessageId };
@@ -90,29 +81,83 @@ export interface ReplyParams {
   unitId?: string | null;
   allowDuringHumanMode?: boolean;
   _trace?: PerformanceTrace;
+  resolvedPrice?: {
+    serviceId: string;
+    serviceName: string;
+    price: number;
+    unitId: string;
+    source: string;
+  } | null;
 }
 
-/**
- * Legado: Mapeia replyToUser para replyWithAI para manter compatibilidade.
- */
 export async function replyToUser(params: ReplyParams) {
   const traceId = `reply-${Date.now()}`;
   return replyWithAI(params, traceId);
 }
 
-/**
- * Envia uma resposta da IA via Evolution API com resiliência total.
- * Requisito 3: A falha na persistência do histórico não bloqueia o envio.
- */
 export async function replyWithAI(params: ReplyParams, traceId: string) {
   const trace = params._trace || new PerformanceTrace({
     traceId,
     instanceId: params.instance,
     conversationId: params.conversationKey
   });
+
+  // ==================================================
+  // VALIDAÇÃO DETERMINÍSTICA DE PREÇO (REQUISITO 5)
+  // ==================================================
+  const priceRegex = /R\$\s?(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d{2}))/g;
+  const foundPrices = params.text.match(priceRegex);
+
+  if (foundPrices && foundPrices.length > 0) {
+    if (!params.resolvedPrice) {
+      // REGRA 3: Se a Julia citou preço mas não há SERVICE_PRICE_RESOLVED
+      trace.record("PRICE_MISMATCH_BLOCKED", {
+        reason: "NO_RESOLVED_PRICE_CONTEXT",
+        generatedText: params.text,
+        traceId
+      });
+      console.warn(`[replyWithAI] PRICE_MISMATCH_BLOCKED: Citação de preço sem contexto resolvido. Text: ${params.text}`);
+      
+      // Fallback determinístico (Requisito 3)
+      const fallbackText = "Vou confirmar o valor certinho para você. 💜";
+      return replyWithAI({ ...params, text: fallbackText }, `${traceId}-fallback`);
+    }
+
+    // Validar se o preço citado bate com o oficial
+    const officialPriceStr = params.resolvedPrice.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+    
+    for (const found of foundPrices) {
+      const numericPart = found.replace(/[^\d,.]/g, '').replace(',', '.');
+      const foundValue = parseFloat(numericPart);
+      
+      if (Math.abs(foundValue - params.resolvedPrice.price) > 0.01) {
+        trace.record("PRICE_MISMATCH_BLOCKED", {
+          officialPrice: params.resolvedPrice.price,
+          generatedPrice: foundValue,
+          serviceId: params.resolvedPrice.serviceId,
+          traceId
+        });
+        console.error(`[replyWithAI] PRICE_MISMATCH_BLOCKED: Oficial=${params.resolvedPrice.price}, IA=${foundValue}`);
+        
+        // Se houver mismatch, forçamos a correção do texto ou fallback
+        const correctedText = params.text.replace(found, `R$ ${officialPriceStr}`);
+        trace.record("PRICE_AUTO_CORRECTED", { from: found, to: `R$ ${officialPriceStr}` });
+        
+        // Recomeça o envio com o texto corrigido
+        return replyWithAI({ ...params, text: correctedText }, `${traceId}-corrected`);
+      }
+    }
+
+    trace.record("PRICE_SENT", {
+      serviceId: params.resolvedPrice.serviceId,
+      officialPrice: params.resolvedPrice.price,
+      sentPrice: foundPrices[0],
+      traceId
+    });
+  }
+
   const typingMs = Math.min(Math.max(params.text.length * 30, 2000), 5000);
 
-  // 8. PRESENÇA (Composing...)
   await sendEvolutionPresence(
     params.instance,
     params.phone,
@@ -122,8 +167,6 @@ export async function replyWithAI(params: ReplyParams, traceId: string) {
 
   trace.record("AI_RESPONSE_GENERATED", { textSnippet: params.text.slice(0, 50) });
   
-  // Requisito 3: REGRA CRÍTICA DE RESILIÊNCIA
-  // O envio pela Evolution DEVE ocorrer mesmo se a persistência falhar.
   trace.record("EVOLUTION_SEND_STARTED", { instance: params.instance });
   const sentResult = await sendEvolutionText(params.instance, params.phone, params.text, typingMs);
   
@@ -132,11 +175,8 @@ export async function replyWithAI(params: ReplyParams, traceId: string) {
     trace.record("EVOLUTION_SEND_SUCCESS", { evolutionId: sentMessageId });
     trace.record("MESSAGE_SENT", { sentMessageId });
 
-    // 10. PERSISTÊNCIA DA RESPOSTA (Atomicamente via RPC)
-    // Uma falha aqui NUNCA pode interromper o fluxo ou lançar erro.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     try {
-      // Assinatura REAL confirmada no banco: append_wa_message(p_phone text, p_new_message jsonb)
       const { error } = await supabaseAdmin.rpc("append_wa_message" as any, {
         p_phone: params.conversationKey,
         p_new_message: { 
@@ -153,14 +193,6 @@ export async function replyWithAI(params: ReplyParams, traceId: string) {
         conversationId: params.conversationKey,
         error: persistError?.message,
       });
-      await logEvent({
-        instance: params.instance,
-        messageId: sentMessageId,
-        event: "AI_REPLY_HISTORY_PERSISTENCE_FAILED",
-        status: "error",
-        errorDetail: persistError?.message,
-        payload: { traceId, conversationKey: params.conversationKey },
-      }).catch(() => {});
     }
 
     if (params.messageId) {
@@ -170,7 +202,6 @@ export async function replyWithAI(params: ReplyParams, traceId: string) {
 
     return true;
   } else {
-    // Falha no envio pela Evolution (rede/API)
     if (params.messageId) {
       const { markResponseFailed } = await import("./idempotency.server");
       await markResponseFailed(params.instance, params.messageId, "evolution_send_failed");
@@ -180,9 +211,6 @@ export async function replyWithAI(params: ReplyParams, traceId: string) {
   }
 }
 
-/**
- * Função utilitária para verificar se a IA pode responder.
- */
 export function ensureAIAllowedToReply(conv: any) {
   const isHuman = conv?.attendance_mode === 'HUMAN' || !!conv?.ai_paused_at;
   if (isHuman) {
