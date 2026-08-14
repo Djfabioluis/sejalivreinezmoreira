@@ -128,10 +128,14 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
     const agent = await findAgentByInstance(instance);
     
-    trace?.record("AGENT_RESOLVED", { 
-      agentId: agent?.id,
-      aiEnabled: isIAEnabled(agent)
-    });
+    if (agent) {
+      trace?.record("AGENT_RESOLVED", { 
+        agentId: agent.id,
+        aiEnabled: isIAEnabled(agent)
+      });
+      trace?.record("UNIT_RESOLVED", { unitId: agent.unidade_id });
+    }
+
 
     // Identidade resolvida pelo processor (inclusive contatos @lid) tem prioridade
     // absoluta sobre remoteJid, evitando abrir/enviar para uma conversa LID errada.

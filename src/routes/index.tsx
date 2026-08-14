@@ -1,5 +1,127 @@
 /**
- * Execute esta instrucao no projeto: Implementar uma trilha de auditoria que registre, para cada mensagem, a sequência de estados (WEBHOOK_RECEIVED até MESSAGE_SENT ou motivo de bloqueio/failed) e exiba isso no dashboard em tempo real.
+ * Execute esta instrucao no projeto: DIAGNÓSTICO E CORREÇÃO — WEBHOOK MULTI-INSTÂNCIA
+ * 
+ * Temos um teste real que isolou o defeito.
+ * 
+ * Unidade Centro: mensagem recebida aparece em Conversas e Julia responde corretamente.
+ * Unidade Ventura: mensagem recebida NÃO aparece em Conversas e Julia não responde.
+ * Unidade Boulevard: mensagem recebida NÃO aparece em Conversas e Julia não responde.
+ * 
+ * Portanto, NÃO altere prompt da Julia, Gemini, regras de conversa, agendamento ou máquina de estados neste momento.
+ * 
+ * Investigue exclusivamente a entrada dos webhooks e o roteamento multi-instância.
+ * 
+ * 1. Auditar as 3 instâncias
+ * 
+ * Para Centro, Ventura e Boulevard, identificar e exibir:
+ * 
+ * nome técnico/ID real da instância Evolution;
+ * número conectado;
+ * agentId;
+ * unitId;
+ * URL de webhook configurada;
+ * eventos de webhook habilitados;
+ * status da instância;
+ * última mensagem inbound recebida pelo backend;
+ * último HTTP status recebido pelo webhook.
+ * 
+ * 2. Não resolver instância pelo nome do agente
+ * 
+ * Existem duas agentes visualmente chamadas “Julia”.
+ * 
+ * É PROIBIDO identificar unidade/agente apenas por:
+ * name = Julia
+ * 
+ * O roteamento deve usar prioritariamente o identificador técnico da instância Evolution recebido no webhook.
+ * 
+ * Criar resolução determinística:
+ * 
+ * Evolution instance ID/name -> agentId -> unitId -> telefone da unidade
+ * 
+ * Uma instância jamais pode assumir o agentId ou unitId de outra.
+ * 
+ * 3. Auditar endpoint de entrada
+ * 
+ * Comparar o webhook da instância Centro, que funciona, com Ventura e Boulevard.
+ * 
+ * Verificar especialmente:
+ * 
+ * URL diferente ou antiga;
+ * endpoint incorreto;
+ * webhook não registrado;
+ * evento de mensagem não habilitado;
+ * instance name incompatível;
+ * lookup da instância falhando;
+ * retorno 401/403/404/500;
+ * mensagem descartada por INSTANCE_NOT_FOUND;
+ * filtro que esteja ignorando Ventura/Boulevard.
+ * 
+ * 4. Instrumentar antes de qualquer filtro
+ * 
+ * No primeiro ponto do endpoint de webhook registrar:
+ * 
+ * WEBHOOK_RAW_RECEIVED
+ * 
+ * contendo:
+ * timestamp
+ * event
+ * instance
+ * remoteJid
+ * messageId
+ * fromMe
+ * 
+ * Depois registrar sequencialmente:
+ * 
+ * INSTANCE_RESOLVED
+ * AGENT_RESOLVED
+ * UNIT_RESOLVED
+ * MESSAGE_PERSISTED
+ * AI_PROCESSING_STARTED
+ * AI_RESPONSE_GENERATED
+ * EVOLUTION_SEND_STARTED
+ * EVOLUTION_SEND_SUCCESS
+ * 
+ * Em qualquer interrupção registrar explicitamente o motivo.
+ * 
+ * 5. IMPORTANTE
+ * 
+ * Uma mensagem de instância desconhecida NÃO pode ser silenciosamente ignorada.
+ * 
+ * Registrar:
+ * INBOUND_INSTANCE_NOT_RESOLVED
+ * 
+ * com o identificador recebido da Evolution.
+ * 
+ * 6. Corrigir Ventura e Boulevard
+ * 
+ * Comparar a configuração delas com Centro e corrigir automaticamente webhook/mapeamento necessários, sem alterar números ou unidades existentes.
+ * 
+ * Não criar agentes duplicados.
+ * Não criar unidades duplicadas.
+ * Não trocar números entre unidades.
+ * 
+ * 7. Teste real obrigatório
+ * 
+ * Após a correção, testar individualmente:
+ * 
+ * Centro → mensagem entra em Conversas → Julia responde pela instância Centro.
+ * 
+ * Ventura → mensagem entra em Conversas → Julia responde pela instância Ventura.
+ * 
+ * Boulevard → mensagem entra em Conversas → Julia responde pela instância Boulevard.
+ * 
+ * Cada resposta deve obrigatoriamente sair pela mesma instância que recebeu a mensagem.
+ * 
+ * 8. Entregar relatório
+ * 
+ * Não informar apenas “corrigido”.
+ * 
+ * Mostrar uma tabela:
+ * 
+ * Unidade | Número | Evolution Instance | agentId | unitId | webhook recebido | conversa persistida | IA processou | resposta enviada
+ * 
+ * E informar a causa raiz encontrada especificamente em Ventura e Boulevard.
+
  */
 // CONTEXTO CONFIRMADO: Evolution API 2.3.7, Instância agente-5541999102791.
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
