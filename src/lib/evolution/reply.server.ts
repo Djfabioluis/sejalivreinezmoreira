@@ -1,128 +1,98 @@
-import { sendEvolutionText, sendEvolutionPresence } from "@/lib/evolution.server";
+import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 import { logEvent } from "./logger.server";
-import { logger } from "@/lib/observability/logger.server";
-import { resolveOutboundInstanceForUnit, validateOutboundInstance } from "./outbound-resolver.server";
+import { sendEvolutionText, sendEvolutionPresence } from "../evolution.server";
+import { performanceTrace } from "./performance.server";
 
+export const sendManualWAMessage = createServerFn({ method: "POST" })
+  .inputValidator((data) => z.object({
+    instance: z.string(),
+    phone: z.string(),
+    text: z.string(),
+    conversationKey: z.string(),
+    messageId: z.string().optional(),
+  }).parse(data))
+  .handler(async ({ data: params }) => {
+    const traceId = `manual-${Date.now()}`;
+    const trace = performanceTrace(traceId, params.instance);
+    
+    try {
+      const typingMs = Math.min(Math.max(params.text.length * 20, 1000), 3000);
+      
+      await sendEvolutionPresence(
+        params.instance,
+        params.phone,
+        "composing",
+        typingMs,
+      ).catch(() => false);
 
+      trace.record("AI_RESPONSE_GENERATED", { textSnippet: params.text.slice(0, 50) });
+      trace.record("EVOLUTION_SEND_STARTED", { instance: params.instance });
 
+      // 9. ENVIO ÚNICO PELA EVOLUTION
+      const sent = await sendEvolutionText(params.instance, params.phone, params.text, typingMs);
 
-// Duração do indicador nativo "digitando…" antes do envio da resposta.
-const TYPING_MIN_MS = 1200;
-const TYPING_MAX_MS = 3500;
-const TYPING_PER_CHAR_MS = 25;
+      if (sent) {
+        const sentMessageId = sent.data?.key?.id || sent.data?.message?.key?.id || params.messageId || traceId;
+        trace.record("EVOLUTION_SEND_SUCCESS", { evolutionId: sentMessageId });
+        trace.record("MESSAGE_SENT", { sentMessageId });
 
-/**
- * PROTEÇÃO FINAL (fail-closed): nenhuma mensagem automática pode sair
- * enquanto a conversa estiver em atendimento humano.
- */
-export function ensureAIAllowedToReply(conv: any): { allowed: boolean; reason?: string } {
-  if (!conv) {
-    console.log("[AI_GLOBAL_STATE] No conversation context found, allowing AI by default (Fail-Open for missing records)");
-    return { allowed: true };
-  }
-  
-  // LOG DE AUDITORIA DE ESTADO
-  console.log(`[CONVERSATION_MODE_CHECKED] conversationId=${conv.phone || 'unknown'} mode=${conv.attendance_mode} paused=${!!conv.ai_paused_at}`);
+        // 10. PERSISTÊNCIA DA RESPOSTA (Atomicamente via RPC)
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        try {
+          const { error } = await supabaseAdmin.rpc("append_wa_message" as any, {
+            p_phone: params.conversationKey,
+            p_new_message: { 
+              id: `${params.instance}:${sentMessageId}:assistant`, 
+              role: "assistant", 
+              parts: [{ type: "text", text: params.text }],
+              createdAt: new Date().toISOString()
+            }
+          });
+          if (error) throw new Error(error.message);
+        } catch (persistError: any) {
+          trace.record("AI_REPLY_HISTORY_PERSISTENCE_FAILED", {
+            traceId,
+            conversationId: params.conversationKey,
+            error: persistError?.message,
+          });
+          await logEvent({
+            instance: params.instance,
+            messageId: sentMessageId,
+            event: "AI_REPLY_HISTORY_PERSISTENCE_FAILED",
+            status: "error",
+            errorDetail: persistError?.message,
+            payload: { traceId, conversationKey: params.conversationKey },
+          }).catch(() => {});
+        }
 
-  if (conv.attendance_mode === "HUMAN") return { allowed: false, reason: "ATTENDANCE_MODE_HUMAN" };
-  if (conv.human_takeover_detected === true) return { allowed: false, reason: "HUMAN_TAKEOVER_DETECTED" };
-  if (conv.ai_paused_at) return { allowed: false, reason: conv.ai_pause_reason || "AI_PAUSED" };
-  
-  console.log(`[AI_ALLOWED_FOR_CONVERSATION] conversationId=${conv.phone}`);
-  return { allowed: true };
-}
+        return { success: true, messageId: sentMessageId };
+      } else {
+        throw new Error(`EVOLUTION_SEND_FAILED: Failed to send message via instance ${params.instance}`);
+      }
+    } catch (error: any) {
+      console.error("[sendManualWAMessage] Error:", error);
+      return { success: false, error: error.message };
+    }
+  });
 
-
-export async function replyToUser(params: {
+export interface ReplyParams {
   instance: string;
   phone: string;
   text: string;
   conversationKey: string;
   messageId?: string;
-  traceId?: string;
-  unitId?: string | null;
-  allowDuringHumanMode?: boolean;
-  _trace?: any;
-}) {
-  const trace = params._trace;
-  const traceId = params.traceId || trace?.getTraceId() || `${params.instance}:${params.messageId || Math.random().toString(36).substring(7)}`;
+}
 
-  // PROTEÇÃO DE INSTÂNCIA POR UNIDADE
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data: conv } = await supabaseAdmin
-    .from("wa_conversas")
-    .select("unidade_id, instance, attendance_mode, customer_context, human_takeover_detected, ai_paused_at, ai_pause_reason")
-    .eq("phone", params.conversationKey)
-    .maybeSingle();
+/**
+ * Envia uma resposta da IA via Evolution API com resiliência total.
+ * Requisito 3: A falha na persistência do histórico não bloqueia o envio.
+ */
+export async function replyWithAI(params: ReplyParams, traceId: string) {
+  const trace = performanceTrace(traceId, params.instance);
+  const typingMs = Math.min(Math.max(params.text.length * 30, 2000), 5000);
 
-  // PROTEÇÃO FINAL FAIL-CLOSED: bloquear qualquer outbound automático em modo humano
-  if (!params.allowDuringHumanMode) {
-    const gate = ensureAIAllowedToReply(conv as any);
-    if (!gate.allowed) {
-      trace?.record("MESSAGE_PROCESSING_ABORTED", { 
-        stage: "OUTBOUND_INSTANCE_RESOLVED", 
-        reason: gate.reason || "human_takeover",
-        traceId: params.traceId,
-        conversationId: params.conversationKey
-      });
-      trace?.record("AI_RESPONSE_BLOCKED", { reason: gate.reason });
-      return false;
-    }
-
-  }
-
-  const incomingInstance = conv?.instance || params.instance;
-
-  // REGRA: outboundInstance DEVE ser igual a inboundInstance.
-  if (!params.unitId || params.unitId === conv?.unidade_id) {
-    if (params.instance !== incomingInstance) {
-      trace?.record("INSTANCE_MISMATCH", { 
-        incoming: incomingInstance, 
-        current: params.instance,
-        action: "force_inbound_instance"
-      });
-      params.instance = incomingInstance;
-    }
-  } else if (params.unitId) {
-    const outboundRes = await resolveOutboundInstanceForUnit(params.unitId);
-    if (outboundRes && outboundRes.instanceId !== params.instance) {
-      trace?.record("INSTANCE_MISMATCH", { 
-        requested_unit: params.unitId,
-        current: params.instance,
-        new: outboundRes.instanceId
-      });
-      params.instance = outboundRes.instanceId;
-    } else if (!outboundRes && incomingInstance) {
-      params.instance = incomingInstance;
-    }
-  }
-
-
-  // Idempotência de envio
-  if (params.messageId) {
-    const { claimResponseSlot } = await import("./idempotency.server");
-    const allowed = await claimResponseSlot(params.instance, params.messageId);
-    if (!allowed) {
-      trace?.record("MESSAGE_PROCESSING_ABORTED", { 
-        stage: "IDEMPOTENCY_CHECK", 
-        reason: "duplicate_response_slot",
-        traceId: params.traceId
-      });
-      trace?.record("DUPLICATE_RESPONSE_PREVENTED");
-      return false;
-    }
-
-  }
-
-  // Digitação humanizada
-  const typingMs = Math.min(
-    TYPING_MAX_MS,
-    Math.max(TYPING_MIN_MS, params.text.length * TYPING_PER_CHAR_MS),
-  );
-  
-  trace?.record("AI_RESPONSE_GENERATED", { textSnippet: params.text.slice(0, 50) });
-  trace?.record("EVOLUTION_SEND_STARTED", { instance: params.instance });
-
+  // 8. PRESENÇA (Composing...)
   await sendEvolutionPresence(
     params.instance,
     params.phone,
@@ -130,24 +100,17 @@ export async function replyToUser(params: {
     typingMs,
   ).catch(() => false);
 
-  trace?.record("AI_RESPONSE_GENERATED", { textSnippet: params.text.slice(0, 50) });
-  trace?.record("EVOLUTION_SEND_STARTED", { instance: params.instance });
-
-
-  // 9. ENVIO ÚNICO PELA EVOLUTION
-  const sent = await sendEvolutionText(params.instance, params.phone, params.text, typingMs);
-
-  trace?.record("EVOLUTION_SEND_SUCCESS", { evolutionId: sent.data?.key?.id || sent.data?.message?.key?.id || params.messageId });
-
+  trace.record("AI_RESPONSE_GENERATED", { textSnippet: params.text.slice(0, 50) });
+  
   // Requisito 3: REGRA CRÍTICA DE RESILIÊNCIA
   // O envio pela Evolution DEVE ocorrer mesmo se a persistência falhar.
-  trace?.record("EVOLUTION_SEND_STARTED", { instance: params.instance });
-  const sent = await sendEvolutionText(params.instance, params.phone, params.text, typingMs);
+  trace.record("EVOLUTION_SEND_STARTED", { instance: params.instance });
+  const sentResult = await sendEvolutionText(params.instance, params.phone, params.text, typingMs);
   
-  if (sent) {
-    const sentMessageId = sent.data?.key?.id || sent.data?.message?.key?.id || params.messageId;
-    trace?.record("EVOLUTION_SEND_SUCCESS", { evolutionId: sentMessageId });
-    trace?.record("MESSAGE_SENT", { sentMessageId });
+  if (sentResult) {
+    const sentMessageId = sentResult.data?.key?.id || sentResult.data?.message?.key?.id || params.messageId || traceId;
+    trace.record("EVOLUTION_SEND_SUCCESS", { evolutionId: sentMessageId });
+    trace.record("MESSAGE_SENT", { sentMessageId });
 
     // 10. PERSISTÊNCIA DA RESPOSTA (Atomicamente via RPC)
     // Uma falha aqui NUNCA pode interromper o fluxo ou lançar erro.
@@ -165,7 +128,7 @@ export async function replyToUser(params: {
       });
       if (error) throw new Error(error.message);
     } catch (persistError: any) {
-      trace?.record("AI_REPLY_HISTORY_PERSISTENCE_FAILED", {
+      trace.record("AI_REPLY_HISTORY_PERSISTENCE_FAILED", {
         traceId,
         conversationId: params.conversationKey,
         error: persistError?.message,
