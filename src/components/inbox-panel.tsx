@@ -338,50 +338,55 @@ export function InboxPanel() {
               </div>
             </div>
 
-            <ScrollArea className="flex-1 p-4 bg-muted/5 min-h-0">
-              <div className="max-w-3xl mx-auto space-y-4">
-                {loadingConv && <div className="text-center py-4"><RefreshCcw className="h-5 w-5 animate-spin mx-auto opacity-20" /></div>}
-                {selectedConversation?.messages.map((m: any, i: number) => {
-                  const isAssistant = m.role === 'assistant' || m.role === 'operator';
-                  const isSystem = m.role === 'system';
-                  if (isSystem) return (
-                    <div key={i} className="flex justify-center py-2">
-                      <span className="text-[10px] bg-muted px-2 py-1 rounded-full text-muted-foreground border">
-                        {extractConversationMessageText(m)}
-                      </span>
-                    </div>
-                  );
-                  return (
-                    <div key={i} className={`flex gap-2 ${isAssistant ? 'justify-end' : 'justify-start'}`}>
-                      {!isAssistant && (
-                        <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center shrink-0">
-                          <User className="h-4 w-4" />
-                        </div>
-                      )}
-                      <div className={`max-w-[85%] lg:max-w-[70%] ${isAssistant ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
-                        <div className={`rounded-2xl px-4 py-2 text-sm ${
-                          isAssistant 
-                            ? 'bg-primary text-primary-foreground rounded-tr-none' 
-                            : 'bg-card border rounded-tl-none'
-                        }`}>
+            <div className="flex-1 relative min-h-0">
+              <ScrollArea 
+                className="h-full p-4 bg-muted/5" 
+                onScrollCapture={(e) => handleScroll(e as any)}
+              >
+                <div className="max-w-3xl mx-auto space-y-4">
+                  {loadingConv && <div className="text-center py-4"><RefreshCcw className="h-5 w-5 animate-spin mx-auto opacity-20" /></div>}
+                  {selectedConversation?.messages.map((m: any, i: number) => {
+                    const isAssistant = m.role === 'assistant' || m.role === 'operator';
+                    const isSystem = m.role === 'system';
+                    if (isSystem) return (
+                      <div key={i} className="flex justify-center py-2">
+                        <span className="text-[10px] bg-muted px-2 py-1 rounded-full text-muted-foreground border">
                           {extractConversationMessageText(m)}
+                        </span>
+                      </div>
+                    );
+                    return (
+                      <div key={i} className={`flex gap-2 ${isAssistant ? 'justify-end' : 'justify-start'}`}>
+                        {!isAssistant && (
+                          <div className="h-8 w-8 rounded-full bg-secondary flex items-center justify-center shrink-0">
+                            <User className="h-4 w-4" />
+                          </div>
+                        )}
+                        <div className={`max-w-[85%] lg:max-w-[70%] ${isAssistant ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
+                          <div className={`rounded-2xl px-4 py-2 text-sm ${
+                            isAssistant 
+                              ? 'bg-primary text-primary-foreground rounded-tr-none' 
+                              : 'bg-card border rounded-tl-none'
+                          }`}>
+                            {extractConversationMessageText(m)}
+                          </div>
+                          {m.createdAt && (
+                            <span className="text-[9px] text-muted-foreground opacity-70">
+                               {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          )}
                         </div>
-                        {m.createdAt && (
-                          <span className="text-[9px] text-muted-foreground opacity-70">
-                             {new Date(m.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
+                        {isAssistant && (
+                          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                            <Bot className="h-4 w-4 text-primary" />
+                          </div>
                         )}
                       </div>
-                      {isAssistant && (
-                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                          <Bot className="h-4 w-4 text-primary" />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-                <div ref={bottomRef} />
-              </div>
+                    );
+                  })}
+                  <div ref={bottomRef} />
+                </div>
+              </ScrollArea>
               {showScrollBottom && (
                 <Button 
                   size="sm" 
