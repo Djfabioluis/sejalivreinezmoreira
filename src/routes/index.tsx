@@ -5,156 +5,272 @@ export const Route = createFileRoute('/')({
 })
 
 function Dashboard() {
-  const instructions = `Execute esta instrucao no projeto: NÃO FAÇA MAIS ALTERAÇÕES.
+  const instructions = `Execute esta instrucao no projeto: EXECUTE AGORA OS TESTES.
 
-Agora quero TESTE FUNCIONAL REAL da correção implementada.
+Você apenas atualizou o painel com minhas instruções.
+Isso NÃO é execução do teste e NÃO é evidência.
 
-Há um ponto crítico:
+NÃO altere a interface.
+NÃO crie página.
+NÃO atualize o dashboard.
+NÃO escreva minhas instruções no preview.
+NÃO altere código.
+NÃO implemente nada.
 
-No Boulevard o BEMP retornou:
-- Corte Feminino = R$ 100,00
-- Corte Masculino = R$ 60,00
-
-Portanto, se o cliente disser apenas:
-
-"Quanto custa corte?"
-
-NÃO é correto escolher automaticamente R$ 100,00,
-pois existem pelo menos dois serviços compatíveis.
-
-A Julia deve pedir esclarecimento OU apresentar as opções reais,
-sem inventar e sem escolher arbitrariamente.
+Quero que você EXECUTE a auditoria/testes usando o backend,
+funções, logs e integrações reais disponíveis no projeto.
 
 ==================================================
-TESTE REAL NAS 3 UNIDADES
+1. IDENTIFIQUE AS 3 INSTÂNCIAS REAIS
 ==================================================
 
-Teste:
+Localize:
+
+CENTRO
+instanceId =
+unitId =
+
+VENTURA
+instanceId =
+unitId =
+
+BOULEVARD
+instanceId =
+unitId =
+
+Não use apenas o nome visual.
+
+==================================================
+2. CONSULTE O CATÁLOGO REAL DE CADA UNIDADE
+==================================================
+
+Execute list_services separadamente para:
 
 CENTRO
 VENTURA
 BOULEVARD
 
-Use o catálogo REAL de cada unidade.
+Pesquise:
 
-Execute estes testes:
+corte
+corte feminino
+corte masculino
+manicure
+escova
 
-1. "Quanto custa corte?"
-2. "Quanto custa corte feminino?"
-3. "Quanto custa corte masculino?"
-4. "Quanto custa manicure?"
-5. "Quanto custa escova?"
-6. "Qual o valor de um serviço que NÃO existe?"
+Mostre os resultados REAIS retornados pela API.
 
-Para CADA teste mostre:
+Para cada resultado:
 
-UNIDADE =
-MENSAGEM =
-LIST_SERVICES CHAMADA = SIM/NÃO
-CANDIDATOS ENCONTRADOS =
-SERVICE ID ESCOLHIDO =
-NOME OFICIAL =
-PREÇO BEMP =
-PREÇO ENVIADO AO GEMINI =
-RESPOSTA FINAL JULIA =
-PREÇO ENVIADO AO WHATSAPP =
-PRICE_MISMATCH_BLOCKED = SIM/NÃO
-RESULTADO = APROVADO/FALHOU
+UNIDADE
+serviceId
+name
+price
+duration
+
+Não invente registros para completar a tabela.
 
 ==================================================
-REGRA DE AMBIGUIDADE
+3. TESTE A RESOLUÇÃO
 ==================================================
 
-Se houver MAIS DE UM serviço plausível:
+Execute a lógica REAL implementada para estas frases:
 
-Exemplo:
-Corte Feminino = R$100
-Corte Masculino = R$60
+"Quanto custa corte?"
+"Quanto custa corte feminino?"
+"Quanto custa corte masculino?"
+"Quanto custa manicure?"
+"Quanto custa escova?"
 
-a Julia NÃO pode selecionar silenciosamente um deles.
+Faça isso nas 3 unidades.
 
-Resultado esperado para:
+Quero saber quais candidatos o resolver encontrou ANTES de
+selecionar qualquer serviço.
+
+Mostre:
+
+mensagem
+unidade
+candidatos encontrados
+serviceId selecionado
+serviceName selecionado
+officialPrice
+resultado da resolução
+
+==================================================
+4. TESTE CRÍTICO DE AMBIGUIDADE
+==================================================
+
+Especialmente para:
 
 "Quanto custa corte?"
 
-deve ser algo natural como:
+Se a unidade possuir:
 
-"Temos algumas opções de corte. Você gostaria de saber o
-valor do corte feminino ou masculino?"
+Corte Feminino
+e
+Corte Masculino
 
-OU pode informar as opções e respectivos valores,
-DESDE QUE todos tenham vindo do BEMP.
+NÃO escolha automaticamente um deles.
 
-==================================================
-TESTE DE ALUCINAÇÃO FORÇADA
-==================================================
+Execute a lógica atual e mostre o que REALMENTE acontece.
 
-Faça também um teste controlado em que:
+Se atualmente selecionar um automaticamente:
 
-preço oficial BEMP = X
+RESULTADO = FALHOU
 
-e a saída simulada do Gemini tente responder um preço Y
-diferente de X.
-
-Comprove que:
-
-PRICE_MISMATCH_BLOCKED foi acionado
-e que Y NÃO foi enviado ao WhatsApp.
-
-Mostre o trace.
+Não corrija.
 
 ==================================================
-TESTE SEM RESULTADO
+5. TESTE DE PREÇO
 ==================================================
 
-Pergunte por um serviço inexistente.
+Para cada serviço inequivocamente resolvido:
+
+Mostre a cadeia REAL:
+
+BEMP
+↓
+list_services
+↓
+SERVICE_PRICE_RESOLVED
+↓
+Gemini
+↓
+price auditor
+↓
+Evolution/WhatsApp
+
+Mostre:
+
+officialPrice
+generatedPrice
+sentPrice
+
+Os três precisam ser numericamente iguais.
+
+==================================================
+6. TESTE DE ALUCINAÇÃO CONTROLADO
+==================================================
+
+Utilize o mecanismo de teste existente, sem enviar mensagem
+para cliente real.
 
 Exemplo:
-"Quanto custa maquiagem artística especial xyz?"
 
-Se list_services não encontrar serviço compatível:
+officialPrice = 100.00
+generatedPrice = 79.90
 
-A Julia NÃO pode inventar:
-- nome
-- preço
-- duração
-- disponibilidade.
+Execute o price auditor.
 
-Mostre a resposta produzida.
+Resultado obrigatório:
 
-==================================================
-ATENÇÃO
-==================================================
+PRICE_MISMATCH_BLOCKED
 
-NÃO altere código durante esses testes.
-
-Não corrija nada automaticamente caso algum teste falhe.
-
-Se falhar, apenas registre a falha.
+Comprove pelo log/trace que R$79,90 não atravessaria
+reply.server.ts para Evolution.
 
 ==================================================
-RESULTADO FINAL
+7. SERVIÇO INEXISTENTE
 ==================================================
 
-Entregue tabela:
+Teste:
 
-UNIDADE | TESTE | BEMP | JULIA | WHATSAPP | RESULTADO
+"Quanto custa o serviço XYZ INEXISTENTE 987?"
 
-Depois responda:
+nas três unidades.
 
-CENTRO = APROVADO/FALHOU
-VENTURA = APROVADO/FALHOU
-BOULEVARD = APROVADO/FALHOU
+Resultado obrigatório:
 
-PREÇO INVENTADO FOI BLOQUEADO = SIM/NÃO
-SERVIÇO INEXISTENTE GEROU PREÇO = SIM/NÃO
-AMBIGUIDADE "CORTE" FOI TRATADA = SIM/NÃO
-TODOS OS PREÇOS ENVIADOS VIERAM DO BEMP = SIM/NÃO
+serviceId = null
+officialPrice = null
+SERVICE_PRICE_RESOLVED = false
+nenhum preço inventado
 
-Se qualquer resposta for NÃO, mostre o trace e a causa,
-mas NÃO ALTERE O CÓDIGO.
+Mostre qual resposta segura seria produzida.
 
-PARE E AGUARDE AUTORIZAÇÃO.`;
+==================================================
+8. NÃO ENVIE WHATSAPP REAL
+==================================================
+
+IMPORTANTE:
+
+Não envie mensagens de teste para clientes reais.
+
+Use execução interna, test runner, dry-run, funções,
+logs ou ambiente seguro disponível no projeto.
+
+Se alguma etapa somente puder ser comprovada enviando WhatsApp
+real, NÃO execute essa etapa.
+
+Marque:
+
+NÃO TESTADO — EXIGE ENVIO REAL
+
+==================================================
+9. PROVA, NÃO DESCRIÇÃO
+==================================================
+
+Não diga:
+
+"está funcionando"
+"foi corrigido"
+"está protegido"
+"o sistema garante"
+
+sem apresentar resultado da execução correspondente.
+
+Quero OUTPUT REAL dos testes.
+
+==================================================
+10. RESULTADO FINAL
+==================================================
+
+Entregue:
+
+CENTRO
+corte genérico =
+corte feminino =
+corte masculino =
+manicure =
+escova =
+serviço inexistente =
+
+VENTURA
+corte genérico =
+corte feminino =
+corte masculino =
+manicure =
+escova =
+serviço inexistente =
+
+BOULEVARD
+corte genérico =
+corte feminino =
+corte masculino =
+manicure =
+escova =
+serviço inexistente =
+
+Depois:
+
+LIST_SERVICES TESTADA NAS 3 = SIM/NÃO
+PREÇOS CONFEREM COM BEMP = SIM/NÃO
+AMBIGUIDADE TRATADA = SIM/NÃO
+ALUCINAÇÃO BLOQUEADA = SIM/NÃO
+SERVIÇO INEXISTENTE SEGURO = SIM/NÃO
+
+TOTAL DE TESTES EXECUTADOS =
+APROVADOS =
+FALHARAM =
+NÃO TESTADOS =
+
+Se houver qualquer FALHA:
+mostre arquivo/função envolvida e trace.
+
+NÃO CORRIJA A FALHA.
+
+PARE E AGUARDE MINHA AUTORIZAÇÃO.`;
 
   return (
     <div className="p-8 max-w-4xl mx-auto space-y-6">
