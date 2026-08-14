@@ -337,13 +337,31 @@ function buildTools(
             const lastUserMessage = messages.filter(m => m.role === 'user').pop();
             const textToSearch = lastUserMessage?.content || "";
             
-            // Busca semântica simples no catálogo real
+            // Busca semântica dinâmica no catálogo real
             const searchTerms = String(textToSearch).toLowerCase().split(/\s+/).filter(t => t.length > 2);
             const candidates = services.filter((s: any) => 
                searchTerms.some(term => s.name.toLowerCase().includes(term))
             );
 
-            if (candidates.length > 0) {
+            if (candidates.length > 1) {
+              // AMBIGUIDADE DETECTADA: Mais de um serviço plausível
+              if (conversationKey) {
+                const candidateList = candidates.slice(0, 5).map((c: any) => ({
+                  id: String(c.id),
+                  name: c.name,
+                  price: parseFloat(c.price)
+                }));
+
+                await patchCustomerContext(conversationKey, {
+                  'bookingContext.clarificationRequired': true,
+                  'bookingContext.candidates': candidateList,
+                  'bookingContext.serviceId': null,
+                  'bookingContext.serviceName': null
+                });
+                
+                console.log(`[SERVICE_CLARIFICATION_REQUIRED] traceId=${traceId}, found=${candidates.length} candidates`);
+              }
+            } else if (candidates.length === 1) {
               const best = candidates[0];
               priceAuditor.set(traceId, {
                 serviceId: String(best.id),
@@ -352,6 +370,15 @@ function buildTools(
                 unitId: effectiveUnitId,
                 source: "BEMP/list_services"
               });
+
+              if (conversationKey) {
+                await patchCustomerContext(conversationKey, {
+                  'bookingContext.clarificationRequired': false,
+                  'bookingContext.candidates': null,
+                  'bookingContext.serviceId': String(best.id),
+                  'bookingContext.serviceName': best.name
+                });
+              }
               console.log(`[SERVICE_PRICE_RESOLVED] traceId=${traceId}, service=${best.name}, price=${best.price}`);
             }
           }

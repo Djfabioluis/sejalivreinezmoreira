@@ -28,6 +28,8 @@ export interface BookingContext {
   appointmentId?: string | null;
   appointmentStatus?: "NONE" | "AWAITING_CONFIRMATION" | "CREATING" | "CONFIRMED" | "FAILED";
   availableSlots?: string[];
+  clarificationRequired?: boolean;
+  candidates?: Array<{ id: string; name: string; price: number }>;
 }
 
 export type BookingSlot =
