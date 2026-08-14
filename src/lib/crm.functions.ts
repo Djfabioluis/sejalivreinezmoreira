@@ -432,7 +432,7 @@ export const simulateRealCustomer = createServerFn({ method: "POST" })
         contact_name: "Cliente Simulação",
         instance: instance,
         attendance_mode: "AI",
-        status: "novo",
+        status: "aberta",
         customer_context: {}
       } as any);
       
