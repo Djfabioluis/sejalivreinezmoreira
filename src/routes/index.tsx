@@ -5,27 +5,156 @@ export const Route = createFileRoute('/')({
 })
 
 function Dashboard() {
-  const instructions = `Execute esta instrucao no projeto: AUTORIZO A CORREÇÃO, MAS SOMENTE DENTRO DO ESCOPO ABAIXO.
+  const instructions = `Execute esta instrucao no projeto: NÃO FAÇA MAIS ALTERAÇÕES.
 
-A causa raiz foi comprovada:
+Agora quero TESTE FUNCIONAL REAL da correção implementada.
 
-- preço oficial: R$ 100,00
-- preço informado: R$ 79,90
-- SERVICE_PATTERNS resolveu o serviço para uma referência/nome incompatível com o catálogo real do BEMP
-- a consulta oficial não retornou o serviço/preço correto
-- o Gemini respondeu um valor sem confirmação da fonte oficial
+Há um ponto crítico:
 
-OBJETIVO:
-Eliminar definitivamente preço inventado pela IA.
+No Boulevard o BEMP retornou:
+- Corte Feminino = R$ 100,00
+- Corte Masculino = R$ 60,00
 
-REGRA ABSOLUTA:
-A JULIA NUNCA PODE INFORMAR PREÇO DE SERVIÇO A PARTIR DE memória, histórico, ou inferência. PREÇO SÓ PODE SER INFORMADO SE VIER DA FONTE OFICIAL BEMP PARA A UNIDADE CORRETA.
+Portanto, se o cliente disser apenas:
 
-1. CORRIGIR SERVICE_PATTERNS (src/lib/booking/context.ts): Remover associações estáticas que forçam nomes de serviços. Use o texto original do cliente para consultar o catálogo oficial.
-2. RESOLUÇÃO SEMÂNTICA NO CATÁLOGO: Chamar list_services para a unidade correta e localizar candidatos no catálogo REAL.
-3. PROTEÇÃO CONTRA ALUCINAÇÃO: Implementar regra no backend onde, se a resposta contiver preço, deve existir um SERVICE_PRICE_RESOLVED válido no mesmo turno.
-4. LOG DE AUDITORIA: Implementar logs de [SERVICE_SEARCH], [SERVICE_PRICE_RESOLVED], [PRICE_MISMATCH_BLOCKED] e [PRICE_SENT].
-5. VALIDAÇÃO ANTES DO ENVIO: Se o Gemini gerar preço diferente do oficial, o envio deve ser bloqueado ou corrigido deterministicamente.`;
+"Quanto custa corte?"
+
+NÃO é correto escolher automaticamente R$ 100,00,
+pois existem pelo menos dois serviços compatíveis.
+
+A Julia deve pedir esclarecimento OU apresentar as opções reais,
+sem inventar e sem escolher arbitrariamente.
+
+==================================================
+TESTE REAL NAS 3 UNIDADES
+==================================================
+
+Teste:
+
+CENTRO
+VENTURA
+BOULEVARD
+
+Use o catálogo REAL de cada unidade.
+
+Execute estes testes:
+
+1. "Quanto custa corte?"
+2. "Quanto custa corte feminino?"
+3. "Quanto custa corte masculino?"
+4. "Quanto custa manicure?"
+5. "Quanto custa escova?"
+6. "Qual o valor de um serviço que NÃO existe?"
+
+Para CADA teste mostre:
+
+UNIDADE =
+MENSAGEM =
+LIST_SERVICES CHAMADA = SIM/NÃO
+CANDIDATOS ENCONTRADOS =
+SERVICE ID ESCOLHIDO =
+NOME OFICIAL =
+PREÇO BEMP =
+PREÇO ENVIADO AO GEMINI =
+RESPOSTA FINAL JULIA =
+PREÇO ENVIADO AO WHATSAPP =
+PRICE_MISMATCH_BLOCKED = SIM/NÃO
+RESULTADO = APROVADO/FALHOU
+
+==================================================
+REGRA DE AMBIGUIDADE
+==================================================
+
+Se houver MAIS DE UM serviço plausível:
+
+Exemplo:
+Corte Feminino = R$100
+Corte Masculino = R$60
+
+a Julia NÃO pode selecionar silenciosamente um deles.
+
+Resultado esperado para:
+
+"Quanto custa corte?"
+
+deve ser algo natural como:
+
+"Temos algumas opções de corte. Você gostaria de saber o
+valor do corte feminino ou masculino?"
+
+OU pode informar as opções e respectivos valores,
+DESDE QUE todos tenham vindo do BEMP.
+
+==================================================
+TESTE DE ALUCINAÇÃO FORÇADA
+==================================================
+
+Faça também um teste controlado em que:
+
+preço oficial BEMP = X
+
+e a saída simulada do Gemini tente responder um preço Y
+diferente de X.
+
+Comprove que:
+
+PRICE_MISMATCH_BLOCKED foi acionado
+e que Y NÃO foi enviado ao WhatsApp.
+
+Mostre o trace.
+
+==================================================
+TESTE SEM RESULTADO
+==================================================
+
+Pergunte por um serviço inexistente.
+
+Exemplo:
+"Quanto custa maquiagem artística especial xyz?"
+
+Se list_services não encontrar serviço compatível:
+
+A Julia NÃO pode inventar:
+- nome
+- preço
+- duração
+- disponibilidade.
+
+Mostre a resposta produzida.
+
+==================================================
+ATENÇÃO
+==================================================
+
+NÃO altere código durante esses testes.
+
+Não corrija nada automaticamente caso algum teste falhe.
+
+Se falhar, apenas registre a falha.
+
+==================================================
+RESULTADO FINAL
+==================================================
+
+Entregue tabela:
+
+UNIDADE | TESTE | BEMP | JULIA | WHATSAPP | RESULTADO
+
+Depois responda:
+
+CENTRO = APROVADO/FALHOU
+VENTURA = APROVADO/FALHOU
+BOULEVARD = APROVADO/FALHOU
+
+PREÇO INVENTADO FOI BLOQUEADO = SIM/NÃO
+SERVIÇO INEXISTENTE GEROU PREÇO = SIM/NÃO
+AMBIGUIDADE "CORTE" FOI TRATADA = SIM/NÃO
+TODOS OS PREÇOS ENVIADOS VIERAM DO BEMP = SIM/NÃO
+
+Se qualquer resposta for NÃO, mostre o trace e a causa,
+mas NÃO ALTERE O CÓDIGO.
+
+PARE E AGUARDE AUTORIZAÇÃO.`;
 
   return (
     <div className="p-8 max-w-4xl mx-auto space-y-6">
