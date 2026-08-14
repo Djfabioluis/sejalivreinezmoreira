@@ -13,149 +13,235 @@ function Dashboard() {
             Seja Livre AI Platform
           </h1>
           <div className="text-muted-foreground text-lg sm:text-xl max-w-2xl mx-auto whitespace-pre-wrap text-left bg-muted/50 p-6 rounded-lg border border-border font-mono text-xs">
-            Execute esta instrucao no projeto: NÃO FAÇA ALTERAÇÕES AINDA.
+            Execute esta instrucao no projeto: PARE AS ALTERAÇÕES.
 
-O diagnóstico confirmou que existe uma tentativa REAL de chamar
-append_wa_message com 7 parâmetros:
+O diagnóstico agora aponta DOIS problemas potencialmente diferentes:
 
-p_customer_context
-p_increment_unread
-p_instance
-p_message
-p_new_status
-p_phone
-p_phone_number
+1. Runtime/schema antigo relacionado a append_wa_message.
+2. Boulevard aparentemente falhando na persistência inbound pela constraint
+   wa_conversas_status_check.
 
-Agora NÃO quero hipótese sobre cache ou worker antigo.
+Antes de corrigir, quero a PROVA FINAL por instância usando os testes reais mais recentes.
 
-Quero localizar EXATAMENTE QUEM está fazendo essa chamada.
-
-1. Faça busca global em TODO o projeto, incluindo:
-
-- src/
-- supabase/functions/
-- edge functions
-- server functions
+NÃO altere:
+- prompt
+- Gemini
+- memória
+- agendamento
+- regras da Julia
+- Evolution
+- banco
+- constraints
+- RPCs
 - workers
-- jobs
-- follow-up
-- recovery
-- webhook handlers
-- conversation services
-- agent services
-- fallback
-- arquivos compilados/configurações disponíveis
 
-Procure por:
+==================================================
+1. IDENTIFIQUE AS 3 INSTÂNCIAS
+==================================================
 
-append_wa_message
+Mostre:
 
-e também individualmente por:
+CENTRO
+instanceId:
+instanceName:
+agentId:
+unitId:
 
-p_customer_context
-p_increment_unread
-p_new_status
-p_phone_number
+VENTURA
+instanceId:
+instanceName:
+agentId:
+unitId:
 
-2. Para CADA ocorrência encontrada, mostre:
+BOULEVARD
+instanceId:
+instanceName:
+agentId:
+unitId:
 
-arquivo
-linha
-função
-assinatura utilizada
-quantidade de parâmetros
-se está ativa no fluxo atual
+Não use apenas telefone ou nome visual para resolver a instância.
 
-NÃO altere nada.
+==================================================
+2. ÚLTIMO TESTE REAL DE CADA UNIDADE
+==================================================
 
-3. Depois consulte os logs da ocorrência REAL mais recente do erro
-"Could not find the function public.append_wa_message".
+Localize pelo timestamp os testes reais mais recentes.
 
-Correlacione pelo traceId/messageId e mostre:
+Para cada mensagem, apresente a trilha:
 
+WEBHOOK_RAW_RECEIVED
+↓
+INSTANCE_RESOLVED
+↓
+AGENT_RESOLVED
+↓
+UNIT_RESOLVED
+↓
+MESSAGE_PERSISTED
+↓
+AI_PROCESSING_STARTED
+↓
+AI_RESPONSE_GENERATED
+↓
+EVOLUTION_SEND_ATTEMPT
+↓
+EVOLUTION_SEND_SUCCESS
+
+Não deduza checkpoints.
+
+Somente marque SIM quando existir evento real no log.
+
+Tabela obrigatória:
+
+checkpoint | Centro | Ventura | Boulevard
+
+Para evento inexistente:
+AUSENTE
+
+Para evento com erro:
+ERRO + mensagem original do erro.
+
+==================================================
+3. BOULEVARD — AUDITAR wa_conversas_status_check
+==================================================
+
+Você informou:
+
+"Especial Boulevard: O teste falha na persistência da mensagem
+de entrada devido à constraint wa_conversas_status_check."
+
+Agora prove isso.
+
+Mostre o INSERT/UPDATE que falhou.
+
+Quero ver:
+
+table
+status enviado
+phone
+instanceId
+agentId
+unitId
 timestamp
 traceId
 messageId
+PostgreSQL error code
+mensagem completa do erro
+
+Depois consulte a definição REAL da constraint:
+
+wa_conversas_status_check
+
+Mostre quais valores de status ela permite.
+
+Depois compare:
+
+STATUS QUE O CÓDIGO TENTOU GRAVAR
+versus
+STATUS PERMITIDOS PELA CONSTRAINT.
+
+NÃO ALTERE A CONSTRAINT.
+
+==================================================
+4. VENTURA
+==================================================
+
+A tela mostra mensagem recente identificada como:
+
+Seja Livre Ventura Shopping
+
+Portanto o inbound aparentemente está chegando.
+
+Localize especificamente esse teste.
+
+Quero saber exatamente até onde chegou.
+
+Se MESSAGE_PERSISTED = SIM e AI_PROCESSING_STARTED = NÃO,
+localize o bloqueio entre esses dois pontos.
+
+Se AI_RESPONSE_GENERATED = SIM e EVOLUTION_SEND_SUCCESS = NÃO,
+mostre o erro do envio.
+
+Não associe automaticamente o problema de Ventura ao problema
+do Boulevard.
+
+==================================================
+5. append_wa_message
+==================================================
+
+Não aceite mais a explicação genérica "cache antigo".
+
+Mostre o erro real mais recente contendo:
+
+Could not find the function public.append_wa_message
+
+e apresente:
+
+timestamp
+traceId
 instanceId
 agentId
 unitId
-arquivo/função de origem
-runtime
-deployment/function responsável
+runtime/function
+parâmetros enviados
 
-4. Quero diferenciar obrigatoriamente:
+Depois diga se esse erro pertenceu a:
 
-ERRO GERADO PELO CÓDIGO ATUAL
-versus
-ERRO GERADO POR WORKER/DEPLOYMENT ANTIGO
-versus
-ERRO GERADO POR SCHEMA CACHE DO POSTGREST.
+Centro
+Ventura
+Boulevard
+Follow-up
+Recovery
+outro worker
 
-Não conclua qual deles é sem evidência.
+Quero identificar QUAL PROCESSO ainda gera a chamada antiga.
 
-5. Faça também uma auditoria da função existente no banco.
+==================================================
+6. NÃO CONFUNDIR DOIS TIPOS DE PERSISTÊNCIA
+==================================================
 
-Mostre TODAS as assinaturas atualmente registradas para:
+Separe claramente:
 
-public.append_wa_message
+A) persistência da MENSAGEM RECEBIDA do WhatsApp
 
-incluindo:
+B) persistência da RESPOSTA/HISTÓRICO da IA
 
-oid
-proname
-proargnames
-proargtypes
-número de argumentos
+O erro append_wa_message pode ocorrer em uma etapa diferente
+da constraint wa_conversas_status_check.
 
-6. IMPORTANTE:
+Não trate os dois como se fossem o mesmo erro.
 
-Não reinicie workers.
-Não faça reload.
-Não recrie RPC.
-Não exclua função.
-Não altere banco.
-Não altere Julia.
-Não altere Gemini.
-Não altere prompt.
-Não altere agendamento.
+==================================================
+7. RESULTADO FINAL
+==================================================
 
-PRIMEIRO LOCALIZE O CHAMADOR REAL.
+Apresente exatamente:
 
-7. Depois volte ao problema das unidades e mostre os últimos testes
-separadamente:
+UNIDADE | instanceId | agentId | unitId | último checkpoint real | erro real | cliente recebeu resposta?
 
-CENTRO
-VENTURA
-BOULEVARD
+Depois:
 
-Para cada uma:
+Centro:
+CAUSA/STATUS =
 
-instanceId
-agentId
-unitId
-WEBHOOK_RAW_RECEIVED
-MESSAGE_PERSISTED
-AI_PROCESSING_STARTED
-AI_RESPONSE_GENERATED
-EVOLUTION_SEND_SUCCESS
+Ventura:
+CAUSA/STATUS =
 
-Se algum checkpoint não existir, marque AUSENTE.
+Boulevard:
+CAUSA/STATUS =
 
-Especial atenção ao BOULEVARD:
-não considere mensagem aparecendo na Caixa de Entrada como prova
-de que a IA respondeu.
+E finalmente:
 
-RESULTADO FINAL:
+CAUSA RAIZ 1 =
+unidades afetadas =
 
-Tabela 1:
-Unidade | instanceId | agentId | unitId | último checkpoint | resposta entregue?
+CAUSA RAIZ 2 =
+unidades afetadas =
 
-Tabela 2:
-append_wa_message | arquivo chamador | função | parâmetros | runtime/deployment | traceId
+Não faça nenhuma correção.
 
-Somente depois dessas evidências apresente a causa raiz provável.
-
-NÃO EXECUTE A CORREÇÃO AINDA.
+Quero primeiro confirmar a cadeia real de execução das três
+instâncias antes de autorizar qualquer alteração.
           </div>
         </div>
       </div>
