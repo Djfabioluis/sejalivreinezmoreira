@@ -604,9 +604,25 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       });
       trace?.record("TOTAL_PROCESSING_COMPLETED", { reason: "ai_empty_response" });
       
-      // Requisito 2: Resposta vazia da IA deve gerar erro recuperável
+      // Requisito 2: Resposta vazia da IA deve gerar um fallback determinístico para não deixar o cliente no vácuo
       logger.error("AI_EMPTY_RESPONSE", "A IA retornou uma resposta vazia", { traceId, instance, conversationKey: finalKey });
-      throw new Error("AI_EMPTY_RESPONSE: The AI returned an empty response.");
+      
+      const { getFallbackResponse } = await import("@/lib/booking/lifecycle");
+      const fallbackReply = getFallbackResponse(bookingContext);
+      
+      const { replyWithAI } = await import("./reply.server");
+      await replyWithAI({
+        instance,
+        phone: contactPhone,
+        text: fallbackReply,
+        conversationKey: finalKey,
+        messageId,
+        unitId: agent.unidade_id,
+        _trace: trace
+      }, traceId);
+
+      trace?.record("TOTAL_PROCESSING_COMPLETED", { status: "success", reason: "ai_empty_response_fallback" });
+      return;
     }
 
 

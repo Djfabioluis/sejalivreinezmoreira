@@ -26,6 +26,28 @@ export function getDeterministicResponse(ctx: BookingContext): string | null {
 }
 
 /**
+ * Fallback seguro para quando a IA falha (AI_EMPTY_RESPONSE)
+ */
+export function getFallbackResponse(ctx: BookingContext): string {
+  const slot = nextRequiredSlot(ctx);
+
+  switch (slot) {
+    case "service":
+      return "Para te ajudar melhor, qual serviço você gostaria de agendar hoje? 💜";
+    case "date":
+      return "Perfeito! E para qual dia você prefere o seu agendamento? 💜";
+    case "availability":
+      return "Vou verificar as opções para você! Você prefere um horário pela manhã, tarde ou noite? ✨";
+    case "confirmation":
+      return "Posso confirmar o seu agendamento nestes detalhes que conversamos? 💜";
+    case "completed":
+      return "Seu agendamento foi confirmado com sucesso! 💜 Posso te ajudar com mais alguma coisa?";
+    default:
+      return "Entendido! Como posso te ajudar agora? 💜";
+  }
+}
+
+/**
  * Verifica se a resposta gerada pelo Gemini está repetindo uma pergunta
  * que o sistema já sabe a resposta.
  */
