@@ -130,8 +130,9 @@ export async function replyToUser(params: {
     typingMs,
   ).catch(() => false);
 
-  _trace?.record("AI_RESPONSE_GENERATED", { textSnippet: params.text.slice(0, 50) });
-  _trace?.record("EVOLUTION_SEND_STARTED", { instance: params.instance });
+  trace?.record("AI_RESPONSE_GENERATED", { textSnippet: params.text.slice(0, 50) });
+  trace?.record("EVOLUTION_SEND_STARTED", { instance: params.instance });
+
 
   // 9. ENVIO ÚNICO PELA EVOLUTION
   const sent = await sendEvolutionText(params.instance, params.phone, params.text, typingMs);
