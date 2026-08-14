@@ -13,15 +13,143 @@ function Dashboard() {
         Seja Livre AI Platform
       </h1>
       <div className="text-muted-foreground text-lg sm:text-xl max-w-2xl mx-auto whitespace-pre-wrap text-left bg-muted/50 p-6 rounded-lg border border-border font-mono text-xs">
-        Execute esta instrucao no projeto: Acabei de realizar NOVOS testes reais de WhatsApp após a correção
-de fallback.server.ts.
+        Execute esta instrucao no projeto: O diagnóstico agora isolou o problema.
 
-Não faça nenhuma alteração agora.
+As mensagens REAIS estão entrando corretamente nas três unidades:
 
-Localize exclusivamente as mensagens que acabei de enviar pelo horário
-e pelo conteúdo da mensagem.
+- Centro
+- Ventura Shopping
+- Shopping Boulevard
 
-Para CENTRO, VENTURA e BOULEVARD, rastreie individualmente:
+Portanto NÃO ALTERE:
+- Evolution
+- webhooks
+- identificação de instância
+- agentId
+- unitId
+- prompt da Julia
+- Gemini
+- memória
+- fluxo de agendamento
+- máquina de estados
+
+O problema atual está na persistência/RPC append_wa_message.
+
+NÃO crie fallback.
+NÃO adicione try/catch.
+NÃO ignore o erro.
+NÃO crie outra função paralela.
+NÃO faça correção por tentativa.
+
+Quero corrigir a CAUSA RAIZ.
+
+ETAPA 1 — INSPECIONAR O BANCO REAL
+
+Execute consulta no PostgreSQL para listar TODAS as funções:
+
+public.append_wa_message
+
+Mostre:
+
+- oid
+- proname
+- pg_get_function_identity_arguments
+- pg_get_function_arguments
+- pg_get_function_result
+
+Quero saber exatamente quantas versões de
+public.append_wa_message existem atualmente.
+
+ETAPA 2 — VERIFICAR AS ASSINATURAS
+
+Identifique:
+
+A) assinatura antiga de 7 parâmetros
+B) assinatura atual de 2 parâmetros
+
+Mostre os nomes e tipos exatos.
+
+Não altere nada ainda.
+
+ETAPA 3 — AUDITORIA GLOBAL DO CÓDIGO
+
+Faça busca em TODO o projeto por:
+
+append_wa_message
+
+Incluindo código server-side, workers e funções.
+
+Para cada ocorrência mostre:
+
+arquivo
+função
+quantidade de argumentos
+nomes dos argumentos
+assinatura esperada
+
+Não considere somente fallback.server.ts.
+
+ETAPA 4 — IDENTIFICAR A CHAMADA QUE AINDA FALHA
+
+Nos logs do meu teste REAL mais recente, encontre o erro:
+
+Could not find the function public.append_wa_message
+
+Mostre:
+
+timestamp
+unidade
+instanceId
+agentId
+unitId
+arquivo/função que realizou a chamada
+payload RPC enviado
+nomes dos parâmetros enviados
+erro completo retornado pelo Supabase/PostgREST
+
+Isso é essencial.
+
+Quero descobrir QUEM ainda está fazendo a chamada incompatível.
+
+ETAPA 5 — SCHEMA CACHE
+
+Verifique se o código já está correto mas o PostgREST está usando
+schema cache antigo.
+
+Se for cache, faça o reload oficial do schema do PostgREST/Supabase.
+
+Não altere a estrutura da função somente para satisfazer cache antigo.
+
+ETAPA 6 — SOMENTE DEPOIS CORRIGIR
+
+Se encontrar uma chamada antiga no código:
+corrija essa chamada para a assinatura REAL existente no banco.
+
+Se encontrar função duplicada/obsoleta no banco:
+primeiro informe qual é antes de remover.
+
+Se for apenas schema cache:
+recarregue o schema.
+
+Todas as unidades devem usar EXATAMENTE o mesmo caminho de persistência.
+
+ETAPA 7 — VALIDAÇÃO
+
+Depois da correção, faça uma consulta final e mostre:
+
+FUNÇÕES RPC EXISTENTES
+| função | assinatura | status |
+
+CHAMADAS NO CÓDIGO
+| arquivo | função chamadora | assinatura utilizada |
+
+E confirme que NÃO existe mais nenhuma chamada com a assinatura antiga.
+
+Não declare Centro/Ventura/Boulevard funcionando ainda.
+
+Depois dessa correção EU farei novos testes reais pelo WhatsApp.
+
+Só consideraremos resolvido quando uma mensagem real de cada unidade atingir:
 
 WEBHOOK_RAW_RECEIVED
 → INSTANCE_RESOLVED
@@ -31,64 +159,6 @@ WEBHOOK_RAW_RECEIVED
 → AI_PROCESSING_STARTED
 → AI_RESPONSE_GENERATED
 → EVOLUTION_SEND_SUCCESS
-
-Mostre uma tabela:
-
-Unidade
-| telefone/instanceId
-| instanceId técnico Evolution
-| agentId
-| unitId
-| conteúdo recebido
-| horário
-| último checkpoint
-| resposta gerada
-| envio Evolution
-| erro
-
-IMPORTANTE:
-
-1. Não considere "Conectado" como funcionamento.
-
-2. Não use testes simulados, cURL ou registros antigos.
-
-3. Use SOMENTE os eventos gerados pelas mensagens reais que acabei
-de enviar pelo WhatsApp.
-
-4. Verifique também se apareceu novamente qualquer ocorrência de:
-
-Could not find the function public.append_wa_message
-
-AI_REPLY_HISTORY_PERSISTENCE_FAILED
-
-INBOUND_INSTANCE_NOT_RESOLVED
-
-AGENT_NOT_RESOLVED
-
-UNIT_NOT_RESOLVED
-
-EVOLUTION_SEND_FAILED
-
-5. Confirme especificamente se fallback.server.ts deixou de executar
-a assinatura antiga de 7 parâmetros.
-
-6. Não altere:
-prompt,
-Gemini,
-memória,
-máquina de estados,
-agendamento,
-regras da Julia,
-webhooks,
-instâncias.
-
-Primeiro apenas faça o diagnóstico dos três testes.
-
-Se alguma unidade não chegar até EVOLUTION_SEND_SUCCESS,
-mostre exatamente o checkpoint onde parou e a mensagem de erro real.
-
-Não responda apenas "está funcionando".
-Quero a trilha técnica dos três testes.
       </div>
     </div>
   </div>
