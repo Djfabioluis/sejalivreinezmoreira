@@ -33,7 +33,8 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
   const { markEventProcessed, markEventFailed } = await import("./idempotency.server");
   const { normalizeIncomingMessage } = await import("./media-normalizer");
   const { mediaPlaceholderText } = await import("./media-pipeline.server");
-  const { appendIncomingMessage } = await import("./conversation.server");
+  const { appendIncomingMessage, updateConversationMetadata } = await import("./conversation.server");
+
 
   for (const msg of messages) {
     const traceId = (payload as any)._traceId || `trace-${msg.instance}-${msg.messageId}`;
