@@ -1,127 +1,29 @@
 /**
- * Execute esta instrucao no projeto: DIAGNÓSTICO E CORREÇÃO — WEBHOOK MULTI-INSTÂNCIA
+ * Execute esta instrucao no projeto: Acabei de realizar testes REAIS nas instâncias Ventura e Boulevard.
  * 
- * Temos um teste real que isolou o defeito.
+ * Não faça novas alterações por tentativa.
  * 
- * Unidade Centro: mensagem recebida aparece em Conversas e Julia responde corretamente.
- * Unidade Ventura: mensagem recebida NÃO aparece em Conversas e Julia não responde.
- * Unidade Boulevard: mensagem recebida NÃO aparece em Conversas e Julia não responde.
+ * Consulte agora os logs produzidos pelos testes que acabei de realizar e localize cada mensagem pelo horário atual.
  * 
- * Portanto, NÃO altere prompt da Julia, Gemini, regras de conversa, agendamento ou máquina de estados neste momento.
+ * Para cada instância, mostre a trilha REAL encontrada:
  * 
- * Investigue exclusivamente a entrada dos webhooks e o roteamento multi-instância.
+ * WEBHOOK_RAW_RECEIVED → INSTANCE_RESOLVED → AGENT_RESOLVED → UNIT_RESOLVED → MESSAGE_PERSISTED → AI_PROCESSING_STARTED → AI_RESPONSE_GENERATED → EVOLUTION_SEND_SUCCESS
  * 
- * 1. Auditar as 3 instâncias
+ * Se a trilha parar, informe exatamente em qual checkpoint parou e mostre o erro.
  * 
- * Para Centro, Ventura e Boulevard, identificar e exibir:
- * 
- * nome técnico/ID real da instância Evolution;
- * número conectado;
- * agentId;
- * unitId;
- * URL de webhook configurada;
- * eventos de webhook habilitados;
- * status da instância;
- * última mensagem inbound recebida pelo backend;
- * último HTTP status recebido pelo webhook.
- * 
- * 2. Não resolver instância pelo nome do agente
- * 
- * Existem duas agentes visualmente chamadas “Julia”.
- * 
- * É PROIBIDO identificar unidade/agente apenas por:
- * name = Julia
- * 
- * O roteamento deve usar prioritariamente o identificador técnico da instância Evolution recebido no webhook.
- * 
- * Criar resolução determinística:
- * 
- * Evolution instance ID/name -> agentId -> unitId -> telefone da unidade
- * 
- * Uma instância jamais pode assumir o agentId ou unitId de outra.
- * 
- * 3. Auditar endpoint de entrada
- * 
- * Comparar o webhook da instância Centro, que funciona, com Ventura e Boulevard.
- * 
- * Verificar especialmente:
- * 
- * URL diferente ou antiga;
- * endpoint incorreto;
- * webhook não registrado;
- * evento de mensagem não habilitado;
- * instance name incompatível;
- * lookup da instância falhando;
- * retorno 401/403/404/500;
- * mensagem descartada por INSTANCE_NOT_FOUND;
- * filtro que esteja ignorando Ventura/Boulevard.
- * 
- * 4. Instrumentar antes de qualquer filtro
- * 
- * No primeiro ponto do endpoint de webhook registrar:
- * 
- * WEBHOOK_RAW_RECEIVED
- * 
- * contendo:
- * timestamp
- * event
- * instance
- * remoteJid
- * messageId
- * fromMe
- * 
- * Depois registrar sequencialmente:
- * 
- * INSTANCE_RESOLVED
- * AGENT_RESOLVED
- * UNIT_RESOLVED
- * MESSAGE_PERSISTED
- * AI_PROCESSING_STARTED
- * AI_RESPONSE_GENERATED
- * EVOLUTION_SEND_STARTED
- * EVOLUTION_SEND_SUCCESS
- * 
- * Em qualquer interrupção registrar explicitamente o motivo.
- * 
- * 5. IMPORTANTE
- * 
- * Uma mensagem de instância desconhecida NÃO pode ser silenciosamente ignorada.
- * 
- * Registrar:
+ * Procure também por:
  * INBOUND_INSTANCE_NOT_RESOLVED
  * 
- * com o identificador recebido da Evolution.
+ * Quero uma tabela separada para:
+ * Centro / Ventura / Boulevard
  * 
- * 6. Corrigir Ventura e Boulevard
+ * Não considere “Conectado” como prova de funcionamento.
+ * Não altere prompt, Gemini, memória ou fluxo de agendamento.
+ * Primeiro identifique a causa raiz usando os eventos dos testes reais que acabei de enviar.
  * 
- * Comparar a configuração delas com Centro e corrigir automaticamente webhook/mapeamento necessários, sem alterar números ou unidades existentes.
+ * Se não existir WEBHOOK_RAW_RECEIVED para Ventura ou Boulevard, audite diretamente na Evolution a configuração do webhook dessas instâncias e compare com a instância Centro que está funcionando.
  * 
- * Não criar agentes duplicados.
- * Não criar unidades duplicadas.
- * Não trocar números entre unidades.
- * 
- * 7. Teste real obrigatório
- * 
- * Após a correção, testar individualmente:
- * 
- * Centro → mensagem entra em Conversas → Julia responde pela instância Centro.
- * 
- * Ventura → mensagem entra em Conversas → Julia responde pela instância Ventura.
- * 
- * Boulevard → mensagem entra em Conversas → Julia responde pela instância Boulevard.
- * 
- * Cada resposta deve obrigatoriamente sair pela mesma instância que recebeu a mensagem.
- * 
- * 8. Entregar relatório
- * 
- * Não informar apenas “corrigido”.
- * 
- * Mostrar uma tabela:
- * 
- * Unidade | Número | Evolution Instance | agentId | unitId | webhook recebido | conversa persistida | IA processou | resposta enviada
- * 
- * E informar a causa raiz encontrada especificamente em Ventura e Boulevard.
-
+ * Não finalize dizendo apenas “corrigido”. Mostre os identificadores técnicos das três instâncias e o último checkpoint real de cada uma.
  */
 // CONTEXTO CONFIRMADO: Evolution API 2.3.7, Instância agente-5541999102791.
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
