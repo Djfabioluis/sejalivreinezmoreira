@@ -2,6 +2,7 @@ import { NormalizedEvolutionMessage } from "./types";
 import { logEvent } from "./logger.server";
 import { extractMessageText } from "./message-text";
 import { normalizePhone, buildConversationKey } from "./contact";
+import { logger } from "@/lib/observability/logger.server";
 
 interface AgentRecord {
   id: string;
