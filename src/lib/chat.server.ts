@@ -390,9 +390,8 @@ function buildTools(
 }
 
 export async function runAgentWithLogging(opts: AgentOptions & { messages?: any[]; text?: string }) {
-  const { traceId, conversationKey } = opts;
-  const history = (opts.messages || []).slice(-8); 
-  return runAgent({ ...opts, messages: history });
+  // runAgent já aplica o limite de 12 mensagens para segurança global
+  return runAgent(opts);
 }
 
 export async function isIAConfigured(): Promise<boolean> {
@@ -416,7 +415,10 @@ export async function streamAgent(opts: { messages: any[]; sandbox?: boolean }) 
 
 export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: string }) {
   const { conversationKey, unidadeId, sandbox, customerContext, activePromotions, traceId } = opts;
-  const messages = Array.isArray(opts.messages) ? opts.messages : [];
+  // Limite seguro de histórico para evitar recusa silenciosa (Gemini 2.5 Flash)
+  // Preserva 12 mensagens mais recentes (aprox. 6 turnos)
+  const rawMessages = Array.isArray(opts.messages) ? opts.messages : [];
+  const messages = rawMessages.slice(-12);
 
   const { effectiveUnitId, effectiveUnitName } = await resolveEffectiveUnit({ conversationKey, agentUnitId: unidadeId });
   
@@ -447,6 +449,22 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
     messages: modelMessages,
     tools: buildTools(!!sandbox, effectiveUnitId, conversationKey, opts.messageId, bookingContext.subscriptionIntent),
     maxSteps: 5,
+    onStepFinish: async (step: any) => {
+      if (traceId) {
+        await logEvent({
+          instance: opts.instance || "unknown",
+          messageId: opts.messageId || "unknown",
+          event: "AI_STEP_COMPLETED",
+          status: "success",
+          payload: { 
+            traceId, 
+            tokens: step.usage.totalTokens,
+            historyMessages: messages.length,
+            finishReason: step.finishReason
+          }
+        }).catch(() => {});
+      }
+    }
   } as any);
 
   return {
