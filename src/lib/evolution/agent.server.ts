@@ -361,6 +361,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       detectSubscriptionIntent,
       nextRequiredSlot,
       isShortAffirmative,
+      ensureNoDuplicateBookingQuestion,
     } = await import("@/lib/booking/context");
     const { patchCustomerContext } = await import("@/lib/chat.server");
 

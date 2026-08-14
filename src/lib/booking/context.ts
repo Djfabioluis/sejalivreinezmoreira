@@ -212,11 +212,18 @@ export function mergeBookingContext(
 
   for (const [key, value] of Object.entries(extracted || {})) {
     if (EMPTY(value)) continue;
+    // REQUISITO 6: Nunca substituir por null, merge aditivo
     (next as any)[key] = value;
   }
 
   next.subscriptionIntent = prev.subscriptionIntent === true || extracted?.subscriptionIntent === true;
   next.intent = extracted?.intent || prev.intent || null;
+  
+  // REQUISITO 7: Se serviceId ou date sumirem no loop, restauramos do prev
+  if (!next.serviceId && prev.serviceId) next.serviceId = prev.serviceId;
+  if (!next.serviceName && prev.serviceName) next.serviceName = prev.serviceName;
+  if (!next.date && prev.date) next.date = prev.date;
+
   return next;
 }
 
