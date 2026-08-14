@@ -1,39 +1,44 @@
 /**
- * Execute esta instrucao no projeto: Diagnostique uma mensagem real enviada agora, sem alterar prompts nem regras da Julia.
+ * Execute esta instrucao no projeto: Execute o diagnóstico em produção agora. Não faça novas alterações antes de localizar exatamente onde a mensagem está parando.
  * 
- * A mensagem do cliente não aparece em Conversas e a IA não responde.
+ * Acabei de enviar uma mensagem real pelo WhatsApp e ela ainda não aparece imediatamente na Caixa de entrada.
  * 
- * Verifique primeiro evo_webhook_logs dos últimos 10 minutos e informe:
+ * Quero um teste ponta a ponta usando uma mensagem NOVA enviada agora.
  * 
- * se chegou WEBHOOK_RECEIVED;
- * valor exato de payload.event;
- * valor exato de instance;
- * remoteJid;
- * remoteJidAlt;
- * messageId;
- * fromMe;
- * último checkpoint alcançado.
+ * Consulte evo_webhook_logs dos últimos 5 minutos.
+ * Localize o webhook dessa mensagem.
+ * Mostre o traceId, instance, remoteJid, messageId, event e horário recebido.
+ * Mostre, em ordem, quais checkpoints realmente existem:
  * 
- * Compare o valor exato de instance recebido com a instância cadastrada em agentes_whatsapp.
+ * WEBHOOK_RECEIVED
+ * EVENT_NORMALIZED
+ * WHATSAPP_IDENTITY_RESOLVED
+ * AGENT_RESOLVED
+ * LOCK_ACQUIRED
+ * CONTEXT_LOAD_COMPLETED
+ * AI_STARTED
+ * AI_COMPLETED
+ * MESSAGE_SENT
  * 
- * IMPORTANTE: em src/lib/evolution/processor.server.ts ainda existe:
+ * Não presuma que funcionou. Informe exatamente o último checkpoint encontrado.
  * 
- * if (!agent) {
- *   await markEventProcessed(msg.instance, finalMessageId);
- *   continue;
- * }
+ * Se NÃO existir WEBHOOK_RECEIVED, pare o diagnóstico do código da IA e verifique a configuração da Evolution de TODAS as instâncias, URL do webhook, eventos habilitados e resposta HTTP do endpoint /api/public/whatsapp-evolution.
  * 
- * Isso está proibido. agent_not_found não pode marcar a mensagem como processada.
+ * Se existir WEBHOOK_RECEIVED mas não AGENT_RESOLVED, mostre o nome exato da instance recebida e compare com agentes_whatsapp.
  * 
- * Alterar para markEventFailed, registrar AGENT_NOT_FOUND com instance, messageId e remoteJid, e manter evidência para retry/diagnóstico.
+ * Se chegar em AGENT_RESOLVED mas não AI_STARTED, diagnostique lock, modo HUMAN/AI, deduplicação e carregamento da conversa.
  * 
- * Não fazer nenhuma outra refatoração.
+ * Se chegar em AI_STARTED mas não AI_COMPLETED, mostre provider, modelo, status HTTP, timeout e erro bruto da chamada da IA.
  * 
- * Depois envie uma mensagem real "oi teste" para cada instância e prove o percurso:
+ * Se chegar em AI_COMPLETED mas não MESSAGE_SENT, diagnostique exclusivamente o envio pela Evolution.
  * 
- * WEBHOOK_RECEIVED → EVENT_NORMALIZED → WHATSAPP_IDENTITY_RESOLVED → AGENT_RESOLVED → LOCK_ACQUIRED → CONTEXT_LOAD_COMPLETED → AI_STARTED → AI_COMPLETED → MESSAGE_SENT
+ * Também confirme se a mensagem recebida foi persistida em wa_messages e se a conversa teve updated_at atualizado.
  * 
- * Se WEBHOOK_RECEIVED nem existir, não mexer na IA: verificar imediatamente o webhook configurado na Evolution para cada instância e confirmar que aponta para /api/public/whatsapp-evolution.
+ * No final, quero uma tabela com:
+ * 
+ * Etapa | Status | Horário | Evidência | Erro
+ * 
+ * Não responda apenas “corrigido”. Quero evidência do teste real.
  */
 // CONTEXTO CONFIRMADO: Evolution API 2.3.7, Instância agente-5541999102791.
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
