@@ -6,130 +6,159 @@ export const Route = createFileRoute('/')({
 
 function Dashboard() {
   return (
-<div className="flex flex-col min-h-screen bg-background">
-  <div className="flex-1 flex flex-col items-center justify-center p-4 space-y-8 max-w-4xl mx-auto w-full">
-    <div className="text-center space-y-4">
-      <h1 className="text-4xl font-bold tracking-tight sm:text-6xl text-foreground">
-        Seja Livre AI Platform
-      </h1>
-      <div className="text-muted-foreground text-lg sm:text-xl max-w-2xl mx-auto whitespace-pre-wrap text-left bg-muted/50 p-6 rounded-lg border border-border font-mono text-xs">
-        Execute esta instrucao no projeto: Acabei de enviar 3 NOVAS mensagens REAIS pelo WhatsApp,
-uma para cada instância.
+    <div className="flex flex-col min-h-screen bg-background">
+      <div className="flex-1 flex flex-col items-center justify-center p-4 space-y-8 max-w-4xl mx-auto w-full">
+        <div className="text-center space-y-4">
+          <h1 className="text-4xl font-bold tracking-tight sm:text-6xl text-foreground">
+            Seja Livre AI Platform
+          </h1>
+          <div className="text-muted-foreground text-lg sm:text-xl max-w-2xl mx-auto whitespace-pre-wrap text-left bg-muted/50 p-6 rounded-lg border border-border font-mono text-xs">
+            Execute esta instrucao no projeto: NÃO FAÇA ALTERAÇÕES AINDA.
 
-NÃO ALTERE NADA.
+O diagnóstico confirmou que existe uma tentativa REAL de chamar
+append_wa_message com 7 parâmetros:
 
-Não faça correção.
-Não faça redeploy.
-Não altere RPC.
-Não altere webhook.
-Não altere IA.
+p_customer_context
+p_increment_unread
+p_instance
+p_message
+p_new_status
+p_phone
+p_phone_number
 
-Agora apenas AUDITE os logs produzidos por esses 3 testes.
+Agora NÃO quero hipótese sobre cache ou worker antigo.
 
-Localize cada mensagem pelo conteúdo e horário atual.
+Quero localizar EXATAMENTE QUEM está fazendo essa chamada.
 
-Para cada unidade:
+1. Faça busca global em TODO o projeto, incluindo:
+
+- src/
+- supabase/functions/
+- edge functions
+- server functions
+- workers
+- jobs
+- follow-up
+- recovery
+- webhook handlers
+- conversation services
+- agent services
+- fallback
+- arquivos compilados/configurações disponíveis
+
+Procure por:
+
+append_wa_message
+
+e também individualmente por:
+
+p_customer_context
+p_increment_unread
+p_new_status
+p_phone_number
+
+2. Para CADA ocorrência encontrada, mostre:
+
+arquivo
+linha
+função
+assinatura utilizada
+quantidade de parâmetros
+se está ativa no fluxo atual
+
+NÃO altere nada.
+
+3. Depois consulte os logs da ocorrência REAL mais recente do erro
+"Could not find the function public.append_wa_message".
+
+Correlacione pelo traceId/messageId e mostre:
+
+timestamp
+traceId
+messageId
+instanceId
+agentId
+unitId
+arquivo/função de origem
+runtime
+deployment/function responsável
+
+4. Quero diferenciar obrigatoriamente:
+
+ERRO GERADO PELO CÓDIGO ATUAL
+versus
+ERRO GERADO POR WORKER/DEPLOYMENT ANTIGO
+versus
+ERRO GERADO POR SCHEMA CACHE DO POSTGREST.
+
+Não conclua qual deles é sem evidência.
+
+5. Faça também uma auditoria da função existente no banco.
+
+Mostre TODAS as assinaturas atualmente registradas para:
+
+public.append_wa_message
+
+incluindo:
+
+oid
+proname
+proargnames
+proargtypes
+número de argumentos
+
+6. IMPORTANTE:
+
+Não reinicie workers.
+Não faça reload.
+Não recrie RPC.
+Não exclua função.
+Não altere banco.
+Não altere Julia.
+Não altere Gemini.
+Não altere prompt.
+Não altere agendamento.
+
+PRIMEIRO LOCALIZE O CHAMADOR REAL.
+
+7. Depois volte ao problema das unidades e mostre os últimos testes
+separadamente:
 
 CENTRO
 VENTURA
 BOULEVARD
 
-mostre a trilha REAL:
+Para cada uma:
 
+instanceId
+agentId
+unitId
 WEBHOOK_RAW_RECEIVED
-→ INSTANCE_RESOLVED
-→ AGENT_RESOLVED
-→ UNIT_RESOLVED
-→ MESSAGE_PERSISTED
-→ AI_PROCESSING_STARTED
-→ AI_RESPONSE_GENERATED
-→ EVOLUTION_SEND_SUCCESS
-
-Quero esta tabela:
-
-Unidade
-| conteúdo recebido
-| timestamp
-| instanceId Evolution
-| agentId
-| unitId
-| MESSAGE_PERSISTED
-| AI_PROCESSING_STARTED
-| AI_RESPONSE_GENERATED
-| resposta gerada
-| outbound instanceId
-| EVOLUTION_SEND_SUCCESS
-| messageId Evolution
-| último checkpoint
-| erro
-
-Também procure nesses mesmos testes por:
-
-Could not find the function public.append_wa_message
-
-AI_REPLY_HISTORY_PERSISTENCE_FAILED
-
-INBOUND_INSTANCE_NOT_RESOLVED
-
-AGENT_NOT_RESOLVED
-
-UNIT_NOT_RESOLVED
-
-AI_PROCESSING_FAILED
-
-AI_RESPONSE_FAILED
-
-EVOLUTION_SEND_FAILED
-
-DUPLICATE_MESSAGE
-
-Não use registros antigos.
-
-Não use simulação.
-
-Não use cURL.
-
-Não considere status "Conectado" como prova.
-
-Não considere a mensagem aparecer na Caixa de Entrada como
-prova de que a IA respondeu.
-
-A prova de funcionamento é:
-
-mensagem REAL recebida
-+
-instância correta resolvida
-+
-IA processada
-+
-resposta gerada
-+
+MESSAGE_PERSISTED
+AI_PROCESSING_STARTED
+AI_RESPONSE_GENERATED
 EVOLUTION_SEND_SUCCESS
-+
-messageId retornado pela Evolution.
 
-IMPORTANTE:
+Se algum checkpoint não existir, marque AUSENTE.
 
-Confirme também que a resposta saiu pela MESMA instância/unidade
-que recebeu a mensagem.
+Especial atenção ao BOULEVARD:
+não considere mensagem aparecendo na Caixa de Entrada como prova
+de que a IA respondeu.
 
-Centro → Centro
-Ventura → Ventura
-Boulevard → Boulevard
+RESULTADO FINAL:
 
-Não faça nenhuma alteração mesmo que encontre erro.
+Tabela 1:
+Unidade | instanceId | agentId | unitId | último checkpoint | resposta entregue?
 
-Se algum teste parar no meio, informe:
+Tabela 2:
+append_wa_message | arquivo chamador | função | parâmetros | runtime/deployment | traceId
 
-ÚLTIMO CHECKPOINT EXECUTADO
-PRÓXIMO CHECKPOINT NÃO EXECUTADO
-ERRO EXATO
-ARQUIVO/FUNÇÃO RESPONSÁVEL
+Somente depois dessas evidências apresente a causa raiz provável.
 
-Quero primeiro o diagnóstico pós-correção do schema cache.
+NÃO EXECUTE A CORREÇÃO AINDA.
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-</div>
   )
 }
