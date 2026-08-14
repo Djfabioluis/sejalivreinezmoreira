@@ -152,18 +152,49 @@ export function extractBookingSlots(
     }
   }
 
-  // --- Serviço ---
-  const svc = SERVICE_PATTERNS.find((s) => s.re.test(t));
-  if (svc) {
-    out.serviceName = svc.name;
-    out.serviceText = t;
-  } else if (t.length > 3 && t.length < 30 && !out.date && !/manh[ãa]|tarde|noite/i.test(t)) {
-    // Heurística: se for uma frase curta que não é data/período, pode ser um serviço novo
-    // Mas evitamos sobrescrever se parecer apenas uma saudação como "Oi"
-    if (!/^(oi|ol[aá]|bom\s+dia|boa\s+tarde|boa\s+noite)$/i.test(t)) {
-      // out.serviceText = t; // Removido para evitar falsos positivos agressivos
+  // --- Serviço (Resolução de Ambiguidade Prioritária) ---
+  if (previous?.clarificationRequired && previous.candidates?.length) {
+    // 1. Tentar por índice ("o segundo", "opção 1")
+    const ordinalMatch = t.match(/\b(?:a|o)?\s*(primeir[ao]|segund[ao]|terceir[ao]|quart[ao]|quint[ao])\b/i);
+    const numericMatch = t.match(/\b(?:op[çc][ãa]o\s+)?([1-5])\b/i);
+    
+    let index = -1;
+    if (ordinalMatch) {
+      const word = ordinalMatch[1].toLowerCase();
+      if (word.startsWith("prim")) index = 0;
+      else if (word.startsWith("segu")) index = 1;
+      else if (word.startsWith("terc")) index = 2;
+      else if (word.startsWith("quar")) index = 3;
+      else if (word.startsWith("quin")) index = 4;
+    } else if (numericMatch) {
+      index = parseInt(numericMatch[1]) - 1;
+    }
+
+    if (index >= 0 && index < previous.candidates.length) {
+      const selected = previous.candidates[index];
+      out.serviceId = selected.id;
+      out.serviceName = selected.name;
+      out.clarificationRequired = false;
+      out.candidates = undefined; // Limpa para resetar estado
+      return out;
+    }
+
+    // 2. Tentar por nome exato entre os candidatos
+    const exactMatch = previous.candidates.find(c => 
+      t.toLowerCase().includes(c.name.toLowerCase()) || 
+      c.name.toLowerCase().includes(t.toLowerCase())
+    );
+    if (exactMatch) {
+      out.serviceId = exactMatch.id;
+      out.serviceName = exactMatch.name;
+      out.clarificationRequired = false;
+      out.candidates = undefined;
+      return out;
     }
   }
+
+  // --- Serviço (Busca Padrão) ---
+  const svc = SERVICE_PATTERNS.find((s) => s.re.test(t));
 
   // --- Período ---
   if (/manh[ãa]/i.test(t)) out.period = "manhã";
