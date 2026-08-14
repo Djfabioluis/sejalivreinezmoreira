@@ -12,18 +12,22 @@ async function test() {
   for (const unit of units) {
     try {
       const services = await BempService.listServices(unit.id);
-      const filtered = services.filter((s: any) => 
-        s.name.toLowerCase().includes("manicure") || 
-        s.name.toLowerCase().includes("pé e mão") || 
-        s.name.toLowerCase().includes("escova") || 
-        s.name.toLowerCase().includes("corte")
-      );
+      const filtered = services.filter((s: any) => {
+        const name = (s.name || s.service_name || "").toLowerCase();
+        return name.includes("manicure") || 
+               name.includes("pé e mão") || 
+               name.includes("escova") || 
+               name.includes("corte");
+      });
       
       for (const s of filtered) {
-        console.log(\`\${unit.name} | \${s.id} | \${s.name} | R$ \${s.price.toFixed(2)} | \${s.duration}min\`);
+        const price = s.price || s.valor || 0;
+        const duration = s.duration || s.tempo || 0;
+        const name = s.name || s.service_name || "N/A";
+        console.log(unit.name + " | " + s.id + " | " + name + " | R$ " + price.toFixed(2) + " | " + duration + "min");
       }
-    } catch (err) {
-      console.error(\`Erro na unidade \${unit.name}: \`, err);
+    } catch (err: any) {
+      console.error("Erro na unidade " + unit.name + ": ", err.message);
     }
   }
 }
