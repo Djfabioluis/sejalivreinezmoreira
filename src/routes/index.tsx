@@ -1,278 +1,39 @@
 /**
- * Execute esta instrucao no projeto: CAUSA CRÍTICA IDENTIFICADA NO BEM AGENDA AI (27)
+ * Execute esta instrucao no projeto: Diagnostique uma mensagem real enviada agora, sem alterar prompts nem regras da Julia.
  * 
- * A Julia está sem responder em todas as instâncias.
+ * A mensagem do cliente não aparece em Conversas e a IA não responde.
  * 
- * Foi identificado um possível bloqueio global no pipeline antes da chamada da IA.
+ * Verifique primeiro evo_webhook_logs dos últimos 10 minutos e informe:
  * 
- * Arquivo:
+ * se chegou WEBHOOK_RECEIVED;
+ * valor exato de payload.event;
+ * valor exato de instance;
+ * remoteJid;
+ * remoteJidAlt;
+ * messageId;
+ * fromMe;
+ * último checkpoint alcançado.
  * 
- * `src/lib/evolution/processor.server.ts`
+ * Compare o valor exato de instance recebido com a instância cadastrada em agentes_whatsapp.
  * 
- * O processor chama:
+ * IMPORTANTE: em src/lib/evolution/processor.server.ts ainda existe:
  * 
- * ```ts
- * supabaseAdmin.rpc("acquire_conversation_lock", {
- *   p_conversation_key: conversationKey,
- *   p_trace_id: traceId,
- *   p_timeout_seconds: 30
- * })
- * ```
- * 
- * Essa assinatura depende da migration:
- * 
- * `20260812160040_37fb526e-81dc-4569-b1f7-bb83ad685d3e.sql`
- * 
- * que recria:
- * 
- * ```sql
- * acquire_conversation_lock(
- *   p_conversation_key text,
- *   p_trace_id text,
- *   p_timeout_seconds int DEFAULT 30
- * )
- * ```
- * 
- * ## 1. VERIFICAR A FUNÇÃO REAL EM PRODUÇÃO
- * 
- * Executar no banco de PRODUÇÃO:
- * 
- * ```sql
- * SELECT
- *   p.proname,
- *   pg_get_function_identity_arguments(p.oid) AS arguments
- * FROM pg_proc p
- * JOIN pg_namespace n ON n.oid = p.pronamespace
- * WHERE n.nspname = 'public'
- * AND p.proname IN (
- *   'acquire_conversation_lock',
- *   'release_conversation_lock'
- * );
- * ```
- * 
- * Resultado esperado:
- * 
- * ```text
- * acquire_conversation_lock
- * p_conversation_key text, p_trace_id text, p_timeout_seconds integer
- * ```
- * 
- * e:
- * 
- * ```text
- * release_conversation_lock
- * p_conversation_key text, p_trace_id text
- * ```
- * 
- * Se a função de 3 argumentos NÃO existir:
- * 
- * ESSA É A CAUSA DO BLOQUEIO.
- * 
- * ## 2. APLICAR MIGRATION AUSENTE
- * 
- * Aplicar a migration real do projeto:
- * 
- * `supabase/migrations/20260812160040_37fb526e-81dc-4569-b1f7-bb83ad685d3e.sql`
- * 
- * e depois:
- * 
- * `20260812161645_9b2bc404-9181-4416-ba7a-b0db61b3186c.sql`
- * 
- * Não apenas copiar código para o frontend/backend.
- * 
- * Garantir que a migration foi aplicada no Supabase usado pela PRODUÇÃO.
- * 
- * ## 3. VALIDAR PERMISSÃO
- * 
- * A função precisa permitir execução para:
- * 
- * `service_role`
- * 
- * Validar:
- * 
- * ```sql
- * SELECT has_function_privilege(
- *   'service_role',
- *   'public.acquire_conversation_lock(text,text,integer)',
- *   'EXECUTE'
- * );
- * ```
- * 
- * Esperado:
- * 
- * ```text
- * true
- * ```
- * 
- * ## 4. TESTAR RPC DIRETAMENTE
- * 
- * Executar:
- * 
- * ```sql
- * SELECT public.acquire_conversation_lock(
- *   'diagnostic:test',
- *   'diagnostic-trace',
- *   30
- * );
- * ```
- * 
- * Esperado:
- * 
- * ```text
- * true
- * ```
- * 
- * Depois:
- * 
- * ```sql
- * SELECT public.release_conversation_lock(
- *   'diagnostic:test',
- *   'diagnostic-trace'
- * );
- * ```
- * 
- * Esperado:
- * 
- * ```text
- * true
- * ```
- * 
- * ## 5. VERIFICAR LOCKS PRESOS
- * 
- * Executar:
- * 
- * ```sql
- * SELECT *
- * FROM public.evo_conversation_locks
- * ORDER BY locked_at DESC;
- * ```
- * 
- * Identificar locks antigos.
- * 
- * Eliminar somente locks claramente expirados:
- * 
- * ```sql
- * DELETE FROM public.evo_conversation_locks
- * WHERE locked_at < now() - interval '60 seconds';
- * ```
- * 
- * Não apagar dados de conversa.
- * 
- * ## 6. NÃO DEIXAR RPC MATAR TODA A IA
- * 
- * Hoje o código faz:
- * 
- * ```ts
- * if (lockError || lockAcquired !== true) {
- *   markEventFailed(...)
- *   continue
- * }
- * ```
- * 
- * Adicionar log obrigatório ANTES do continue:
- * 
- * ```text
- * CONVERSATION_LOCK_FAILED
- * 
- * conversationKey
- * traceId
- * errorCode
- * errorMessage
- * lockAcquired
- * ```
- * 
- * Nenhuma falha de RPC deve aparecer apenas como "IA não respondeu".
- * 
- * ## 7. TESTE DE PIPELINE
- * 
- * Depois de corrigir a RPC, enviar uma mensagem REAL:
- * 
- * "Oi"
- * 
- * Resultado obrigatório:
- * 
- * ```text
- * WEBHOOK_RECEIVED
- * IDEMPOTENCY_CHECK_COMPLETED
- * INSTANCE_RESOLVED_COMPLETED
- * CONVERSATION_LOCK_STARTED
- * LOCK_ACQUIRED acquired=true
- * CONTEXT_LOAD_COMPLETED
- * AGENT_FLOW_STARTED
- * AI_REQUEST_STARTED
- * AI_RESPONSE_RECEIVED
- * EVOLUTION_REQUEST_STARTED
- * EVOLUTION_RESPONSE_RECEIVED
- * MESSAGE_SENT
- * ```
- * 
- * ## 8. VERIFICAR AGENT FLOW
- * 
- * Se `LOCK_ACQUIRED=true`, mas `AGENT_FLOW_STARTED` não ocorrer:
- * 
- * mostrar:
- * 
- * isIAActive
- * agentId
- * unitId
- * status
- * ia_ativa
- * 
- * Mas NÃO alterar agentes antes de comprovar isso.
- * 
- * ## 9. NÃO MARCAR agent_not_found COMO PROCESSADO
- * 
- * Existe ainda este problema:
- * 
- * ```ts
  * if (!agent) {
- *   await markEventProcessed(...)
+ *   await markEventProcessed(msg.instance, finalMessageId);
  *   continue;
  * }
- * ```
  * 
- * Isso é incorreto.
+ * Isso está proibido. agent_not_found não pode marcar a mensagem como processada.
  * 
- * Se agente não for encontrado:
+ * Alterar para markEventFailed, registrar AGENT_NOT_FOUND com instance, messageId e remoteJid, e manter evidência para retry/diagnóstico.
  * 
- * usar:
+ * Não fazer nenhuma outra refatoração.
  * 
- * ```ts
- * markEventFailed(...)
- * ```
+ * Depois envie uma mensagem real "oi teste" para cada instância e prove o percurso:
  * 
- * e registrar:
+ * WEBHOOK_RECEIVED → EVENT_NORMALIZED → WHATSAPP_IDENTITY_RESOLVED → AGENT_RESOLVED → LOCK_ACQUIRED → CONTEXT_LOAD_COMPLETED → AI_STARTED → AI_COMPLETED → MESSAGE_SENT
  * 
- * `AGENT_NOT_FOUND`
- * 
- * Nunca marcar a mensagem como processada sem resposta.
- * 
- * ## 10. CRITÉRIO FINAL
- * 
- * Não considerar corrigido até uma mensagem real alcançar:
- * 
- * ```text
- * LOCK_ACQUIRED=true
- * AI_REQUEST_STARTED
- * AI_RESPONSE_RECEIVED
- * MESSAGE_SENT
- * ```
- * 
- * com Message ID válido.
- * 
- * Testar cada instância ativa.
- * 
- * ENTREGAR:
- * 
- * 1. assinatura real da RPC em produção;
- * 2. se migration estava aplicada;
- * 3. resultado do teste acquire/release;
- * 4. quantidade de locks presos;
- * 5. log LOCK_ACQUIRED;
- * 6. agentId;
- * 7. AI_REQUEST_STARTED;
- * 8. Evolution HTTP;
- * 9. Message ID.
+ * Se WEBHOOK_RECEIVED nem existir, não mexer na IA: verificar imediatamente o webhook configurado na Evolution para cada instância e confirmar que aponta para /api/public/whatsapp-evolution.
  */
 // CONTEXTO CONFIRMADO: Evolution API 2.3.7, Instância agente-5541999102791.
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
