@@ -47,7 +47,7 @@ export const listWAConversations = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     let query = supabaseAdmin
       .from("wa_conversas" as never)
-      .select("phone, instance, phone_number, contact_name, unread_count, status, updated_at, unidade_id, wa_agentes!wa_conversas_instance_fkey(unidade_id)", { count: "exact" })
+      .select("phone, instance, phone_number, contact_name, unread_count, status, updated_at, unidade_id", { count: "exact" })
       .order("updated_at", { ascending: false });
 
     if (data.instance) query = query.eq("instance", data.instance);
@@ -63,8 +63,34 @@ export const listWAConversations = createServerFn({ method: "GET" })
     
     const { data: rows, error, count } = await query.range(from, to);
     if (error) throw new Error(error.message);
+
+    const conversations = (rows ?? []) as any[];
+    const instances = [...new Set(
+      conversations
+        .map((row) => row.instance)
+        .filter((instance): instance is string => typeof instance === "string" && instance.length > 0)
+    )];
+    const unitByInstance = new Map<string, string>();
+
+    if (instances.length > 0) {
+      const { data: agents, error: agentsError } = await supabaseAdmin
+        .from("wa_agentes" as never)
+        .select("instancia, unidade_id")
+        .in("instancia", instances);
+
+      if (agentsError) throw new Error(agentsError.message);
+      for (const agent of (agents ?? []) as any[]) {
+        if (agent.instancia && agent.unidade_id) {
+          unitByInstance.set(String(agent.instancia), String(agent.unidade_id));
+        }
+      }
+    }
+
     return {
-      conversations: (rows ?? []) as any[],
+      conversations: conversations.map((row) => ({
+        ...row,
+        unidade_id: row.unidade_id ?? unitByInstance.get(String(row.instance)) ?? null,
+      })),
       total: count ?? 0
     };
   });
@@ -77,12 +103,29 @@ export const getWAConversation = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row, error } = await supabaseAdmin
       .from("wa_conversas" as never)
-      .select("*, wa_agentes!wa_conversas_instance_fkey(unidade_id)")
+      .select("*")
       .eq("phone", data.phone)
       .maybeSingle();
     
     if (error) throw new Error(error.message);
-    return row as any as WAConversation | null;
+    if (!row) return null;
+
+    const conversation = row as any;
+    if (conversation.unidade_id || !conversation.instance) {
+      return conversation as WAConversation;
+    }
+
+    const { data: agent, error: agentError } = await supabaseAdmin
+      .from("wa_agentes" as never)
+      .select("unidade_id")
+      .eq("instancia", conversation.instance)
+      .maybeSingle();
+
+    if (agentError) throw new Error(agentError.message);
+    return {
+      ...conversation,
+      unidade_id: (agent as any)?.unidade_id ?? null,
+    } as WAConversation;
   });
 
 export const markAsRead = createServerFn({ method: "POST" })
