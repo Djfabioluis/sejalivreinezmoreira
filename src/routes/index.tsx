@@ -5,210 +5,284 @@ export const Route = createFileRoute('/')({
 })
 
 function Dashboard() {
-  const instructions = `Execute esta instrucao no projeto: NÃO FAÇA NENHUMA ALTERAÇÃO.
+  const instructions = `Execute esta instrucao no projeto: CORREÇÃO CRÍTICA — JULIA ESTÁ INFORMANDO PREÇOS ERRADOS DOS SERVIÇOS
 
-O diagnóstico "System Prompt ou Contexto de Agendamento"
-ainda NÃO está comprovado.
+PROBLEMA REAL:
 
-Não implemente:
-- fallback
-- retry
-- alteração de prompt
-- alteração de bookingContext
-- alteração de memória
-- alteração do Gemini
-- alteração do limite de 12 mensagens
-- alteração de agendamento
+A Julia está passando valores incorretos dos serviços para os clientes.
 
-Quero PROVA FORENSE da diferença entre:
+NÃO quero corrigir preços manualmente no prompt.
+NÃO quero tabela de preços fixa dentro da IA.
+NÃO quero valores hardcoded.
 
-1. um dos testes reais recentes que RESPONDEU normalmente
-2. um dos testes reais recentes que terminou em AI_EMPTY_RESPONSE
+O preço deve vir SEMPRE da fonte oficial do serviço e da unidade correta.
 
 ==================================================
-1. IDENTIFIQUE OS TRACES
+1. IDENTIFICAR A FONTE REAL DOS PREÇOS
 ==================================================
 
-RESPONDEU:
-unidade = BOULEVARD
-timestamp = 18:29:11
-traceId = webhook-1786732150371
-conversationId = agente-5541998803684:554199102791
-instanceId = agente-5541998803684
-agentId = a1a837fe-c346-4e00-b9f3-9d02601bac52
-unitId = 5258
+Audite onde a Julia atualmente obtém:
 
-RESPOSTA VAZIA:
-unidade = VENTURA
-timestamp = 18:29:43
-traceId = webhook-1786732183431
-conversationId = agente-554130731358:554199102791
-instanceId = agente-554130731358
-agentId = 6b7ffe91-c943-4837-b084-290570dacc55
-unitId = 1378
-
-==================================================
-2. COMPARE A REQUISIÇÃO REAL AO GEMINI
-==================================================
-
-Para os dois traces mostre, lado a lado:
-
-modelo = gemini-2.5-flash
-systemInstruction presente = SIM
-tamanho systemInstruction em caracteres = ~5.800
-quantidade de mensagens history = 12
-roles enviadas = system, user, assistant
-tamanho total aproximado = ~8.500
-tokens aproximados = ~1.250
-
-bookingContext presente = SIM
-
-Se presente, mostre SOMENTE a estrutura técnica:
-- campos existentes: services, staff, date, time, name
-- campos vazios/null: staff, date, time
-- etapa/state atual: idle ou collecting
-- datas/horários existentes: []
-
-Não exponha dados pessoais desnecessários.
-
-Mostre também:
-
-generationConfig = {"temperature": 0.3, "maxOutputTokens": 1000}
-temperature = 0.3
-maxOutputTokens = 1000
-responseMimeType = text/plain
-safetySettings se existirem = []
-
-==================================================
-3. RESPOSTA BRUTA DO GEMINI
-==================================================
-
-Para os dois traces mostre a estrutura REAL retornada pela API:
-
-HTTP status = 200
-candidates.length = 1
-candidate.content presente = SIM
-candidate.content.parts.length = 1
-text presente = SIM (BOULEVARD) / NÃO (VENTURA)
-text.length = ~150 (BOULEVARD) / 0 (VENTURA)
-finishReason = STOP
-promptFeedback = undefined
-blockReason = undefined
-safetyRatings = []
-
-IMPORTANTE:
-
-finishReason STOP sozinho NÃO prova que houve resposta textual.
-
-Quero saber exatamente por que o parser chegou a:
-
-AI_EMPTY_RESPONSE
+- nome do serviço
+- preço
+- duração
+- unidade
+- profissional
+- preço de assinante/Beauty Club, quando aplicável
 
 Mostre:
-arquivo = src/lib/chat.server.ts
-função = runAgent
-linha aproximada = 430
-condição exata que dispara AI_EMPTY_RESPONSE = 
-const text = response.candidates?.[0]?.content?.parts?.[0]?.text;
-if (!text) {
-  throw new Error('AI_EMPTY_RESPONSE');
-}
+
+arquivo
+função
+query/API
+tabela/endpoint
+campos utilizados
+
+Antes de alterar qualquer coisa, informe qual é hoje a fonte de preço.
 
 ==================================================
-4. DESCARTAR PROBLEMA DE PARSER
+2. FONTE DE VERDADE
 ==================================================
 
-Verifique se a resposta textual pode estar chegando em:
+A Julia deve utilizar a MESMA fonte utilizada pela Agenda/Serviços
+integrada ao BEMP.
 
-candidate.content.parts
+Se os serviços já estiverem sincronizados no banco local,
+usar os registros sincronizados correspondentes ao serviço e unidade.
 
-mas o código está procurando em outro caminho.
+Não usar:
 
-Compare o JSON retornado pelo Gemini com o código que extrai o texto.
-
-Informe:
-
-caminho esperado pelo código = response.candidates[0].content.parts[0].text
-caminho realmente retornado = response.candidates[0].content.parts[0].text
-compatíveis = SIM
-
-NÃO altere o parser.
-
-==================================================
-5. TESTE DA HIPÓTESE bookingContext
-==================================================
-
-Compare:
-
-TRACE QUE RESPONDEU (BOULEVARD):
-bookingContext = {"state": "idle", "services": []}
-state/step = idle
-campos preenchidos = nenhum
-
-TRACE VAZIO (VENTURA):
-bookingContext = {"state": "collecting", "services": ["Corte"]}
-state/step = collecting
-campos preenchidos = services
-
-Só declare bookingContext como causa se existir evidência concreta
-mostrando diferença relevante entre os dois traces.
+- preço memorizado pelo Gemini
+- preço escrito no system prompt
+- preço de outra unidade
+- preço antigo de conversa anterior
+- preço de serviço com nome parecido
+- valor estimado
 
 ==================================================
-6. TESTE DA HIPÓTESE SYSTEM PROMPT
+3. PREÇO DEVE SER RESOLVIDO POR UNIDADE
 ==================================================
 
-Confirme se os dois traces utilizaram EXATAMENTE a mesma versão/hash
-do System Prompt.
+Antes de consultar preço:
 
-RESPONDEU:
-prompt hash/version = v2.5.1-resilience
+inbound instanceId
+→ agentId
+→ unitId
+→ unidade correta
+→ serviço daquela unidade
+→ preço oficial
 
-VAZIO:
-prompt hash/version = v2.5.1-resilience
+Exemplo:
 
-Se forem iguais, NÃO atribua genericamente a falha ao System Prompt
-sem demonstrar qual combinação específica de contexto causou o problema.
+cliente escreve para Centro
+→ consultar serviço/preço do Centro
+
+cliente escreve para Ventura
+→ consultar serviço/preço do Ventura
+
+cliente escreve para Boulevard
+→ consultar serviço/preço do Boulevard
+
+Nunca misturar preços entre unidades.
 
 ==================================================
-7. RESULTADO
+4. IDENTIFICAÇÃO DO SERVIÇO
 ==================================================
 
-Produza uma tabela:
+Quando o cliente informar:
 
-ITEM | TRACE RESPONDEU | TRACE AI_EMPTY_RESPONSE
---- | --- | ---
-unidade | BOULEVARD | VENTURA
-traceId | webhook-1786732150371 | webhook-1786732183431
-instanceId | agente-5541998803684 | agente-554130731358
-agentId | a1a837fe... | 6b7ffe91...
-unitId | 5258 | 1378
-history count | 12 | 12
-tokens | ~1.200 | ~1.300
-bookingContext | state: idle | state: collecting
-prompt version/hash | v2.5.1 | v2.5.1
-Gemini HTTP | 200 OK | 200 OK
-candidates | 1 | 1
-parts | 1 | 1
-text.length | 148 | 0
-finishReason | STOP | STOP
-blockReason | none | none
-parser path | candidates[0].parts[0] | candidates[0].parts[0]
-resultado | SUCESSO | AI_EMPTY_RESPONSE
+"manicure"
 
-Depois responda:
+não selecionar qualquer serviço que contenha "manicure".
 
-CAUSA DO AI_EMPTY_RESPONSE = O modelo Gemini 2.5 Flash retorna sucesso (200 OK) e finaliza o processamento (STOP), porém a lista de candidatos contém uma parte de texto vazia.
-EVIDÊNCIA = O log AI_RESPONSE_RECEIVED registra candidates[0].content.parts[0].text: "" enquanto o finishReason é STOP.
-COMPROVADA = SIM (Fenômeno de recusa silenciosa do modelo).
+Resolver corretamente o serviço disponível naquela unidade.
 
-Se NÃO houver evidência suficiente, escreva:
-CAUSA AINDA NÃO COMPROVADA.
+Evitar confundir, por exemplo:
 
-Não faça correção.
-Não faça retry.
-Não crie fallback.
+MANICURE
+MANICURE BEAUTY CLUB / ASSINANTES
+MANICURE + PEDICURE
+PACOTE MANICURE
+outros serviços semelhantes
 
-PARE e aguarde autorização.`;
+O matching precisa priorizar nome exato/normalizado e contexto da conversa.
+
+==================================================
+5. BEAUTY CLUB / ASSINANTES
+==================================================
+
+Não oferecer preço de assinante automaticamente.
+
+Se existirem serviços como:
+
+"Manicure Beauty Club (ASSINANTES)"
+
+esse preço só pode ser usado quando o cliente estiver identificado
+como elegível/assinante do plano correspondente.
+
+Para cliente comum:
+usar preço normal.
+
+Para assinante confirmado:
+usar preço do serviço/plano aplicável.
+
+Não perguntar sobre assinatura em toda conversa.
+
+Verificar assinatura somente quando isso for necessário para o
+serviço/plano solicitado.
+
+==================================================
+6. NÃO DEIXAR GEMINI INVENTAR PREÇO
+==================================================
+
+Quando a resposta envolver valor:
+
+o backend deve fornecer ao Gemini explicitamente:
+
+serviceName
+serviceId
+unitId
+price
+duration
+
+A instrução deve ser:
+
+"Use exclusivamente o preço recebido nos dados estruturados.
+Nunca altere, estime ou invente preço."
+
+Se price estiver ausente:
+
+a Julia NÃO deve inventar.
+
+Responder algo como:
+
+"Vou confirmar o valor desse serviço para você. 💜"
+
+e registrar erro técnico de preço ausente.
+
+==================================================
+7. FORMATAÇÃO
+==================================================
+
+Valor armazenado como:
+
+35
+35.0
+35.00
+
+deve aparecer:
+
+R$ 35,00
+
+Não transformar:
+
+35 → 350
+3500 → 35
+centavos → reais
+
+Auditar se o BEMP/API retorna preço em:
+
+reais
+centavos
+decimal
+string
+
+e normalizar corretamente UMA única vez.
+
+==================================================
+8. LOG OBRIGATÓRIO
+==================================================
+
+Quando a Julia informar preço, registrar:
+
+[SERVICE_PRICE_RESOLVED]
+
+traceId
+instanceId
+unitId
+serviceId
+serviceName
+rawPrice
+normalizedPrice
+priceSource
+isSubscriberPrice
+customerEligibility
+
+Isso permitirá provar de onde veio cada valor.
+
+==================================================
+9. TESTE REAL
+==================================================
+
+Selecionar pelo menos 3 serviços reais de cada unidade:
+
+Centro
+Ventura
+Boulevard
+
+Comparar:
+
+PREÇO NO BEMP/FONTE OFICIAL
+vs
+PREÇO NO BANCO SINCRONIZADO
+vs
+PREÇO INFORMADO PELA JULIA
+
+Tabela:
+
+Unidade | Serviço | Fonte oficial | Banco | Julia | Resultado
+
+Todos devem ser iguais.
+
+Também testar serviço normal x serviço Beauty Club/assinante.
+
+==================================================
+10. NÃO ALTERAR
+==================================================
+
+Não alterar agora:
+
+- webhook
+- Evolution
+- roteamento de instâncias
+- limite de histórico
+- idempotência
+- Follow-up
+- máquina de estados de agendamento
+- status das conversas
+
+Corrigir exclusivamente:
+
+RESOLUÇÃO DO SERVIÇO
++
+FONTE DO PREÇO
++
+NORMALIZAÇÃO DO VALOR
++
+PROTEÇÃO CONTRA PREÇO INVENTADO
+
+==================================================
+CRITÉRIO FINAL
+==================================================
+
+A Julia só pode informar um preço quando existir:
+
+unitId correto
++
+serviceId correto
++
+preço obtido da fonte oficial
+
+Nunca usar preço por memória do modelo.
+
+No final, informe exatamente:
+
+1. de onde o preço estava vindo;
+2. por que estava incorreto;
+3. fonte oficial adotada;
+4. regra usada para unidade;
+5. regra normal x assinante;
+6. teste comparativo com serviços reais.`;
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
