@@ -71,16 +71,12 @@ export async function handleAIFallback(params: {
         ) => Promise<unknown>
       )("append_wa_message", {
         p_phone: params.conversationKey,
-        p_message: {
+        p_new_message: {
           id: `fallback-${Date.now()}`,
           role: "assistant",
           parts: [{ type: "text", text }],
-        },
-        p_instance: params.instance,
-        p_phone_number: params.phone,
-        p_increment_unread: false,
-        p_new_status: failure.escalate ? "aguardando_humano" : "aberta",
-        p_customer_context: null,
+          createdAt: new Date().toISOString()
+        }
       });
     }
 
