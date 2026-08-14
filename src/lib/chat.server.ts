@@ -449,6 +449,22 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
     messages: modelMessages,
     tools: buildTools(!!sandbox, effectiveUnitId, conversationKey, opts.messageId, bookingContext.subscriptionIntent),
     maxSteps: 5,
+    onStepFinish: async (step) => {
+      if (traceId) {
+        await logEvent({
+          instance: opts.instanceId || "unknown",
+          messageId: opts.messageId || "unknown",
+          event: "AI_STEP_COMPLETED",
+          status: "success",
+          payload: { 
+            traceId, 
+            tokens: step.usage.totalTokens,
+            historyMessages: messages.length,
+            finishReason: step.finishReason
+          }
+        }).catch(() => {});
+      }
+    }
   } as any);
 
   return {
