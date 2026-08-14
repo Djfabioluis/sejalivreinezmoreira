@@ -24,13 +24,7 @@ export async function appendIncomingMessage(params: {
 
   const { data, error } = await supabaseAdmin.rpc("append_wa_message" as any, {
     p_phone: params.conversationKey,
-    p_message: message,
-    p_instance: params.instance,
-    p_phone_number: params.phone,
-    p_contact_name: params.contactName ?? null,
-    p_increment_unread: true,
-    p_new_status: "aberta", 
-    p_customer_context: null
+    p_new_message: message,
   });
 
   if (error) {
