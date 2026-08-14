@@ -22,6 +22,8 @@ import {
   BempService,
   extractBempAppointmentId,
 } from "@/lib/bemp-service.server";
+import { priceAuditor } from "./booking/price-auditor.server";
+import { PerformanceTrace } from "./evolution/performance.server";
 
 const PROFESSIONAL_PREFERENCE_NOTE = "com preferência";
 
