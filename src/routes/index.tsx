@@ -1,32 +1,65 @@
 /**
- * Execute esta instrucao no projeto: DIAGNÓSTICO/CORREÇÃO CIRÚRGICA — CENTRO RESPONDE, VENTURA E BOULEVARD RECEBEM MAS NÃO RESPONDEM
+ * Execute esta instrucao no projeto: NÃO ALTERE NADA.
  *
- * TESTE REAL CONFIRMADO:
- * 
- * CENTRO:
- * - mensagem inbound recebida
- * - conversa persistida
- * - Julia respondeu corretamente
- * - sem duplicação
+ * Acabei de realizar novos testes reais em Ventura e Boulevard.
  *
- * VENTURA:
- * - mensagem inbound recebida
- * - aparece em Conversas
- * - cliente NÃO recebe resposta
+ * Localize especificamente essas mensagens nos logs pelo horário atual.
  *
- * BOULEVARD:
- * - mensagem inbound recebida
- * - aparece em Conversas
- * - cliente NÃO recebe resposta
+ * Não faça teste por cURL e não considere HTTP 200 de envio manual como prova de funcionamento da Julia.
  *
- * O Centro é o fluxo de referência funcional.
+ * Para cada mensagem real, mostre:
  *
- * CAUSA RAIZ IDENTIFICADA:
- * A IA está retornando respostas vazias (AI_EMPTY_RESPONSE) para as instâncias Ventura e Boulevard, possivelmente devido a um loop de ferramentas ou falha na geração do prompt para novos contextos nestas instâncias.
+ * WEBHOOK_RAW_RECEIVED
+ * → INSTANCE_RESOLVED
+ * → AGENT_RESOLVED
+ * → UNIT_RESOLVED
+ * → MESSAGE_PERSISTED
+ * → AI_PROCESSING_STARTED
+ * → AI_RESPONSE_GENERATED
+ * → OUTBOUND_MESSAGE_READY
+ * → EVOLUTION_SEND_STARTED
+ * → EVOLUTION_SEND_SUCCESS
  *
- * CRITÉRIO FINAL:
- * Apresentar tabela:
- * Unidade | Inbound Instance | AgentId | UnitId | AI gerou | Outbound Instance | Evolution HTTP | Message ID | Cliente recebeu
+ * Para cada checkpoint mostrar:
+ * - timestamp
+ * - traceId
+ * - messageId inbound
+ * - conversationId
+ * - inboundInstanceId
+ * - outboundInstanceId
+ * - agentId
+ * - unitId
+ *
+ * Se a sequência parar, NÃO corrija ainda.
+ *
+ * Mostre:
+ * 1. último checkpoint alcançado;
+ * 2. próximo checkpoint que deveria ocorrer;
+ * 3. erro/exception real;
+ * 4. arquivo e função onde ocorreu;
+ * 5. se houve return/throw;
+ * 6. HTTP status e response body, se chegou à Evolution.
+ *
+ * Quero tabela separada:
+ *
+ * CENTRO | último checkpoint | instanceId | agentId | unitId
+ * VENTURA | último checkpoint | instanceId | agentId | unitId
+ * BOULEVARD | último checkpoint | instanceId | agentId | unitId
+ *
+ * IMPORTANTE:
+ * O teste manual por cURL com HTTP 200 apenas prova que a Evolution envia.
+ * Agora precisamos provar o pipeline automático da Julia.
+ *
+ * NÃO mexer em:
+ * prompt,
+ * Gemini,
+ * memória,
+ * agendamento,
+ * webhook,
+ * máquina de estados,
+ * Centro.
+ *
+ * Somente diagnóstico dos testes reais.
  */
 // CONTEXTO CONFIRMADO: Evolution API 2.3.7, Instância agente-5541999102791.
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
