@@ -321,13 +321,40 @@ function buildTools(
         }),
     }),
     list_services: tool({
-      description: "Lista serviços de uma unidade.",
+      description: "Lista serviços de uma unidade. USE SEMPRE para obter preços oficiais antes de responder ao cliente.",
       inputSchema: z.object({ salon_id: z.string().optional() }),
       execute: async ({ salon_id }) =>
         safeToolLocal("list_services", async () => {
           const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: salon_id || fallbackAgentUnitId });
           if (!effectiveUnitId) throw new Error("Unidade não resolvida.");
-          return BempService.listServices(effectiveUnitId);
+          
+          const services = await BempService.listServices(effectiveUnitId);
+          
+          // Auditoria e Resolução de Preço para o trace atual
+          if (traceId) {
+            const lastUserMessage = messages.filter(m => m.role === 'user').pop();
+            const textToSearch = lastUserMessage?.content || "";
+            
+            // Busca semântica simples no catálogo real
+            const searchTerms = String(textToSearch).toLowerCase().split(/\s+/).filter(t => t.length > 2);
+            const candidates = services.filter((s: any) => 
+               searchTerms.some(term => s.name.toLowerCase().includes(term))
+            );
+
+            if (candidates.length > 0) {
+              const best = candidates[0];
+              priceAuditor.set(traceId, {
+                serviceId: String(best.id),
+                serviceName: best.name,
+                price: parseFloat(best.price),
+                unitId: effectiveUnitId,
+                source: "BEMP/list_services"
+              });
+              console.log(`[SERVICE_PRICE_RESOLVED] traceId=${traceId}, service=${best.name}, price=${best.price}`);
+            }
+          }
+          
+          return services;
         }),
     }),
     list_professionals: tool({
