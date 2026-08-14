@@ -134,7 +134,7 @@ erro real = AI_EMPTY_RESPONSE (Recusa silenciosa do modelo)
 CAUSA "102 MENSAGENS / CONTEXTO" = COMPROVADA
 Embora apenas 8 mensagens sejam enviadas ao modelo, o fato da conversa ter 102 mensagens no banco significa que o Gemini está recebendo um histórico de 8 turnos de uma conversa que já se perdeu em contexto, possivelmente com muitas variações de intenção. Além disso, o Gemini 2.5 Flash às vezes falha em gerar conteúdo quando o prompt do sistema é muito grande em relação ao histórico curto/fragmentado.
 
-Recomendação: Reduzir para as 5 mensagens mais recentes para a Unidade Centro e limpar o estado do `bookingContext` se a última mensagem for muito antiga (> 24h).
+Recomendação: Reduzir para as 5 mensagens mais recentes para a Unidade Centro e limpar o estado do `bookingContext` se a última mensagem for muito antiga ({">"} 24h).
 
 Depois PARE e aguarde autorização.
           </div>
