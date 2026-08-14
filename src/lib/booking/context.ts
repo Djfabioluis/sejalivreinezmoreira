@@ -168,11 +168,18 @@ export function extractBookingSlots(
   else if (/\bnoite\b/i.test(t)) out.period = "noite";
 
   // --- Horário ---
+  // Tenta extrair HH:mm de formatos variados
   const timeMatch = t.match(/\b([01]?\d|2[0-3])\s*(?::|h|hs|horas?)\s*([0-5]\d)?\b/i);
   if (timeMatch) {
     const hh = String(Number(timeMatch[1])).padStart(2, "0");
     const mm = timeMatch[2] ? timeMatch[2] : "00";
     out.time = `${hh}:${mm}`;
+  } else if (/\b(\d{1,2})\b/.test(t) && t.length <= 2) {
+    // Se o cliente digitar apenas "14", tratar como 14:00
+    const h = Number(t);
+    if (h >= 7 && h <= 21) {
+      out.time = `${String(h).padStart(2, "0")}:00`;
+    }
   }
 
   // --- Intenção de assinatura ---
@@ -320,7 +327,7 @@ export function fallbackQuestionFor(ctx: BookingContext): string {
 /* Confirmações curtas                                                 */
 /* ------------------------------------------------------------------ */
 
-const AFFIRMATIVE = /^(isso|isso\s*mesmo|sim|s|certo|correto|exatamente|exato|ok|pode\s*ser|confirmo|é\s*isso)[.!\s]*$/i;
+const AFFIRMATIVE = /^(isso|isso\s*mesmo|sim|s|certo|correto|exatamente|exato|ok|pode\s*ser|confirmo|é\s*isso|pode\s*marcar|pode\s*agendar|pode\s*confirmar|fechado|é\s*esse|esse\s*mesmo)[.!\s]*$/i;
 
 export function isShortAffirmative(text: string | null | undefined): boolean {
   if (!text) return false;
