@@ -116,6 +116,7 @@ export function detectHarmonizationIntent(text: string | null | undefined): bool
 export function extractBookingSlots(
   text: string | null | undefined,
   now: Date = new Date(),
+  previous: BookingContext | null | undefined = null,
 ): Partial<BookingContext> {
   const out: Partial<BookingContext> = {};
   if (!text) return out;
@@ -180,7 +181,7 @@ export function extractBookingSlots(
     }
 
     // 2. Tentar por nome exato entre os candidatos
-    const exactMatch = previous.candidates.find(c => 
+    const exactMatch = previous.candidates.find((c: any) => 
       t.toLowerCase().includes(c.name.toLowerCase()) || 
       c.name.toLowerCase().includes(t.toLowerCase())
     );

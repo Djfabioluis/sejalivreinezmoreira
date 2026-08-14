@@ -334,9 +334,38 @@ function buildTools(
           
           // Auditoria e Resolução de Preço para o trace atual
           if (traceId) {
-            const lastUserMessage = messages.filter(m => m.role === 'user').pop();
+            const lastUserMessage = messages.filter((m: any) => m.role === 'user').pop();
             const textToSearch = lastUserMessage?.content || "";
             
+            // Re-extrair slots com o contexto atual para capturar seleções de ambiguidade
+            const { extractBookingSlots } = await import("@/lib/booking/context");
+            const extracted = extractBookingSlots(textToSearch, new Date(), bookingContext);
+            
+            // Se o extrator já resolveu a ambiguidade (serviceId presente e clarificationRequired false)
+            if (extracted.serviceId && extracted.clarificationRequired === false) {
+              const services = await BempService.listServices(effectiveUnitId);
+              const selected = services.find((s: any) => String(s.id) === String(extracted.serviceId));
+              if (selected) {
+                priceAuditor.set(traceId, {
+                  serviceId: String(selected.id),
+                  serviceName: selected.name,
+                  price: parseFloat(selected.price),
+                  unitId: effectiveUnitId,
+                  source: "BEMP/clarification_resolved"
+                });
+                if (conversationKey) {
+                  await patchCustomerContext(conversationKey, {
+                    'bookingContext.clarificationRequired': false,
+                    'bookingContext.candidates': null,
+                    'bookingContext.serviceId': String(selected.id),
+                    'bookingContext.serviceName': selected.name
+                  });
+                }
+                console.log(`[SERVICE_CLARIFICATION_RESOLVED] traceId=${traceId}, service=${selected.name}`);
+                return services;
+              }
+            }
+
             // Busca semântica dinâmica no catálogo real
             const searchTerms = String(textToSearch).toLowerCase().split(/\s+/).filter(t => t.length > 2);
             const candidates = services.filter((s: any) => 
