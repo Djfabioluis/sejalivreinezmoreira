@@ -301,7 +301,7 @@ source: ${identity.identitySource}`);
     if (!agent) {
       trace.record("MESSAGE_PROCESSING_ABORTED", { 
         stage: "AGENT_RESOLUTION", 
-        reason: "agent_not_found",
+        reason: "AGENT_NOT_FOUND",
         traceId,
         instance: msg.instance
       });
@@ -313,21 +313,33 @@ source: ${identity.identitySource}`);
         status: "failed",
         payload: { traceId, instance: msg.instance, remoteJid: msg.remoteJid, phone }
       });
-      trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "agent_not_found" });
-      await markEventFailed(msg.instance, finalMessageId, "agent_not_found");
+      trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "AGENT_NOT_FOUND" });
+      await markEventFailed(msg.instance, finalMessageId, "AGENT_NOT_FOUND");
       continue;
     }
 
     if (!isIAActive) {
+      const status = String(agent.status || "").toLowerCase().trim();
+      const reason = !agent.ia_ativa ? "IA_DISABLED_ADMIN" : 
+                     !agent.unidade_id ? "NO_UNIT" : 
+                     ["desativado", "disabled", "inativo"].includes(status) ? "AGENT_DISABLED" : "IA_INACTIVE_GENERAL";
+
       trace.record("MESSAGE_PROCESSING_ABORTED", { 
         stage: "AGENT_AI_CHECK", 
-        reason: "agent_inactive",
+        reason,
         traceId,
         instance: msg.instance
       });
-      console.info(`[AGENT_INACTIVE] Agent found but AI or status is disabled for instance: ${msg.instance}`);
-      trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "agent_inactive" });
-      await markEventProcessed(msg.instance, finalMessageId);
+      console.info(`[${reason}] Agent found but AI is not active for instance: ${msg.instance}`);
+      await logEvent({
+        instance: msg.instance,
+        messageId: finalMessageId,
+        event: reason,
+        status: "failed",
+        payload: { traceId, instance: msg.instance, phone, agentId: agent.id }
+      });
+      trace.record("TOTAL_PROCESSING_COMPLETED", { reason });
+      await markEventFailed(msg.instance, finalMessageId, reason);
       continue;
     }
 

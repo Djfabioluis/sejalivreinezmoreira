@@ -15,12 +15,14 @@ interface AgentRecord {
 export async function findAgentByInstance(instanceName: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const instance = instanceName.trim();
+  const normalizedInstance = instance.toLowerCase();
   
   // Requisito 6: Buscar até 2 registros para detectar duplicidade
+  // Usamos ILIKE para normalização de case no banco
   const { data, error } = await supabaseAdmin
     .from("wa_agentes" as never)
     .select("id, status, status_conexao, ia_ativa, unidade_id, instancia")
-    .eq("instancia", instance)
+    .ilike("instancia", normalizedInstance)
     .limit(2) as unknown as { data: AgentRecord[] | null, error: any };
 
   if (error) {
@@ -62,7 +64,16 @@ export async function findAgentByInstance(instanceName: string) {
     return preferred;
   }
 
-  const agent = data[0] as any;
+  const agent = (data[0] as any);
+  
+  // Log detalhado do Match (Requisito 2)
+  console.log(`[INSTANCE_AGENT_MATCH]
+incomingInstance: ${instanceName}
+normalizedInstance: ${normalizedInstance}
+matchedAgentId: ${agent.id}
+unitId: ${agent.unidade_id}
+iaAtiva: ${agent.ia_ativa !== false}`);
+
   if (!agent.unidade_id) {
     await logEvent({ 
       instance, 
@@ -408,7 +419,10 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     const explicitSubscription = detectSubscriptionIntent(text);
     if (explicitSubscription) extracted.subscriptionIntent = true;
 
+    console.log(`[BOOKING_CONTEXT_BEFORE] ${JSON.stringify(previousContext)}`);
     const bookingContext = mergeBookingContext(previousContext, extracted);
+    console.log(`[BOOKING_FIELDS_EXTRACTED] ${JSON.stringify(extracted)}`);
+    console.log(`[BOOKING_CONTEXT_AFTER] ${JSON.stringify(bookingContext)}`);
     
     // MÁQUINA DE ESTADOS DETERMINÍSTICA - CONFIRMAÇÃO
     if (bookingContext.appointmentStatus === "AWAITING_CONFIRMATION" && isShortAffirmative(text)) {
@@ -536,6 +550,29 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       } as any);
 
       trace?.record("TOTAL_PROCESSING_COMPLETED", { status: "success", reason: "boulevard_referral" });
+      return;
+    }
+
+    // REQUISITO 5: Fluxo Determinístico sem Gemini para perguntas estruturais
+    const { getDeterministicResponse } = await import("@/lib/booking/lifecycle");
+    const detResponse = getDeterministicResponse(bookingContext);
+    
+    if (detResponse) {
+      const { replyToUser } = await import("./reply.server");
+      trace?.record("DETERMINISTIC_RESPONSE_SENT", { slot: nextRequiredSlot(bookingContext) });
+      
+      await replyToUser({
+        instance,
+        phone: contactPhone,
+        text: detResponse,
+        conversationKey: finalKey,
+        messageId,
+        traceId,
+        unitId: agent.unidade_id,
+        _trace: trace
+      } as any);
+
+      trace?.record("TOTAL_PROCESSING_COMPLETED", { reason: "deterministic_reply" });
       return;
     }
 

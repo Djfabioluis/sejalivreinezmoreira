@@ -168,11 +168,18 @@ export function extractBookingSlots(
   else if (/\bnoite\b/i.test(t)) out.period = "noite";
 
   // --- Horário ---
+  // Tenta extrair HH:mm de formatos variados
   const timeMatch = t.match(/\b([01]?\d|2[0-3])\s*(?::|h|hs|horas?)\s*([0-5]\d)?\b/i);
   if (timeMatch) {
     const hh = String(Number(timeMatch[1])).padStart(2, "0");
     const mm = timeMatch[2] ? timeMatch[2] : "00";
     out.time = `${hh}:${mm}`;
+  } else if (/\b(\d{1,2})\b/.test(t) && t.length <= 2) {
+    // Se o cliente digitar apenas "14", tratar como 14:00
+    const h = Number(t);
+    if (h >= 7 && h <= 21) {
+      out.time = `${String(h).padStart(2, "0")}:00`;
+    }
   }
 
   // --- Intenção de assinatura ---
@@ -205,11 +212,18 @@ export function mergeBookingContext(
 
   for (const [key, value] of Object.entries(extracted || {})) {
     if (EMPTY(value)) continue;
+    // REQUISITO 6: Nunca substituir por null, merge aditivo
     (next as any)[key] = value;
   }
 
   next.subscriptionIntent = prev.subscriptionIntent === true || extracted?.subscriptionIntent === true;
   next.intent = extracted?.intent || prev.intent || null;
+  
+  // REQUISITO 7: Se serviceId ou date sumirem no loop, restauramos do prev
+  if (!next.serviceId && prev.serviceId) next.serviceId = prev.serviceId;
+  if (!next.serviceName && prev.serviceName) next.serviceName = prev.serviceName;
+  if (!next.date && prev.date) next.date = prev.date;
+
   return next;
 }
 
@@ -320,7 +334,7 @@ export function fallbackQuestionFor(ctx: BookingContext): string {
 /* Confirmações curtas                                                 */
 /* ------------------------------------------------------------------ */
 
-const AFFIRMATIVE = /^(isso|isso\s*mesmo|sim|s|certo|correto|exatamente|exato|ok|pode\s*ser|confirmo|é\s*isso)[.!\s]*$/i;
+const AFFIRMATIVE = /^(isso|isso\s*mesmo|sim|s|certo|correto|exatamente|exato|ok|pode\s*ser|confirmo|é\s*isso|pode\s*marcar|pode\s*agendar|pode\s*confirmar|fechado|é\s*esse|esse\s*mesmo)[.!\s]*$/i;
 
 export function isShortAffirmative(text: string | null | undefined): boolean {
   if (!text) return false;
@@ -337,8 +351,9 @@ export function isShortAffirmative(text: string | null | undefined): boolean {
 export function ensureNoDuplicateBookingQuestion(text: string, ctx: BookingContext): { text: string; blocked: boolean } {
   const t = text.toLowerCase();
   
+  
   if (ctx.serviceId || ctx.serviceName) {
-    if (t.includes("qual serviço") || t.includes("que serviço") || t.includes("qual o procedimento")) {
+    if (t.includes("qual serviço") || t.includes("que serviço") || t.includes("qual o procedimento") || t.includes("procedimento deseja")) {
       return { text: fallbackQuestionFor(ctx), blocked: true };
     }
   }
@@ -352,6 +367,13 @@ export function ensureNoDuplicateBookingQuestion(text: string, ctx: BookingConte
   if (ctx.selectedSlot || ctx.time) {
     if (t.includes("qual horário") || t.includes("que horas") || t.includes("qual hora")) {
       return { text: fallbackQuestionFor(ctx), blocked: true };
+    }
+  }
+
+  // REQUISITO 11: Se o agendamento já estiver confirmado, Gemini não deve reiniciar fluxo
+  if (ctx.appointmentStatus === "CONFIRMED") {
+    if (t.includes("agendar") || t.includes("marcar") || t.includes("horário") || t.includes("procedimento")) {
+      return { text: "Seu agendamento já está confirmado! 💜", blocked: true };
     }
   }
 
