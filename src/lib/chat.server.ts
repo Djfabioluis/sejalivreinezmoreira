@@ -449,10 +449,10 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
     messages: modelMessages,
     tools: buildTools(!!sandbox, effectiveUnitId, conversationKey, opts.messageId, bookingContext.subscriptionIntent),
     maxSteps: 5,
-    onStepFinish: async (step) => {
+    onStepFinish: async (step: any) => {
       if (traceId) {
         await logEvent({
-          instance: opts.instanceId || "unknown",
+          instance: opts.instance || "unknown",
           messageId: opts.messageId || "unknown",
           event: "AI_STEP_COMPLETED",
           status: "success",
