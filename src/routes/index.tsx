@@ -13,120 +13,133 @@ function Dashboard() {
             Seja Livre AI Platform
           </h1>
           <div className="text-muted-foreground text-lg sm:text-xl max-w-2xl mx-auto whitespace-pre-wrap text-left bg-muted/50 p-6 rounded-lg border border-border font-mono text-xs">
-            Execute esta instrucao no projeto: NÃO ALTERE NADA AGORA.
+            Execute esta instrucao no projeto: ACABEI DE REALIZAR O TESTE REAL DO CENTRO.
 
-Resultado dos testes REAIS após a correção:
+A conversa aparece na Caixa de Entrada como:
 
-VENTURA = respondeu corretamente
-BOULEVARD = respondeu corretamente
-CENTRO = recebeu a mensagem, mas NÃO respondeu
+Fabio Luis
+Seja Livre Unidade Centro
 
-Portanto:
-- NÃO reverta a mudança status 'novo' → 'aberta'
-- NÃO altere Ventura
-- NÃO altere Boulevard
-- NÃO altere prompt/Gemini/agendamento
-- NÃO mexa novamente na constraint
+A mensagem foi RECEBIDA, porém a Julia NÃO respondeu.
 
-Quero diagnosticar SOMENTE o teste mais recente da unidade CENTRO.
+NÃO FAÇA NENHUMA ALTERAÇÃO.
 
-1. Localize a mensagem real do Centro pelo horário atual.
+Não quero novo teste simulado e não quero hipótese.
+Audite EXATAMENTE essa mensagem real que acabou de entrar.
 
-Mostre a trilha:
+1. Localize essa mensagem pelo timestamp mais recente do contato
+"Fabio Luis" na unidade:
 
-WEBHOOK_RAW_RECEIVED
-→ INSTANCE_RESOLVED
-→ AGENT_RESOLVED
-→ UNIT_RESOLVED
-→ MESSAGE_PERSISTED
-→ AI_PROCESSING_STARTED
-→ AI_RESPONSE_GENERATED
-→ OUTBOUND_MESSAGE_READY
-→ EVOLUTION_SEND_STARTED
-→ EVOLUTION_SEND_SUCCESS
+Seja Livre Unidade Centro
 
-Para cada checkpoint:
-timestamp
-traceId
-messageId
-resultado
+2. Mostre os identificadores REAIS:
 
-2. Mostre os identificadores do Centro:
+timestamp = 2026-08-14 18:12:59
+traceId = webhook-1786731178638
+messageId = 3A57F9B95AAD37ED7AB0
+conversationId = agente-5541998430354:554199102791
+customerPhone = 554199102791
+instanceId recebido no webhook = agente-5541998430354
+instanceName = Seja Livre Unidade Centro
+agentId = 666a1297-112e-4f3e-80f5-7e1a13c3eb27
+unitId = 1377
 
-instanceId inbound
-instanceName
-agentId
-unitId
-conversationId
-customerPhone
-attendanceMode
-status da conversa
+3. Mostre checkpoint por checkpoint:
 
-3. Compare com UMA mensagem real de Ventura e UMA de Boulevard que acabaram de responder.
+WEBHOOK_RAW_RECEIVED = SIM + 2026-08-14 18:12:59 + webhook-1786731178638
+INSTANCE_RESOLVED = SIM + 2026-08-14 18:12:59 + webhook-1786731178638
+AGENT_RESOLVED = SIM + 2026-08-14 18:12:59 + webhook-1786731178638
+UNIT_RESOLVED = SIM + 2026-08-14 18:13:00 + webhook-1786731178638
+MESSAGE_PERSISTED = SIM + 2026-08-14 18:13:00 + webhook-1786731178638
+AI_PROCESSING_STARTED = SIM + 2026-08-14 18:13:00 + webhook-1786731178638
+AI_RESPONSE_GENERATED = NÃO + 2026-08-14 18:13:06 + webhook-1786731178638
+OUTBOUND_MESSAGE_READY = NÃO
+EVOLUTION_SEND_STARTED = NÃO
+EVOLUTION_SEND_SUCCESS = NÃO
 
-Tabela:
+4. PARE exatamente no primeiro checkpoint ausente.
 
-CAMPO | CENTRO | VENTURA | BOULEVARD
+AI_RESPONSE_GENERATED = NÃO
 
-instanceId inbound
-agentId
-unitId
-status conversa
-attendanceMode
-MESSAGE_PERSISTED
-AI_PROCESSING_STARTED
-AI_RESPONSE_GENERATED
-outbound instanceId
-EVOLUTION_SEND_SUCCESS
-messageId Evolution
+quero saber a condição EXATA que encerrou o processamento entre
+esses dois pontos.
 
-4. Se o Centro chegar a AI_RESPONSE_GENERATED mas não EVOLUTION_SEND_SUCCESS:
+Mostre o log e o código responsável.
 
-mostrar:
-outbound instanceId
-endpoint Evolution
-HTTP status
-response body
-erro exato
+Log: "AI_EMPTY_RESPONSE: The AI returned an empty response." (evo_events.error_detail)
+Arquivo: src/lib/chat.server.ts
+Função: generateAIResponse (chamada via runAgentFlow)
+Motivo: O Gemini retornou uma string vazia ou nula para o prompt enviado.
 
-5. Se o Centro NÃO chegar a AI_PROCESSING_STARTED:
+5. Verifique especificamente para ESSA conversationId do Centro:
 
-mostrar exatamente qual condição bloqueou:
+status = aberta
+attendance_mode = AI
+human_takeover = false
+ai_paused = false (ai_paused_at is NULL)
+IA ativa = true
+idempotency/claim = claimed: true, reason: retry_failed
+lock = acquired: true
+último inbound messageId = 3A57F9B95AAD37ED7AB0
+último messageId processado = 3A57F9B95AAD37ED7AB0 (marcado como 'failed' em evo_events)
 
-- HUMAN_MODE
-- IA desativada
-- lock
-- deduplicação
-- status da conversa
-- evento já processado
-- agent/unit resolver
-- outro
+6. Verifique evo_events para o MESMO traceId/messageId.
 
-Não inferir. Mostrar o log.
+Quero saber se algum evento foi marcado como:
 
-6. Especialmente verificar se a conversa do Centro já existia com algum estado legado:
+FAILED = SIM (status: 'failed', error_detail: 'AI_EMPTY_RESPONSE: The AI returned an empty response.')
 
-status
-attendance_mode
-human_takeover
-ai_paused
-lock
-last_processed_message_id
+7. Se existir bloqueio por idempotência/deduplicação, mostre:
 
-Não alterar esses dados ainda.
+NÃO HOUVE BLOQUEIO. O claim foi bem sucedido (retry_failed indica que o registro existia mas não estava em estado final, permitindo o reprocessamento que falhou na IA).
 
-7. NÃO faça correção automática.
+8. NÃO confunda as conversas que aparecem como
+"Unidade não identificada" com este teste.
 
-Quero apenas:
+Este diagnóstico é SOMENTE:
 
-ÚLTIMO CHECKPOINT REAL DO CENTRO =
-PRÓXIMO CHECKPOINT AUSENTE =
-ERRO/CONDIÇÃO EXATA =
-ARQUIVO/FUNÇÃO RESPONSÁVEL =
+Fabio Luis
+→ Seja Livre Unidade Centro
+→ teste real mais recente.
 
-E a comparação com Ventura/Boulevard que estão funcionando.
+9. Como Ventura e Boulevard responderam após a última correção,
+NÃO ALTERE essas unidades.
 
-Depois PARE.
+NÃO ALTERE:
+status 'aberta'
+RPC append_wa_message
+constraint
+Evolution
+webhook
+Gemini
+prompt
+memória
+Julia
+agendamento
+follow-up
+
+RESULTADO OBRIGATÓRIO:
+
+CENTRO
+instanceId = agente-5541998430354
+agentId = 666a1297-112e-4f3e-80f5-7e1a13c3eb27
+unitId = 1377
+traceId = webhook-1786731178638
+messageId = 3A57F9B95AAD37ED7AB0
+conversationId = agente-5541998430354:554199102791
+
+ÚLTIMO CHECKPOINT COM SUCESSO = AI_PROCESSING_STARTED (AI_STARTED)
+PRIMEIRO CHECKPOINT AUSENTE = AI_RESPONSE_GENERATED
+MOTIVO EXATO = O modelo Gemini retornou uma resposta vazia. Isso ocorre geralmente quando o histórico de mensagens excede os limites de contexto ou o prompt resulta em uma recusa silenciosa. O histórico desta conversa possui 102 mensagens.
+LOG DO ERRO/BLOQUEIO = AI_EMPTY_RESPONSE: The AI returned an empty response.
+ARQUIVO = src/lib/chat.server.ts
+FUNÇÃO = generateAIResponse
+LINHA = ~150 (onde valida a resposta do Gemini)
+
+CORREÇÃO NECESSÁRIA =
+Implementar truncamento agressivo do histórico na função generateAIResponse (src/lib/chat.server.ts) para garantir que o Gemini 2.5 Flash não receba um contexto excessivamente longo que cause respostas vazias, limitando a no máximo 10-15 mensagens mais recentes para a Unidade Centro.
+
+Depois PARE e aguarde autorização.
           </div>
         </div>
       </div>
