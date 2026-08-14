@@ -30,6 +30,7 @@ import {
 } from "@/lib/whatsapp-inbox.functions";
 import { listAgentes } from "@/lib/agentes-whatsapp.functions";
 import { supabase } from "@/integrations/supabase/client";
+import { getUnitNameMap } from "@/lib/units.functions";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -53,6 +54,7 @@ export function InboxPanel() {
   const [realtimeStatus, setRealtimeStatus] = useState<string>("connecting");
   const [showScrollBottom, setShowScrollBottom] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
+  const [unitNames, setUnitNames] = useState<Record<string, string>>({});
 
   const selectedPhoneRef = useRef<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -61,6 +63,7 @@ export function InboxPanel() {
   const fetchOneConversation = useServerFn(getWAConversation);
   const fetchAgentes = useServerFn(listAgentes);
   const fnMarkAsRead = useServerFn(markAsRead);
+  const fetchUnitNames = useServerFn(getUnitNameMap);
   const fnUpdateStatus = useServerFn(updateConversationStatus);
   const fnSendMessage = useServerFn(sendManualWAMessage);
 
@@ -88,6 +91,11 @@ export function InboxPanel() {
       
       const ags = await fetchAgentes();
       setAgentes(ags.items);
+      
+      if (Object.keys(unitNames).length === 0) {
+        const uMap = await fetchUnitNames();
+        setUnitNames(uMap);
+      }
     } catch (err) {
       console.error(err);
       toast.error("Erro ao carregar conversas");
@@ -265,7 +273,7 @@ export function InboxPanel() {
                   </div>
                   <div className="flex justify-between items-center mt-1">
                     <span className="text-[10px] text-muted-foreground truncate max-w-[180px]">
-                      {conv.instance?.split('-').pop()}
+                      {conv.unidade_id ? (unitNames[String(conv.unidade_id)] || `Unidade ${conv.unidade_id}`) : "Unidade não identificada"}
                     </span>
                     {conv.unread_count > 0 && (
                       <Badge className="h-5 min-w-5 rounded-full px-1.5 flex items-center justify-center text-[10px]">
