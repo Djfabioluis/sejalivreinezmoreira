@@ -621,7 +621,6 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       text: cleanReply,
       conversationKey: finalKey,
       messageId,
-      traceId,
       unitId: agent.unidade_id,
       _trace: trace
     }, traceId);
