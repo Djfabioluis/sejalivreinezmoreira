@@ -77,7 +77,7 @@ export const getWAConversation = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row, error } = await supabaseAdmin
       .from("wa_conversas" as never)
-      .select("*")
+      .select("*, wa_agentes!wa_conversas_instance_fkey(unidade_id)")
       .eq("phone", data.phone)
       .maybeSingle();
     
