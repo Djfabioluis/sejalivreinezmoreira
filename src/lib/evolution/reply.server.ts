@@ -143,16 +143,11 @@ export async function replyToUser(params: {
     try {
       const { error } = await supabaseAdmin.rpc("append_wa_message" as any, {
         p_phone: params.conversationKey,
-        p_message: { 
+        p_new_message: { 
           id: `${params.instance}:${params.messageId}:assistant`, 
           role: "assistant", 
           parts: [{ type: "text", text: params.text }] 
-        },
-        p_instance: params.instance,
-        p_phone_number: params.phone,
-        p_increment_unread: false,
-        p_new_status: "aberta",
-        p_customer_context: null
+        }
       });
       if (error) throw new Error(error.message);
     } catch (persistError: any) {
