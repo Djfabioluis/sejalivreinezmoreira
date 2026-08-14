@@ -361,7 +361,6 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       detectSubscriptionIntent,
       nextRequiredSlot,
       isShortAffirmative,
-      ensureNoDuplicateBookingQuestion,
     } = await import("@/lib/booking/context");
     const { patchCustomerContext } = await import("@/lib/chat.server");
 
@@ -419,7 +418,10 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     const explicitSubscription = detectSubscriptionIntent(text);
     if (explicitSubscription) extracted.subscriptionIntent = true;
 
+    console.log(`[BOOKING_CONTEXT_BEFORE] ${JSON.stringify(previousContext)}`);
     const bookingContext = mergeBookingContext(previousContext, extracted);
+    console.log(`[BOOKING_FIELDS_EXTRACTED] ${JSON.stringify(extracted)}`);
+    console.log(`[BOOKING_CONTEXT_AFTER] ${JSON.stringify(bookingContext)}`);
     
     // MÁQUINA DE ESTADOS DETERMINÍSTICA - CONFIRMAÇÃO
     if (bookingContext.appointmentStatus === "AWAITING_CONFIRMATION" && isShortAffirmative(text)) {
