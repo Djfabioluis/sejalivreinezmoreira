@@ -390,9 +390,8 @@ function buildTools(
 }
 
 export async function runAgentWithLogging(opts: AgentOptions & { messages?: any[]; text?: string }) {
-  const { traceId, conversationKey } = opts;
-  const history = (opts.messages || []).slice(-8); 
-  return runAgent({ ...opts, messages: history });
+  // runAgent já aplica o limite de 12 mensagens para segurança global
+  return runAgent(opts);
 }
 
 export async function isIAConfigured(): Promise<boolean> {
