@@ -333,7 +333,7 @@ function buildTools(
           
           const services = await BempService.listServices(effectiveUnitId);
           
-          // Auditoria e Resolução de Preço para o trace atual
+          // Auditoria e Resolução de Preço/Serviço para o trace atual
           if (traceId) {
             const lastUserMessage = messages.filter((m: any) => m.role === 'user').pop();
             const textToSearch = typeof lastUserMessage?.content === 'string' ? lastUserMessage.content : "";
@@ -341,11 +341,16 @@ function buildTools(
             // Re-extrair slots com o contexto atual para capturar seleções de ambiguidade
             const { extractBookingSlots } = await import("@/lib/booking/context");
             const extracted = extractBookingSlots(textToSearch, new Date(), bookingContext);
+
+            // REQUISITO: Se já temos um serviceId no contexto persistido e o cliente não mudou de ideia
+            // (não detectamos um NOVO serviço na mensagem atual), preservamos o que temos.
+            const finalServiceId = extracted.serviceId || bookingContext?.serviceId;
+            const finalServiceName = extracted.serviceName || bookingContext?.serviceName;
             
-            // Se o extrator já resolveu a ambiguidade (serviceId presente e clarificationRequired false)
-            if (extracted.serviceId && extracted.clarificationRequired === false) {
+            // Se o extrator resolveu a ambiguidade AGORA ou se já tínhamos resolvido anteriormente
+            if (finalServiceId) {
               const services = await BempService.listServices(effectiveUnitId);
-              const selected = services.find((s: any) => String(s.id) === String(extracted.serviceId));
+              const selected = services.find((s: any) => String(s.id) === String(finalServiceId));
               if (selected) {
                 priceAuditor.set(traceId, {
                   serviceId: String(selected.id),
@@ -430,12 +435,12 @@ function buildTools(
         safeToolLocal("list_professionals", async () => BempService.listProfessionals(salon_id, service_id)),
     }),
     list_slots: tool({
-      description: "Lista horários disponíveis. Após obter horários, informe-os ao cliente para que ele escolha um.",
+      description: "Lista horários disponíveis. OBRIGATÓRIO chamar quando tiver salon_id, service_id e date. Após obter horários, informe-os ao cliente para que ele escolha um. NUNCA invente horários.",
       inputSchema: z.object({
-        salon_id: z.number(),
-        service_id: z.number(),
+        salon_id: z.union([z.string(), z.number()]),
+        service_id: z.union([z.string(), z.number()]),
         date: z.string(),
-        professional_id: z.number().optional()
+        professional_id: z.union([z.string(), z.number()]).optional()
       }),
       execute: async (input) =>
         safeToolLocal("list_slots", async () => {
