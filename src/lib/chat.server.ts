@@ -348,10 +348,13 @@ function buildTools(
 
             // REQUISITO: Se já temos um serviceId no contexto persistido e o cliente não mudou de ideia
             // (não detectamos um NOVO serviço na mensagem atual), preservamos o que temos.
-            // Se extracted.serviceText existe, significa que o cliente mencionou um serviço nesta mensagem.
+            // O extracted.serviceText detecta novas intenções de serviço na mensagem atual.
             const finalServiceId = extracted.serviceId || (!extracted.serviceText ? (bookingContext?.serviceId || null) : null);
             const finalServiceName = extracted.serviceName || (!extracted.serviceText ? (bookingContext?.serviceName || null) : null);
             
+            // Log de diagnóstico para o monitor
+            console.log(`[SERVICE_RESOLVER] trace=${traceId} finalServiceId=${finalServiceId} finalServiceName=${finalServiceName}`);
+
             // Se o extrator resolveu a ambiguidade AGORA ou se já tínhamos resolvido anteriormente
             if (finalServiceId) {
               const services = await BempService.listServices(effectiveUnitId);
