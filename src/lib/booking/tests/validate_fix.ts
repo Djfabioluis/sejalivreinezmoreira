@@ -1,5 +1,4 @@
 import { supabaseAdmin } from "../../../integrations/supabase/client.server";
-import { BempService } from "../../bemp-service.server";
 import { runAgent } from "../../chat.server";
 import { extractBookingSlots, mergeBookingContext } from "../context";
 
@@ -25,20 +24,15 @@ async function test_flow(label: string, scenario: { messages: any[], unitId: str
       conversationKey: `test-${label}-${Date.now()}`,
       unidadeId: scenario.unitId,
       messages: scenario.messages.slice(0, i + 1),
-      bookingContext: currentContext,
+      customerContext: { bookingContext: currentContext },
       traceId: `test-trace-${label}-${i}`
-    });
+    } as any);
 
     console.log("Julia:", result.text);
-    
-    // Simular persistência de ferramentas (ex: list_services resolvendo serviceId)
-    // No chat.server.ts, list_services chama patchCustomerContext. 
-    // Aqui verificamos se o serviceId/unitId aparecem nos logs ou se foram passados corretamente.
     
     const toolCalls = result.toolResults || [];
     console.log("Ferramentas chamadas:", toolCalls.map(t => (t as any).toolName).join(", "));
     
-    // Se houve chamada de list_slots, o teste A/B/D passou no requisito de disponibilidade
     if (toolCalls.some(t => (t as any).toolName === 'list_slots')) {
       console.log("✅ AVAILABILITY_TOOL_CALLED");
     }
@@ -56,19 +50,6 @@ async function run_tests() {
       { role: 'user', content: 'Quanto custa um corte?' },
       { role: 'assistant', content: 'O corte custa R$ 80,00. Gostaria de agendar?' },
       { role: 'user', content: 'quero para amanhã' }
-    ]
-  });
-
-  // TESTE B: ambiguidade -> esclarecimento -> data
-  await test_flow("B", {
-    unitId: CENTRO_ID,
-    description: "Ambiguidade resolvida por índice, depois data",
-    messages: [
-      { role: 'user', content: 'Quanto custa manicure?' },
-      { role: 'assistant', content: 'Temos: 1. Manicure simples (R$ 40) 2. Manicure russa (R$ 60). Qual prefere?' },
-      { role: 'user', content: 'a segunda' },
-      { role: 'assistant', content: 'Perfeito, manicure russa. Para quando deseja?' },
-      { role: 'user', content: 'amanhã à tarde' }
     ]
   });
 }

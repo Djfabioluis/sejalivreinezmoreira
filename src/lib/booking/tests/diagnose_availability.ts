@@ -3,14 +3,12 @@ import { supabaseAdmin } from "../../../integrations/supabase/client.server";
 async function run() {
   console.log("=== DIAGNÓSTICO FORENSE DE DISPONIBILIDADE (CASO ESPECÍFICO) ===");
 
-  // Buscar traces de entrada que mencionem dia/horário E tenham serviço resolvido
-  // Usamos uma busca mais ampla no customer_context persistido
+  // Buscar conversas recentes com serviço e data no contexto
   const { data: convs, error: convError } = await supabaseAdmin
     .from("wa_conversas")
-    .select("phone, customer_context, last_message_at")
+    .select("phone, customer_context")
     .not("customer_context->bookingContext->serviceId", "is", null)
     .not("customer_context->bookingContext->date", "is", null)
-    .order("last_message_at", { ascending: false })
     .limit(5);
 
   if (convError || !convs?.length) {
