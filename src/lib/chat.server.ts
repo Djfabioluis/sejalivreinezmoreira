@@ -551,7 +551,7 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
   const response = await generateText({
     model,
     system: systemPrompt + (sandbox ? SANDBOX_NOTE : ""),
-    messages: modelMessages,
+    messages: messages,
     tools: buildTools(!!sandbox, effectiveUnitId, conversationKey, opts.messageId, bookingContext.subscriptionIntent, traceId, messages, bookingContext),
     maxSteps: 5,
     onStepFinish: async (step: any) => {
