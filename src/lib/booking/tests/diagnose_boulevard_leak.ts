@@ -9,11 +9,12 @@ async function diagnoseBoulevardLeak() {
   
   console.log(`\nBuscando logs reais para: ${instanceId}...`);
   
+  // Usar timestamp em vez de created_at
   const { data: logs, error: logsError } = await supabase
     .from('evo_trace_logs')
     .select('*')
     .eq('instance_id', instanceId)
-    .order('created_at', { ascending: false })
+    .order('timestamp', { ascending: false })
     .limit(100);
 
   if (logsError) {
@@ -37,13 +38,10 @@ async function diagnoseBoulevardLeak() {
         console.log(`\n!!! EVIDÊNCIA DE VAZAMENTO ENCONTRADA !!!`);
         leaks.forEach((leak: any) => {
             console.log(`\n--- Registro ---`);
-            console.log(`Timestamp: ${leak.created_at}`);
+            console.log(`Timestamp: ${leak.timestamp}`);
             console.log(`Step: ${leak.step}`);
             console.log(`Trace ID: ${leak.trace_id}`);
             console.log(`Payload snippet: ${JSON.stringify(leak.payload).substring(0, 500)}`);
-            if (leak.context) {
-              console.log(`Context snippet: ${JSON.stringify(leak.context).substring(0, 500)}`);
-            }
         });
     } else {
         console.log("\nNenhum vazamento explícito de 'Ventura' ou '1377' encontrado nos logs do Boulevard.");
