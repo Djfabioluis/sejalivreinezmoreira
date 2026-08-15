@@ -22,7 +22,7 @@ function Dashboard() {
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">Auditoria Forense Seja Livre</h1>
         <div className="px-4 py-2 bg-blue-100 text-blue-700 rounded-full flex items-center gap-2 font-medium">
           <Activity className="w-4 h-4" />
-          TESTE FUNCIONAL REAL PRONTO
+          CORREÇÃO APLICADA — AGUARDANDO TESTE REAL NO WHATSAPP
         </div>
       </div>
 
@@ -317,14 +317,14 @@ Aguarde minha autorização para TESTE REAL PELO WHATSAPP.`}
             </CardTitle>
           </CardHeader>
           <CardContent className="text-xs font-mono space-y-4">
-            <div className="flex items-center gap-2 text-blue-700 font-bold">
-              <Activity className="w-4 h-4 animate-pulse" />
-              AGUARDANDO: "Oi, quero fazer a mão hoje"
+            <div className="flex items-center gap-2 text-green-700 font-bold">
+              <Activity className="w-4 h-4" />
+              STATUS: AGUARDANDO MENSAGEM REAL NO WHATSAPP
             </div>
             <div className="space-y-1">
-              <p className="text-slate-600">Alvo: BOULEVARD (+55 41 3073-1358)</p>
-              <p className="text-slate-600">Normalização: INTENÇÃO FORÇADA (mão → manicure)</p>
-              <p className="text-slate-600">Busca no Catálogo: QUERY NORMALIZADA (manicure)</p>
+              <p className="text-slate-600">Alvo: QUALQUER UNIDADE</p>
+              <p className="text-slate-600">Teste: "Quero fazer a mão hoje"</p>
+              <p className="text-slate-600">Check: Julia deve trazer apenas nomes do catálogo real.</p>
             </div>
           </CardContent>
         </Card>
@@ -347,8 +347,8 @@ Aguarde minha autorização para TESTE REAL PELO WHATSAPP.`}
         </Card>
       </div>
 
-      <div className="text-center py-4 text-blue-600 text-sm font-bold bg-blue-50 rounded-lg animate-pulse">
-        CORREÇÃO APLICADA. ENVIE A MENSAGEM NO WHATSAPP PARA VALIDAR.
+      <div className="text-center py-4 text-green-600 text-sm font-bold bg-green-50 rounded-lg">
+        IMPLEMENTAÇÃO FINALIZADA. PARE E AGUARDE A AUTORIZAÇÃO PARA O TESTE REAL.
       </div>
     </div>
   );
