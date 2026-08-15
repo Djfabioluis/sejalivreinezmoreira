@@ -1,5 +1,5 @@
 // Server-only. Shared AI-agent runner for /api/chat (web) and /api/public/whatsapp.
-import { convertToModelMessages, generateText, tool, type UIMessage } from "ai";
+import { convertToModelMessages, streamText, generateText, tool, type UIMessage } from "ai";
 import { type AgentOptions } from "./agent-types";
 import { z } from "zod";
 import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
@@ -208,6 +208,14 @@ export async function patchCustomerContext(
   }
 }
 
+export function replacePromptVariables(prompt: string, vars: Record<string, string>) {
+  let res = prompt;
+  for (const [k, v] of Object.entries(vars)) {
+    res = res.replace(new RegExp(`{{${k}}}`, "g"), v || "");
+  }
+  return res;
+}
+
 export function assembleSystemPrompt(opts: {
   contactName?: string | null;
   contactPhone?: string | null;
@@ -224,8 +232,7 @@ export function assembleSystemPrompt(opts: {
   const summary = `- Status atual: ${opts.bookingContext?.clarificationRequired ? "AGUARDANDO CLARIFICAÇÃO DE SERVIÇO" : "NORMAL"}`;
   const booking = opts.bookingContext || {};
 
-  let res = DEFAULT_SYSTEM_PROMPT;
-  const vars: Record<string, string> = {
+  return replacePromptVariables(DEFAULT_SYSTEM_PROMPT, {
     contactName: opts.contactName || "Cliente",
     contactPhone: opts.contactPhone || "Desconhecido",
     unitName: opts.unitName || "Não selecionada",
@@ -233,12 +240,7 @@ export function assembleSystemPrompt(opts: {
     booking_context_block: buildBookingContextBlock(booking),
     customer_context_summary: summary,
     active_promotions_block: promoBlock
-  };
-
-  for (const [k, v] of Object.entries(vars)) {
-    res = res.replace(new RegExp(`{{${k}}}`, "g"), v || "");
-  }
-  return res;
+  });
 }
 
 function buildTools(
@@ -309,6 +311,28 @@ function buildTools(
   };
 }
 
+export async function runAgentWithLogging(opts: AgentOptions & { messages?: any[]; text?: string }) {
+  return runAgent(opts);
+}
+
+export async function isIAConfigured(): Promise<boolean> {
+  const gatewayKey = process.env.LOVABLE_AI_GATEWAY_KEY || process.env.LOVABLE_API_KEY;
+  return Boolean(gatewayKey && gatewayKey.length > 10);
+}
+
+export async function streamAgent(opts: { messages: any[]; sandbox?: boolean }) {
+  const gatewayKey = process.env.LOVABLE_AI_GATEWAY_KEY || process.env.LOVABLE_API_KEY || "";
+  const provider = createLovableAiGatewayProvider(gatewayKey);
+  const model = provider("google/gemini-2.0-flash");
+
+  return streamText({
+    model,
+    system: DEFAULT_SYSTEM_PROMPT + (opts.sandbox ? SANDBOX_NOTE : ""),
+    messages: convertToModelMessages(opts.messages),
+    maxSteps: 5,
+  } as any);
+}
+
 export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: string }) {
   const { conversationKey, unidadeId, sandbox, customerContext, activePromotions, traceId } = opts;
   const rawMessages = Array.isArray(opts.messages) ? opts.messages : [];
@@ -333,7 +357,6 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
 
   // Se houver intenção de serviço sem ID, resolver deterministicamente
   if (effectiveUnitId && bookingContext.serviceText && !bookingContext.serviceId && !bookingContext.clarificationRequired) {
-    console.log(`[DETERMINISTIC_RESOLVER] Iniciando busca para: ${bookingContext.serviceText}`);
     const services = await BempService.listServices(effectiveUnitId);
     const normalizedSearch = normalizeServiceSearchText(bookingContext.serviceText);
 
@@ -345,7 +368,6 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
     if (matches.length === 1) {
       bookingContext.serviceId = String(matches[0].id);
       bookingContext.serviceName = matches[0].name || matches[0].nome;
-      console.log(`[DETERMINISTIC_RESOLVER] AUTO_RESOLVED: ${bookingContext.serviceName}`);
       if (conversationKey) {
         await patchCustomerContext(conversationKey, {
           'bookingContext.serviceId': bookingContext.serviceId,
@@ -362,7 +384,6 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
       }));
       bookingContext.clarificationRequired = true;
       bookingContext.candidates = candidateList;
-      console.log(`[DETERMINISTIC_RESOLVER] CLARIFICATION_REQUIRED: ${candidateList.length} opções.`);
       if (conversationKey) {
         await patchCustomerContext(conversationKey, {
           'bookingContext.clarificationRequired': true,
@@ -400,7 +421,6 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
     const { validateOutputAgainstCatalog } = await import("./booking/catalog-auditor.server");
     const validation = validateOutputAgainstCatalog(finalResponse, bookingContext.candidates, bookingContext);
     if (validation.blocked) {
-      console.warn(`[CATALOG_OUTPUT_VALIDATION] Alucinação bloqueada no trace=${traceId}`);
       finalResponse = validation.text;
     }
   }
@@ -410,10 +430,11 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
     const { EvolutionService } = await import("./evolution/evolution-service.server");
     const [instanceId, remoteJid] = conversationKey.split(":");
     if (finalResponse.trim()) {
-      await EvolutionService.sendMessage(instanceId, {
-        number: remoteJid,
+      await EvolutionService.sendText({
+        instance: instanceId,
+        to: remoteJid,
         text: finalResponse,
-        delay: 1200
+        module: "julia-ai"
       });
     }
   }
