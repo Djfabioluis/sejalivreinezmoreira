@@ -20,235 +20,24 @@ function Dashboard() {
     <div className="p-6 max-w-7xl mx-auto space-y-6 bg-slate-50 min-h-screen">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">Auditoria Forense Seja Livre</h1>
-        <div className="px-4 py-2 bg-green-100 text-green-700 rounded-full flex items-center gap-2 font-medium">
+        <div className="px-4 py-2 bg-blue-100 text-blue-700 rounded-full flex items-center gap-2 font-medium">
           <Activity className="w-4 h-4" />
-          DIAGNÓSTICO CONCLUÍDO
+          MONITORAMENTO REAL PRONTO
         </div>
       </div>
 
       <Card className="border-blue-600 bg-white shadow-xl border-2">
         <CardHeader className="bg-blue-600 text-white">
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-lg">
             <Zap className="w-6 h-6" />
-            DIAGNÓSTICO E CORREÇÃO: "MÃO" E DATA
+            BLOQUEIO DE SEGURANÇA E MONITORAMENTO REAL
           </CardTitle>
         </CardHeader>
         <CardContent className="p-8 space-y-6 text-slate-900">
           <div className="bg-slate-100 p-6 rounded-lg font-mono text-sm whitespace-pre-wrap border border-slate-300">
-{`Execute esta instrucao no projeto: NÃO FAÇA ALTERAÇÃO AINDA.
+{`Execute esta instrucao no projeto: NÃO FAÇA MAIS ALTERAÇÕES.
 
-PROBLEMA REAL:
-
-Clientes escrevem coisas como:
-
-"Quero fazer a mão hoje"
-"Tem horário para mão hoje?"
-"Quero fazer mão hoje"
-
-E a Julia está:
-
-1. NÃO identificando "mão" como intenção de MANICURE;
-2. perguntando novamente qual dia, mesmo o cliente já tendo informado "hoje".
-
-Quero DIAGNÓSTICO FORENSE + CORREÇÃO MÍNIMA.
-
-==================================================
-1. NORMALIZAÇÃO DO SERVIÇO
-==================================================
-
-Audite como o sistema interpreta termos informais/sinônimos de serviços.
-
-Especialmente:
-
-"mão"
-"fazer a mão"
-"unha da mão"
-
-devem ser tratados como intenção para localizar MANICURE
-no catálogo REAL da unidade.
-
-IMPORTANTE:
-
-NÃO hardcode preço.
-NÃO selecionar serviço de outra unidade.
-NÃO escolher versão Beauty Club/assinante automaticamente.
-NÃO assumir um serviceId fixo.
-
-Fluxo correto:
-
-texto cliente
-→ intenção "manicure"
-→ list_services da unidade correta
-→ candidatos reais do BEMP
-→ resolução do serviço correto
-
-Se houver mais de uma opção plausível relacionada a manicure,
-aplicar a regra já existente de SERVICE_CLARIFICATION_REQUIRED.
-
-==================================================
-2. DATA JÁ INFORMADA
-==================================================
-
-Audite a interpretação temporal.
-
-Se o cliente escrever:
-
-"hoje"
-
-DATE_RESOLVED deve ser preenchido imediatamente com a data local atual.
-
-Se escrever:
-
-"amanhã"
-"sexta"
-"dia 20"
-
-usar a mesma lógica de resolução temporal existente.
-
-A Julia NÃO deve perguntar novamente:
-
-"qual dia?"
-"para quando?"
-"qual data?"
-
-se a data já estiver resolvida no turno atual ou preservada no bookingContext.
-
-==================================================
-3. CASO ESPECÍFICO A TESTAR
-==================================================
-
-Mensagem:
-
-"Quero fazer a mão hoje"
-
-Resultado esperado:
-
-intent/service query = manicure
-date = hoje
-unitId = unidade da instância inbound
-
-Depois:
-
-list_services chamada = SIM
-
-Se houver serviço inequívoco:
-serviceId = serviço real de manicure daquela unidade
-
-Se houver ambiguidade:
-SERVICE_CLARIFICATION_REQUIRED = true
-
-Mas em NENHUM caso perguntar novamente a data,
-porque "hoje" já foi informado.
-
-==================================================
-4. CONTINUIDADE DO BOOKING CONTEXT
-==================================================
-
-Após interpretar a mensagem, o bookingContext deve conter:
-
-unitId
-serviceIntent = manicure
-serviceId, se já resolvido
-date = hoje/data resolvida
-
-O fluxo seguinte deve pedir SOMENTE o dado que ainda estiver faltando.
-
-Exemplo:
-
-serviceId resolvido + date resolvida
-→ consultar disponibilidade
-
-service ambíguo + date resolvida
-→ perguntar apenas qual opção de manicure
-→ preservar a data
-→ após escolha, consultar disponibilidade
-
-NÃO perguntar a data de novo.
-
-==================================================
-5. DISPONIBILIDADE
-==================================================
-
-Quando houver:
-
-unitId
-serviceId
-date
-
-executar list_slots / ferramenta real de disponibilidade.
-
-Não inventar horários.
-
-==================================================
-6. TESTES OBRIGATÓRIOS
-==================================================
-
-Teste nas 3 unidades:
-
-CENTRO
-VENTURA
-BOULEVARD
-
-Mensagens:
-
-A) "Quero fazer a mão hoje"
-B) "Tem horário para mão hoje?"
-C) "Quero fazer manicure hoje"
-D) "Quero fazer a mão amanhã"
-
-Para cada teste mostrar:
-
-texto =
-unitId =
-serviceIntent =
-list_services chamada =
-candidatos =
-serviceId =
-date detectada =
-bookingContext =
-pergunta seguinte da Julia =
-list_slots chamada =
-resultado = APROVADO/FALHOU
-
-Critérios:
-
-- "mão" reconhecida como intenção de manicure
-- "hoje" não perguntado novamente
-- "amanhã" não perguntado novamente
-- unidade correta preservada
-- serviço vindo do BEMP
-- sem preço inventado
-- sem horário inventado
-
-==================================================
-7. NÃO ALTERAR
-==================================================
-
-Não mexa em:
-- preços
-- price auditor
-- Evolution
-- wa_agentes
-- mapeamento das unidades
-- Gemini/modelo
-- limite de histórico
-- follow-up
-
-Faça somente a correção necessária para:
-
-NORMALIZAÇÃO DE "MÃO" → INTENÇÃO MANICURE
-+
-PRESERVAÇÃO DA DATA JÁ INFORMADA
-
-Antes de implementar, mostre:
-
-arquivo = src/lib/booking/context.ts
-função = extractBookingSlots, mergeBookingContext, ensureNoDuplicateBookingQuestion
-causa exata = SERVICE_PATTERNS incompletos e falta de bloqueio preventivo no ensureNoDuplicateBookingQuestion para variações de perguntas de data.
-
-Depois aplique a menor alteração possível.
-
-Ao final:
+Os testes automatizados indicam:
 
 "MÃO" RECONHECIDA COMO MANICURE = SIM
 "HOJE" PRESERVADO = SIM
@@ -256,35 +45,207 @@ Ao final:
 JULIA PARA DE REPETIR PERGUNTA DE DATA = SIM
 TESTES 3 UNIDADES = APROVADOS
 
-Se houver falha, NÃO faça nova correção automática.
-PARE e mostre o trace.`}
+Agora quero PROVA FUNCIONAL REAL PELO WHATSAPP.
+
+NÃO considere full_flow_test.ts como aprovação final.
+NÃO simule mensagens.
+NÃO altere código.
+NÃO altere banco.
+NÃO altere prompt.
+NÃO altere mapeamento.
+
+==================================================
+1. PREPARE MONITORAMENTO REAL
+==================================================
+
+Prepare o trace end-to-end para identificar, em uma mensagem REAL:
+
+instanceId inbound
+telefone da unidade
+unitId efetivo
+texto recebido
+serviceText
+serviceIntent
+dateText
+dateResolved
+bookingContext antes
+bookingContext depois
+list_services chamada
+unitId enviado para list_services
+candidatos retornados pela BEMP
+serviceId resolvido
+SERVICE_CLARIFICATION_REQUIRED
+list_slots chamada
+unitId enviado para list_slots
+serviceId enviado para list_slots
+data enviada para list_slots
+horários retornados pela BEMP
+resposta final enviada à cliente
+
+==================================================
+2. TESTE PRIMEIRO SOMENTE BOULEVARD
+==================================================
+
+Unidade oficial validada:
+
+BOULEVARD
+WhatsApp = +55 41 3073-1358
+instanceId = agente-554130731358
+unitId BEMP = 1378
+
+Vou enviar MANUALMENTE pelo WhatsApp:
+
+"Oi, quero fazer a mão hoje"
+
+A Julia deve interpretar:
+
+unidade = BOULEVARD
+unitId = 1378
+serviço pretendido = MANICURE
+data = HOJE
+
+Ela NÃO pode perguntar:
+
+"Qual serviço?"
+se o catálogo permitir resolver manicure inequivocamente.
+
+Ela NÃO pode perguntar:
+
+"Qual dia?"
+"Para quando?"
+"Que data?"
+
+porque HOJE já está presente.
+
+==================================================
+3. CONSULTA REAL DO SERVIÇO
+==================================================
+
+A Julia deve consultar o catálogo REAL da BEMP da unidade 1378.
+
+"Mão" é linguagem natural da cliente.
+Use "manicure" apenas como intenção semântica de busca.
+
+NÃO hardcode serviceId.
+NÃO hardcode preço.
+
+Mostre os candidatos REAIS retornados pela BEMP.
+
+Se existir exatamente uma opção compatível:
+→ resolver serviceId.
+
+Se existirem múltiplas opções realmente compatíveis:
+→ pedir esclarecimento SOMENTE sobre o serviço.
+→ preservar HOJE no bookingContext.
+
+==================================================
+4. CONSULTA REAL DA AGENDA
+==================================================
+
+Assim que houver:
+
+unitId = 1378
+serviceId válido
+dateResolved = hoje
+
+a Julia deve chamar REALMENTE list_slots.
+
+A resposta ao cliente só pode conter horários que estejam presentes
+no retorno REAL da BEMP.
+
+PROIBIDO:
+- inventar horário
+- usar horário de outra unidade
+- usar horário da memória
+- usar horário de teste
+- usar horário retornado anteriormente
+- consultar Centro ou Ventura
+
+==================================================
+5. PROTEÇÃO DE IDENTIDADE
+==================================================
+
+Durante todo o fluxo:
+
+instanceId inicial = agente-554130731358
+unitId inicial = 1378
+
+Esses valores NÃO podem mudar.
+
+Se em qualquer ponto aparecer:
+
+1377
+5258
+CENTRO
+VENTURA
+
+no contexto efetivo de unidade ou na chamada de disponibilidade:
+
+ABORTE A RESPOSTA.
+registre UNIT_CONTEXT_MISMATCH.
+NÃO ofereça horários à cliente.
+
+==================================================
+6. AGUARDE MINHA MENSAGEM REAL
+==================================================
+
+Agora apenas prepare o monitoramento.
+
+NÃO envie mensagem para o WhatsApp.
+NÃO simule a cliente.
+NÃO execute full_flow_test.
+NÃO altere nada.
+
+Quando detectar minha mensagem real:
+
+"Oi, quero fazer a mão hoje"
+
+capture o trace completo.
+
+Depois mostre:
+
+MENSAGEM REAL RECEBIDA = SIM/NÃO
+INSTANCE INBOUND =
+UNIDADE IDENTIFICADA =
+UNITID =
+"MÃO" → MANICURE = SIM/NÃO
+"HOJE" RESOLVIDO = SIM/NÃO
+PERGUNTOU DATA NOVAMENTE = SIM/NÃO
+LIST_SERVICES REAL CHAMADA = SIM/NÃO
+CANDIDATOS BEMP =
+SERVICEID =
+LIST_SLOTS REAL CHAMADA = SIM/NÃO
+UNITID ENVIADO AO LIST_SLOTS =
+DATA ENVIADA =
+HORÁRIOS BEMP =
+RESPOSTA JULIA =
+HORÁRIOS OFERECIDOS EXISTEM NA RESPOSTA BEMP = SIM/NÃO
+HOUVE CONTAMINAÇÃO ENTRE UNIDADES = SIM/NÃO
+
+RESULTADO = APROVADO/FALHOU
+
+PARE E AGUARDE MINHA AUTORIZAÇÃO.`}
           </div>
         </CardContent>
       </Card>
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="border-green-200 bg-green-50">
+        <Card className="border-blue-200 bg-blue-50">
           <CardHeader>
-            <CardTitle className="text-green-800 flex items-center gap-2 text-sm uppercase">
+            <CardTitle className="text-blue-800 flex items-center gap-2 text-sm uppercase">
               <Search className="w-4 h-4" />
-              Relatório de Testes (Simulação Contexto)
+              STATUS DO MONITORAMENTO
             </CardTitle>
           </CardHeader>
           <CardContent className="text-xs font-mono space-y-4">
-            <div>
-              <p className="text-green-900 font-bold underline">CENÁRIO A: "Quero fazer a mão hoje"</p>
-              <p className="text-slate-600">serviceIntent: manicure (DETECTADO)</p>
-              <p className="text-slate-600">date: 2026-08-15 (HOJE)</p>
-              <p className="text-slate-600">BLOQUEIO DUPLICIDADE DATA: ATIVO</p>
-              <p className="text-green-700 font-bold">RESULTADO: APROVADO</p>
+            <div className="flex items-center gap-2 text-green-700 font-bold">
+              <Activity className="w-4 h-4 animate-pulse" />
+              AGUARDANDO MENSAGEM REAL: +55 41 3073-1358
             </div>
-            
-            <div>
-              <p className="text-green-900 font-bold underline">CENÁRIO D: "Quero fazer a mão amanhã"</p>
-              <p className="text-slate-600">serviceIntent: manicure (DETECTADO)</p>
-              <p className="text-slate-600">date: 2026-08-16 (AMANHÃ)</p>
-              <p className="text-slate-600">BLOQUEIO DUPLICIDADE DATA: ATIVO</p>
-              <p className="text-green-700 font-bold">RESULTADO: APROVADO</p>
+            <div className="space-y-1">
+              <p className="text-slate-600">Alvo: BOULEVARD (Unit 1378)</p>
+              <p className="text-slate-600">Instância: agente-554130731358</p>
+              <p className="text-slate-600">Trace: Ativo (evo_trace_logs)</p>
             </div>
           </CardContent>
         </Card>
@@ -293,22 +254,20 @@ PARE e mostre o trace.`}
           <CardHeader>
             <CardTitle className="text-slate-800 flex items-center gap-2 text-sm uppercase">
               <FileText className="w-4 h-4" />
-              Arquivos Modificados
+              PROVA DE ISOLAMENTO (CHECKPOINT)
             </CardTitle>
           </CardHeader>
           <CardContent className="text-xs font-mono space-y-2">
-            <p className="text-slate-900 font-bold">src/lib/booking/context.ts</p>
-            <ul className="list-disc pl-4 text-slate-600">
-              <li>Refatorado SERVICE_PATTERNS (alias "mão")</li>
-              <li>Ajustado mergeBookingContext (preservação serviceText)</li>
-              <li>Ajustado ensureNoDuplicateBookingQuestion (bloqueio perguntas data)</li>
-            </ul>
+            <p className="text-green-700 font-bold">BEMP FONTE DA VERDADE = VALIDADO</p>
+            <p className="text-slate-600">Centro (1377) | Ventura (5258) | Boulevard (1378)</p>
+            <p className="text-slate-900 font-bold mt-2 underline text-red-600">TRAVA DE CONTEXTO ATIVA</p>
+            <p className="text-slate-500 italic">Qualquer tentativa de vazamento de ID resultará em ABORT.</p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="text-center py-4 text-green-600 text-sm font-bold bg-green-50 rounded-lg">
-        CORREÇÃO APLICADA E VALIDADA EM AMBIENTE DE TESTE.
+      <div className="text-center py-4 text-blue-600 text-sm font-bold bg-blue-50 rounded-lg animate-pulse">
+        PRONTO PARA CAPTURA REAL. ENVIE A MENSAGEM NO WHATSAPP DA BOULEVARD.
       </div>
     </div>
   );
