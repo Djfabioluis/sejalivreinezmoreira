@@ -4,8 +4,6 @@ import { BempService } from "../../bemp-service.server";
 async function diagnoseVenturaLeak() {
   console.log("=== INICIANDO DIAGNÓSTICO FORENSE VENTURA ===");
 
-  // 1. Localizar traces na evo_trace_logs que contêm chamadas de ferramenta
-  // Procuramos por TOOL_CALLED ou AI_STEP_COMPLETED que tenham payload mencionando list_slots
   const { data: traces, error: traceError } = await (supabaseAdmin.from('evo_trace_logs' as any).select('*') as any)
     .eq('instance_id', 'agente-5541998803684')
     .ilike('payload::text', '%list_slots%')
@@ -13,7 +11,6 @@ async function diagnoseVenturaLeak() {
     .limit(10);
 
   if (traceError || !traces || traces.length === 0) {
-    // Se não achou na evo_trace_logs, tentar na evo_webhook_logs (backup)
     const { data: backupLogs } = await (supabaseAdmin.from('evo_webhook_logs' as any).select('*') as any)
       .eq('instance', 'agente-5541998803684')
       .ilike('payload::text', '%list_slots%')
@@ -25,11 +22,10 @@ async function diagnoseVenturaLeak() {
       return;
     }
     
-    // Mapear backup para o mesmo formato
     const log = backupLogs[0];
     const p = typeof log.payload === 'string' ? JSON.parse(log.payload) : log.payload;
     console.log("CASO REAL VENTURA ENCONTRADO = SIM (via webhook_logs)");
-    await performAudit(log.instance, log.conversation_id, p, log.created_at);
+    await performAudit(log.instance, log.message_id, p, log.created_at);
     return;
   }
 
@@ -38,15 +34,13 @@ async function diagnoseVenturaLeak() {
   await performAudit(trace.instance_id, trace.conversation_id, trace.payload, trace.timestamp);
 }
 
-async function performAudit(instanceId: string, conversationId: string, payload: any, timestamp: string) {
+async function performAudit(instanceId: string, convOrMsgId: string, payload: any, timestamp: string) {
   console.log("INSTANCE INBOUND =", instanceId);
   console.log("timestamp =", timestamp);
   
-  // 2. UnitId de wa_agentes
   const { data: agent } = await (supabaseAdmin.from("wa_agentes").select("unidade_id").eq("instancia", instanceId).maybeSingle() as any);
   console.log("UNITID INBOUND =", agent?.unidade_id);
 
-  // 3. Extrair argumentos do list_slots
   let args: any = {};
   if (payload?.tool === 'list_slots') {
     args = payload.args || {};
@@ -58,14 +52,13 @@ async function performAudit(instanceId: string, conversationId: string, payload:
   const sentUnitId = args.salon_id || args.unitId;
   console.log("UNITID ENVIADO AO LIST_SLOTS =", sentUnitId);
 
-  // 4. BookingContext se disponível
-  if (conversationId) {
-    const { data: conv } = await (supabaseAdmin.from("wa_conversas").select("customer_context").eq("id", conversationId).maybeSingle() as any);
+  if (convOrMsgId) {
+    // Tentar buscar por id ou message_id
+    const { data: conv } = await (supabaseAdmin.from("wa_conversas").select("customer_context").or(`id.eq."${convOrMsgId}",phone.eq."${convOrMsgId}"`).maybeSingle() as any);
     const bc = conv?.customer_context?.bookingContext;
     console.log("BOOKINGCONTEXT UNITID =", bc?.unitId);
   }
 
-  // 5. Comparativo BEMP
   const serviceId = args.service_id || args.serviceId;
   const date = args.date;
   if (date && serviceId) {
