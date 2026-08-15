@@ -174,7 +174,7 @@ NÃO FAÇA NOVO DEPLOY.
             </CardHeader>
             <CardContent className="p-0">
               <div className="divide-y divide-slate-100 max-h-[300px] overflow-y-auto">
-                {auditLogs?.filter(l => l.unit_id === 5258 || !l.unit_id).slice(0, 5).map((log: any) => (
+                {auditLogs?.slice(0, 5).map((log: any) => (
                   <div key={log.id} className="p-3 hover:bg-slate-50 transition-colors">
                     <div className="flex justify-between items-start mb-1">
                       <Badge variant="outline" className="text-[8px] font-mono py-0">{log.step}</Badge>
