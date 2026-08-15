@@ -13,17 +13,24 @@ async function test_flow(label: string, scenario: { messages: any[], unitId: str
 
     console.log(`\n[Turno ${i}] Cliente: "${msg.content}"`);
     
-    // 1. Extrair e Mesclar Contexto (Simulando o que acontece no webhook/processor)
+    // 1. Extrair e Mesclar Contexto
     const extracted = extractBookingSlots(msg.content, new Date(), currentContext);
     currentContext = mergeBookingContext(currentContext, extracted);
     
     console.log("Contexto ANTES da IA:", JSON.stringify(currentContext, null, 2));
 
-    // 2. Chamar IA
+    // 2. Formatar mensagens para o padrão do SDK da Vercel AI (conforme usado no runAgent)
+    const formattedMessages = scenario.messages.slice(0, i + 1).map(m => ({
+      role: m.role,
+      content: m.content,
+      parts: [{ type: 'text', text: m.content }]
+    }));
+
+    // 3. Chamar IA
     const result = await runAgent({
       conversationKey: `test-${label}-${Date.now()}`,
       unidadeId: scenario.unitId,
-      messages: scenario.messages.slice(0, i + 1),
+      messages: formattedMessages,
       customerContext: { bookingContext: currentContext },
       traceId: `test-trace-${label}-${i}`
     } as any);
