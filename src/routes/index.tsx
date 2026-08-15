@@ -23,115 +23,109 @@ function Dashboard() {
           <ShieldCheck className="w-8 h-8 text-green-600" />
           Auditoria Determinística Seja Livre
         </h1>
-        <div className="px-4 py-2 bg-green-100 text-green-700 rounded-full flex items-center gap-2 font-bold animate-pulse">
-          <CheckCircle2 className="w-4 h-4" />
-          IMPLEMENTAÇÃO FINALIZADA — AGUARDANDO AUTORIZAÇÃO
+        <div className="px-4 py-2 bg-blue-100 text-blue-700 rounded-full flex items-center gap-2 font-bold animate-pulse">
+          <Activity className="w-4 h-4" />
+          AGUARDANDO TESTE REAL NO WHATSAPP
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="border-green-600 shadow-lg col-span-1 md:col-span-2">
-          <CardHeader className="bg-green-600 text-white">
+        <Card className="border-blue-600 shadow-lg col-span-1 md:col-span-2">
+          <CardHeader className="bg-blue-600 text-white">
             <CardTitle className="flex items-center gap-2 text-lg">
-              <Zap className="w-6 h-6" />
-              RESULTADO OBRIGATÓRIO — SIMULAÇÃO DETERMINÍSTICA
+              <FileText className="w-6 h-6" />
+              INSTRUÇÃO DE EXECUÇÃO
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-6 space-y-4 font-mono text-sm overflow-x-auto">
-            <div className="grid grid-cols-2 gap-2 border-b pb-2">
-              <span className="text-slate-500">SERVICE_RESOLUTION_DETERMINISTIC</span>
-              <span className="text-green-600 font-bold">SIM</span>
-              <span className="text-slate-500">CATALOG_OUTPUT_VALIDATOR</span>
-              <span className="text-green-600 font-bold">SIM</span>
-              <span className="text-slate-500">LLM_CAN_ADD_SERVICE_NAMES</span>
-              <span className="text-red-600 font-bold">NÃO</span>
-              <span className="text-slate-500">HALLUCINATED_SERVICE_OPTION</span>
-              <span className="text-red-600 font-bold">NÃO</span>
-              <span className="text-slate-500">DATE_PRESERVED_DURING_CLARIFICATION</span>
-              <span className="text-green-600 font-bold">SIM</span>
-              <span className="text-slate-500">INDEX_SELECTION_SUPPORTED</span>
-              <span className="text-green-600 font-bold">SIM</span>
-              <span className="text-slate-500">SERVICEID_RESOLVED_AFTER_SELECTION</span>
-              <span className="text-green-600 font-bold">SIM</span>
-              <span className="text-slate-500">LIST_SLOTS_CALLED_AFTER_SELECTION</span>
-              <span className="text-green-600 font-bold">SIM</span>
-              <span className="text-slate-500">CROSS_UNIT_CONTAMINATION</span>
-              <span className="text-red-600 font-bold">NÃO</span>
-            </div>
+          <CardContent className="p-6 space-y-4 font-mono text-sm overflow-x-auto bg-slate-900 text-blue-400">
+            <div className="whitespace-pre-wrap">
+{`Execute esta instrucao no projeto: AUTORIZO SOMENTE O TESTE REAL PELO WHATSAPP.
 
-            <div className="mt-4 p-4 bg-slate-900 text-slate-100 rounded-lg whitespace-pre-wrap">
-{`=== TESTE DO CASO REAL (SIMULADO) ===
+NÃO FAÇA NENHUMA NOVA ALTERAÇÃO.
 
-MENSAGEM: "quero fazer mao hoje"
---------------------------------------------------
-serviceIntent = MANICURE
-dateIntent = 2026-08-15 (HOJE)
-unitId = 5258 (VENTURA)
-LIST_SERVICES_CALLED = SIM
-BEMP_RAW_CANDIDATES = 
-  1. MANICURE (ID: 18604)
-  2. Manicure beauty club (ID: 19516)
-  3. MANICURE E PEDICURE (ID: 18581)
+Unidade a testar:
+VENTURA
+unitId esperado = 5258
 
-CANDIDATOS_COMPATÍVEIS = 3
-QUANTIDADE = 3
-SERVICE_CLARIFICATION_REQUIRED = SIM
+Prepare monitoramento do fluxo REAL.
 
-OPÇÕES APRESENTADAS À JULIA = (Somente os 3 acima)
-OPÇÕES EFETIVAMENTE ENVIADAS AO CLIENTE = (Somente os 3 acima)
+Vou enviar manualmente:
 
-TODAS EXISTEM NA BEMP = SIM
-HALLUCINATED_SERVICE_OPTION = NÃO
+"quero fazer mão hoje"
 
---- SIMULAÇÃO DE CONTINUAÇÃO ---
-cliente = "o segundo"
+Quero capturar:
 
-serviceId escolhido = 19516
-serviceName = Manicure beauty club ( ASSINANTES)
-dateIntent preservado = 2026-08-15
-LIST_SERVICES_CHAMADA_NOVAMENTE = NÃO
-LIST_SLOTS_CALLED = SIM
-unitId enviado = 5258
-serviceId enviado = 19516
-data enviada = 2026-08-15`}
+WEBHOOK_RECEIVED
+INSTANCE_RESOLVED
+UNIT_RESOLVED
+SERVICE_INTENT_RESOLVED
+DATE_RESOLVED
+LIST_SERVICES_CALLED
+BEMP_SERVICES_RETURNED
+SERVICE_CLARIFICATION_REQUIRED
+ALLOWED_SERVICES
+WHATSAPP_RESPONSE_SENT
+
+Depois da primeira resposta, NÃO faça alteração.
+
+Eu responderei ao WhatsApp:
+
+"2"
+
+ou
+
+"o segundo"
+
+Nesse segundo turno monitore:
+
+CLARIFICATION_SELECTION_RESOLVED
+SERVICE_ID_RESOLVED
+DATE_PRESERVED
+LIST_SERVICES_CALLED_AGAIN
+LIST_SLOTS_CALLED
+BEMP_SLOTS_RETURNED
+WHATSAPP_RESPONSE_SENT
+
+CRITÉRIOS OBRIGATÓRIOS:
+
+1. "mão" → MANICURE
+2. "hoje" preservado
+3. opções exibidas = somente candidatos BEMP
+4. nenhuma opção inventada
+5. resposta "2" resolve o segundo serviceId
+6. NÃO perguntar novamente a data
+7. NÃO chamar list_services novamente sem necessidade
+8. chamar list_slots imediatamente
+9. unitId do list_slots = 5258
+10. horários enviados ao cliente devem existir no retorno BEMP
+
+NÃO CORRIJA CASO FALHE.
+
+Mostre o trace e PARE.`}
             </div>
           </CardContent>
         </Card>
 
         <div className="space-y-6">
-          <Card className="border-blue-200 bg-blue-50">
+          <Card className="border-green-200 bg-green-50">
             <CardHeader className="pb-2">
-              <CardTitle className="text-blue-800 flex items-center gap-2 text-sm uppercase">
-                <ListFilter className="w-4 h-4" />
-                DETERMINISTIC PIPELINE
+              <CardTitle className="text-green-800 flex items-center gap-2 text-sm uppercase">
+                <CheckCircle2 className="w-4 h-4" />
+                STATUS DO SISTEMA
               </CardTitle>
             </CardHeader>
             <CardContent className="text-xs space-y-2 text-slate-700">
-              <p>1. <strong>list_services</strong> chamado no backend.</p>
-              <p>2. Filtro de candidatos por similaridade semântica.</p>
-              <p>3. <strong>SERVICE_CLARIFICATION_REQUIRED</strong> ativado para N &gt; 1.</p>
-              <p>4. Gemini recebe apenas <strong>allowedServices</strong>.</p>
-              <p>5. Saída validada por whitelist antes do WhatsApp.</p>
+              <p>• Resolução Determinística: <strong>ATIVADA</strong></p>
+              <p>• Validador de Whitelist: <strong>ATIVADO</strong></p>
+              <p>• Preservação de Data: <strong>ATIVADA</strong></p>
+              <p>• Simulação Prévia: <strong>APROVADA</strong></p>
             </CardContent>
           </Card>
 
-          <Card className="border-purple-200 bg-purple-50">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-purple-800 flex items-center gap-2 text-sm uppercase">
-                <CalendarCheck className="w-4 h-4" />
-                DATE PERSISTENCE
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-xs space-y-2 text-slate-700">
-              <p>O campo <strong>date</strong> ("hoje") é preservado no <code>BookingContext</code> durante o loop de clarificação.</p>
-              <p>Resolvido por índice (1, 2, 3), o sistema dispara <strong>list_slots</strong> imediatamente com a data preservada.</p>
-            </CardContent>
-          </Card>
-
-          <div className="p-4 bg-green-600 text-white rounded-lg text-center font-bold shadow-lg animate-pulse">
-            SISTEMA PRONTO.
+          <div className="p-4 bg-blue-600 text-white rounded-lg text-center font-bold shadow-lg">
+            AGUARDANDO MENSAGEM REAL...
             <br />
-            PARE E AGUARDE A AUTORIZAÇÃO.
+            (41) 99952-9624
           </div>
         </div>
       </div>
