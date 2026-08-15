@@ -9,11 +9,11 @@ import { supabase } from "@/integrations/supabase/client";
 export const Route = createFileRoute('/')({
   component: Dashboard,
   head: () => ({
-    title: "Auditoria Seja Livre — FORENSIC REPORT",
+    title: "Auditoria Seja Livre — LIVE MONITOR",
     meta: [
-      { name: "description", content: "Relatório de Auditoria Forense - Teste Ventura" },
-      { property: "og:title", content: "Auditoria Seja Livre — FORENSIC REPORT" },
-      { property: "og:description", content: "Relatório de Auditoria Forense - Teste Ventura" },
+      { name: "description", content: "Monitoramento de Teste Real - Unidade Ventura" },
+      { property: "og:title", content: "Auditoria Seja Livre — LIVE MONITOR" },
+      { property: "og:description", content: "Monitoramento de Teste Real - Unidade Ventura" },
       { name: "twitter:card", content: "summary" }
     ]
   })
