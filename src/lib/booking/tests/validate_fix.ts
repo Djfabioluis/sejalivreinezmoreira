@@ -23,11 +23,7 @@ async function test_flow(label: string, scenario: { messages: any[], unitId: str
     const result = await runAgent({
       conversationKey: `test-${label}-${Date.now()}`,
       unidadeId: scenario.unitId,
-      messages: scenario.messages.slice(0, i + 1).map(m => ({
-        role: m.role,
-        content: m.content,
-        parts: [{ type: 'text', text: m.content }]
-      })),
+      messages: scenario.messages.slice(0, i + 1),
       customerContext: { bookingContext: currentContext },
       traceId: `test-trace-${label}-${i}`
     } as any);
@@ -37,7 +33,6 @@ async function test_flow(label: string, scenario: { messages: any[], unitId: str
     const toolCalls = result.toolResults || [];
     console.log("Ferramentas chamadas:", toolCalls.map(t => (t as any).toolName).join(", "));
     
-    // Se houve chamada de list_slots, o teste passou no requisito de disponibilidade
     if (toolCalls.some(t => (t as any).toolName === 'list_slots')) {
       console.log("✅ AVAILABILITY_TOOL_CALLED");
     }
