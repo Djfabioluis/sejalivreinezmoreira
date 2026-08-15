@@ -94,8 +94,8 @@ function addDays(base: Date, days: number): Date {
 
 const SERVICE_PATTERNS: Array<{ re: RegExp; name: string }> = [
   // Patterns agora extraem a INTENÇÃO sem forçar nomes de serviços rígidos
-  { re: /\bmanicure\b/i, name: "manicure" },
-  { re: /\bpedicure\b/i, name: "pedicure" },
+  { re: /\b(?:m[ãa]o|manicure|unha\s+da\s+m[ãa]o|fazer\s+a\s+m[ãa]o)\b/i, name: "manicure" },
+  { re: /\b(?:p[ée]|pedicure|unha\s+do\s+p[ée]|fazer\s+o\s+p[ée])\b/i, name: "pedicure" },
   { re: /\bp[ée]\s+e\s+m[ãa]o\b/i, name: "pé e mão" },
   { re: /\bcabelo\b/i, name: "cabelo" },
   { re: /\bescova\b/i, name: "escova" },
@@ -262,6 +262,7 @@ export function mergeBookingContext(
   // REQUISITO 7: Se serviceId ou date sumirem no loop, restauramos do prev
   if (!next.serviceId && prev.serviceId) next.serviceId = prev.serviceId;
   if (!next.serviceName && prev.serviceName) next.serviceName = prev.serviceName;
+  if (!next.serviceText && prev.serviceText) next.serviceText = prev.serviceText;
   if (!next.date && prev.date) next.date = prev.date;
 
   return next;
@@ -391,15 +392,15 @@ export function isShortAffirmative(text: string | null | undefined): boolean {
 export function ensureNoDuplicateBookingQuestion(text: string, ctx: BookingContext): { text: string; blocked: boolean } {
   const t = text.toLowerCase();
   
-  
-  if (ctx.serviceId || ctx.serviceName) {
-    if (t.includes("qual serviço") || t.includes("que serviço") || t.includes("qual o procedimento") || t.includes("procedimento deseja")) {
+  const hasService = ctx.serviceId || ctx.serviceName || ctx.serviceText;
+  if (hasService) {
+    if (t.includes("qual serviço") || t.includes("que serviço") || t.includes("qual o procedimento") || t.includes("procedimento deseja") || t.includes("gostaria de fazer o que")) {
       return { text: fallbackQuestionFor(ctx), blocked: true };
     }
   }
   
   if (ctx.date) {
-    if (t.includes("qual dia") || t.includes("qual data") || t.includes("que dia")) {
+    if (t.includes("qual dia") || t.includes("qual data") || t.includes("que dia") || t.includes("para quando") || t.includes("para que dia")) {
       return { text: fallbackQuestionFor(ctx), blocked: true };
     }
   }
