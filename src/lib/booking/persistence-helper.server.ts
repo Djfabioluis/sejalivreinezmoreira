@@ -15,6 +15,16 @@ export async function persistWaMessage(phone: string, message: any) {
       p_new_message: message
     });
 
+    // Se falhar com erro de "Could not find the function", tentamos a assinatura com 2 parâmetros nomeados invertidos
+    // ou passamos como argumentos posicionais se o cache do PostgREST estiver muito inconsistente.
+    if (error && error.message.includes("Could not find the function")) {
+       console.warn("[RPC] Retrying append_wa_message with alternate signature...");
+       return await (supabaseAdmin.rpc as any)("append_wa_message", {
+         p_new_message: message,
+         p_phone: phone
+       });
+    }
+
     if (error) {
       console.error(`[RPC_ERROR] append_wa_message(phone: ${phone}):`, error);
       return { success: false, error: error.message };
