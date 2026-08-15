@@ -497,7 +497,6 @@ function buildTools(
 }
 
 export async function runAgentWithLogging(opts: AgentOptions & { messages?: any[]; text?: string }) {
-  // runAgent já aplica o limite de 12 mensagens para segurança global
   return runAgent(opts);
 }
 
@@ -506,19 +505,7 @@ export async function isIAConfigured(): Promise<boolean> {
   return Boolean(gatewayKey && gatewayKey.length > 10);
 }
 
-export async function streamAgent(opts: { messages: any[]; sandbox?: boolean }) {
-  const gatewayKey = process.env.LOVABLE_AI_GATEWAY_KEY || process.env.LOVABLE_API_KEY || "";
-  const provider = createLovableAiGatewayProvider(gatewayKey);
-  const model = provider("google/gemini-2.5-flash");
-  const modelMessages = await convertToModelMessages(opts.messages);
-
-  return streamText({
-    model,
-    system: DEFAULT_SYSTEM_PROMPT + (opts.sandbox ? SANDBOX_NOTE : ""),
-    messages: modelMessages,
-    maxSteps: 5,
-  } as any);
-}
+// streamAgent removido para simplificação e unificação com generateText assíncrono.
 
 export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: string }) {
   const { conversationKey, unidadeId, sandbox, customerContext, activePromotions, traceId } = opts;
@@ -548,12 +535,11 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
     bookingContext
   });
 
-  // const modelMessages = await convertToModelMessages(messages);
   const aiStartedAt = Date.now();
   const response = await generateText({
     model,
     system: systemPrompt + (sandbox ? SANDBOX_NOTE : ""),
-    messages: messages,
+    messages: await convertToModelMessages(messages),
     tools: buildTools(!!sandbox, effectiveUnitId, conversationKey, opts.messageId, bookingContext.subscriptionIntent, traceId, messages, bookingContext),
     maxSteps: 5,
     onStepFinish: async (step: any) => {
