@@ -1,147 +1,241 @@
 import { createFileRoute } from '@tanstack/react-router'
+  const instructions = `Execute esta instrucao no projeto: NÃO FAÇA ALTERAÇÃO AINDA.
+
+PROBLEMA REAL:
+A Julia não está verificando os horários disponíveis na agenda antes
+de responder ao cliente.
+
+Quero DIAGNÓSTICO FORENSE do último atendimento real em que o cliente
+pediu um horário/data e a Julia não consultou corretamente a agenda.
+
+NÃO altere:
+- prompt
+- Gemini
+- preços
+- SERVICE_PRICE_RESOLVED
+- regras de ambiguidade
+- Evolution
+- webhook
+- memória
+- histórico
+- follow-up
+
+==================================================
+1. LOCALIZE UM CASO REAL
+==================================================
+
+Localize a conversa real mais recente em que o cliente informou:
+
+- serviço
+e
+- data/dia desejado
+
+e a Julia deveria consultar disponibilidade.
+
+Mostre:
+
+timestamp
+traceId
+conversationId
+instanceId
+agentId
+unitId
+texto do cliente
+serviço resolvido
+serviceId
+data solicitada
+profissional, se informado
+
+==================================================
+2. IDENTIFIQUE A FERRAMENTA DE DISPONIBILIDADE
+==================================================
+
+Mostre exatamente qual função/tool é responsável por consultar
+horários disponíveis.
+
+Informe:
+
+arquivo =
+função =
+tool name =
+endpoint/API =
+fonte = BEMP ou outra
+
+Quero saber qual chamada deveria acontecer depois que houver:
+
+unitId
++
+serviceId
++
+data
+
+==================================================
+3. TRILHA REAL
+==================================================
+
+Para o mesmo traceId mostre:
+
+SERVICE_RESOLVED =
+DATE_RESOLVED =
+PROFESSIONAL_RESOLVED =
+AVAILABILITY_CHECK_STARTED =
+AVAILABILITY_API_REQUEST =
+AVAILABILITY_API_RESPONSE =
+AVAILABLE_SLOTS_RESOLVED =
+AI_RESPONSE_GENERATED =
+EVOLUTION_SEND_SUCCESS =
+
+Use:
+SIM/NÃO
+timestamp
+resultado
+
+Se algum checkpoint não existir:
+marque AUSENTE.
+
+==================================================
+4. SE A CONSULTA NÃO FOI CHAMADA
+==================================================
+
+Se AVAILABILITY_CHECK_STARTED = AUSENTE:
+
+mostre a condição EXATA que impediu a chamada.
+
+Verifique:
+
+- serviceId ausente
+- unitId ausente
+- data não normalizada
+- bookingContext incorreto
+- profissional obrigatório indevidamente
+- estado da máquina de agendamento errado
+- ferramenta não selecionada
+- regra dizendo que a IA pode responder sem consultar agenda
+- outro bloqueio
+
+Mostre:
+arquivo
+função
+linha
+condição
+
+==================================================
+5. SE A CONSULTA FOI CHAMADA
+==================================================
+
+Se a API de disponibilidade foi chamada, mostre:
+
+unitId enviado
+serviceId enviado
+professionalId enviado
+data inicial
+data final
+timezone
+payload completo técnico
+HTTP status
+response body resumido
+quantidade de horários retornados
+
+Depois mostre os horários reais retornados.
+
+Não invente horários para completar resposta.
+
+==================================================
+6. VALIDE A UNIDADE
+==================================================
+
+A consulta de agenda deve respeitar obrigatoriamente a instância:
+
+CENTRO → agenda da unidade Centro
+VENTURA → agenda da unidade Ventura
+BOULEVARD → agenda da unidade Boulevard
+
+Compare:
+
+inbound instanceId
+unitId resolvido
+unitId usado na consulta de disponibilidade
+
+Eles precisam corresponder.
+
+==================================================
+7. REGRA OBRIGATÓRIA
+==================================================
+
+A Julia NÃO pode responder:
+
+"temos horário"
+"tem disponibilidade"
+"pode ser às 14h"
+"temos amanhã"
+
+sem uma consulta REAL de disponibilidade no mesmo fluxo.
+
+Se não houver resposta válida da agenda:
+
+não inventar horário.
+
+Responder de forma segura informando que vai verificar,
+e registrar erro técnico.
+
+==================================================
+8. NÃO REPETIR PERGUNTAS
+==================================================
+
+Se o cliente já informou:
+
+serviço = manicure
+data = amanhã
+
+a Julia NÃO deve perguntar novamente:
+
+"qual serviço?"
+ou
+"qual dia?"
+
+Ela deve usar o contexto já confirmado e consultar a agenda.
+
+Mostre se isso ocorreu no trace analisado.
+
+==================================================
+9. RESULTADO FINAL
+==================================================
+
+Entregue:
+
+UNIDADE =
+traceId =
+serviceId =
+data =
+professionalId =
+ferramenta de disponibilidade =
+foi chamada? SIM/NÃO =
+unitId enviado =
+HTTP status =
+slots retornados =
+último checkpoint =
+erro/bloqueio =
+
+Depois classifique:
+
+[A] ferramenta não foi chamada
+[B] chamada com unitId errado
+[C] chamada com serviceId errado
+[D] data enviada errada
+[E] API retornou erro
+[F] API retornou slots mas Julia ignorou
+[G] bookingContext perdeu serviço/data
+[H] outra causa comprovada
+
+NÃO CORRIJA AINDA.
+
+PARE e aguarde autorização.`;
 
 export const Route = createFileRoute('/')({
   component: Dashboard,
 })
 
 function Dashboard() {
-  const instructions = `Execute esta instrucao no projeto: AUTORIZADO PROSSEGUIR SOMENTE COM A VALIDAÇÃO FUNCIONAL REAL END-TO-END.
-
-NÃO ALTERE CÓDIGO.
-NÃO CORRIJA NADA.
-NÃO ALTERE PROMPT.
-NÃO ALTERE PREÇOS.
-NÃO ALTERE CONFIGURAÇÕES.
-NÃO CRIE SIMULAÇÕES.
-
-As instâncias já foram identificadas:
-
-CENTRO:
-unitId = 1378
-instanceId = agente-554130731358
-
-VENTURA:
-unitId = 1377
-instanceId = agente-5541998430354
-
-BOULEVARD:
-unitId = 5258
-instanceId = agente-5541998803684
-
-Agora quero separar claramente:
-
-1. TESTE AUTOMATIZADO
-2. TRACE ANTIGO
-3. MENSAGEM REAL NOVA RECEBIDA PELO WHATSAPP
-
-Somente o item 3 será aceito como evidência do teste end-to-end.
-
-==================================================
-FASE 1 — PREPARAR MONITORAMENTO
-==================================================
-
-Monitore as 3 instâncias reais.
-
-Para cada nova mensagem recebida, registre:
-
-- timestamp
-- instanceId
-- unitId
-- telefone/conversationId mascarado
-- webhook/traceId
-- texto recebido
-- chamada list_services
-- candidatos retornados pela BEMP
-- serviceId selecionado
-- officialPrice
-- SERVICE_CLARIFICATION_REQUIRED
-- SERVICE_PRICE_RESOLVED
-- PRICE_MISMATCH_BLOCKED
-- resposta produzida pela Julia
-- mensagem efetivamente enviada pela Evolution
-
-Não use traces anteriores como aprovação.
-
-==================================================
-FASE 2 — AGUARDAR MINHAS MENSAGENS
-==================================================
-
-Quando o monitoramento estiver pronto, NÃO invente resultados.
-
-Informe apenas:
-
-MONITORAMENTO PRONTO
-
-CENTRO = pronto/não pronto
-VENTURA = pronto/não pronto
-BOULEVARD = pronto/não pronto
-
-E me diga exatamente PARA QUAL NÚMERO DE WHATSAPP devo enviar
-uma mensagem de teste para cada unidade.
-
-Se você não conseguir determinar o número público correspondente
-à instância, diga isso claramente.
-
-==================================================
-FASE 3 — TESTE REAL
-==================================================
-
-Depois que eu enviar pelo meu WhatsApp, capture o NOVO trace.
-
-Primeiro teste em cada unidade:
-
-"Quanto custa corte?"
-
-COMPORTAMENTO ESPERADO:
-
-Se houver mais de um serviço compatível:
-- NÃO escolher automaticamente
-- NÃO informar preço
-- SERVICE_CLARIFICATION_REQUIRED = true
-- apresentar opções reais retornadas pela BEMP
-
-Depois eu responderei algo como:
-
-"a segunda"
-
-Então validar:
-
-- recuperação do contexto
-- serviço correto
-- serviceId real
-- preço consultado na BEMP
-- SERVICE_PRICE_RESOLVED = true
-- preço enviado = officialPrice
-
-==================================================
-REGRA DE EVIDÊNCIA
-==================================================
-
-Não marque APROVADO apenas porque a função funciona em teste.
-
-APROVADO somente se houver:
-
-MENSAGEM REAL WHATSAPP
-→ WEBHOOK NOVO
-→ INSTÂNCIA CORRETA
-→ BEMP
-→ JULIA
-→ EVOLUTION
-→ RESPOSTA REAL ENVIADA
-
-Se não houver evidência de uma dessas etapas:
-
-NÃO TESTADO.
-
-Se ocorrer erro:
-
-PARE.
-NÃO CORRIJA.
-Mostre o trace e a etapa exata da falha.
-
-Agora apenas prepare o monitoramento e me informe quando estiver
-pronto para eu enviar as mensagens pelo WhatsApp.`;
-
   return (
     <div className="p-8 max-w-4xl mx-auto space-y-6">
       <h1 className="text-3xl font-bold tracking-tight">Status do Projeto Julia IA</h1>
@@ -155,7 +249,7 @@ pronto para eu enviar as mensagens pelo WhatsApp.`;
         </div>
         <div className="p-4 border rounded-lg bg-blue-50 border-blue-100">
           <h2 className="font-semibold text-blue-900 mb-2">Próxima Etapa</h2>
-          <p className="text-blue-700 text-sm">Implementação das proteções determinísticas e validação em todas as unidades.</p>
+          <p className="text-blue-700 text-sm">Auditoria forense de disponibilidade e horários da agenda.</p>
         </div>
       </div>
     </div>
