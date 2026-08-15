@@ -281,7 +281,7 @@ function Dashboard() {
               <span className="font-black text-slate-900 text-sm">...</span>
             </div>
             <div className="flex justify-between border-b-2 border-slate-100 pb-1">
-              <span className="font-bold text-slate-500">"MÃO"_EM_ALLOWED_SERVICES =</span>
+              <span className="font-bold text-slate-500">{"MÃO"}_EM_ALLOWED_SERVICES =</span>
               <span className="font-black text-red-600 text-sm">...</span>
             </div>
             <div className="flex justify-between border-b-2 border-slate-100 pb-1">
