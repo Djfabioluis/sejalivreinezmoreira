@@ -1,5 +1,5 @@
-import { BempService } from "../bemp-service.server";
-import { resolveEffectiveUnit, runAgent } from "../chat.server";
+import { BempService } from "../../bemp-service.server";
+import { resolveEffectiveUnit, runAgent } from "../../chat.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 async function testBoulevardAvailability() {
