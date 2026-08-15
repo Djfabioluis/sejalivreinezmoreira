@@ -335,8 +335,7 @@ export async function streamAgent(opts: { messages: any[]; sandbox?: boolean }) 
 
 export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: string }) {
   const { conversationKey, unidadeId, sandbox, customerContext, activePromotions, traceId } = opts;
-  const rawMessages = Array.isArray(opts.messages) ? opts.messages : [];
-  const messages = rawMessages.slice(-12);
+  const messages = Array.isArray(opts.messages) ? opts.messages : [];
   const text = opts.text || (messages[messages.length - 1]?.content as string) || "";
 
   const { effectiveUnitId, effectiveUnitName } = await resolveEffectiveUnit({ conversationKey, agentUnitId: unidadeId });
@@ -427,7 +426,7 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
   const result = await generateText({
     model,
     system: systemPrompt + (sandbox ? SANDBOX_NOTE : ""),
-    messages: convertToModelMessages(messages),
+    messages: Array.isArray(messages) ? convertToModelMessages(messages) : [],
     tools: buildTools(!!sandbox, effectiveUnitId, conversationKey, bookingContext.subscriptionIntent, traceId, bookingContext),
     maxSteps: 5,
   } as any);
