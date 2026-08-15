@@ -1,185 +1,205 @@
 import { createFileRoute } from '@tanstack/react-router'
-  const instructions = `Execute esta instrucao no projeto: NÃO FAÇA ALTERAÇÃO DE CÓDIGO.
+  const instructions = `Execute esta instrucao no projeto: URGENTE — NÃO FAÇA NENHUMA ALTERAÇÃO.
 
-O mapeamento das 3 unidades foi corrigido e validado.
+PROBLEMA REAL EM PRODUÇÃO:
 
-Agora quero TESTE FUNCIONAL REAL DE DISPONIBILIDADE,
-começando SOMENTE pela unidade BOULEVARD.
+A JULIA ESTÁ OFERECENDO PARA CLIENTES DA UNIDADE VENTURA
+HORÁRIOS PERTENCENTES À UNIDADE CENTRO.
 
-UNIDADE:
+Isso significa que a validação anterior NÃO é suficiente para considerar
+o isolamento entre unidades aprovado.
+
+DADOS CORRETOS JÁ VALIDADOS:
+
+CENTRO
+telefone = +55 41 99843-0354
+instanceId = agente-5541998430354
+unitId = 1378
+
+VENTURA
+telefone = +55 41 99880-3684
+instanceId = agente-5541998803684
+unitId = 1377
+
 BOULEVARD
 telefone = +55 41 3073-1358
 instanceId = agente-554130731358
 unitId = 5258
 
-OBJETIVO:
+NÃO CORRIJA NADA AINDA.
 
-Comprovar que, quando um cliente solicita agendamento pelo
-WhatsApp da Boulevard, a Julia:
+Quero DIAGNÓSTICO FORENSE de um atendimento REAL recente
+recebido pelo WhatsApp da VENTURA em que a Julia consultou/ofereceu
+horários.
 
-1. identifica a unidade correta;
-2. identifica/resgata o serviço correto;
-3. mantém o serviceId no bookingContext;
-4. interpreta a data solicitada;
-5. CHAMA REALMENTE a ferramenta de disponibilidade/list_slots;
-6. consulta a agenda REAL da BEMP da unidade 5258;
-7. recebe os horários disponíveis;
-8. responde SOMENTE com horários retornados pela ferramenta.
+==================================================
+1. LOCALIZE UM CASO REAL DO VENTURA
+==================================================
 
-NÃO ALTERE:
-- código
-- prompt
-- Gemini
-- Evolution
-- webhook
-- preços
-- wa_agentes
-- bookingContext
-- regras de ambiguidade
-- memória
-- follow-up
-- interface
+Localize uma conversa real recente originada da instância:
 
-Não simule horários.
-Não invente slots.
-Não considere teste unitário como aprovação.
+agente-5541998803684
 
-================================================
-FASE 1 — PRÉ-VALIDAÇÃO
-================================================
-
-Antes do teste, mostre:
-
-unitId resolvido =
-instanceId =
-serviceId =
-nome do serviço =
-data interpretada =
-timezone =
-profissional (se aplicável) =
-
-Se serviceId não estiver resolvido, PARE.
-Não consulte disponibilidade sem serviço válido.
-
-================================================
-FASE 2 — CONSULTA REAL DA AGENDA
-================================================
-
-Execute a mesma função/ferramenta utilizada em PRODUÇÃO pela Julia
-para consultar disponibilidade.
-
-Quero evidência:
-
-TOOL_CALLED =
-nome da ferramenta =
-unitId enviado =
-serviceId enviado =
-data enviada =
-timezone enviada =
-payload enviado à BEMP =
-
-Depois mostre a resposta BRUTA da BEMP:
-
-HTTP/status =
-quantidade de slots =
-slots retornados =
-
-Não transforme nem invente horários nesta etapa.
-
-================================================
-FASE 3 — RESPOSTA DA JULIA
-================================================
-
-Com os slots REAIS retornados pela BEMP, execute o processamento
-normal da Julia.
+telefone da unidade:
++55 41 99880-3684
 
 Mostre:
 
-horários recebidos da BEMP =
-horários apresentados pela Julia =
+conversationId =
+telefone do cliente =
+instanceId inbound =
+unitId obtido de wa_agentes =
+unidade resolvida =
+bookingContext.unitId =
+serviceId =
+data solicitada =
 
-Validação obrigatória:
+Não exponha dados pessoais desnecessários do cliente.
 
-Cada horário informado pela Julia deve existir exatamente
-nos slots retornados pela BEMP.
+==================================================
+2. TRACE O UNITID ATÉ A CONSULTA DA AGENDA
+==================================================
 
-Se Julia apresentar horário que não veio da BEMP:
+Quero acompanhar o valor do unitId em CADA etapa:
 
-FALHA = HALLUCINATED_AVAILABILITY
+INBOUND
+instanceId =
+unitId =
 
-Se a ferramenta não for chamada:
+CONTEXT
+bookingContext.unitId =
 
-FALHA = AVAILABILITY_TOOL_NOT_CALLED
-
-Se unitId estiver diferente de 5258:
-
-FALHA = WRONG_UNIT
-
-Se serviceId estiver ausente/incorreto:
-
-FALHA = SERVICE_NOT_RESOLVED
-
-Se a BEMP retornar zero horários, a Julia NÃO pode inventar horário.
-
-================================================
-FASE 4 — TESTE PELO FLUXO REAL
-================================================
-
-Depois da consulta técnica, prepare monitoramento para um teste
-manual pelo WhatsApp da BOULEVARD.
-
-NÃO envie mensagem automaticamente.
-
-Informe exatamente qual mensagem EU devo enviar pelo meu WhatsApp
-para +55 41 3073-1358.
-
-Durante o teste monitore:
-
-INBOUND_RECEIVED
-INSTANCE_RESOLVED
-UNIT_RESOLVED
-SERVICE_RESOLVED
-DATE_RESOLVED
-AVAILABILITY_TOOL_CALLED
-BEMP_REQUEST
-BEMP_RESPONSE
-SLOTS_RECEIVED
-AI_RESPONSE
-WHATSAPP_SENT
-
-Quero comparar:
-
-BEMP_RESPONSE
-versus
-mensagem efetivamente enviada pela Julia.
-
-================================================
-RESULTADO
-================================================
-
-BOULEVARD unitId =
-
+SERVICE RESOLUTION
+unitId usado =
 serviceId =
 
-AVAILABILITY_TOOL_CALLED = SIM/NÃO
+ANTES DE list_slots
+unitId esperado = 1377
+unitId efetivamente enviado =
 
-BEMP CONSULTADA = SIM/NÃO
+REQUEST PARA BEMP
+endpoint =
+unitId/identificador da unidade enviado =
+serviceId =
+data =
+demais identificadores relevantes =
 
-SLOTS REAIS RETORNADOS =
+RESPOSTA BEMP
+unidade da resposta =
+slots retornados =
 
-HORÁRIOS INFORMADOS PELA JULIA =
+RESPOSTA DA JULIA
+horários offeredcidos =
 
-TODOS OS HORÁRIOS DA JULIA EXISTEM NA RESPOSTA BEMP = SIM/NÃO
+==================================================
+3. COMPARE VENTURA CONTRA CENTRO
+==================================================
 
-TESTE TÉCNICO = PASSOU/FALHOU
+Para a MESMA data e serviço do atendimento encontrado,
+consulte separadamente, sem enviar mensagens:
 
-TESTE WHATSAPP REAL = AGUARDANDO TESTE MANUAL
+VENTURA = unitId 1377
+CENTRO = unitId 1378
 
-Não faça correções caso encontre falha.
+Mostre:
 
-Mostre o ponto exato da falha e PARE.
+VENTURA
+slots =
 
-AGUARDE MINHA AUTORIZAÇÃO.`;
+CENTRO
+slots =
+
+HORÁRIOS QUE A JULIA OFERECEU AO CLIENTE =
+
+Depois determine:
+
+os horários oferecidos correspondem ao VENTURA = SIM/NÃO
+
+os horários oferecidos correspondem ao CENTRO = SIM/NÃO
+
+==================================================
+4. PROCURE VAZAMENTO DE CONTEXTO
+==================================================
+
+Audite especificamente se existe:
+
+- unitId default/fallback para Centro
+- unitId hardcoded 1378
+- cache de disponibilidade sem unitId na chave
+- bookingContext compartilhado entre conversas
+- contexto recuperado pelo telefone errado
+- serviceId resolvido em uma unidade e usado em outra
+- list_slots ignorando bookingContext.unitId
+- função convertendo instanceId para unidade novamente
+- fallback selecionando primeira unidade
+- estado/memória de conversa anterior contaminando a atual
+- resposta de disponibilidade reutilizada entre unidades
+- variável global contendo unidade
+- consulta BEMP sem filtro efetivo da unidade
+
+Pesquise o fluxo REAL, não apenas testes automatizados.
+
+==================================================
+5. REGRA DE SEGURANÇA
+
+NÃO implemente correção.
+NÃO mude prompt.
+NÃO mude Gemini.
+NÃO mude preços.
+NÃO altere wa_agentes.
+NÃO altere bookingContext.
+NÃO altere list_slots ainda.
+NÃO envie mensagens para clientes.
+
+==================================================
+RESULTADO OBRIGATÓRIO
+==================================================
+
+CASO REAL VENTURA ENCONTRADO = SIM/NÃO
+
+INSTANCE INBOUND =
+UNITID INBOUND =
+BOOKINGCONTEXT UNITID =
+UNITID ENVIADO AO LIST_SLOTS =
+UNITID/UNIDADE ENVIADO À BEMP =
+
+SLOTS VENTURA =
+
+SLOTS CENTRO =
+
+HORÁRIOS OFERECIDOS PELA JULIA =
+
+HORÁRIOS ERAM DO CENTRO = SIM/NÃO
+
+PONTO EXATO ONDE 1377 VIROU 1378 =
+arquivo:
+função:
+linha:
+causa:
+
+OU, se o unitId não mudou:
+
+PONTO EXATO ONDE A CONSULTA IGNOROU A UNIDADE =
+arquivo:
+função:
+linha:
+causa:
+
+CLASSIFICAÇÃO DA CAUSA =
+[ROTEAMENTO]
+[BOOKING_CONTEXT]
+[LIST_SLOTS]
+[BEMP_REQUEST]
+[CACHE]
+[MEMÓRIA]
+[SERVICE_RESOLUTION]
+[OUTRO]
+
+CORREÇÃO RECOMENDADA =
+descreva, mas NÃO execute.
+
+PARE E AGUARDE MINHA AUTORIZAÇÃO.`;
+
 
 export const Route = createFileRoute('/')({
   component: Dashboard,
