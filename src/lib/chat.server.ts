@@ -361,7 +361,7 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
     const normalizedSearch = normalizeServiceSearchText(bookingContext.serviceText);
 
     const matches = services.filter(s => {
-      const name = (s.name || s.nome || "").toLowerCase();
+      const name = normalizeServiceSearchText(s.name || s.nome || "");
       return name.includes(normalizedSearch) || normalizedSearch.includes(name);
     });
 
