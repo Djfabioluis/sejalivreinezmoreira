@@ -1,96 +1,185 @@
 import { createFileRoute } from '@tanstack/react-router'
-  const instructions = `Execute esta instrucao no projeto: AUTORIZO A CORREÇÃO EXCLUSIVAMENTE DO MAPEAMENTO DE UNIDADES.
+  const instructions = `Execute esta instrucao no projeto: NÃO FAÇA ALTERAÇÃO DE CÓDIGO.
 
-A auditoria confirmou:
+O mapeamento das 3 unidades foi corrigido e validado.
 
-CENTRO
-telefone = +55 41 99843-0354
-instanceId = agente-5541998430354
-unitId correto = 1378
+Agora quero TESTE FUNCIONAL REAL DE DISPONIBILIDADE,
+começando SOMENTE pela unidade BOULEVARD.
 
-VENTURA
-telefone = +55 41 99880-3684
-instanceId = agente-5541998803684
-unitId correto = 1377
-
+UNIDADE:
 BOULEVARD
 telefone = +55 41 3073-1358
 instanceId = agente-554130731358
-unitId correto = 5258
+unitId = 5258
 
-O erro identificado está em:
-public.wa_agentes.unidade_id
+OBJETIVO:
 
-CORRIJA SOMENTE os vínculos de unidade_id da tabela wa_agentes
-para que cada instanceId fique associado ao unitId correto acima.
+Comprovar que, quando um cliente solicita agendamento pelo
+WhatsApp da Boulevard, a Julia:
+
+1. identifica a unidade correta;
+2. identifica/resgata o serviço correto;
+3. mantém o serviceId no bookingContext;
+4. interpreta a data solicitada;
+5. CHAMA REALMENTE a ferramenta de disponibilidade/list_slots;
+6. consulta a agenda REAL da BEMP da unidade 5258;
+7. recebe os horários disponíveis;
+8. responde SOMENTE com horários retornados pela ferramenta.
 
 NÃO ALTERE:
+- código
 - prompt
 - Gemini
 - Evolution
 - webhook
 - preços
-- SERVICE_PRICE_RESOLVED
-- resolução de serviços
+- wa_agentes
+- bookingContext
+- regras de ambiguidade
 - memória
-- histórico
 - follow-up
-- regras de agendamento
-- list_slots
 - interface
 
-IMPORTANTE:
-Não confie apenas nos valores atuais de wa_agentes para fazer a correção.
-Valide cada unitId contra a unidade real da BEMP antes do UPDATE.
+Não simule horários.
+Não invente slots.
+Não considere teste unitário como aprovação.
 
-Após corrigir, NÃO faça outras alterações.
+================================================
+FASE 1 — PRÉ-VALIDAÇÃO
+================================================
 
-FAÇA UMA AUDITORIA PÓS-CORREÇÃO e mostre:
+Antes do teste, mostre:
 
-1. SELECT/resultado de wa_agentes após a correção:
-telefone | instanceId | unidade_id
+unitId resolvido =
+instanceId =
+serviceId =
+nome do serviço =
+data interpretada =
+timezone =
+profissional (se aplicável) =
 
-2. Para cada instanceId, demonstre qual unidade BEMP foi resolvida:
-CENTRO -> 1378
-VENTURA -> 1377
-BOULEVARD -> 5258
+Se serviceId não estiver resolvido, PARE.
+Não consulte disponibilidade sem serviço válido.
 
-3. Execute um teste de resolução de contexto para cada telefone, SEM enviar
-mensagem ao cliente:
+================================================
+FASE 2 — CONSULTA REAL DA AGENDA
+================================================
 
-+55 41 99843-0354
-deve resolver -> CENTRO / 1378
+Execute a mesma função/ferramenta utilizada em PRODUÇÃO pela Julia
+para consultar disponibilidade.
 
-+55 41 99880-3684
-deve resolver -> VENTURA / 1377
+Quero evidência:
 
-+55 41 3073-1358
-deve resolver -> BOULEVARD / 5258
+TOOL_CALLED =
+nome da ferramenta =
+unitId enviado =
+serviceId enviado =
+data enviada =
+timezone enviada =
+payload enviado à BEMP =
 
-4. Confirme se o bookingContext recebe o unitId correto nas três instâncias.
+Depois mostre a resposta BRUTA da BEMP:
 
-5. NÃO teste horários ainda.
-6. NÃO envie mensagens reais.
-7. NÃO faça nenhuma correção adicional.
+HTTP/status =
+quantidade de slots =
+slots retornados =
 
-RESULTADO FINAL OBRIGATÓRIO:
+Não transforme nem invente horários nesta etapa.
 
-CENTRO = telefone / instanceId / unitId / PASSOU ou FALHOU
-VENTURA = telefone / instanceId / unitId / PASSOU ou FALHOU
-BOULEVARD = telefone / instanceId / unitId / PASSOU ou FALHOU
+================================================
+FASE 3 — RESPOSTA DA JULIA
+================================================
 
-bookingContext Centro = unitId
-bookingContext Ventura = unitId
-bookingContext Boulevard = unitId
+Com os slots REAIS retornados pela BEMP, execute o processamento
+normal da Julia.
 
-MAPEAMENTO CORRIGIDO = SIM/NÃO
-3 INSTÂNCIAS VALIDADAS = SIM/NÃO
+Mostre:
 
-Se qualquer uma falhar, mostre a evidência e PARE.
+horários recebidos da BEMP =
+horários apresentados pela Julia =
 
-NÃO corrija outro problema.
+Validação obrigatória:
 
-PARE E AGUARDE MINHA AUTORIZAÇÃO.`;
+Cada horário informado pela Julia deve existir exatamente
+nos slots retornados pela BEMP.
+
+Se Julia apresentar horário que não veio da BEMP:
+
+FALHA = HALLUCINATED_AVAILABILITY
+
+Se a ferramenta não for chamada:
+
+FALHA = AVAILABILITY_TOOL_NOT_CALLED
+
+Se unitId estiver diferente de 5258:
+
+FALHA = WRONG_UNIT
+
+Se serviceId estiver ausente/incorreto:
+
+FALHA = SERVICE_NOT_RESOLVED
+
+Se a BEMP retornar zero horários, a Julia NÃO pode inventar horário.
+
+================================================
+FASE 4 — TESTE PELO FLUXO REAL
+================================================
+
+Depois da consulta técnica, prepare monitoramento para um teste
+manual pelo WhatsApp da BOULEVARD.
+
+NÃO envie mensagem automaticamente.
+
+Informe exatamente qual mensagem EU devo enviar pelo meu WhatsApp
+para +55 41 3073-1358.
+
+Durante o teste monitore:
+
+INBOUND_RECEIVED
+INSTANCE_RESOLVED
+UNIT_RESOLVED
+SERVICE_RESOLVED
+DATE_RESOLVED
+AVAILABILITY_TOOL_CALLED
+BEMP_REQUEST
+BEMP_RESPONSE
+SLOTS_RECEIVED
+AI_RESPONSE
+WHATSAPP_SENT
+
+Quero comparar:
+
+BEMP_RESPONSE
+versus
+mensagem efetivamente enviada pela Julia.
+
+================================================
+RESULTADO
+================================================
+
+BOULEVARD unitId =
+
+serviceId =
+
+AVAILABILITY_TOOL_CALLED = SIM/NÃO
+
+BEMP CONSULTADA = SIM/NÃO
+
+SLOTS REAIS RETORNADOS =
+
+HORÁRIOS INFORMADOS PELA JULIA =
+
+TODOS OS HORÁRIOS DA JULIA EXISTEM NA RESPOSTA BEMP = SIM/NÃO
+
+TESTE TÉCNICO = PASSOU/FALHOU
+
+TESTE WHATSAPP REAL = AGUARDANDO TESTE MANUAL
+
+Não faça correções caso encontre falha.
+
+Mostre o ponto exato da falha e PARE.
+
+AGUARDE MINHA AUTORIZAÇÃO.`;
 
 export const Route = createFileRoute('/')({
   component: Dashboard,
