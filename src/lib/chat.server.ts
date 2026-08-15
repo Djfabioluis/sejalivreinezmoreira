@@ -337,7 +337,8 @@ function buildTools(
           if (traceId) {
             const lastUserMessage = messages.filter((m: any) => m.role === 'user').pop();
             const rawContent = lastUserMessage?.content;
-            const textToSearch = (typeof rawContent === 'string' ? rawContent : "") || "";
+            const textToSearch = (typeof rawContent === 'string' ? rawContent : 
+              (Array.isArray(rawContent) ? rawContent.find((p: any) => p.type === 'text')?.text || "" : "")) || "";
             
             // Re-extrair slots com o contexto atual para capturar seleções de ambiguidade
             const { extractBookingSlots } = await import("@/lib/booking/context");
@@ -378,7 +379,7 @@ function buildTools(
             const searchTerms = String(searchPattern).toLowerCase().split(/\s+/).filter(t => t.length > 2);
             
             // Se for um serviço inexistente (muito improvável dar match com algo útil), ignorar
-            if (searchTerms.length === 0 || (typeof searchPattern === 'string' && searchPattern.includes("XYZ INEXISTENTE"))) {
+            if (searchTerms.length === 0 || (typeof searchPattern === 'string' && searchPattern.toLowerCase().includes("xyz inexistente"))) {
                console.log(`[SERVICE_NOT_FOUND] traceId=${traceId}, query=${searchPattern}`);
                return services;
             }
