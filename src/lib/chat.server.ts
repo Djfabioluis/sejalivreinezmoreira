@@ -446,8 +446,16 @@ function buildTools(
       }),
       execute: async (input) =>
         safeToolLocal("list_slots", async () => {
+          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: input.salon_id || fallbackAgentUnitId });
+          if (!effectiveUnitId) throw new Error("Unidade não resolvida.");
+
+          // CATALOG_ONLY: Assert unit isolation
+          if (String(input.salon_id) !== String(effectiveUnitId)) {
+            console.warn(`[UNIT_ISOLATION_ASSERT] BLOQUEADO: Tentativa de cruzar dados entre unidades em list_slots. Input=${input.salon_id} Effective=${effectiveUnitId}`);
+          }
+
           const slots = await BempService.listAvailableSlots({
-            salonId: input.salon_id,
+            salonId: effectiveUnitId,
             serviceId: input.service_id,
             date: input.date,
             professionalId: input.professional_id
