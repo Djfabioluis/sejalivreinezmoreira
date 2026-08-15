@@ -194,6 +194,20 @@ export function extractBookingSlots(
       out.candidates = undefined; 
       // Manter a data anterior se disponível
       if (previous.date) out.date = previous.date;
+      
+      logEvent({
+        instance: 'unknown',
+        event: 'CLARIFICATION_SELECTION_RESOLVED',
+        status: 'success',
+        payload: { 
+          method: 'index',
+          index: index + 1,
+          serviceId: out.serviceId,
+          serviceName: out.serviceName,
+          datePreserved: out.date
+        }
+      }).catch(() => {});
+      
       return out;
     }
 
