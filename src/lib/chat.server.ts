@@ -24,6 +24,7 @@ import {
 } from "@/lib/bemp-service.server";
 import { priceAuditor } from "./booking/price-auditor.server";
 import { PerformanceTrace } from "./evolution/performance.server";
+import { sanitizeCatalogOnlyResponse } from "./booking/catalog-auditor.server";
 
 const PROFESSIONAL_PREFERENCE_NOTE = "com preferência";
 
@@ -83,6 +84,8 @@ export const DEFAULT_SYSTEM_PROMPT = `${MANDATORY_SYSTEM_RULES}
 ${DEFAULT_KNOWLEDGE_PROMPT}
 
 - NORMALIZAÇÃO SEMÂNTICA "MÃO": Se o cliente usar termos como "mão", "fazer a mão" ou "unhas da mão", considere SEMPRE como intenção direta de MANICURE. Você está PROIBIDA de perguntar se o cliente quis dizer manicure ou pedir confirmação semântica para este termo.
+- REGRA ABSOLUTA — CATÁLOGO BEMP É A FONTE DA VERDADE: Você está PROIBIDA de inventar, completar, renomear ou sugerir nomes de serviços que não estejam EXATAMENTE como retornados pela ferramenta 'list_services'. 
+- CATALOG_ONLY MODE ATIVO: Toda opção de serviço que você apresentar DEVE ter um serviceId correspondente no catálogo real retornado. Se o catálogo retornar "Manicure", você não pode dizer "Manicure Simples" ou "Francesinha" se esses itens não estiverem na lista.
 - SE O SERVICE ID E UNIT ID ESTIVEREM PRESENTES NO CONTEXTO E O CLIENTE INFORMAR UMA DATA, VOCÊ DEVE OBRIGATORIAMENTE CHAMAR 'list_slots'.`;
 
 const SANDBOX_NOTE = `
@@ -334,8 +337,11 @@ function buildTools(
           const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: salon_id || fallbackAgentUnitId });
           if (!effectiveUnitId) throw new Error("Unidade não resolvida.");
           
-          // REQUISITO: Normalização de consulta. 
-          // Se a intenção for 'manicure', usamos 'manicure' como query, nunca 'mão'.
+          // CATALOG_ONLY: Assert unit isolation
+          if (bookingContext?.unitId && String(bookingContext.unitId) !== String(effectiveUnitId)) {
+            console.warn(`[UNIT_ISOLATION_ASSERT] BLOQUEADO: Tentativa de cruzar dados entre unidades. Context=${bookingContext.unitId} Inbound=${effectiveUnitId}`);
+          }
+
           const lastUserMessage = messages.filter((m: any) => m.role === 'user').pop();
           const textToSearch = typeof lastUserMessage?.content === 'string' 
             ? lastUserMessage.content 
@@ -344,24 +350,16 @@ function buildTools(
           const { extractBookingSlots } = await import("@/lib/booking/context");
           const extracted = extractBookingSlots(textToSearch, new Date(), bookingContext);
           
-          // A query de busca deve ser a intenção normalizada (e.g., 'manicure') ou o texto original se não houver padrão.
           const searchQuery = extracted.serviceText || textToSearch;
-          
           const services = await BempService.listServices(effectiveUnitId);
           
-          // Auditoria e Resolução de Preço/Serviço para o trace atual
           if (traceId) {
-            // REQUISITO: Se já temos um serviceId no contexto persistido e o cliente não mudou de ideia
-            // (não detectamos um NOVO serviço na mensagem atual), preservamos o que temos.
             const finalServiceId = extracted.serviceId || (!extracted.serviceText ? (bookingContext?.serviceId || null) : null);
             const finalServiceName = extracted.serviceName || (!extracted.serviceText ? (bookingContext?.serviceName || null) : null);
             
-            // Log de diagnóstico para o monitor
             console.log(`[SERVICE_RESOLVER] trace=${traceId} query=${searchQuery} finalServiceId=${finalServiceId} finalServiceName=${finalServiceName}`);
 
-            // Se o extrator resolveu a ambiguidade AGORA ou se já tínhamos resolvido anteriormente
             if (finalServiceId) {
-              const services = await BempService.listServices(effectiveUnitId);
               const selected = services.find((s: any) => String(s.id) === String(finalServiceId));
               if (selected) {
                 priceAuditor.set(traceId, {
@@ -379,7 +377,6 @@ function buildTools(
                     'bookingContext.serviceName': selected.name
                   });
                 }
-                console.log(`[SERVICE_CLARIFICATION_RESOLVED] traceId=${traceId}, service=${selected.name}`);
                 return services;
               }
             }
@@ -387,9 +384,7 @@ function buildTools(
             const searchPattern = extracted.serviceText || (typeof textToSearch === 'string' ? textToSearch : "");
             const searchTerms = String(searchPattern).toLowerCase().split(/\s+/).filter(t => t.length > 2);
             
-            // Se for um serviço inexistente (muito improvável dar match com algo útil), ignorar
             if (searchTerms.length === 0 || (typeof searchPattern === 'string' && searchPattern.toLowerCase().includes("xyz inexistente"))) {
-               console.log(`[SERVICE_NOT_FOUND] traceId=${traceId}, query=${searchPattern}`);
                return services;
             }
 
@@ -398,7 +393,6 @@ function buildTools(
             );
 
             if (candidates.length > 1) {
-              // AMBIGUIDADE DETECTADA: Mais de um serviço plausível
               if (conversationKey) {
                 const candidateList = candidates.slice(0, 5).map((c: any) => ({
                   id: String(c.id),
@@ -412,8 +406,6 @@ function buildTools(
                   'bookingContext.serviceId': null,
                   'bookingContext.serviceName': null
                 });
-                
-                console.log(`[SERVICE_CLARIFICATION_REQUIRED] traceId=${traceId}, found=${candidates.length} candidates`);
               }
             } else if (candidates.length === 1) {
               const best = candidates[0];
@@ -433,7 +425,6 @@ function buildTools(
                   'bookingContext.serviceName': best.name
                 });
               }
-              console.log(`[SERVICE_PRICE_RESOLVED] traceId=${traceId}, service=${best.name}, price=${best.price}`);
             }
           }
           
@@ -456,8 +447,16 @@ function buildTools(
       }),
       execute: async (input) =>
         safeToolLocal("list_slots", async () => {
+          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: String(input.salon_id || fallbackAgentUnitId || "") });
+          if (!effectiveUnitId) throw new Error("Unidade não resolvida.");
+
+          // CATALOG_ONLY: Assert unit isolation
+          if (String(input.salon_id) !== String(effectiveUnitId)) {
+            console.warn(`[UNIT_ISOLATION_ASSERT] BLOQUEADO: Tentativa de cruzar dados entre unidades em list_slots. Input=${input.salon_id} Effective=${effectiveUnitId}`);
+          }
+
           const slots = await BempService.listAvailableSlots({
-            salonId: input.salon_id,
+            salonId: effectiveUnitId,
             serviceId: input.service_id,
             date: input.date,
             professionalId: input.professional_id
@@ -582,10 +581,33 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
     }
   } as any);
 
+  // CATALOG_ONLY: Sanitização final contra alucinações
+  let finalText = response.text;
+  let hallucinated = false;
+  
+  if (effectiveUnitId) {
+    const services = await BempService.listServices(effectiveUnitId);
+    const sanitized = sanitizeCatalogOnlyResponse(response.text, services, bookingContext);
+    finalText = sanitized.text;
+    hallucinated = sanitized.hallucinated;
+    
+    if (hallucinated && traceId) {
+      console.warn(`[CATALOG_ONLY] Alucinação detectada e removida no trace=${traceId}`);
+      await logEvent({
+        instance: opts.instance || "unknown",
+        messageId: opts.messageId || "unknown",
+        event: "HALLUCINATED_SERVICE_DETECTED",
+        status: "warning",
+        payload: { traceId, original: response.text, sanitized: finalText }
+      }).catch(() => {});
+    }
+  }
+
   return {
-    text: response.text,
+    text: finalText,
     toolResults: response.toolResults,
     usage: response.usage,
-    durationMs: Date.now() - aiStartedAt
+    durationMs: Date.now() - aiStartedAt,
+    hallucinated
   };
 }

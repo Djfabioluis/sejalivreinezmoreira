@@ -329,19 +329,20 @@ Aguarde minha autorização para TESTE REAL PELO WHATSAPP.`}
           </CardContent>
         </Card>
 
-        <Card className="border-slate-200">
+        <Card className="border-green-200 bg-green-50">
           <CardHeader>
-            <CardTitle className="text-slate-800 flex items-center gap-2 text-sm uppercase">
+            <CardTitle className="text-green-800 flex items-center gap-2 text-sm uppercase">
               <FileText className="w-4 h-4" />
-              MUDANÇAS APLICADAS
+              CATALOG_ONLY MODE — APLICADO
             </CardTitle>
           </CardHeader>
           <CardContent className="text-xs font-mono space-y-2">
-            <p className="text-slate-900 font-bold">src/lib/booking/context.ts</p>
-            <p className="text-slate-600">- Expandido patterns de "mão" (plural e variações)</p>
+            <p className="text-slate-900 font-bold">src/lib/booking/catalog-auditor.server.ts</p>
+            <p className="text-slate-600">- Criado Sanitizer determinístico contra alucinações de serviços.</p>
             <p className="text-slate-900 font-bold mt-2">src/lib/chat.server.ts</p>
-            <p className="text-slate-600">- Injetada REGRA ABSOLUTA no System Prompt contra perguntas de confirmação semântica para "mão".</p>
-            <p className="text-slate-600">- Normalização forçada da query de busca em list_services (substituição de "mão" por "manicure").</p>
+            <p className="text-slate-600">- Injetado CATALOG_ONLY MODE no pipeline de resposta.</p>
+            <p className="text-slate-600">- Implementado Assert de isolamento de unidade em list_services e list_slots.</p>
+            <p className="text-slate-600">- Garantida a preservação de dateIntent durante a seleção de serviços.</p>
           </CardContent>
         </Card>
       </div>
