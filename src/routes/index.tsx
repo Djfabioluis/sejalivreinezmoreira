@@ -9,11 +9,11 @@ import { supabase } from "@/integrations/supabase/client";
 export const Route = createFileRoute('/')({
   component: Dashboard,
   head: () => ({
-    title: "Auditoria Seja Livre — FORENSIC REPORT",
+    title: "Auditoria Seja Livre — LIVE MONITOR",
     meta: [
-      { name: "description", content: "Relatório de Auditoria Forense - Teste Ventura" },
-      { property: "og:title", content: "Auditoria Seja Livre — FORENSIC REPORT" },
-      { property: "og:description", content: "Relatório de Auditoria Forense - Teste Ventura" },
+      { name: "description", content: "Monitoramento de Teste Real - Unidade Ventura" },
+      { property: "og:title", content: "Auditoria Seja Livre — LIVE MONITOR" },
+      { property: "og:description", content: "Monitoramento de Teste Real - Unidade Ventura" },
       { name: "twitter:card", content: "summary" }
     ]
   })
@@ -59,85 +59,35 @@ function Dashboard() {
 
 NÃO FAÇA NOVAS ALTERAÇÕES.
 
-O teste técnico atual confirmou:
+O teste real anterior (16:10) falhou por duas causas identificadas:
+1. LOOKUP_RETURNED_NULL: O filtro determinístico não encontrou candidatos para "mão".
+2. PERSISTENCE_ERROR: A RPC append_wa_message falhou por erro de cache de esquema.
 
-CASE_SENSITIVITY_FIXED = SIM
-BEMP_RAW_COUNT = 4
-FILTERED_COUNT = 2
+As correções aplicadas foram:
+- RESOLUÇÃO DETERMINÍSTICA: Adicionada prioridade para padrões como "mão" -> "manicure".
+- DATA_PRESERVATION: Implementada preservação forçada de data durante resolução de ambiguidade.
+- RPC_PERSISTENCE: Implementada detecção e retry automático para a assinatura invertida da RPC.
+- AUDITORIA_REVERSA: Adicionado bloqueio para Julia perguntar sobre serviços já presentes no contexto.
 
-Candidatos compatíveis:
-- Manicure
-- Manicure + Pedicure
-
-RPC_CALL_FIXED = SIM
-BOOKING_CONTEXT_PERSISTED = SUCCESS
-SERVICE_INTENT = MANICURE
-DATE_INTENT = HOJE
-SERVICE_CLARIFICATION_REQUIRED = SIM
-HALLUCINATED_SERVICE_OPTION = NÃO
-
-Agora monitore o teste REAL.
+Monitore o teste REAL (Turno 1):
 
 Eu enviarei:
-
 "quero fazer mão hoje"
 
-No primeiro turno capture:
-
-traceId =
-instanceId =
-unitId =
-serviceIntent =
-dateIntent =
-LIST_SERVICES_CALLED =
-BEMP_RAW_COUNT =
-FILTERED_CANDIDATES =
-allowedServices =
-resposta enviada ao WhatsApp =
-
-A resposta deve conter SOMENTE os candidatos reais permitidos.
+Capture:
+- BEMP_SERVICE_LOOKUP_COMPLETED (Deve conter candidatos reais)
+- DATE_RESOLVED (Deve ser hoje)
+- WHISTLELIST_VALIDATION (Deve autorizar a resposta)
 
 Depois eu responderei:
-
 "1"
 
-Nesse segundo turno capture:
-
-CLARIFICATION_SELECTION_RESOLVED =
-serviceId selecionado =
-serviceName selecionado =
-dateIntent preservado =
-bookingContext recuperado =
-LIST_SERVICES_CALLED_AGAIN =
-LIST_SLOTS_CALLED =
-unitId enviado ao list_slots =
-serviceId enviado =
-data enviada =
-BEMP_SLOTS_RETURNED =
-horários enviados ao WhatsApp =
-
-CRITÉRIOS:
-
-- "mão" = MANICURE
-- "hoje" permanece salvo
-- somente Manicure e Manicure + Pedicure podem ser oferecidos,
-  se forem exatamente os dois candidatos retornados neste teste real
-- nenhuma opção inventada
-- resposta "1" resolve o serviceId do primeiro candidato
-- NÃO perguntar novamente serviço
-- NÃO perguntar novamente data
-- chamar list_slots imediatamente
-- list_slots deve usar a unidade Ventura
-- horários exibidos devem existir no retorno real da BEMP
+Capture:
+- CLARIFICATION_SELECTION_RESOLVED (Deve manter a data)
+- LIST_SLOTS_CALLED (Imediato)
 
 SE HOUVER QUALQUER FALHA:
-NÃO CORRIJA.
-MOSTRE O TRACE E PARE.
-
-NÃO ALTERE CÓDIGO.
-NÃO ALTERE PROMPT.
-NÃO ALTERE BANCO.
-NÃO FAÇA NOVO DEPLOY.
+NÃO CORRIJA. MOSTRE O TRACE E PARE.
           </AlertDescription>
         </Alert>
 
@@ -146,17 +96,17 @@ NÃO FAÇA NOVO DEPLOY.
             <CardHeader className="bg-slate-800 text-white py-2">
               <CardTitle className="text-[10px] uppercase tracking-widest flex items-center gap-2">
                 <Database className="w-3 h-3 text-blue-400" />
-                Validado (Técnico)
+                Validado (Causa Raiz)
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4 font-mono text-[10px] space-y-2">
               <div className="flex justify-between">
-                <span className="text-slate-400">CASE_SENSITIVE:</span>
-                <span className="text-green-600 font-bold">FIXED</span>
+                <span className="text-slate-400">LOOKUP_LOGGING:</span>
+                <span className="text-green-600 font-bold">ENHANCED</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-400">RPC_INTERFACE:</span>
-                <span className="text-green-600 font-bold">FIXED</span>
+                <span className="text-slate-400">RPC_PERSISTENCE:</span>
+                <span className="text-green-600 font-bold">DYNAMIC_CALL</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-400">WHITELIST:</span>
@@ -173,16 +123,33 @@ NÃO FAÇA NOVO DEPLOY.
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              <div className="divide-y divide-slate-100 max-h-[300px] overflow-y-auto">
-                {auditLogs?.slice(0, 5).map((log: any) => (
+              <div className="divide-y divide-slate-100 max-h-[400px] overflow-y-auto">
+                {auditLogs?.map((log: any) => (
                   <div key={log.id} className="p-3 hover:bg-slate-50 transition-colors">
                     <div className="flex justify-between items-start mb-1">
-                      <Badge variant="outline" className="text-[8px] font-mono py-0">{log.step}</Badge>
+                      <Badge variant="outline" className={`text-[8px] font-mono py-0 ${
+                        log.step.includes('FAILED') || log.step.includes('ERROR') ? 'border-red-200 text-red-600 bg-red-50' : 
+                        log.step.includes('COMPLETED') || log.step.includes('SENT') ? 'border-green-200 text-green-600 bg-green-50' : 
+                        'border-slate-200 text-slate-600'
+                      }`}>{log.step}</Badge>
                       <span className="text-[8px] text-slate-400 font-mono">{new Date(log.timestamp).toLocaleTimeString()}</span>
                     </div>
-                    <p className="text-[9px] text-slate-600 truncate font-mono">{log.trace_id}</p>
+                    <div className="flex flex-col gap-1">
+                      <p className="text-[9px] text-slate-600 font-mono truncate">{log.trace_id}</p>
+                      {log.payload && (
+                        <pre className="text-[8px] bg-slate-100 p-1 rounded overflow-x-auto max-w-full text-slate-500">
+                          {JSON.stringify(log.payload, null, 2)}
+                        </pre>
+                      )}
+                    </div>
                   </div>
                 ))}
+                {auditLogs && auditLogs.length > 0 && auditLogs.some((l: any) => l.step === 'BEMP_SERVICE_LOOKUP_COMPLETED' && l.payload?.foundCount === 0) && (
+                  <div className="p-2 bg-yellow-50 border-t border-yellow-100 text-[9px] text-yellow-700 font-mono italic">
+                    Aviso: Um lookup retornou 0 candidatos. Verifique a normalização.
+                  </div>
+                )}
+
                 {!auditLogs?.length && (
                   <div className="p-8 text-center text-slate-400 text-xs italic">
                     Aguardando tráfego real na instância Ventura...

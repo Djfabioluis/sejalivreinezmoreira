@@ -359,10 +359,28 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
   if (effectiveUnitId && bookingContext.serviceText && !bookingContext.serviceId && !bookingContext.clarificationRequired) {
     const services = await BempService.listServices(effectiveUnitId);
     const normalizedSearch = normalizeServiceSearchText(bookingContext.serviceText);
+    const logCtx = { traceId, unitId: effectiveUnitId, serviceText: bookingContext.serviceText, normalizedSearch };
 
     const matches = services.filter(s => {
       const name = normalizeServiceSearchText(s.name || s.nome || "");
-      return name.includes(normalizedSearch) || normalizedSearch.includes(name);
+      // Prioridade 1: Match exato após normalização
+      if (name === normalizedSearch) return true;
+      // Prioridade 2: Search contido no nome (ex: "manicure" em "Manicure + Pedicure")
+      if (name.includes(normalizedSearch)) return true;
+      // Prioridade 3: Nome contido no search (ex: "unha" em "quero fazer minha unha")
+      if (normalizedSearch.includes(name) && name.length > 3) return true;
+      return false;
+    });
+
+    await logEvent({
+      instance: conversationKey?.split(':')[0] || 'unknown',
+      event: 'BEMP_SERVICE_LOOKUP_COMPLETED',
+      status: 'success',
+      payload: { 
+        foundCount: matches.length,
+        candidates: matches.slice(0, 3).map(m => m.name || m.nome),
+        search: normalizedSearch
+      }
     });
 
     if (matches.length === 1) {

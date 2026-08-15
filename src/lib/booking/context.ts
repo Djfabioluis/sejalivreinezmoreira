@@ -1,3 +1,5 @@
+import { logEvent } from "../evolution/logger.server";
+
 /**
  * Contexto determinístico de agendamento (slot filling + merge persistente).
  *
@@ -94,7 +96,7 @@ function addDays(base: Date, days: number): Date {
 
 const SERVICE_PATTERNS: Array<{ re: RegExp; name: string }> = [
   // Patterns extraem a INTENÇÃO NORMALIZADA (MANICURE para termos como "mão")
-  { re: /\b(?:m[ãa]os?|manicure|unha\s+da\s+m[ãa]o|fazer\s+a(?:s)?\s+m[ãa]o(?:s)?|fazer\s+m[ãa]o(?:s)?)\b/i, name: "manicure" },
+  { re: /\b(?:m[ãa]os?|manicure|unha\s+da\s+m[ãa]o|fazer\s+a(?:s)?\s+m[ãa]o(?:s)?|fazer\s+m[ãa]o(?:s)?|servi[çc]o\s+de\s+m[ãa]o)\b/i, name: "manicure" },
   { re: /\b(?:p[ée]|pedicure|unha\s+do\s+p[ée]|fazer\s+o\s+p[ée])\b/i, name: "pedicure" },
   { re: /\bp[ée]\s+e\s+m[ãa]o\b/i, name: "pé e mão" },
   { re: /\bcabelo\b/i, name: "cabelo" },
@@ -124,13 +126,32 @@ export function extractBookingSlots(
 
   const t = text.trim();
 
+  // --- Serviço (Pattern) ---
+  const foundService = SERVICE_PATTERNS.find((p) => p.re.test(t));
+  if (foundService) {
+    out.serviceText = foundService.name;
+    // Log para auditoria determinística
+    logEvent({
+      instance: 'unknown',
+      event: 'SERVICE_PATTERN_MATCHED',
+      status: 'success',
+      payload: { 
+        input: t,
+        patternMatch: foundService.name
+      }
+    }).catch(() => {});
+  }
+
   // --- Data ---
   if (/\bhoje\b/i.test(t)) {
     out.date = isoDate(now);
+    logEvent({ instance: 'unknown', event: 'DATE_RESOLVED', status: 'success', payload: { input: 'hoje', resolved: out.date } }).catch(() => {});
   } else if (/depois\s+de\s+amanh[ãa]/i.test(t)) {
     out.date = isoDate(addDays(now, 2));
+    logEvent({ instance: 'unknown', event: 'DATE_RESOLVED', status: 'success', payload: { input: 'depois de amanhã', resolved: out.date } }).catch(() => {});
   } else if (/amanh[ãa]/i.test(t)) {
     out.date = isoDate(addDays(now, 1));
+    logEvent({ instance: 'unknown', event: 'DATE_RESOLVED', status: 'success', payload: { input: 'amanhã', resolved: out.date } }).catch(() => {});
   } else {
     // Tenta data no formato DD/MM
     const dm = t.match(/\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/);
@@ -155,7 +176,9 @@ export function extractBookingSlots(
   }
 
   // --- Serviço (Resolução de Ambiguidade Prioritária - Determinística) ---
-  if (previous?.clarificationRequired && previous.candidates?.length) {
+  if (previous?.clarificationRequired && previous.candidates?.length && !out.serviceText) {
+    console.log(`[DETERMINISTIC_RESOLUTION_ATTEMPT] Input: "${t}" | Candidates: ${previous.candidates.length}`);
+
     // 1. Tentar por índice ("o segundo", "opção 1", "1", "primeiro")
     // Padrões autorizados: "1", "primeiro", "o primeiro", "o 1"
     const ordinalMatch = t.match(/\b(?:a|o)?\s*(primeir[ao]|segund[ao]|terceir[ao]|quart[ao]|quint[ao])\b/i);
@@ -185,6 +208,20 @@ export function extractBookingSlots(
       out.candidates = undefined; 
       // Manter a data anterior se disponível
       if (previous.date) out.date = previous.date;
+      
+      logEvent({
+        instance: 'unknown',
+        event: 'CLARIFICATION_SELECTION_RESOLVED',
+        status: 'success',
+        payload: { 
+          method: 'index',
+          index: index + 1,
+          serviceId: out.serviceId,
+          serviceName: out.serviceName,
+          datePreserved: out.date
+        }
+      }).catch(() => {});
+      
       return out;
     }
 
@@ -201,16 +238,23 @@ export function extractBookingSlots(
       out.clarificationRequired = false;
       out.candidates = undefined;
       if (previous.date) out.date = previous.date;
+      
+      logEvent({
+        instance: 'unknown',
+        event: 'CLARIFICATION_SELECTION_RESOLVED',
+        status: 'success',
+        payload: { 
+          method: 'name',
+          serviceId: out.serviceId,
+          serviceName: out.serviceName,
+          datePreserved: out.date
+        }
+      }).catch(() => {});
+      
       return out;
     }
   }
 
-  // --- Serviço (Busca Padrão) ---
-  const svc = SERVICE_PATTERNS.find((s) => s.re.test(t));
-  if (svc && !out.serviceId) {
-    out.serviceText = svc.name;
-    // Se houver serviceText, o chat.server list_services fará o match com ID real
-  }
 
   // --- Período ---
   if (/manh[ãa]/i.test(t)) out.period = "manhã";
@@ -371,7 +415,7 @@ export function enforceNoSubscriptionFlow(
 export function fallbackQuestionFor(ctx: BookingContext): string {
   switch (nextRequiredSlot(ctx)) {
     case "service":
-      return "Qual serviço você gostaria de fazer? 💜";
+      return "Perfeito! Para que eu possa listar os horários, você poderia me confirmar o serviço desejado? (Ex: Manicure, Pedicure, Escova, etc) 💜";
     case "date":
       return "Qual dia você prefere? 💜";
     case "availability":
@@ -403,8 +447,8 @@ export function ensureNoDuplicateBookingQuestion(text: string, ctx: BookingConte
   const t = text.toLowerCase();
   
   const hasService = ctx.serviceId || ctx.serviceName || ctx.serviceText;
-  if (hasService) {
-    if (t.includes("qual serviço") || t.includes("que serviço") || t.includes("qual o procedimento") || t.includes("procedimento deseja") || t.includes("gostaria de fazer o que")) {
+  if (hasService && !ctx.clarificationRequired) {
+    if (t.includes("qual serviço") || t.includes("que serviço") || t.includes("qual o procedimento") || t.includes("procedimento deseja") || t.includes("gostaria de fazer o que") || t.includes("confirma qual seria o serviço")) {
       return { text: fallbackQuestionFor(ctx), blocked: true };
     }
   }
