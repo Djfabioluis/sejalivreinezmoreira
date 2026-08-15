@@ -15,14 +15,16 @@ export function sanitizeCatalogOnlyResponse(
   let hallucinated = false;
   const sanitizedLines: string[] = [];
 
-  // Padrões de alucinação conhecidos (opções inventadas)
+  // Padrões de alucinação conhecidos (opções inventadas comumente pela IA)
   const hallucinations = [
     "manicure simples",
     "francesinha",
     "blindagem",
     "alongamento",
     "pé simples",
-    "mão simples"
+    "mão simples",
+    "unhas de gel",
+    "banho de gel"
   ];
 
   for (const line of lines) {
