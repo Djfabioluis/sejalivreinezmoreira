@@ -347,7 +347,7 @@ function buildTools(
           // A query de busca deve ser a intenção normalizada (e.g., 'manicure') ou o texto original se não houver padrão.
           const searchQuery = extracted.serviceText || textToSearch;
           
-          const services = await BempService.listServices(effectiveUnitId, searchQuery);
+          const services = await BempService.listServices(effectiveUnitId);
           
           // Auditoria e Resolução de Preço/Serviço para o trace atual
           if (traceId) {
