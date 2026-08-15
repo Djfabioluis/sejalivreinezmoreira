@@ -401,7 +401,7 @@ export function enforceNoSubscriptionFlow(
 export function fallbackQuestionFor(ctx: BookingContext): string {
   switch (nextRequiredSlot(ctx)) {
     case "service":
-      return "Qual serviço você gostaria de fazer? 💜";
+      return "Perfeito! Para que eu possa listar os horários, você poderia me confirmar o serviço desejado? (Ex: Manicure, Pedicure, Escova, etc) 💜";
     case "date":
       return "Qual dia você prefere? 💜";
     case "availability":
