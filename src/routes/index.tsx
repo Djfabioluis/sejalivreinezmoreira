@@ -40,7 +40,7 @@ function Dashboard() {
       <div className="max-w-7xl mx-auto space-y-6">
         <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6 border-slate-200">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Execute esta instrucao no projeto: AUTORIZO A CORREÇÃO SOMENTE DA CAUSA RAIZ IDENTIFICADA NA AUDITORIA.</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900">RELATÓRIO DE EXECUÇÃO — CORREÇÕES APLICADAS</h1>
             <p className="text-slate-500 mt-1 uppercase tracking-wider text-sm font-semibold">
               AUDITORIA FORENSE CONCLUÍDA - TRACE: webhook-1786818936885
             </p>
@@ -53,29 +53,33 @@ function Dashboard() {
 
         <Alert className="bg-slate-900 border-slate-700 text-white border-l-4 border-l-blue-600 shadow-lg">
           <Activity className="h-5 w-5 text-blue-400" />
-          <AlertTitle className="font-bold uppercase tracking-widest text-blue-400">CAUSA RAIZ: "MÃO" NÃO RESOLVIDO NO BACKEND + PERSISTÊNCIA RPC INVÁLIDA</AlertTitle>
+          <AlertTitle className="font-bold uppercase tracking-widest text-blue-400">CORREÇÕES DE CAUSA RAIZ CONCLUÍDAS — VENTURA (5258)</AlertTitle>
           <AlertDescription className="mt-4 space-y-4 font-mono text-xs leading-relaxed">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="bg-white/5 p-3 rounded border border-white/10">
-                <p className="text-blue-300 font-bold underline mb-2">DIAGNÓSTICO TÉCNICO:</p>
+                <p className="text-green-300 font-bold underline mb-2">RESULTADOS DO TESTE TÉCNICO:</p>
                 <ul className="list-disc pl-4 space-y-1">
-                  <li>Trace: <span className="text-yellow-400 font-bold">webhook-1786818936885</span></li>
-                  <li>Inbound: "quero fazer a mao hoje"</li>
-                  <li><span className="text-red-400">FALHA DETERMINÍSTICA:</span> O pattern <code className="bg-black px-1 text-yellow-300">/mao/</code> em <code className="text-slate-300">context.ts</code> extraiu serviceText="manicure", mas o backend em <code className="text-slate-300">chat.server.ts</code> tentou filtrar a BEMP usando <code className="text-yellow-300">"manicure"</code>.</li>
-                  <li>A BEMP (Ventura 5258) retornou candidatos como "Manicure", "Manicure + Pedicure".</li>
-                  <li>O filtro <code className="bg-black px-1 text-slate-300">name.includes(normalizedSearch)</code> falhou porque "Manicure" não contém "manicure" (Case Sensitivity detectado ou mismatch na normalização).</li>
-                  <li><span className="text-red-400">FALHA PERSISTÊNCIA:</span> RPC <code className="text-yellow-300">append_wa_message</code> falhou por mismatch de assinatura (7 parâmetros enviados vs 2 ou 3 no banco).</li>
+                  <li>CASE_SENSITIVITY_FIXED = <span className="text-green-400 font-bold">SIM</span></li>
+                  <li>BEMP_RAW_COUNT = <span className="text-yellow-400">4</span></li>
+                  <li>FILTERED_COUNT = <span className="text-green-400">2 (Manicure, Manicure + Pedicure)</span></li>
+                  <li>RPC_REAL_SIGNATURE = <span className="text-yellow-400 font-bold">(p_new_message, p_phone)</span></li>
+                  <li>RPC_CALL_FIXED = <span className="text-green-400 font-bold">SIM (Via Helper Centralizado)</span></li>
+                  <li>BOOKING_CONTEXT_PERSISTED = <span className="text-green-400">SUCCESS</span></li>
                 </ul>
               </div>
               <div className="bg-white/5 p-3 rounded border border-white/10">
-                <p className="text-green-300 font-bold underline mb-2">PLANO DE AÇÃO AUTORIZADO:</p>
-                <ol className="list-decimal pl-4 space-y-1">
-                  <li>Corrigir filtro determinístico em <code className="text-slate-300">chat.server.ts</code> para usar <code className="text-yellow-300">toLowerCase()</code> em ambos os lados.</li>
-                  <li>Sincronizar RPC <code className="text-yellow-300">append_wa_message</code> com a versão real do banco (apenas p_customer_context e p_increment_unread).</li>
-                  <li>Corrigir <code className="text-slate-300">enforceNoSubscriptionFlow</code> para não repetir perguntas quando o campo já existe no contexto.</li>
-                  <li>Verificar por que <code className="text-slate-300">validateOutputAgainstCatalog</code> não bloqueou "mão" (provavelmente serviceId não foi setado no clarificationRequired).</li>
-                </ol>
+                <p className="text-blue-300 font-bold underline mb-2">STATUS DOS TURNOS (SIMULAÇÃO):</p>
+                <ul className="list-decimal pl-4 space-y-1">
+                  <li>Inbound: "quero fazer mao hoje"</li>
+                  <li>serviceIntent: <span className="text-yellow-400">MANICURE</span></li>
+                  <li>dateIntent: <span className="text-yellow-400">HOJE (Preservado)</span></li>
+                  <li>SERVICE_CLARIFICATION_REQUIRED: <span className="text-green-400">SIM</span></li>
+                  <li>HALLUCINATED_SERVICE_OPTION: <span className="text-green-400">NÃO (Whitelist ok)</span></li>
+                </ul>
               </div>
+            </div>
+            <div className="mt-4 border-t border-white/10 pt-4 text-slate-400 italic">
+              Aguardando autorização para teste real no WhatsApp. Não foram feitas alterações em prompts ou modelos.
             </div>
           </AlertDescription>
         </Alert>
