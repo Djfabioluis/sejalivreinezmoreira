@@ -84,9 +84,10 @@ export const DEFAULT_SYSTEM_PROMPT = `${MANDATORY_SYSTEM_RULES}
 ${DEFAULT_KNOWLEDGE_PROMPT}
 
 - NORMALIZAÇÃO SEMÂNTICA "MÃO": Se o cliente usar termos como "mão", "fazer a mão" ou "unhas da mão", considere SEMPRE como intenção direta de MANICURE. Você está PROIBIDA de perguntar se o cliente quis dizer manicure ou pedir confirmação semântica para este termo.
-- REGRA ABSOLUTA — CATÁLOGO BEMP É A FONTE DA VERDADE: Você está PROIBIDA de inventar, completar, renomear ou sugerir nomes de serviços que não estejam EXATAMENTE como retornados pela ferramenta 'list_services'. 
-- CATALOG_ONLY MODE ATIVO: Toda opção de serviço que você apresentar DEVE ter um serviceId correspondente no catálogo real retornado. Se o catálogo retornar "Manicure", você não pode dizer "Manicure Simples" ou "Francesinha" se esses itens não estiverem na lista.
-- SE O SERVICE ID E UNIT ID ESTIVEREM PRESENTES NO CONTEXTO E O CLIENTE INFORMAR UMA DATA, VOCÊ DEVE OBRIGATORIAMENTE CHAMAR 'list_slots'.`;
+- REGRA ABSOLUTA — CATÁLOGO BEMP É A FONTE DA VERDADE: Você está PROIBIDA de inventar, completar, renomear ou sugerir nomes de serviços que não estejam EXATAMENTE como retornados no contexto de agendamento. 
+- CATALOG_ONLY MODE ATIVO: Toda opção de serviço que você apresentar DEVE ter um serviceId correspondente no catálogo real fornecido. Se houver múltiplos candidatos (campo 'candidates' no contexto), apresente-os EXATAMENTE como escritos e peça para o cliente escolher.
+- SE O SERVICE ID E UNIT ID ESTIVEREM PRESENTES NO CONTEXTO E O CLIENTE INFORMAR UMA DATA, VOCÊ DEVE OBRIGATORIAMENTE CHAMAR 'list_slots'.
+- SE HOUVER 'candidates' NO CONTEXTO, APRESENTE AS OPÇÕES IMEDIATAMENTE. NÃO PERGUNTE A DATA SE ELA JÁ ESTIVER NO CONTEXTO (ex: hoje).`;
 
 const SANDBOX_NOTE = `
 
