@@ -2,10 +2,10 @@ import { supabaseAdmin } from "../../../integrations/supabase/client.server";
 import { runAgent } from "../../chat.server";
 import { extractBookingSlots, mergeBookingContext } from "../context";
 
-async function test_flow(label: string, scenario: { messages: any[], unitId: string, description: string }) {
+async function test_flow(label: string, scenario: { messages: any[], unitId: string, description: string, initialContext?: any }) {
   console.log(`\n=== TESTE ${label}: ${scenario.description} ===`);
   
-  let currentContext: any = { unitId: scenario.unitId };
+  let currentContext: any = { unitId: scenario.unitId, ...(scenario.initialContext || {}) };
   
   for (let i = 0; i < scenario.messages.length; i++) {
     const msg = scenario.messages[i];
@@ -37,9 +37,10 @@ async function test_flow(label: string, scenario: { messages: any[], unitId: str
     console.log("Julia:", result.text);
     
     const toolCalls = result.toolResults || [];
-    console.log("Ferramentas chamadas:", toolCalls.map(t => (t as any).toolName).join(", "));
+    const names = toolCalls.map(t => (t as any).toolName);
+    console.log("Ferramentas chamadas:", names.join(", "));
     
-    if (toolCalls.some(t => (t as any).toolName === 'list_slots')) {
+    if (names.includes('list_slots')) {
       console.log("✅ AVAILABILITY_TOOL_CALLED");
     }
   }
@@ -48,13 +49,15 @@ async function test_flow(label: string, scenario: { messages: any[], unitId: str
 async function run_tests() {
   const CENTRO_ID = "1378";
 
-  // TESTE A: serviço resolvido -> cliente informa "amanhã"
+  // TESTE A: serviceId já resolvido em turno anterior
   await test_flow("A", {
     unitId: CENTRO_ID,
-    description: "Serviço resolvido anteriormente, cliente envia data",
+    description: "serviceId resolvido, cliente envia data",
+    initialContext: {
+      serviceId: "56575", // Ex: Corte Feminino
+      serviceName: "Corte Feminino"
+    },
     messages: [
-      { role: 'user', content: 'Quanto custa um corte?' },
-      { role: 'assistant', content: 'O corte custa R$ 80,00. Gostaria de agendar?' },
       { role: 'user', content: 'quero para amanhã' }
     ]
   });
