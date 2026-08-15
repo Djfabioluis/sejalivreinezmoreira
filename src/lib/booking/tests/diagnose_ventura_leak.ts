@@ -1,4 +1,4 @@
-import { supabase } from "../../../integrations/supabase/client";
+import { supabaseAdmin } from "../../../integrations/supabase/client.server";
 import { findAgentByInstance } from "../../evolution/outbound-resolver.server";
 import { list_slots } from "../../chat.server";
 
@@ -6,7 +6,7 @@ async function diagnoseVenturaLeak() {
   console.log("=== INICIANDO DIAGNÓSTICO FORENSE VENTURA ===");
 
   // 1. Localizar caso real Ventura
-  const { data: logs, error: logError } = await supabase
+  const { data: logs, error: logError } = await supabaseAdmin
     .from('evo_trace_logs')
     .select('*')
     .eq('instance_id', 'agente-5541998803684')
@@ -18,7 +18,13 @@ async function diagnoseVenturaLeak() {
     return;
   }
 
-  const latestTrace = logs[0];
+  // Filtrar por traces que chamaram list_slots
+  const latestTrace = logs.find((l: any) => {
+    const td = l.trace_data as any;
+    const calls = Array.isArray(td?.tool_calls) ? td.tool_calls : [];
+    return calls.some((c: any) => c.function?.name === 'list_slots');
+  }) || logs[0];
+
   const conversationId = latestTrace.conversation_id;
   const traceData = latestTrace.trace_data as any;
 
@@ -26,8 +32,13 @@ async function diagnoseVenturaLeak() {
   console.log("conversationId =", conversationId);
   console.log("instanceId inbound = agente-5541998803684");
 
-  // 2. Verificar resolução de unidade
-  const agent = await findAgentByInstance('agente-5541998803684');
+  // 2. Verificar resolução de unidade na wa_agentes
+  const { data: agent } = await supabaseAdmin
+    .from("wa_agentes")
+    .select("*")
+    .eq("instancia", "agente-5541998803684")
+    .maybeSingle();
+    
   console.log("unitId obtido de wa_agentes =", agent?.unidade_id);
   
   const bookingContext = traceData?.bookingContext || {};
@@ -44,11 +55,12 @@ async function diagnoseVenturaLeak() {
     console.log("UNITID ENVIADO AO LIST_SLOTS =", args.unitId);
     
     // Teste comparativo se tivermos data
-    if (args.date && bookingContext.serviceId) {
+    if (args.date && (args.serviceId || bookingContext.serviceId)) {
        console.log("\n--- TESTE COMPARATIVO BEMP ---");
        try {
-         const venturaSlots = await list_slots.handler({ unitId: 1377, serviceId: bookingContext.serviceId, date: args.date });
-         const centroSlots = await list_slots.handler({ unitId: 1378, serviceId: bookingContext.serviceId, date: args.date });
+         const targetServiceId = args.serviceId || bookingContext.serviceId;
+         const venturaSlots = await list_slots.handler({ unitId: 1377, serviceId: targetServiceId, date: args.date });
+         const centroSlots = await list_slots.handler({ unitId: 1378, serviceId: targetServiceId, date: args.date });
          
          console.log("SLOTS VENTURA (1377) =", venturaSlots.length);
          console.log("SLOTS CENTRO (1378) =", centroSlots.length);
