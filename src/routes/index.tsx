@@ -78,8 +78,8 @@ a885e24
 ==================================================
 
 DIFF LÓGICO:
-- ANTES: { re: /\b(?:m[ãa]os?|manicure|...)\b/i, name: "manicure" }
-- DEPOIS: { re: /\b(?:manicure|...|m[ãa]o|mao)\b/i, name: "manicure" }
+- ANTES: {"{"} re: /\b(?:m[ãa]os?|manicure|...)\b/i, name: "manicure" {"}"}
+- DEPOIS: {"{"} re: /\b(?:manicure|...|m[ãa]o|mao)\b/i, name: "manicure" {"}"}
 
 Evidência de Normalização: O mergeBookingContext ocorre no início do runAgent, garantindo context.serviceText = "manicure" antes do list_services.
 
