@@ -336,7 +336,8 @@ function buildTools(
           // Auditoria e Resolução de Preço/Serviço para o trace atual
           if (traceId) {
             const lastUserMessage = messages.filter((m: any) => m.role === 'user').pop();
-            const textToSearch = lastUserMessage?.content || "";
+            const rawContent = lastUserMessage?.content;
+            const textToSearch = (typeof rawContent === 'string' ? rawContent : "") || "";
             
             // Re-extrair slots com o contexto atual para capturar seleções de ambiguidade
             const { extractBookingSlots } = await import("@/lib/booking/context");
@@ -345,8 +346,8 @@ function buildTools(
             // REQUISITO: Se já temos um serviceId no contexto persistido e o cliente não mudou de ideia
             // (não detectamos um NOVO serviço na mensagem atual), preservamos o que temos.
             // Se extracted.serviceText existe, significa que o cliente mencionou um serviço nesta mensagem.
-            const finalServiceId = extracted.serviceId || (!extracted.serviceText ? bookingContext?.serviceId : null);
-            const finalServiceName = extracted.serviceName || (!extracted.serviceText ? bookingContext?.serviceName : null);
+            const finalServiceId = extracted.serviceId || (!extracted.serviceText ? (bookingContext?.serviceId || null) : null);
+            const finalServiceName = extracted.serviceName || (!extracted.serviceText ? (bookingContext?.serviceName || null) : null);
             
             // Se o extrator resolveu a ambiguidade AGORA ou se já tínhamos resolvido anteriormente
             if (finalServiceId) {
@@ -377,7 +378,7 @@ function buildTools(
             const searchTerms = String(searchPattern).toLowerCase().split(/\s+/).filter(t => t.length > 2);
             
             // Se for um serviço inexistente (muito improvável dar match com algo útil), ignorar
-            if (searchTerms.length === 0 || searchPattern.includes("XYZ INEXISTENTE")) {
+            if (searchTerms.length === 0 || (typeof searchPattern === 'string' && searchPattern.includes("XYZ INEXISTENTE"))) {
                console.log(`[SERVICE_NOT_FOUND] traceId=${traceId}, query=${searchPattern}`);
                return services;
             }
