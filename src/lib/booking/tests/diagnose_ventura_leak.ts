@@ -1,7 +1,6 @@
-
-import { supabase } from "../../integrations/supabase/client";
-import { findAgentByInstance } from "../evolution/outbound-resolver.server";
-import { list_slots } from "../chat.server";
+import { supabase } from "../../../integrations/supabase/client";
+import { findAgentByInstance } from "../../evolution/outbound-resolver.server";
+import { list_slots } from "../../chat.server";
 
 async function diagnoseVenturaLeak() {
   console.log("=== INICIANDO DIAGNÓSTICO FORENSE VENTURA ===");
@@ -69,9 +68,6 @@ async function diagnoseVenturaLeak() {
   } else {
     console.log("AVAILABILITY_TOOL_CALLED = NÃO");
   }
-
-  // 4. Auditoria de Vazamento (Busca por fallbacks ou unitId hardcoded)
-  console.log("\n--- AUDITORIA DE CÓDIGO ---");
 }
 
 diagnoseVenturaLeak().catch(console.error);
