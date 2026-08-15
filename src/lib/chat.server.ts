@@ -359,10 +359,23 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
   if (effectiveUnitId && bookingContext.serviceText && !bookingContext.serviceId && !bookingContext.clarificationRequired) {
     const services = await BempService.listServices(effectiveUnitId);
     const normalizedSearch = normalizeServiceSearchText(bookingContext.serviceText);
+    const logCtx = { traceId, unitId: effectiveUnitId, serviceText: bookingContext.serviceText, normalizedSearch };
 
     const matches = services.filter(s => {
       const name = normalizeServiceSearchText(s.name || s.nome || "");
-      return name.includes(normalizedSearch) || normalizedSearch.includes(name);
+      const isMatch = name.includes(normalizedSearch) || normalizedSearch.includes(name);
+      return isMatch;
+    });
+
+    await logEvent({
+      instance: conversationKey?.split(':')[0] || 'unknown',
+      event: 'BEMP_SERVICE_LOOKUP_COMPLETED',
+      status: 'success',
+      payload: { 
+        foundCount: matches.length,
+        candidates: matches.slice(0, 3).map(m => m.name || m.nome),
+        search: normalizedSearch
+      }
     });
 
     if (matches.length === 1) {
