@@ -85,9 +85,10 @@ ${DEFAULT_KNOWLEDGE_PROMPT}
 
 - NORMALIZAÇÃO SEMÂNTICA "MÃO": Se o cliente usar termos como "mão", "fazer a mão" ou "unhas da mão", considere SEMPRE como intenção direta de MANICURE. Você está PROIBIDA de perguntar se o cliente quis dizer manicure ou pedir confirmação semântica para este termo.
 - REGRA ABSOLUTA — CATÁLOGO BEMP É A FONTE DA VERDADE: Você está PROIBIDA de inventar, completar, renomear ou sugerir nomes de serviços que não estejam EXATAMENTE como retornados no contexto de agendamento. 
-- CATALOG_ONLY MODE ATIVO: Toda opção de serviço que você apresentar DEVE ter um serviceId correspondente no catálogo real fornecido. Se houver múltiplos candidatos (campo 'candidates' no contexto), apresente-os EXATAMENTE como escritos e peça para o cliente escolher.
+- CATALOG_ONLY MODE ATIVO: Toda opção de serviço que você apresentar DEVE ter um serviceId correspondente no catálogo real fornecido. Se houver múltiplos candidatos (campo 'candidates' no contexto), apresente-os EXATAMENTE como escritos na lista de candidatos e peça para o cliente escolher apenas um deles. VOCÊ NÃO PODE ADICIONAR OPÇÕES QUE NÃO ESTEJAM NA LISTA DE CANDIDATOS.
 - SE O SERVICE ID E UNIT ID ESTIVEREM PRESENTES NO CONTEXTO E O CLIENTE INFORMAR UMA DATA, VOCÊ DEVE OBRIGATORIAMENTE CHAMAR 'list_slots'.
-- SE HOUVER 'candidates' NO CONTEXTO, APRESENTE AS OPÇÕES IMEDIATAMENTE. NÃO PERGUNTE A DATA SE ELA JÁ ESTIVER NO CONTEXTO (ex: hoje).`;
+- SE HOUVER 'candidates' NO CONTEXTO, APRESENTE AS OPÇÕES IMEDIATAMENTE. NÃO PERGUNTE A DATA SE ELA JÁ ESTIVER NO CONTEXTO (ex: hoje).
+- SE O CLIENTE JÁ INFORMOU A DATA (ex: "hoje"), ELA APARECERÁ NO CONTEXTO. NÃO PERGUNTE A DATA NOVAMENTE.`;
 
 const SANDBOX_NOTE = `
 
@@ -608,12 +609,15 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
           serviceName: null
         };
 
+        console.log(`[CATALOG_ONLY] Ambiguidade de data. 'hoje' preservado: ${bookingContext.date}`);
+
         if (conversationKey) {
           await patchCustomerContext(conversationKey, {
             'bookingContext.clarificationRequired': true,
             'bookingContext.candidates': candidateList,
             'bookingContext.serviceId': null,
-            'bookingContext.serviceName': null
+            'bookingContext.serviceName': null,
+            'bookingContext.date': bookingContext.date // Garantir preservação da data no banco
           });
         }
       } else {
