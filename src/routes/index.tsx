@@ -64,7 +64,7 @@ O teste real anterior (16:10) falhou por duas causas identificadas:
 2. PERSISTENCE_ERROR: A RPC append_wa_message falhou por erro de cache de esquema.
 
 As correções aplicadas foram:
-- RESOLUÇÃO DETERMINÍSTICA: Adicionada prioridade para padrões como "mão" -> "manicure".
+- RESOLUÇÃO DETERMINÍSTICA: Adicionada prioridade para padrões como "mão" {"->"} "manicure".
 - DATA_PRESERVATION: Implementada preservação forçada de data durante resolução de ambiguidade.
 - RPC_PERSISTENCE: Implementada detecção e retry automático para a assinatura invertida da RPC.
 - AUDITORIA_REVERSA: Adicionado bloqueio para Julia perguntar sobre serviços já presentes no contexto.
