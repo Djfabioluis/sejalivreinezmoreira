@@ -108,7 +108,7 @@ export function runTool<T>(label: string, fn: () => Promise<T>, ctx: ToolCtx = {
         const stage = inferStageFromTool(label, result);
         if (stage) {
           await updateCustomerPipeline({
-            phone: ctx.conversationKey,
+            phone: ctx.conversationKey.split(':')[1] || ctx.conversationKey,
             stage,
             abandonmentReason: (result as any)?.abandon_trigger
           });
