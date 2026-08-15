@@ -1,128 +1,92 @@
 import { createFileRoute } from '@tanstack/react-router'
-  const instructions = `Execute esta instrucao no projeto: NÃO FAÇA MAIS NENHUMA ALTERAÇÃO.
+  const instructions = `Execute esta instrucao no projeto: PARE. NÃO FAÇA NENHUMA ALTERAÇÃO.
 
-A correção automatizada indica:
+O número informado como CENTRO está ERRADO.
 
-serviceId preservado = OK
-mensagem "quero para amanhã" = processada
-list_slots = CHAMADA
-AVAILABILITY_TOOL_CALLED = confirmado
+Você informou:
 
-Agora quero PROVA FUNCIONAL REAL pelo WhatsApp.
+CENTRO
+instanceId = agente-554130731358
+unitId = 1378
+WhatsApp = +55 41 3073-1358
 
-NÃO altere código.
-NÃO corrija automaticamente.
-NÃO simule mensagens.
-NÃO use teste automatizado como aprovação.
+Mas esse número +55 41 3073-1358 pertence à unidade BOULEVARD.
 
-Escolha primeiro UMA unidade para validação controlada.
+NÃO use esse número como Centro.
+NÃO execute teste ainda.
+NÃO altere instâncias automaticamente.
 
-Preferência:
-CENTRO.
+Quero AUDITORIA REAL do mapeamento das 3 unidades.
 
-Prepare monitoramento do fluxo real:
+Para cada unidade mostre:
 
-WhatsApp
-→ Evolution
-→ webhook
-→ bookingContext
-→ resolução do serviço
-→ resolução da data
-→ list_slots
-→ API/BEMP
-→ slots reais
-→ Julia
-→ Evolution
-→ WhatsApp
+UNIDADE
+instanceId Evolution
+instanceName Evolution
+telefone conectado na Evolution
+agentId
+unitId
+nome da unidade no banco
+telefone oficial da unidade no banco
+webhook configurado
+status da instância
 
-Quando estiver pronto, informe SOMENTE:
+Tabela obrigatória:
 
-UNIDADE =
-instanceId =
-unitId =
-NÚMERO DE WHATSAPP QUE DEVO TESTAR =
-MONITORAMENTO = PRONTO/NÃO PRONTO
+UNIDADE | TELEFONE EVOLUTION | instanceId | agentId | unitId | NOME BANCO | TELEFONE BANCO | MAPEAMENTO CORRETO?
 
-Depois PARE.
+CENTRO
+VENTURA
+BOULEVARD
 
-Eu enviarei manualmente a conversa.
+Depois faça o cruzamento por fonte:
 
-Durante o teste, não interfira e não altere código.
+1. Evolution API
+2. tabela de agentes/instâncias
+3. tabela de unidades
+4. configuração do webhook
+5. roteamento usado no inbound
 
-Quero testar esta sequência real:
+Não resolva unidade pelo nome visual "Julia", "Bruno" ou pelo índice da lista.
 
-MENSAGEM 1:
-"Olá, gostaria de agendar um serviço."
-
-Depois seguirei naturalmente a conversa até informar um serviço real.
-
-Quando o serviço estiver definido, verificaremos:
-
-bookingContext.serviceId =
-bookingContext.serviceName =
-bookingContext.unitId =
-
-Depois enviarei:
-
-"Quero para amanhã."
-
-Nesse momento é OBRIGATÓRIO registrar:
-
-DATE_RESOLVED =
-serviceId =
-unitId =
-AVAILABILITY_TOOL_CALLED =
-tool =
-request da list_slots =
-HTTP status =
-response =
-quantidade de slots =
-slots retornados =
-
-Depois registrar:
-
-RESPOSTA_GERADA_PELA_JULIA =
-MENSAGEM_ENVIADA_EVOLUTION =
-MENSAGEM_RECEBIDA_WHATSAPP =
-
-REGRA DE APROVAÇÃO:
-
-Só considerar APROVADO se houver evidência real de:
-
-mensagem WhatsApp
-→ serviceId preservado
-→ data identificada
-→ list_slots chamada
-→ resposta real da agenda
-→ slots reais
-→ Julia oferecendo somente horários retornados
-→ mensagem enviada pelo Evolution
-
-Se list_slots não for chamada:
-FALHOU.
-
-Se serviceId desaparecer:
-FALHOU.
-
-Se list_slots retornar horários e Julia apresentar outros:
-FALHOU.
-
-Se API retornar zero horários e Julia inventar horário:
-FALHOU.
-
-Se Julia informar disponibilidade sem list_slots:
-FALHOU.
+Use os identificadores técnicos reais.
 
 IMPORTANTE:
 
-Não quero testar as três unidades simultaneamente.
+Verifique especificamente:
 
-Primeiro CENTRO.
++55 41 3073-1358
 
-Depois de validarmos CENTRO, faremos VENTURA.
-Depois BOULEVARD.
+e informe com evidência a qual unidade ele realmente pertence.
 
-Agora apenas prepare o monitoramento da unidade CENTRO e PARE.`;
+Não altere nada.
+
+Ao final responda somente:
+
+CENTRO:
+telefone =
+instanceId =
+unitId =
+
+VENTURA:
+telefone =
+instanceId =
+unitId =
+
+BOULEVARD:
+telefone =
+instanceId =
+unitId =
+
+MAPEAMENTO INCORRETO ENCONTRADO = SIM/NÃO
+
+ONDE ESTÁ O ERRO =
+(tabela/campo/configuração)
+
+CORREÇÃO NECESSÁRIA =
+(descrever somente, NÃO executar)
+
+PARE e aguarde autorização.`;
 
 export const Route = createFileRoute('/')({
   component: Dashboard,
