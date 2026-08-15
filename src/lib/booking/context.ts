@@ -1,3 +1,5 @@
+import { logEvent } from "../evolution/logger.server";
+
 /**
  * Contexto determinístico de agendamento (slot filling + merge persistente).
  *
