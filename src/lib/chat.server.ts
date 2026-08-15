@@ -581,10 +581,33 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
     }
   } as any);
 
+  // CATALOG_ONLY: Sanitização final contra alucinações
+  let finalText = response.text;
+  let hallucinated = false;
+  
+  if (effectiveUnitId) {
+    const services = await BempService.listServices(effectiveUnitId);
+    const sanitized = sanitizeCatalogOnlyResponse(response.text, services, bookingContext);
+    finalText = sanitized.text;
+    hallucinated = sanitized.hallucinated;
+    
+    if (hallucinated && traceId) {
+      console.warn(`[CATALOG_ONLY] Alucinação detectada e removida no trace=${traceId}`);
+      await logEvent({
+        instance: opts.instance || "unknown",
+        messageId: opts.messageId || "unknown",
+        event: "HALLUCINATED_SERVICE_DETECTED",
+        status: "warning",
+        payload: { traceId, original: response.text, sanitized: finalText }
+      }).catch(() => {});
+    }
+  }
+
   return {
-    text: response.text,
+    text: finalText,
     toolResults: response.toolResults,
     usage: response.usage,
-    durationMs: Date.now() - aiStartedAt
+    durationMs: Date.now() - aiStartedAt,
+    hallucinated
   };
 }
