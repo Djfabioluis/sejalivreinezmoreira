@@ -3,7 +3,7 @@ import { normalizeServiceSearchText } from "./src/lib/service-utils";
 
 async function simulate() {
   const unitId = "5258"; // Ventura
-  const query = "mão";
+  const query = "manicure";
   const normalized = normalizeServiceSearchText(query);
   
   const services = await BempService.listServices(unitId);
