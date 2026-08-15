@@ -433,8 +433,8 @@ export function ensureNoDuplicateBookingQuestion(text: string, ctx: BookingConte
   const t = text.toLowerCase();
   
   const hasService = ctx.serviceId || ctx.serviceName || ctx.serviceText;
-  if (hasService) {
-    if (t.includes("qual serviço") || t.includes("que serviço") || t.includes("qual o procedimento") || t.includes("procedimento deseja") || t.includes("gostaria de fazer o que")) {
+  if (hasService && !ctx.clarificationRequired) {
+    if (t.includes("qual serviço") || t.includes("que serviço") || t.includes("qual o procedimento") || t.includes("procedimento deseja") || t.includes("gostaria de fazer o que") || t.includes("confirma qual seria o serviço")) {
       return { text: fallbackQuestionFor(ctx), blocked: true };
     }
   }
