@@ -82,7 +82,8 @@ export const DEFAULT_SYSTEM_PROMPT = `${MANDATORY_SYSTEM_RULES}
 
 ${DEFAULT_KNOWLEDGE_PROMPT}
 
-SE O SERVICE ID E UNIT ID ESTIVEREM PRESENTES NO CONTEXTO E O CLIENTE INFORMAR UMA DATA, VOCÊ DEVE OBRIGATORIAMENTE CHAMAR 'list_slots'.`;
+- NORMALIZAÇÃO SEMÂNTICA "MÃO": Se o cliente usar termos como "mão", "fazer a mão" ou "unhas da mão", considere SEMPRE como intenção direta de MANICURE. Você está PROIBIDA de perguntar se o cliente quis dizer manicure ou pedir confirmação semântica para este termo.
+- SE O SERVICE ID E UNIT ID ESTIVEREM PRESENTES NO CONTEXTO E O CLIENTE INFORMAR UMA DATA, VOCÊ DEVE OBRIGATORIAMENTE CHAMAR 'list_slots'.`;
 
 const SANDBOX_NOTE = `
 
