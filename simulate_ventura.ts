@@ -16,6 +16,9 @@ async function simulate() {
   console.log("QUERY:", query);
   console.log("NORMALIZED:", normalized);
   console.log("MATCHES:", JSON.stringify(matches.map(m => ({ id: m.id, name: m.name, price: m.price })), null, 2));
+  if (matches.length === 0) {
+    console.log("ALL_SERVICES:", JSON.stringify(services.map(s => s.name), null, 2));
+  }
 }
 
 simulate().catch(console.error);
