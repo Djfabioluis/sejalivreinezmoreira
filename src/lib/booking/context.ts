@@ -196,6 +196,10 @@ export function extractBookingSlots(
 
   // --- Serviço (Busca Padrão) ---
   const svc = SERVICE_PATTERNS.find((s) => s.re.test(t));
+  if (svc && !out.serviceId) {
+    out.serviceText = svc.name;
+    // Se houver serviceText, o chat.server list_services fará o match com ID real
+  }
 
   // --- Período ---
   if (/manh[ãa]/i.test(t)) out.period = "manhã";

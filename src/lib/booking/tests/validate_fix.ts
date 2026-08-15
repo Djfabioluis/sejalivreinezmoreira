@@ -1,0 +1,76 @@
+import { supabaseAdmin } from "../../../integrations/supabase/client.server";
+import { BempService } from "../../bemp-service.server";
+import { runAgent } from "../../chat.server";
+import { extractBookingSlots, mergeBookingContext } from "../context";
+
+async function test_flow(label: string, scenario: { messages: any[], unitId: string, description: string }) {
+  console.log(`\n=== TESTE ${label}: ${scenario.description} ===`);
+  
+  let currentContext: any = { unitId: scenario.unitId };
+  
+  for (let i = 0; i < scenario.messages.length; i++) {
+    const msg = scenario.messages[i];
+    if (msg.role !== 'user') continue;
+
+    console.log(`\n[Turno ${i}] Cliente: "${msg.content}"`);
+    
+    // 1. Extrair e Mesclar Contexto (Simulando o que acontece no webhook/processor)
+    const extracted = extractBookingSlots(msg.content, new Date(), currentContext);
+    currentContext = mergeBookingContext(currentContext, extracted);
+    
+    console.log("Contexto ANTES da IA:", JSON.stringify(currentContext, null, 2));
+
+    // 2. Chamar IA
+    const result = await runAgent({
+      conversationKey: `test-${label}-${Date.now()}`,
+      unidadeId: scenario.unitId,
+      messages: scenario.messages.slice(0, i + 1),
+      bookingContext: currentContext,
+      traceId: `test-trace-${label}-${i}`
+    });
+
+    console.log("Julia:", result.text);
+    
+    // Simular persistência de ferramentas (ex: list_services resolvendo serviceId)
+    // No chat.server.ts, list_services chama patchCustomerContext. 
+    // Aqui verificamos se o serviceId/unitId aparecem nos logs ou se foram passados corretamente.
+    
+    const toolCalls = result.toolResults || [];
+    console.log("Ferramentas chamadas:", toolCalls.map(t => (t as any).toolName).join(", "));
+    
+    // Se houve chamada de list_slots, o teste A/B/D passou no requisito de disponibilidade
+    if (toolCalls.some(t => (t as any).toolName === 'list_slots')) {
+      console.log("✅ AVAILABILITY_TOOL_CALLED");
+    }
+  }
+}
+
+async function run_tests() {
+  const CENTRO_ID = "1378";
+
+  // TESTE A: serviço resolvido -> cliente informa "amanhã"
+  await test_flow("A", {
+    unitId: CENTRO_ID,
+    description: "Serviço resolvido anteriormente, cliente envia data",
+    messages: [
+      { role: 'user', content: 'Quanto custa um corte?' },
+      { role: 'assistant', content: 'O corte custa R$ 80,00. Gostaria de agendar?' },
+      { role: 'user', content: 'quero para amanhã' }
+    ]
+  });
+
+  // TESTE B: ambiguidade -> esclarecimento -> data
+  await test_flow("B", {
+    unitId: CENTRO_ID,
+    description: "Ambiguidade resolvida por índice, depois data",
+    messages: [
+      { role: 'user', content: 'Quanto custa manicure?' },
+      { role: 'assistant', content: 'Temos: 1. Manicure simples (R$ 40) 2. Manicure russa (R$ 60). Qual prefere?' },
+      { role: 'user', content: 'a segunda' },
+      { role: 'assistant', content: 'Perfeito, manicure russa. Para quando deseja?' },
+      { role: 'user', content: 'amanhã à tarde' }
+    ]
+  });
+}
+
+run_tests().catch(console.error);
