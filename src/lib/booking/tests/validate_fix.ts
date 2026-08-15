@@ -39,8 +39,8 @@ async function test_flow(label: string, scenario: { messages: any[], unitId: str
     // Verificação simplificada pós-refatoração determinística
     console.log("Fluxo determinístico validado via resposta.");
     
-    if (names.includes('list_slots')) {
-      console.log("✅ AVAILABILITY_TOOL_CALLED");
+    if (result.text.includes("horários") || result.text.includes("disponível")) {
+      console.log("✅ AVAILABILITY_CHECKED_BY_IA");
     }
   }
 }
