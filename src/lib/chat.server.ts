@@ -336,7 +336,9 @@ function buildTools(
           // Auditoria e Resolução de Preço/Serviço para o trace atual
           if (traceId) {
             const lastUserMessage = messages.filter((m: any) => m.role === 'user').pop();
-            const textToSearch = typeof lastUserMessage?.content === 'string' ? lastUserMessage.content : "";
+            const textToSearch = typeof lastUserMessage?.content === 'string' 
+              ? lastUserMessage.content 
+              : (Array.isArray(lastUserMessage?.content) ? (lastUserMessage.content[0] as any)?.text || "" : "");
             
             // Re-extrair slots com o contexto atual para capturar seleções de ambiguidade
             const { extractBookingSlots } = await import("@/lib/booking/context");
