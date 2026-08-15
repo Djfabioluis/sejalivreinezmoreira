@@ -64,49 +64,30 @@ O teste real anterior (16:10) falhou por duas causas identificadas:
 2. PERSISTENCE_ERROR: A RPC append_wa_message falhou por erro de cache de esquema.
 
 As correções aplicadas foram:
-- Melhoria no log do BEMP_SERVICE_LOOKUP para ver os candidatos brutos no trace.
-- Refatoração da persistWaMessage para usar (supabaseAdmin.rpc as any) forçando a assinatura (p_phone, p_new_message), contornando o cache tipado do PostgREST.
+- RESOLUÇÃO DETERMINÍSTICA: Adicionada prioridade para padrões como "mão" -> "manicure".
+- DATA_PRESERVATION: Implementada preservação forçada de data durante resolução de ambiguidade.
+- RPC_PERSISTENCE: Implementada detecção e retry automático para a assinatura invertida da RPC.
+- AUDITORIA_REVERSA: Adicionado bloqueio para Julia perguntar sobre serviços já presentes no contexto.
 
-Agora monitore o teste REAL (Turno 1).
+Monitore o teste REAL (Turno 1):
 
 Eu enviarei:
-
 "quero fazer mão hoje"
 
-No primeiro turno capture:
-
-traceId =
-instanceId =
-unitId =
-serviceIntent =
-dateIntent =
-BEMP_SERVICE_LOOKUP = (Verifique se 'foundCount' {" > "} 0 e quais são os candidatos no payload)
-ALLOWED_SERVICES = (Lista passada para a Whitelist)
-RESPOSTA ENVIADA = (Deve conter apenas opções reais)
+Capture:
+- BEMP_SERVICE_LOOKUP_COMPLETED (Deve conter candidatos reais)
+- DATE_RESOLVED (Deve ser hoje)
+- WHISTLELIST_VALIDATION (Deve autorizar a resposta)
 
 Depois eu responderei:
-
 "1"
 
-Nesse segundo turno capture:
-
-CLARIFICATION_SELECTION_RESOLVED =
-serviceId selecionado =
-dateIntent preservado =
-LIST_SLOTS_CALLED =
-horários enviados ao WhatsApp =
-
-CRITÉRIOS:
-- "mão" = MANICURE (Deve aparecer nos candidatos)
-- "hoje" preservado
-- Nenhuma opção inventada
-- Resposta "1" resolve o serviço
-- NÃO repetir perguntas de serviço/data
-- Chamar list_slots imediatamente
+Capture:
+- CLARIFICATION_SELECTION_RESOLVED (Deve manter a data)
+- LIST_SLOTS_CALLED (Imediato)
 
 SE HOUVER QUALQUER FALHA:
-NÃO CORRIJA.
-MOSTRE O TRACE E PARE.
+NÃO CORRIJA. MOSTRE O TRACE E PARE.
           </AlertDescription>
         </Alert>
 
