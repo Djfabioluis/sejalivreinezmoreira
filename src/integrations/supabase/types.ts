@@ -1845,6 +1845,12 @@ export type Database = {
         | "CANCELADO"
         | "ABANDONADO"
         | "CONVERTIDO"
+        | "IDENTIFYING_SERVICE"
+        | "CHOOSING_UNIT"
+        | "CHOOSING_PROFESSIONAL"
+        | "CHOOSING_DATE"
+        | "CHOOSING_TIME"
+        | "AWAITING_CONFIRMATION"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1986,6 +1992,12 @@ export const Constants = {
         "CANCELADO",
         "ABANDONADO",
         "CONVERTIDO",
+        "IDENTIFYING_SERVICE",
+        "CHOOSING_UNIT",
+        "CHOOSING_PROFESSIONAL",
+        "CHOOSING_DATE",
+        "CHOOSING_TIME",
+        "AWAITING_CONFIRMATION",
       ],
     },
   },
