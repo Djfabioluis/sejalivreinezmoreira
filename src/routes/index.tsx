@@ -112,7 +112,7 @@ Para cada um:
 
 - arquivo = src/lib/booking/context.ts
   função/componente = extractBookingSlots / mergeBookingContext
-  tipo de alteração = Mapeamento "mão" -> "manicure" e preservação de data no merge
+  tipo de alteração = Mapeamento "mão" {"->"} "manicure" e preservação de data no merge
   motivo = Garantir que a intenção seja convertida e a data não se perca após escolha do serviço
   afeta fluxo WhatsApp = SIM
   afeta apenas dashboard/UI = NÃO
@@ -127,7 +127,7 @@ Para cada um:
 - arquivo = src/routes/index.tsx
   função/componente = Dashboard Component
   tipo de alteração = Atualização visual do trace monitor e correção de escape JSX
-  motivo = Auditoria em tempo real e correção de erro de build (->)
+  motivo = Auditoria em tempo real e correção de erro de build ({"->"})
   afeta fluxo WhatsApp = NÃO
   afeta apenas dashboard/UI = SIM
 
@@ -139,8 +139,8 @@ Mostre:
 
 arquivo = src/routes/index.tsx
 linha/componente = 67 (AlertDescription)
-texto anterior = "mão" -> "manicure"
-texto corrigido = "mão" {"->"} "manicure"
+  texto anterior = "mão" {"->"} "manicure"
+  texto corrigido = "mão" {"{"}{"->"} {"}"} "manicure"
 
 Confirme:
 
