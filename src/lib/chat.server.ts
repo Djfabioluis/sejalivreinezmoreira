@@ -460,7 +460,8 @@ function buildTools(
           if (Array.isArray(slots) && conversationKey) {
             const times = slots.map((s: any) => s.start.split('T')[1].substring(0, 5));
             await patchCustomerContext(conversationKey, {
-              'bookingContext.availableSlots': times
+              'bookingContext.availableSlots': times,
+              'bookingContext.availabilityCalled': true
             });
           }
           
