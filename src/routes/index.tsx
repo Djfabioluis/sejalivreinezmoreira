@@ -80,7 +80,7 @@ instanceId =
 unitId =
 serviceIntent =
 dateIntent =
-BEMP_SERVICE_LOOKUP = (Verifique se 'foundCount' &gt; 0 e quais são os candidatos no payload)
+BEMP_SERVICE_LOOKUP = (Verifique se 'foundCount' {" > "} 0 e quais são os candidatos no payload)
 ALLOWED_SERVICES = (Lista passada para a Whitelist)
 RESPOSTA ENVIADA = (Deve conter apenas opções reais)
 
@@ -151,23 +151,23 @@ MOSTRE O TRACE E PARE.
                         log.step.includes('COMPLETED') || log.step.includes('SENT') ? 'border-green-200 text-green-600 bg-green-50' : 
                         'border-slate-200 text-slate-600'
                       }`}>{log.step}</Badge>
-                    <span className="text-[8px] text-slate-400 font-mono">{new Date(log.timestamp).toLocaleTimeString()}</span>
+                      <span className="text-[8px] text-slate-400 font-mono">{new Date(log.timestamp).toLocaleTimeString()}</span>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <p className="text-[9px] text-slate-600 font-mono truncate">{log.trace_id}</p>
+                      {log.payload && (
+                        <pre className="text-[8px] bg-slate-100 p-1 rounded overflow-x-auto max-w-full text-slate-500">
+                          {JSON.stringify(log.payload, null, 2)}
+                        </pre>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex flex-col gap-1">
-                    <p className="text-[9px] text-slate-600 font-mono truncate">{log.trace_id}</p>
-                    {log.payload && (
-                      <pre className="text-[8px] bg-slate-100 p-1 rounded overflow-x-auto max-w-full text-slate-500">
-                        {JSON.stringify(log.payload, null, 2)}
-                      </pre>
-                    )}
+                ))}
+                {auditLogs && auditLogs.length > 0 && auditLogs.some((l: any) => l.step === 'BEMP_SERVICE_LOOKUP_COMPLETED' && l.payload?.foundCount === 0) && (
+                  <div className="p-2 bg-yellow-50 border-t border-yellow-100 text-[9px] text-yellow-700 font-mono italic">
+                    Aviso: Um lookup retornou 0 candidatos. Verifique a normalização.
                   </div>
-                </div>
-              ))}
-              {auditLogs && auditLogs.length > 0 && auditLogs.some((l: any) => l.payload?.foundCount === 0) && (
-                <div className="p-2 bg-yellow-50 border-t border-yellow-100 text-[9px] text-yellow-700 font-mono italic">
-                  Aviso: Um lookup retornou 0 candidatos. Verifique a normalização.
-                </div>
-              )}
+                )}
 
                 {!auditLogs?.length && (
                   <div className="p-8 text-center text-slate-400 text-xs italic">
