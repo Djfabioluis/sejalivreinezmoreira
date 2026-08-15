@@ -1,4 +1,4 @@
-import { extractBookingSlots, mergeBookingContext, buildBookingContextBlock, ensureNoDuplicateBookingQuestion } from "./src/lib/booking/context";
+import { extractBookingSlots, mergeBookingContext, buildBookingContextBlock, ensureNoDuplicateBookingQuestion } from "../context";
 
 const now = new Date();
 
