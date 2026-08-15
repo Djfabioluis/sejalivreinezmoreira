@@ -1,6 +1,5 @@
 import { supabaseAdmin } from "../../../integrations/supabase/client.server";
-import { findAgentByInstance } from "../../evolution/outbound-resolver.server";
-import { list_slots } from "../../chat.server";
+import { BempService } from "../../bemp-service.server";
 
 async function diagnoseVenturaLeak() {
   console.log("=== INICIANDO DIAGNÓSTICO FORENSE VENTURA ===");
@@ -11,22 +10,22 @@ async function diagnoseVenturaLeak() {
     .select('*')
     .eq('instance_id', 'agente-5541998803684')
     .order('created_at', { ascending: false })
-    .limit(20);
+    .limit(50);
 
   if (logError || !logs || logs.length === 0) {
     console.log("CASO REAL VENTURA ENCONTRADO = NÃO (Sem logs recentes para esta instância)");
     return;
   }
 
-  // Filtrar por traces que chamaram list_slots
+  // Filtrar por traces que chamaram list_slots no payload do trace_data
   const latestTrace = logs.find((l: any) => {
-    const td = l.trace_data as any;
+    const td = l.payload as any; // Em algumas versões do log, os tool_calls estão no payload
     const calls = Array.isArray(td?.tool_calls) ? td.tool_calls : [];
     return calls.some((c: any) => c.function?.name === 'list_slots');
   }) || logs[0];
 
   const conversationId = latestTrace.conversation_id;
-  const traceData = latestTrace.trace_data as any;
+  const traceData = (latestTrace.payload as any) || {};
 
   console.log("CASO REAL VENTURA ENCONTRADO = SIM");
   console.log("conversationId =", conversationId);
@@ -52,15 +51,25 @@ async function diagnoseVenturaLeak() {
   if (availabilityCall) {
     const args = JSON.parse(availabilityCall.function.arguments);
     console.log("AVAILABILITY_TOOL_CALLED = SIM");
-    console.log("UNITID ENVIADO AO LIST_SLOTS =", args.unitId);
+    console.log("UNITID ENVIADO AO LIST_SLOTS =", args.salon_id || args.unitId);
     
     // Teste comparativo se tivermos data
-    if (args.date && (args.serviceId || bookingContext.serviceId)) {
+    const targetUnitId = args.salon_id || args.unitId;
+    const targetServiceId = args.service_id || args.serviceId || bookingContext.serviceId;
+    
+    if (args.date && targetServiceId) {
        console.log("\n--- TESTE COMPARATIVO BEMP ---");
        try {
-         const targetServiceId = args.serviceId || bookingContext.serviceId;
-         const venturaSlots = await list_slots.handler({ unitId: 1377, serviceId: targetServiceId, date: args.date });
-         const centroSlots = await list_slots.handler({ unitId: 1378, serviceId: targetServiceId, date: args.date });
+         const venturaSlots = await BempService.listAvailableSlots({ 
+            salonId: "1377", 
+            serviceId: String(targetServiceId), 
+            date: args.date 
+         });
+         const centroSlots = await BempService.listAvailableSlots({ 
+            salonId: "1378", 
+            serviceId: String(targetServiceId), 
+            date: args.date 
+         });
          
          console.log("SLOTS VENTURA (1377) =", venturaSlots.length);
          console.log("SLOTS CENTRO (1378) =", centroSlots.length);
@@ -68,8 +77,8 @@ async function diagnoseVenturaLeak() {
          const juliaReply = traceData?.ai_response || "";
          console.log("HORÁRIOS OFERECIDOS PELA JULIA =", juliaReply);
          
-         const isCentro = centroSlots.some((s: any) => juliaReply.includes(s.time));
-         const isVentura = venturaSlots.some((s: any) => juliaReply.includes(s.time));
+         const isCentro = centroSlots.some((s: any) => juliaReply.includes(s.start.split('T')[1].substring(0, 5)));
+         const isVentura = venturaSlots.some((s: any) => juliaReply.includes(s.start.split('T')[1].substring(0, 5)));
          
          console.log("HORÁRIOS ERAM DO CENTRO =", isCentro ? "SIM" : "NÃO");
          console.log("HORÁRIOS ERAM DO VENTURA =", isVentura ? "SIM" : "NÃO");
