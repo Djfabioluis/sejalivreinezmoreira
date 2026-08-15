@@ -30,6 +30,7 @@ export interface BookingContext {
   availableSlots?: string[];
   clarificationRequired?: boolean;
   candidates?: Array<{ id: string; name: string; price: number }>;
+  availabilityCalled?: boolean;
 }
 
 export type BookingSlot =
