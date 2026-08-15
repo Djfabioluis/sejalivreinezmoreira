@@ -147,10 +147,10 @@ MOSTRE O TRACE E PARE.
                   <div key={log.id} className="p-3 hover:bg-slate-50 transition-colors">
                     <div className="flex justify-between items-start mb-1">
                       <Badge variant="outline" className={`text-[8px] font-mono py-0 ${
-                      log.step.includes('FAILED') || log.step.includes('ERROR') ? 'border-red-200 text-red-600 bg-red-50' : 
-                      log.step.includes('COMPLETED') || log.step.includes('SENT') ? 'border-green-200 text-green-600 bg-green-50' : 
-                      'border-slate-200 text-slate-600'
-                    }`}>{log.step}</Badge>
+                        log.step.includes('FAILED') || log.step.includes('ERROR') ? 'border-red-200 text-red-600 bg-red-50' : 
+                        log.step.includes('COMPLETED') || log.step.includes('SENT') ? 'border-green-200 text-green-600 bg-green-50' : 
+                        'border-slate-200 text-slate-600'
+                      }`}>{log.step}</Badge>
                     <span className="text-[8px] text-slate-400 font-mono">{new Date(log.timestamp).toLocaleTimeString()}</span>
                   </div>
                   <div className="flex flex-col gap-1">
