@@ -1,235 +1,128 @@
 import { createFileRoute } from '@tanstack/react-router'
-  const instructions = `Execute esta instrucao no projeto: NÃO FAÇA ALTERAÇÃO AINDA.
+  const instructions = `Execute esta instrucao no projeto: NÃO FAÇA MAIS NENHUMA ALTERAÇÃO.
 
-PROBLEMA REAL:
-A Julia não está verificando os horários disponíveis na agenda antes
-de responder ao cliente.
+A correção automatizada indica:
 
-Quero DIAGNÓSTICO FORENSE do último atendimento real em que o cliente
-pediu um horário/data e a Julia não consultou corretamente a agenda.
+serviceId preservado = OK
+mensagem "quero para amanhã" = processada
+list_slots = CHAMADA
+AVAILABILITY_TOOL_CALLED = confirmado
 
-NÃO altere:
-- prompt
-- Gemini
-- preços
-- SERVICE_PRICE_RESOLVED
-- regras de ambiguidade
-- Evolution
-- webhook
-- memória
-- histórico
-- follow-up
+Agora quero PROVA FUNCIONAL REAL pelo WhatsApp.
 
-==================================================
-1. LOCALIZE UM CASO REAL
-==================================================
+NÃO altere código.
+NÃO corrija automaticamente.
+NÃO simule mensagens.
+NÃO use teste automatizado como aprovação.
 
-Localize a conversa real mais recente em que o cliente informou:
+Escolha primeiro UMA unidade para validação controlada.
 
-- serviço
-e
-- data/dia desejado
+Preferência:
+CENTRO.
 
-e a Julia deveria consultar disponibilidade.
+Prepare monitoramento do fluxo real:
 
-Mostre:
+WhatsApp
+→ Evolution
+→ webhook
+→ bookingContext
+→ resolução do serviço
+→ resolução da data
+→ list_slots
+→ API/BEMP
+→ slots reais
+→ Julia
+→ Evolution
+→ WhatsApp
 
-timestamp
-traceId
-conversationId
-instanceId
-agentId
-unitId
-texto do cliente
-serviço resolvido
-serviceId
-data solicitada
-profissional, se informado
-
-==================================================
-2. IDENTIFIQUE A FERRAMENTA DE DISPONIBILIDADE
-==================================================
-
-Mostre exatamente qual função/tool é responsável por consultar
-horários disponíveis.
-
-Informe:
-
-arquivo =
-função =
-tool name =
-endpoint/API =
-fonte = BEMP ou outra
-
-Quero saber qual chamada deveria acontecer depois que houver:
-
-unitId
-+
-serviceId
-+
-data
-
-==================================================
-3. TRILHA REAL
-==================================================
-
-Para o mesmo traceId mostre:
-
-SERVICE_RESOLVED =
-DATE_RESOLVED =
-PROFESSIONAL_RESOLVED =
-AVAILABILITY_CHECK_STARTED =
-AVAILABILITY_API_REQUEST =
-AVAILABILITY_API_RESPONSE =
-AVAILABLE_SLOTS_RESOLVED =
-AI_RESPONSE_GENERATED =
-EVOLUTION_SEND_SUCCESS =
-
-Use:
-SIM/NÃO
-timestamp
-resultado
-
-Se algum checkpoint não existir:
-marque AUSENTE.
-
-==================================================
-4. SE A CONSULTA NÃO FOI CHAMADA
-==================================================
-
-Se AVAILABILITY_CHECK_STARTED = AUSENTE:
-
-mostre a condição EXATA que impediu a chamada.
-
-Verifique:
-
-- serviceId ausente
-- unitId ausente
-- data não normalizada
-- bookingContext incorreto
-- profissional obrigatório indevidamente
-- estado da máquina de agendamento errado
-- ferramenta não selecionada
-- regra dizendo que a IA pode responder sem consultar agenda
-- outro bloqueio
-
-Mostre:
-arquivo
-função
-linha
-condição
-
-==================================================
-5. SE A CONSULTA FOI CHAMADA
-==================================================
-
-Se a API de disponibilidade foi chamada, mostre:
-
-unitId enviado
-serviceId enviado
-professionalId enviado
-data inicial
-data final
-timezone
-payload completo técnico
-HTTP status
-response body resumido
-quantidade de horários retornados
-
-Depois mostre os horários reais retornados.
-
-Não invente horários para completar resposta.
-
-==================================================
-6. VALIDE A UNIDADE
-==================================================
-
-A consulta de agenda deve respeitar obrigatoriamente a instância:
-
-CENTRO → agenda da unidade Centro
-VENTURA → agenda da unidade Ventura
-BOULEVARD → agenda da unidade Boulevard
-
-Compare:
-
-inbound instanceId
-unitId resolvido
-unitId usado na consulta de disponibilidade
-
-Eles precisam corresponder.
-
-==================================================
-7. REGRA OBRIGATÓRIA
-==================================================
-
-A Julia NÃO pode responder:
-
-"temos horário"
-"tem disponibilidade"
-"pode ser às 14h"
-"temos amanhã"
-
-sem uma consulta REAL de disponibilidade no mesmo fluxo.
-
-Se não houver resposta válida da agenda:
-
-não inventar horário.
-
-Responder de forma segura informando que vai verificar,
-e registrar erro técnico.
-
-==================================================
-8. NÃO REPETIR PERGUNTAS
-==================================================
-
-Se o cliente já informou:
-
-serviço = manicure
-data = amanhã
-
-a Julia NÃO deve perguntar novamente:
-
-"qual serviço?"
-ou
-"qual dia?"
-
-Ela deve usar o contexto já confirmado e consultar a agenda.
-
-Mostre se isso ocorreu no trace analisado.
-
-==================================================
-9. RESULTADO FINAL
-==================================================
-
-Entregue:
+Quando estiver pronto, informe SOMENTE:
 
 UNIDADE =
-traceId =
+instanceId =
+unitId =
+NÚMERO DE WHATSAPP QUE DEVO TESTAR =
+MONITORAMENTO = PRONTO/NÃO PRONTO
+
+Depois PARE.
+
+Eu enviarei manualmente a conversa.
+
+Durante o teste, não interfira e não altere código.
+
+Quero testar esta sequência real:
+
+MENSAGEM 1:
+"Olá, gostaria de agendar um serviço."
+
+Depois seguirei naturalmente a conversa até informar um serviço real.
+
+Quando o serviço estiver definido, verificaremos:
+
+bookingContext.serviceId =
+bookingContext.serviceName =
+bookingContext.unitId =
+
+Depois enviarei:
+
+"Quero para amanhã."
+
+Nesse momento é OBRIGATÓRIO registrar:
+
+DATE_RESOLVED =
 serviceId =
-data =
-professionalId =
-ferramenta de disponibilidade =
-foi chamada? SIM/NÃO =
-unitId enviado =
+unitId =
+AVAILABILITY_TOOL_CALLED =
+tool =
+request da list_slots =
 HTTP status =
+response =
+quantidade de slots =
 slots retornados =
-último checkpoint =
-erro/bloqueio =
 
-Depois classifique:
+Depois registrar:
 
-[A] ferramenta não foi chamada
-[B] chamada com unitId errado
-[C] chamada com serviceId errado
-[D] data enviada errada
-[E] API retornou erro
-[F] API retornou slots mas Julia ignorou
-[G] bookingContext perdeu serviço/data
-[H] outra causa comprovada
+RESPOSTA_GERADA_PELA_JULIA =
+MENSAGEM_ENVIADA_EVOLUTION =
+MENSAGEM_RECEBIDA_WHATSAPP =
 
-NÃO CORRIJA AINDA.
+REGRA DE APROVAÇÃO:
 
-PARE e aguarde autorização.`;
+Só considerar APROVADO se houver evidência real de:
+
+mensagem WhatsApp
+→ serviceId preservado
+→ data identificada
+→ list_slots chamada
+→ resposta real da agenda
+→ slots reais
+→ Julia oferecendo somente horários retornados
+→ mensagem enviada pelo Evolution
+
+Se list_slots não for chamada:
+FALHOU.
+
+Se serviceId desaparecer:
+FALHOU.
+
+Se list_slots retornar horários e Julia apresentar outros:
+FALHOU.
+
+Se API retornar zero horários e Julia inventar horário:
+FALHOU.
+
+Se Julia informar disponibilidade sem list_slots:
+FALHOU.
+
+IMPORTANTE:
+
+Não quero testar as três unidades simultaneamente.
+
+Primeiro CENTRO.
+
+Depois de validarmos CENTRO, faremos VENTURA.
+Depois BOULEVARD.
+
+Agora apenas prepare o monitoramento da unidade CENTRO e PARE.`;
 
 export const Route = createFileRoute('/')({
   component: Dashboard,
