@@ -35,211 +35,169 @@ function Dashboard() {
         </CardHeader>
         <CardContent className="p-8 space-y-6 text-slate-900">
           <div className="bg-slate-100 p-6 rounded-lg font-mono text-sm whitespace-pre-wrap border border-slate-300">
-{`Execute esta instrucao no projeto: CORREÇÃO PONTUAL — A NORMALIZAÇÃO DE "MÃO" AINDA ESTÁ ERRADA.
+{`Execute esta instrucao no projeto: NÃO FAÇA NENHUMA ALTERAÇÃO AINDA.
 
-PROBLEMA REAL:
+TEMOS AGORA EVIDÊNCIA DE TESTE REAL EM DUAS UNIDADES.
 
-Mesmo após a correção, o sistema ainda mantém "mão" como
-REFERÊNCIA/CANDIDATO relacionado a manicure.
+TESTE REAL:
 
-Isso está incorreto.
-
-"MÃO" NÃO É UM SERVIÇO DO CATÁLOGO.
-"MÃO" NÃO É UM CANDIDATO.
-"MÃO" NÃO É UM NOME ALTERNATIVO QUE DEVE SER APRESENTADO À CLIENTE.
-
-"MÃO" é apenas uma expressão coloquial de entrada que deve ser
-NORMALIZADA internamente para a intenção:
-
-MANICURE
+INTENÇÃO DO CLIENTE:
+"Quero fazer a mão hoje"
 
 ==================================================
-REGRA CORRETA
+VENTURA
 ==================================================
 
-Entrada:
+A Julia respondeu aproximadamente:
 
-"quero fazer a mão hoje"
-
-Após normalização:
-
-originalText = "quero fazer a mão hoje"
-serviceIntent = "manicure"
-serviceSearchQuery = "manicure"
-dateResolved = hoje
-
-A partir desse ponto:
-
-NÃO utilizar mais "mão" para resolver o serviço.
-
-list_services deve receber/buscar:
-
-"manicure"
-
-e NÃO:
-
-"mão"
-"fazer a mão"
-"mãos"
+"Para 'fazer a mão', qual serviço você gostaria de agendar?
+Temos algumas opções como manicure, blindagem ou alongamento."
 
 ==================================================
-IMPORTANTE
+BOULEVARD
 ==================================================
 
-Depois da normalização:
+A Julia respondeu:
 
-serviceText NÃO pode permanecer = "mão"
+"Para que eu possa verificar a disponibilidade para você,
+qual serviço de manicure você gostaria de fazer?
+Mão Simples, Francesinha, ou outro?"
 
-Se existir serviceText usado pela resolução, deve ser:
+IMPORTANTE:
 
-serviceTextNormalized = "manicure"
+NÃO quero que você simplesmente force novamente:
+"mão = manicure"
 
-ou equivalente técnico.
+Também NÃO quero alteração de prompt.
 
-O texto original pode permanecer apenas para auditoria:
+Quero descobrir POR QUE Ventura e Boulevard estão resolvendo
+a mesma intenção de forma diferente.
 
-originalUserText = "quero fazer a mão hoje"
+FAÇA AUDITORIA FORENSE SOMENTE LEITURA.
 
-mas NÃO para busca de serviço.
+1. Consulte o catálogo REAL da BEMP da unidade VENTURA.
 
-==================================================
-NÃO CRIAR AMBIGUIDADE ENTRE:
-==================================================
+Liste todos os serviços relacionados a:
 
-"mão"
-e
-"manicure"
+- mão
+- manicure
+- mão simples
+- francesinha
+- blindagem
+- alongamento
 
-Esses dois termos NÃO são dois candidatos.
+Para cada resultado mostre:
 
-"Mão" simplesmente normaliza para intenção manicure.
+serviceId
+nome exato na BEMP
+categoria
+preço
+ativo/inativo
+unitId
 
-A ambiguidade somente poderá existir ENTRE SERVIÇOS REAIS
-RETORNADOS PELO BEMP.
+2. Faça exatamente a mesma consulta para BOULEVARD.
 
-Exemplo:
+3. Compare os dois catálogos.
 
-BEMP retorna:
+Quero saber se:
 
-- MANICURE
-- MANICURE + PEDICURE
-- MANICURE BEAUTY CLUB
+A) os serviços realmente são diferentes entre as unidades;
 
-Nesse caso pode existir necessidade de esclarecimento.
+B) list_services está recebendo queries diferentes;
 
-Mas as opções são os serviços reais do BEMP.
+C) a normalização de "mão" está diferente;
 
-NUNCA apresentar:
+D) o catálogo retornado pela BEMP é diferente;
 
-- Mão
-- Manicure
-
-como duas opções.
-
-==================================================
-AUDITE O PIPELINE ATUAL
-==================================================
-
-Localize onde "mão" continua sobrevivendo depois da normalização.
-
-Mostre:
-
-arquivo =
-função =
-campo =
-
-Verifique especialmente:
-
-serviceText
-serviceIntent
-serviceQuery
-normalizedService
-bookingContext.serviceText
-bookingContext.serviceName
-SERVICE_PATTERNS
-list_services query
-semantic resolver
-
-Quero descobrir em qual campo o texto "mão" está chegando
-até a resolução do catálogo.
+E) existe fallback semântico/IA gerando opções que não vieram
+do catálogo BEMP.
 
 ==================================================
-CORREÇÃO
+TRACE OBRIGATÓRIO
 ==================================================
 
-Faça a menor alteração possível para garantir:
+Para os dois atendimentos reais, mostre:
 
-"mão"
-"mãos"
-"fazer a mão"
-"fazer as mãos"
-"unha da mão"
-
-→ normalizedServiceIntent = "manicure"
-
-E a resolução subsequente utilize SOMENTE:
-
-"manicure"
-
-como consulta semântica ao catálogo.
-
-NÃO hardcode serviceId.
-NÃO hardcode preço.
-
-O serviceId continua vindo do BEMP.
+UNIDADE =
+instanceId =
+unitId =
+mensagem original =
+serviceText extraído =
+serviceIntent =
+query enviada para list_services =
+list_services foi chamada = SIM/NÃO
+unitId enviado à BEMP =
+resposta BRUTA da BEMP =
+serviços retornados =
+serviceIds retornados =
+resposta final da Julia =
 
 ==================================================
-TESTE OBRIGATÓRIO
+REGRA CRÍTICA
 ==================================================
 
-Teste:
+A JULIA NÃO PODE INVENTAR OPÇÕES DE SERVIÇO.
 
-"Oi, quero fazer a mão hoje"
+Toda opção apresentada ao cliente precisa existir no catálogo
+REAL da BEMP daquela unidade.
 
-Mostre:
+Se "Mão Simples", "Francesinha", "Blindagem" ou "Alongamento"
+forem mencionados pela Julia, identifique exatamente qual
+serviceId da BEMP originou cada opção.
 
-originalText =
-serviceText capturado inicialmente =
-normalizedServiceIntent =
-query enviada ao list_services =
-candidatos retornados pelo BEMP =
-dateResolved =
-serviceId final =
-resposta Julia =
+Se alguma option NÃO tiver serviceId correspondente:
 
-RESULTADO OBRIGATÓRIO:
-
-"MÃO" EXISTE APÓS NORMALIZAÇÃO COMO QUERY DE SERVIÇO = NÃO
-
-QUERY ENVIADA AO BEMP = MANICURE
-
-"MÃO" APARECE COMO OPÇÃO PARA CLIENTE = NÃO
-
-MANICURE RESOLVIDA PELO CATÁLOGO = SIM/NÃO
-
-HOJE PRESERVADO = SIM
-
-PERGUNTOU SE MÃO É MANICURE = NÃO
-
-PERGUNTOU A DATA NOVAMENTE = NÃO
+MARQUE:
+HALLUCINATED_SERVICE_OPTION = SIM
 
 ==================================================
-NÃO ALTERAR
+DATA
 ==================================================
 
-Não alterar:
-- preços
-- unitId
-- wa_agentes
-- Evolution
-- list_slots
-- disponibilidade
-- Gemini/modelo
-- price auditor
+Também valide que:
 
-Corrija exclusivamente a NORMALIZAÇÃO ANTES DA BUSCA DO SERVIÇO.
+"hoje" foi capturado na primeira mensagem.
 
-Depois do teste, PARE.`}
+dateIntent = HOJE
+
+A Julia NÃO deve perguntar novamente qual dia depois que o
+cliente já informou "hoje".
+
+Mas NÃO consulte horários ainda se o serviço específico ainda
+não tiver serviceId definido.
+
+==================================================
+RESULTADO FINAL
+==================================================
+
+VENTURA
+unitId =
+"mão" normalizada para =
+query list_services =
+serviços reais BEMP encontrados =
+opções apresentadas pela Julia =
+todas vieram da BEMP = SIM/NÃO
+"hoje" preservado = SIM/NÃO
+
+BOULEVARD
+unitId =
+"mão" normalizada para =
+query list_services =
+serviços reais BEMP encontrados =
+opções apresentadas pela Julia =
+todas vieram da BEMP = SIM/NÃO
+"hoje" preservado = SIM/NÃO
+
+DIVERGÊNCIA ENTRE UNIDADES = SIM/NÃO
+
+CAUSA RAIZ =
+
+NÃO ALTERE CÓDIGO.
+NÃO ALTERE PROMPT.
+NÃO ALTERE BANCO.
+NÃO FAÇA MIGRAÇÃO.
+
+PARE E AGUARDE MINHA AUTORIZAÇÃO.`}
           </div>
         </CardContent>
       </Card>
