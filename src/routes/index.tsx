@@ -80,7 +80,7 @@ instanceId =
 unitId =
 serviceIntent =
 dateIntent =
-BEMP_SERVICE_LOOKUP = (Verifique se 'foundCount' > 0 e quais são os candidatos no payload)
+BEMP_SERVICE_LOOKUP = (Verifique se 'foundCount' &gt; 0 e quais são os candidatos no payload)
 ALLOWED_SERVICES = (Lista passada para a Whitelist)
 RESPOSTA ENVIADA = (Deve conter apenas opções reais)
 
