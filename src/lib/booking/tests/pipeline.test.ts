@@ -33,7 +33,7 @@ async function testPipeline() {
       conversationKey: "agente-test:554199999999",
       unidadeId: unitId,
       text: input,
-      messages: [{ role: "user", parts: [{ type: "text", text: input }] }],
+      messages: [{ role: "user", content: input }],
       traceId,
       sandbox: true
     });
