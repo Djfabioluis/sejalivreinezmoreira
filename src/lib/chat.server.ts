@@ -80,7 +80,9 @@ PROMOÇÕES ATIVAS E CONFIRMADAS:
 
 export const DEFAULT_SYSTEM_PROMPT = `${MANDATORY_SYSTEM_RULES}
 
-${DEFAULT_KNOWLEDGE_PROMPT}`;
+${DEFAULT_KNOWLEDGE_PROMPT}
+
+SE O SERVICE ID E UNIT ID ESTIVEREM PRESENTES NO CONTEXTO E O CLIENTE INFORMAR UMA DATA, VOCÊ DEVE OBRIGATORIAMENTE CHAMAR 'list_slots'.`;
 
 const SANDBOX_NOTE = `
 
@@ -106,7 +108,7 @@ export function runTool<T>(label: string, fn: () => Promise<T>, ctx: ToolCtx = {
         const stage = inferStageFromTool(label, result);
         if (stage) {
           await updateCustomerPipeline({
-            phone: ctx.conversationKey,
+            phone: ctx.conversationKey.split(':')[1] || ctx.conversationKey,
             stage,
             abandonmentReason: (result as any)?.abandon_trigger
           });
@@ -130,7 +132,7 @@ export function runTool<T>(label: string, fn: () => Promise<T>, ctx: ToolCtx = {
             attendance_mode: 'HUMAN',
             last_error_code: failure.code,
             last_error_at: new Date().toISOString()
-          } as any).eq("phone", ctx.conversationKey);
+          } as any).eq("phone", ctx.conversationKey.split(':')[1] || ctx.conversationKey);
           console.log(`[chat] human_handoff_triggered: ${base}, reason=${failure.code}`);
         } catch (handoffErr) {
           console.error(`[chat] handoff_failed: ${base}`, handoffErr);
@@ -336,7 +338,9 @@ function buildTools(
           // Auditoria e Resolução de Preço/Serviço para o trace atual
           if (traceId) {
             const lastUserMessage = messages.filter((m: any) => m.role === 'user').pop();
-            const textToSearch = typeof lastUserMessage?.content === 'string' ? lastUserMessage.content : "";
+            const textToSearch = typeof lastUserMessage?.content === 'string' 
+              ? lastUserMessage.content 
+              : (Array.isArray(lastUserMessage?.content) ? (lastUserMessage.content[0] as any)?.text || "" : "");
             
             // Re-extrair slots com o contexto atual para capturar seleções de ambiguidade
             const { extractBookingSlots } = await import("@/lib/booking/context");
@@ -344,9 +348,13 @@ function buildTools(
 
             // REQUISITO: Se já temos um serviceId no contexto persistido e o cliente não mudou de ideia
             // (não detectamos um NOVO serviço na mensagem atual), preservamos o que temos.
-            const finalServiceId = extracted.serviceId || bookingContext?.serviceId;
-            const finalServiceName = extracted.serviceName || bookingContext?.serviceName;
+            // O extracted.serviceText detecta novas intenções de serviço na mensagem atual.
+            const finalServiceId = extracted.serviceId || (!extracted.serviceText ? (bookingContext?.serviceId || null) : null);
+            const finalServiceName = extracted.serviceName || (!extracted.serviceText ? (bookingContext?.serviceName || null) : null);
             
+            // Log de diagnóstico para o monitor
+            console.log(`[SERVICE_RESOLVER] trace=${traceId} finalServiceId=${finalServiceId} finalServiceName=${finalServiceName}`);
+
             // Se o extrator resolveu a ambiguidade AGORA ou se já tínhamos resolvido anteriormente
             if (finalServiceId) {
               const services = await BempService.listServices(effectiveUnitId);
@@ -372,12 +380,12 @@ function buildTools(
               }
             }
 
-            // Busca semântica dinâmica no catálogo real
-            const searchTerms = String(textToSearch).toLowerCase().split(/\s+/).filter(t => t.length > 2);
+            const searchPattern = extracted.serviceText || (typeof textToSearch === 'string' ? textToSearch : "");
+            const searchTerms = String(searchPattern).toLowerCase().split(/\s+/).filter(t => t.length > 2);
             
             // Se for um serviço inexistente (muito improvável dar match com algo útil), ignorar
-            if (searchTerms.length === 0 || textToSearch.includes("XYZ INEXISTENTE")) {
-               console.log(`[SERVICE_NOT_FOUND] traceId=${traceId}, query=${textToSearch}`);
+            if (searchTerms.length === 0 || (typeof searchPattern === 'string' && searchPattern.toLowerCase().includes("xyz inexistente"))) {
+               console.log(`[SERVICE_NOT_FOUND] traceId=${traceId}, query=${searchPattern}`);
                return services;
             }
 
@@ -455,7 +463,8 @@ function buildTools(
           if (Array.isArray(slots) && conversationKey) {
             const times = slots.map((s: any) => s.start.split('T')[1].substring(0, 5));
             await patchCustomerContext(conversationKey, {
-              'bookingContext.availableSlots': times
+              'bookingContext.availableSlots': times,
+              'bookingContext.availabilityCalled': true
             });
           }
           
@@ -495,7 +504,6 @@ function buildTools(
 }
 
 export async function runAgentWithLogging(opts: AgentOptions & { messages?: any[]; text?: string }) {
-  // runAgent já aplica o limite de 12 mensagens para segurança global
   return runAgent(opts);
 }
 
@@ -508,12 +516,11 @@ export async function streamAgent(opts: { messages: any[]; sandbox?: boolean }) 
   const gatewayKey = process.env.LOVABLE_AI_GATEWAY_KEY || process.env.LOVABLE_API_KEY || "";
   const provider = createLovableAiGatewayProvider(gatewayKey);
   const model = provider("google/gemini-2.5-flash");
-  const modelMessages = await convertToModelMessages(opts.messages);
 
   return streamText({
     model,
     system: DEFAULT_SYSTEM_PROMPT + (opts.sandbox ? SANDBOX_NOTE : ""),
-    messages: modelMessages,
+    messages: await convertToModelMessages(opts.messages),
     maxSteps: 5,
   } as any);
 }
@@ -546,16 +553,15 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
     bookingContext
   });
 
-  const modelMessages = await convertToModelMessages(messages);
   const aiStartedAt = Date.now();
   const response = await generateText({
     model,
     system: systemPrompt + (sandbox ? SANDBOX_NOTE : ""),
-    messages: modelMessages,
+    messages: messages,
     tools: buildTools(!!sandbox, effectiveUnitId, conversationKey, opts.messageId, bookingContext.subscriptionIntent, traceId, messages, bookingContext),
     maxSteps: 5,
     onStepFinish: async (step: any) => {
-      if (traceId) {
+      if (step.toolCalls?.length > 0 && traceId) {
         await logEvent({
           instance: opts.instance || "unknown",
           messageId: opts.messageId || "unknown",
