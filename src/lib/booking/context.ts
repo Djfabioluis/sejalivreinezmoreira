@@ -145,10 +145,13 @@ export function extractBookingSlots(
   // --- Data ---
   if (/\bhoje\b/i.test(t)) {
     out.date = isoDate(now);
+    logEvent({ instance: 'unknown', event: 'DATE_RESOLVED', status: 'success', payload: { input: 'hoje', resolved: out.date } }).catch(() => {});
   } else if (/depois\s+de\s+amanh[ãa]/i.test(t)) {
     out.date = isoDate(addDays(now, 2));
+    logEvent({ instance: 'unknown', event: 'DATE_RESOLVED', status: 'success', payload: { input: 'depois de amanhã', resolved: out.date } }).catch(() => {});
   } else if (/amanh[ãa]/i.test(t)) {
     out.date = isoDate(addDays(now, 1));
+    logEvent({ instance: 'unknown', event: 'DATE_RESOLVED', status: 'success', payload: { input: 'amanhã', resolved: out.date } }).catch(() => {});
   } else {
     // Tenta data no formato DD/MM
     const dm = t.match(/\b(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?\b/);
