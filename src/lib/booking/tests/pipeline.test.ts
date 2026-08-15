@@ -1,7 +1,7 @@
 
-import { runAgent } from "../chat.server";
-import { logEvent } from "../evolution/logger.server";
-import { BempService } from "../bemp.server";
+import { runAgent } from "../../chat.server";
+import { logEvent } from "../../evolution/logger.server";
+import { BempService } from "../../bemp.server";
 
 async function testPipeline() {
   console.log("==================================================");
@@ -20,9 +20,9 @@ async function testPipeline() {
   BempService.listServices = async (id: string) => {
     if (id === "5258") {
       return [
-        { id: "101", name: "Manicure Simples", price: 35 },
-        { id: "102", name: "Manicure + Pedicure", price: 60 },
-        { id: "103", name: "Alongamento de Unhas", price: 150 }
+        { id: 101, name: "Manicure Simples", price: 35 },
+        { id: 102, name: "Manicure + Pedicure", price: 60 },
+        { id: 103, name: "Alongamento de Unhas", price: 150 }
       ] as any;
     }
     return [];
@@ -63,3 +63,4 @@ async function testPipeline() {
 }
 
 testPipeline().catch(console.error);
+
