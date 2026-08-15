@@ -1,20 +1,23 @@
 import { supabase } from "../../../integrations/supabase/client";
 
-// Mock minimal da resolveEffectiveUnit para o teste se não conseguir importar
+// Mock minimal da resolveEffectiveUnit para o teste
 async function resolveEffectiveUnitMock(params: { conversationKey?: string; agentUnitId?: string | null }) {
   const { conversationKey, agentUnitId } = params;
   let conversationUnitId: string | null = null;
   let source: "conversation" | "agent" = "agent";
 
   if (conversationKey) {
-    const { data } = await supabase
+    // console.log(`[mock] Buscando unidade para conversationKey: ${conversationKey}`);
+    const { data, error } = await supabase
       .from("wa_conversas")
       .select("unidade_id")
       .eq("phone", conversationKey)
       .maybeSingle();
 
+    if (error) console.error("[mock] Erro na query wa_conversas:", error);
+
     if (data?.unidade_id) {
-      conversationUnitId = data.unidade_id;
+      conversationUnitId = String(data.unidade_id);
       source = "conversation";
     }
   }
@@ -40,15 +43,18 @@ async function runIsolationTest() {
     console.log(`\nENTRADA ${t.name}:`);
     console.log(`INBOUND_INSTANCE = ${t.instanceId}`);
     
-    const { data: agent } = await supabase
+    const { data: agent, error } = await supabase
       .from("wa_agentes")
       .select("unidade_id")
       .eq("instancia", t.instanceId)
       .maybeSingle();
     
-    console.log(`WA_AGENT_UNIT = ${agent?.unidade_id}`);
+    if (error) console.error("[mock] Erro na query wa_agentes:", error);
     
-    const res = await resolveEffectiveUnitMock({ agentUnitId: agent?.unidade_id });
+    const unitId = agent ? String(agent.unidade_id) : null;
+    console.log(`WA_AGENT_UNIT = ${unitId}`);
+    
+    const res = await resolveEffectiveUnitMock({ agentUnitId: unitId });
     console.log(`EFFECTIVE_UNIT_RESOLVED = ${res.effectiveUnitId}`);
     
     if (String(res.effectiveUnitId) === String(t.expectedUnitId)) {
@@ -62,7 +68,8 @@ async function runIsolationTest() {
   console.log("5. TESTE DE CONTAMINAÇÃO ENTRE CONVERSAS");
   console.log("==================================================");
   
-  const phoneVentura = "5541998803684";
+  // Telefone da Ventura: 554198803684
+  const phoneVentura = "554198803684";
   const convKeyBoulevard = `agente-554130731358:${phoneVentura}`;
   
   console.log(`Testando conversa Boulevard com telefone da Ventura:`);
@@ -74,17 +81,20 @@ async function runIsolationTest() {
       .eq("instancia", "agente-554130731358")
       .maybeSingle();
 
+  const boulevardAgentUnitId = agentBoulevard ? String(agentBoulevard.unidade_id) : null;
   const resContamination = await resolveEffectiveUnitMock({ 
     conversationKey: convKeyBoulevard, 
-    agentUnitId: agentBoulevard?.unidade_id 
+    agentUnitId: boulevardAgentUnitId 
   });
   
-  console.log(`UNITID APÓS WA_AGENTES (agente-554130731358) = ${agentBoulevard?.unidade_id}`);
+  console.log(`UNITID APÓS WA_AGENTES (agente-554130731358) = ${boulevardAgentUnitId}`);
   console.log(`EFFECTIVE_UNITID (resolveEffectiveUnit) = ${resContamination.effectiveUnitId}`);
   console.log(`FONTE DA RESOLUÇÃO = ${resContamination.source}`);
   
   if (String(resContamination.effectiveUnitId) === "1377") {
     console.log("!!! CONTAMINAÇÃO COMPROVADA: resolveEffectiveUnit retornou 1377 (Ventura) para instância Boulevard!");
+  } else {
+    console.log("Isolamento mantido para este caso específico.");
   }
 }
 
