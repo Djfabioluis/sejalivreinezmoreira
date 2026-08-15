@@ -363,8 +363,13 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
 
     const matches = services.filter(s => {
       const name = normalizeServiceSearchText(s.name || s.nome || "");
-      const isMatch = name.includes(normalizedSearch) || normalizedSearch.includes(name);
-      return isMatch;
+      // Prioridade 1: Match exato após normalização
+      if (name === normalizedSearch) return true;
+      // Prioridade 2: Search contido no nome (ex: "manicure" em "Manicure + Pedicure")
+      if (name.includes(normalizedSearch)) return true;
+      // Prioridade 3: Nome contido no search (ex: "unha" em "quero fazer minha unha")
+      if (normalizedSearch.includes(name) && name.length > 3) return true;
+      return false;
     });
 
     await logEvent({
