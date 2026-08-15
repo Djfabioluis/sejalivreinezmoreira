@@ -92,14 +92,14 @@ HOJE_PRESERVADO = SIM
 BOOKING_CONTEXT_SERVICE_INTENT = NULL
 DETERMINISTIC_SERVICE_RESOLUTION_ENTERED = SIM
 LIST_SERVICES_CALLED = SIM
-BEMP_RAW_COUNT = 0 (Query: "mão" -> "mao")
+BEMP_RAW_COUNT = 0 (Query: "mão" {"->"} "mao")
 FILTERED_COUNT = 0
 ALLOWED_SERVICES = []
 SERVICE_CLARIFICATION_REQUIRED = NÃO (BRANCH NÃO ALCANÇADA)
 OUTPUT_VALIDATOR_EXECUTED = NÃO
 RESPOSTA_GERADA_POR = Gemini (Fallback para pergunta semântica)
 RAW_MAO_REUTILIZADA_DEPOIS_DA_NORMALIZACAO = SIM
-PRIMEIRO_PONTO_DA_DIVERGENCIA = src/lib/booking/context.ts -> SERVICE_PATTERNS (Faltando "mão" exato isolado)
+PRIMEIRO_PONTO_DA_DIVERGENCIA = src/lib/booking/context.ts {"->"} SERVICE_PATTERNS (Faltando "mão" exato isolado)
 CAUSA_RAIZ = Regex do pattern "manicure" exige palavra completa ou sufixo/prefixo que não casou com "mão" puro na extração determinística, forçando o Gemini a tentar resolver a ambiguidade manualmente em vez de usar o catálogo.
 
 PARE E AGUARDE MINHA AUTORIZAÇÃO.
