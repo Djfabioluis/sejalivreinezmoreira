@@ -165,6 +165,8 @@ export function extractBookingSlots(
 
   // --- Serviço (Resolução de Ambiguidade Prioritária - Determinística) ---
   if (previous?.clarificationRequired && previous.candidates?.length && !out.serviceText) {
+    console.log(`[DETERMINISTIC_RESOLUTION_ATTEMPT] Input: "${t}" | Candidates: ${previous.candidates.length}`);
+
     // 1. Tentar por índice ("o segundo", "opção 1", "1", "primeiro")
     // Padrões autorizados: "1", "primeiro", "o primeiro", "o 1"
     const ordinalMatch = t.match(/\b(?:a|o)?\s*(primeir[ao]|segund[ao]|terceir[ao]|quart[ao]|quint[ao])\b/i);
