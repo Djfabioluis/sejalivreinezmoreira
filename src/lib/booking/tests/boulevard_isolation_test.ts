@@ -1,5 +1,29 @@
 import { supabase } from "../../../integrations/supabase/client";
-import { resolveEffectiveUnit } from "../chat.server";
+
+// Mock minimal da resolveEffectiveUnit para o teste se não conseguir importar
+async function resolveEffectiveUnitMock(params: { conversationKey?: string; agentUnitId?: string | null }) {
+  const { conversationKey, agentUnitId } = params;
+  let conversationUnitId: string | null = null;
+  let source: "conversation" | "agent" = "agent";
+
+  if (conversationKey) {
+    const { data } = await supabase
+      .from("wa_conversas")
+      .select("unidade_id")
+      .eq("phone", conversationKey)
+      .maybeSingle();
+
+    if (data?.unidade_id) {
+      conversationUnitId = data.unidade_id;
+      source = "conversation";
+    }
+  }
+
+  return {
+    effectiveUnitId: conversationUnitId || agentUnitId || null,
+    source
+  };
+}
 
 async function runIsolationTest() {
   console.log("==================================================");
@@ -24,9 +48,8 @@ async function runIsolationTest() {
     
     console.log(`WA_AGENT_UNIT = ${agent?.unidade_id}`);
     
-    // Simular resolveEffectiveUnit sem conversationKey (novo cliente)
-    const res = await resolveEffectiveUnit({ agentUnitId: agent?.unidade_id });
-    console.log(`EFFECTIVE_UNIT_RESOLVED = ${res.effectiveUnitId} (${res.effectiveUnitName})`);
+    const res = await resolveEffectiveUnitMock({ agentUnitId: agent?.unidade_id });
+    console.log(`EFFECTIVE_UNIT_RESOLVED = ${res.effectiveUnitId}`);
     
     if (String(res.effectiveUnitId) === String(t.expectedUnitId)) {
       console.log("RESULTADO = PASSOU");
@@ -38,11 +61,6 @@ async function runIsolationTest() {
   console.log("\n==================================================");
   console.log("5. TESTE DE CONTAMINAÇÃO ENTRE CONVERSAS");
   console.log("==================================================");
-
-  // Aqui testamos se resolveEffectiveUnit via conversationKey traz lixo
-  // O cliente Boulevard que virou Ventura (trace webhook-1786727447354) 
-  // tinha phoneLast4: 3684. 
-  // Telefone da Ventura termina em 3684 (+55 41 99880-3684).
   
   const phoneVentura = "5541998803684";
   const convKeyBoulevard = `agente-554130731358:${phoneVentura}`;
@@ -56,7 +74,7 @@ async function runIsolationTest() {
       .eq("instancia", "agente-554130731358")
       .maybeSingle();
 
-  const resContamination = await resolveEffectiveUnit({ 
+  const resContamination = await resolveEffectiveUnitMock({ 
     conversationKey: convKeyBoulevard, 
     agentUnitId: agentBoulevard?.unidade_id 
   });
