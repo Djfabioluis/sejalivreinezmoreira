@@ -1,7 +1,7 @@
 
 import { runAgent } from "../../chat.server";
 import { logEvent } from "../../evolution/logger.server";
-import { BempService } from "../../bemp.server";
+import { BempService } from "../../bemp-service.server";
 
 async function testPipeline() {
   console.log("==================================================");
