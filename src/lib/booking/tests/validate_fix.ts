@@ -19,11 +19,17 @@ async function test_flow(label: string, scenario: { messages: any[], unitId: str
     
     console.log("Contexto ANTES da IA:", JSON.stringify(currentContext, null, 2));
 
-    // 2. Chamar IA (Usando apenas o content string, o SDK faz o wrap se necessário ou usamos o runAgent que já lida com isso)
+    // 2. Formatar para CoreMessage (SDK v3+)
+    const coreMessages = scenario.messages.slice(0, i + 1).map(m => ({
+      role: m.role,
+      content: [{ type: 'text', text: m.content }]
+    }));
+
+    // 3. Chamar IA
     const result = await runAgent({
       conversationKey: `test-${label}-${Date.now()}`,
       unidadeId: scenario.unitId,
-      messages: scenario.messages.slice(0, i + 1),
+      messages: coreMessages,
       customerContext: { bookingContext: currentContext },
       traceId: `test-trace-${label}-${i}`
     } as any);
