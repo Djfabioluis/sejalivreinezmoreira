@@ -35,275 +35,226 @@ function Dashboard() {
         </CardHeader>
         <CardContent className="p-8 space-y-6 text-slate-900">
           <div className="bg-slate-100 p-6 rounded-lg font-mono text-sm whitespace-pre-wrap border border-slate-300">
-{`Execute esta instrucao no projeto: AUTORIZO A CORREÇÃO, MAS SOMENTE DA CAUSA RAIZ IDENTIFICADA
-NA AUDITORIA.
+{`Execute esta instrucao no projeto: NÃO FAÇA NENHUMA ALTERAÇÃO.
 
-NÃO ALTERE O MAPEAMENTO DAS UNIDADES.
-NÃO ALTERE instanceId.
-NÃO ALTERE unitId.
-NÃO ALTERE PREÇOS.
-NÃO ALTERE WEBHOOK.
-NÃO ALTERE EVOLUTION.
-NÃO ALTERE MEMÓRIA/HISTÓRICO.
-NÃO CRIE SERVIÇOS NO BANCO.
+ACABEI DE EXECUTAR O TESTE REAL NO WHATSAPP.
 
-A auditoria confirmou:
-
-HALLUCINATED_SERVICE_OPTION = SIM
-
-e confirmou também que:
-
-"mão" -> MANICURE
-
-já está sendo normalizado corretamente.
-
-PORTANTO:
-
-NÃO faça nova correção da normalização de "mão".
-
-O problema agora é impedir que o LLM/Gemini invente,
-complete, renomeie ou sugira serviços que não vieram
-do catálogo REAL da BEMP.
-
-==================================================
-REGRA ABSOLUTA — CATÁLOGO BEMP É A FONTE DA VERDADE
-==================================================
-
-Quando houver intenção de serviço:
-
-1. Identifique a unidade pela instância inbound.
-
-2. Preserve o unitId dessa unidade durante TODO o atendimento.
-
-3. Normalize apenas a intenção de busca.
-
-Exemplo:
-
-"quero fazer a mão hoje"
-
-serviceIntent = MANICURE
-dateIntent = HOJE
-
-4. Consulte list_services usando:
-
-unitId da instância inbound
-+
-serviceIntent normalizado
-
-5. A partir desse momento, SOMENTE os serviços realmente
-retornados pela BEMP podem ser apresentados ao cliente.
-
-O Gemini NÃO pode:
-
-- inventar nomes;
-- criar nomes amigáveis;
-- completar nomes;
-- criar modalidades;
-- sugerir serviços por conhecimento próprio;
-- misturar serviços de outra unidade;
-- transformar categoria em serviço inexistente;
-- apresentar exemplo que não esteja no retorno da BEMP.
-
-==================================================
-CATALOG_ONLY MODE
-==================================================
-
-Implemente uma proteção determinística:
-
-CATALOG_ONLY = TRUE
-
-Toda opção de serviço mencionada na resposta ao cliente
-deve possuir obrigatoriamente:
-
-serviceId
-serviceName
-unitId
-
-originados da resposta REAL de list_services/BEMP.
-
-Antes de enviar a resposta:
-
-para cada serviço citado:
-
-assert serviceId existe
-assert serviceName existe no retorno BEMP
-assert unitId == inboundUnitId
-
-Se qualquer condição falhar:
-
-NÃO ENVIE A OPÇÃO.
-
-HALLUCINATED_SERVICE_OPTION deve ser impossível de chegar
-ao WhatsApp.
-
-==================================================
-CASO "MÃO"
-==================================================
-
-Entrada:
-
-"Quero fazer a mão hoje"
-
-NÃO responder:
-
-"Você se refere a manicure?"
-
-NÃO inventar:
-
-"Mão Simples"
-"Francesinha"
-"Blindagem"
-"Alongamento"
-
-a menos que esses nomes EXATOS tenham sido retornados
-pela BEMP para aquela unidade.
-
-Fluxo correto:
-
-"mão"
-→ serviceIntent MANICURE
-→ preservar HOJE
-→ list_services(unitId correto, MANICURE)
-→ receber catálogo BEMP.
-
-SE retornar exatamente 1 serviço compatível:
-
-selecionar o serviceId real
-e prosseguir para disponibilidade de HOJE.
-
-SE retornar mais de 1 serviço compatível:
-
-perguntar qual deles a cliente deseja,
-mostrando SOMENTE nomes retornados pela BEMP.
-
-SE retornar 0 serviços:
-
-NÃO inventar alternativas.
-
-Responder de forma segura informando que não encontrou
-esse serviço naquela unidade e, se apropriado, oferecer
-SOMENTE opções reais retornadas pelo catálogo da própria unidade.
-
-==================================================
-DATA NÃO PODE SER PERDIDA
-==================================================
-
-Se a mensagem original contém:
-
-"hoje"
-
-bookingContext.dateIntent = HOJE
-
-Essa informação deve sobreviver à etapa de escolha do serviço.
-
-Exemplo:
-
-CLIENTE:
-"Quero fazer a mão hoje"
-
-JULIA:
-[apresenta somente serviços reais BEMP, caso haja mais de um]
-
-CLIENTE:
-[seleciona serviço]
-
-A Julia NÃO deve perguntar:
-
-"Para qual dia?"
-
-Ela já sabe:
-
-dateIntent = HOJE.
-
-Depois de obter serviceId:
-
-→ list_slots
-→ inboundUnitId
-→ serviceId real
-→ data de HOJE
-
-==================================================
-ISOLAMENTO DE UNIDADE
-==================================================
-
-Adicione validação imediatamente antes de:
-
-list_services
-e
-list_slots
-
-assert bookingContext.unitId === inboundUnitId
-
-Nenhum dado de:
-
-CENTRO
+UNIDADE TESTADA:
 VENTURA
-BOULEVARD
 
-pode atravessar entre instâncias.
+MENSAGEM REAL DO CLIENTE:
+"quero fazer mao hoje"
+
+HORÁRIO APROXIMADO:
+14:51
+
+RESPOSTA REAL DA JULIA:
+
+"Olá, Fabio Luis! Para te ajudar a agendar, preciso saber qual serviço de
+'mão' você gostaria de fazer. Você se refere a:
+
+1. Manicure
+2. Esmaltação
+3. Unhas de Gel
+4. Blindagem
+5. Banho de Gel
+
+Qual dessas opções você deseja?"
+
+NÃO CORRIJA NADA AINDA.
+
+Quero AUDITORIA FORENSE deste atendimento REAL.
 
 ==================================================
-VALIDAÇÃO
+1. LOCALIZE O TRACE EXATO
 ==================================================
 
-Após implementar, execute testes automatizados:
+Localize a mensagem inbound:
 
-VENTURA:
-"Quero fazer a mão hoje"
+"quero fazer mao hoje"
 
-BOULEVARD:
-"Quero fazer a mão hoje"
-
-CENTRO:
-"Quero fazer a mão hoje"
-
-Para cada unidade mostre:
-
-instanceId =
-inboundUnitId =
-serviceIntent =
-dateIntent =
-list_services chamada = SIM/NÃO
-unitId enviado =
-resposta bruta BEMP =
-serviceIds =
-serviceNames =
-opções efetivamente apresentadas =
-TODAS AS OPÇÕES EXISTEM NA BEMP = SIM/NÃO
-HALLUCINATED_SERVICE_OPTION = SIM/NÃO
-
-Depois valide continuação:
-
-cliente escolhe um serviço real.
+da unidade VENTURA, aproximadamente às 14:51.
 
 Mostre:
 
-serviceId preservado =
-dateIntent preservado =
-list_slots chamada = SIM/NÃO
-unitId enviado ao list_slots =
-data enviada =
-slots retornados =
+traceId =
+webhookId =
+instanceId inbound =
+telefone da unidade =
+unitId resolvido =
+bookingContext antes =
+bookingContext depois =
 
-RESULTADO OBRIGATÓRIO:
+==================================================
+2. NORMALIZAÇÃO
+==================================================
 
-3 UNIDADES ISOLADAS = SIM
-CATALOG_ONLY = SIM
-HALLUCINATED_SERVICE_OPTION = NÃO
-"MÃO" NORMALIZADA PARA MANICURE = SIM
-"HOJE" PRESERVADO = SIM
-SERVIÇO ESCOLHIDO POSSUI serviceId BEMP = SIM
-LIST_SLOTS USA A MESMA UNIDADE INBOUND = SIM
+Comprove:
 
-NÃO considere teste automatizado como prova final de produção.
+texto original =
+serviceText extraído =
+serviceIntent antes =
+serviceIntent depois =
+"mao" foi normalizado para MANICURE = SIM/NÃO
+dateIntent detectado =
+"hoje" foi preservado = SIM/NÃO
 
-Depois da implementação:
+IMPORTANTE:
 
-PARE.
+Se serviceIntent = MANICURE,
+explique por que o sistema voltou a perguntar
+"qual serviço de mão você gostaria de fazer?"
 
-NÃO faça novas alterações.
+==================================================
+3. PROVE A CHAMADA REAL DE list_services
+==================================================
 
-Aguarde minha autorização para TESTE REAL PELO WHATSAPP.`}
+Quero evidência do backend, não inferência pela resposta.
+
+Mostre:
+
+LIST_SERVICES_CALLED =
+timestamp =
+função chamadora =
+unitId enviado =
+query enviada =
+serviceIntent usado =
+
+Se LIST_SERVICES_CALLED = NÃO:
+PARE e informe a causa.
+
+==================================================
+4. MOSTRE O RETORNO BRUTO DA BEMP
+==================================================
+
+Se list_services foi chamada, mostre o retorno REAL
+recebido da BEMP antes de qualquer processamento do Gemini.
+
+Liste:
+
+serviceId
+nome exato
+categoria/tipo, se existir
+preço, se retornado
+
+NÃO RESUMA.
+NÃO INVENTE.
+NÃO use dados mockados.
+
+Quero saber especificamente se estes nomes vieram da BEMP:
+
+"Manicure" = SIM/NÃO
+"Esmaltação" = SIM/NÃO
+"Unhas de Gel" = SIM/NÃO
+"Blindagem" = SIM/NÃO
+"Banho de Gel" = SIM/NÃO
+
+==================================================
+5. COMPARE BEMP x RESPOSTA DA JULIA
+==================================================
+
+Crie uma tabela:
+
+OPÇÃO | VEIO DA BEMP | FOI MOSTRADA AO CLIENTE
+
+Manicure
+Esmaltação
+Unhas de Gel
+Blindagem
+Banho de Gel
+
+Se qualquer opção mostrada ao cliente NÃO estiver
+no retorno bruto da BEMP:
+
+HALLUCINATED_SERVICE_OPTION = SIM
+
+e identifique onde ela foi criada.
+
+==================================================
+6. POR QUE MANICURE NÃO FOI RESOLVIDA?
+==================================================
+
+Se:
+
+serviceIntent = MANICURE
+
+e o catálogo contém um serviço compatível claramente
+identificado como Manicure,
+
+audite por que o sistema NÃO resolveu automaticamente
+o serviceId correspondente.
+
+Mostre:
+
+candidate matching =
+quantidade de candidatos compatíveis =
+serviceId candidato =
+confidence/matching rule =
+motivo de não resolução =
+
+Não quero nova regra ainda.
+Quero somente diagnóstico.
+
+==================================================
+7. AUDITE A DATA
+==================================================
+
+A mensagem contém:
+
+"hoje"
+
+Comprove:
+
+dateIntent =
+data absoluta calculada =
+dateIntent permaneceu no bookingContext após list_services =
+a Julia voltou a perguntar data = SIM/NÃO
+
+==================================================
+8. AUDITE O PRÓXIMO PASSO ESPERADO
+==================================================
+
+Se houver exatamente UM serviço real da BEMP
+correspondente à intenção MANICURE:
+
+informe se tecnicamente o fluxo deveria ter:
+
+serviceId resolvido
+        ↓
+list_slots
+        ↓
+consulta de disponibilidade para HOJE
+
+em vez de perguntar novamente qual serviço.
+
+Responda SIM/NÃO e explique com base no código atual.
+
+==================================================
+RESULTADO FINAL
+==================================================
+
+TRACE_REAL_ENCONTRADO =
+INSTANCE_CORRETA =
+UNITID_CORRETO =
+MAO_NORMALIZADA_MANICURE =
+HOJE_PRESERVADO =
+LIST_SERVICES_CALLED =
+BEMP_CONSULTADA =
+BEMP_RAW_SERVICES =
+OPCOES_EXIBIDAS_VIERAM_100_BEMP =
+HALLUCINATED_SERVICE_OPTION =
+MANICURE_SERVICEID_ENCONTRADO =
+MANICURE_RESOLVIDA_AUTOMATICAMENTE =
+LIST_SLOTS_CALLED =
+CAUSA_EXATA_DA_PERGUNTA_INCORRETA =
+
+NÃO ALTERE CÓDIGO.
+NÃO ALTERE PROMPT.
+NÃO ALTERE BANCO.
+NÃO ALTERE MAPEAMENTO.
+NÃO FAÇA NOVO DEPLOY.
+
+PARE E AGUARDE MINHA AUTORIZAÇÃO.`}
           </div>
         </CardContent>
       </Card>
