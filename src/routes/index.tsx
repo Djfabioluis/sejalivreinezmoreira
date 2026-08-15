@@ -235,7 +235,7 @@ function Dashboard() {
                   <span className="font-bold text-slate-800">SIM/NÃO</span>
                 </div>
                 <div className="flex items-center justify-between border-b border-slate-100 pb-1">
-                  <span className="text-slate-400">"MÃO" -> MANICURE</span>
+                  <span className="text-slate-400">{"MÃO"} -&gt; MANICURE</span>
                   <span className="font-bold text-slate-800 text-green-700">SIM/NÃO</span>
                 </div>
               </div>
