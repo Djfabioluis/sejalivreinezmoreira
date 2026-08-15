@@ -132,7 +132,7 @@ export function runTool<T>(label: string, fn: () => Promise<T>, ctx: ToolCtx = {
             attendance_mode: 'HUMAN',
             last_error_code: failure.code,
             last_error_at: new Date().toISOString()
-          } as any).eq("phone", ctx.conversationKey);
+          } as any).eq("instance_phone", ctx.conversationKey.split(':')[0]).eq("customer_phone", ctx.conversationKey.split(':')[1]);
           console.log(`[chat] human_handoff_triggered: ${base}, reason=${failure.code}`);
         } catch (handoffErr) {
           console.error(`[chat] handoff_failed: ${base}`, handoffErr);
