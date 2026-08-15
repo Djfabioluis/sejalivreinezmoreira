@@ -5,38 +5,38 @@ async function diagnoseVenturaLeak() {
   console.log("=== INICIANDO DIAGNÓSTICO FORENSE VENTURA ===");
 
   // 1. Localizar logs na evo_webhook_logs que contêm chamadas de list_slots
+  // Usando created_at pois timestamp não existe
   const { data: logs, error: logError } = await supabaseAdmin
     .from('evo_webhook_logs' as any)
     .select('*')
     .eq('instance', 'agente-5541998803684')
-    .order('timestamp', { ascending: false })
-    .limit(100);
+    .order('created_at', { ascending: false })
+    .limit(200);
 
   if (logError || !logs || logs.length === 0) {
     console.log("CASO REAL VENTURA ENCONTRADO = NÃO (Sem logs na evo_webhook_logs)");
     return;
   }
 
-  // Procurar por chamadas de ferramenta list_slots
+  console.log("Auditing", logs.length, "logs...");
+
+  // Procurar por chamadas de ferramenta list_slots no payload stringificado
   const slotLog = logs.find((l: any) => {
     try {
-      const p = typeof l.payload === 'string' ? JSON.parse(l.payload) : l.payload;
-      // O logEvent é chamado com payload: { traceId, tool, ... } ou similar
-      return p?.tool === 'list_slots' || (l.event === 'AI_STEP_COMPLETED' && p?.toolCalls?.some((tc: any) => tc.function.name === 'list_slots'));
+      const pStr = l.payload;
+      if (!pStr) return false;
+      return pStr.includes('list_slots');
     } catch { return false; }
   });
 
   if (!slotLog) {
-     console.log("AVAILABILITY_TOOL_CALLED = NÃO ENCONTRADO NOS LOGS RECENTES");
-     // Vamos pegar o mais recente para auditoria básica
-     const latest = logs[0];
-     console.log("Último evento Ventura:", latest.event, "em", latest.timestamp);
+     console.log("AVAILABILITY_TOOL_CALLED = NÃO ENCONTRADO NOS LOGS RECENTES (Últimos 200)");
      return;
   }
 
   const p = typeof slotLog.payload === 'string' ? JSON.parse(slotLog.payload) : slotLog.payload;
   console.log("CASO REAL VENTURA ENCONTRADO = SIM");
-  console.log("timestamp =", slotLog.timestamp);
+  console.log("created_at =", slotLog.created_at);
   console.log("event =", slotLog.event);
 
   // 2. Verificar resolução de unidade
@@ -49,9 +49,16 @@ async function diagnoseVenturaLeak() {
   console.log("unitId obtido de wa_agentes =", agent?.unidade_id);
 
   // 3. Auditar a chamada
-  // Dependendo de como o log é estruturado, os argumentos podem estar em locais diferentes
-  const toolCall = p?.toolCalls?.find((tc: any) => tc.function.name === 'list_slots');
-  const args = toolCall ? JSON.parse(toolCall.function.arguments) : (p?.args || {});
+  // Tentar encontrar os argumentos no payload complexo
+  let args: any = {};
+  if (p?.tool === 'list_slots') {
+    args = p.args || {};
+  } else if (Array.isArray(p?.toolCalls)) {
+    const tc = p.toolCalls.find((c: any) => c.function.name === 'list_slots');
+    if (tc) args = JSON.parse(tc.function.arguments);
+  } else if (p?.payload?.tool === 'list_slots') {
+    args = p.payload.args || {};
+  }
   
   console.log("UNITID ENVIADO AO LIST_SLOTS =", args.salon_id || args.unitId);
 
@@ -77,12 +84,12 @@ async function diagnoseVenturaLeak() {
       console.log("SLOTS VENTURA (1377) =", venturaSlots.length);
       console.log("SLOTS CENTRO (1378) =", centroSlots.length);
       
-      // Se tivermos a resposta da IA no log
-      const aiResponse = p?.aiResponse || p?.text || "";
+      const aiResponse = p?.aiResponse || p?.text || (p?.data?.message?.conversation) || "";
       if (aiResponse) {
-        console.log("HORÁRIOS OFERECIDOS PELA JULIA =", aiResponse);
+        console.log("RESPOSTA IA/JULIA ENCONTRADA");
         const isCentro = centroSlots.some((s: any) => aiResponse.includes(s.start.split('T')[1].substring(0, 5)));
         const isVentura = venturaSlots.some((s: any) => aiResponse.includes(s.start.split('T')[1].substring(0, 5)));
+        console.log("HORÁRIOS OFERECIDOS PELA JULIA =", aiResponse);
         console.log("HORÁRIOS ERAM DO CENTRO =", isCentro ? "SIM" : "NÃO");
         console.log("HORÁRIOS ERAM DO VENTURA =", isVentura ? "SIM" : "NÃO");
       }
