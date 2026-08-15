@@ -26,12 +26,12 @@ async function runScenario(unitName: string, unitId: string, messages: string[])
     const { text: filtered, blocked } = ensureNoDuplicateBookingQuestion(question, context);
     console.log(`PERGUNTA IA: "${question}"`);
     console.log(`BLOQUEADA = ${blocked}`);
-    if (blocked) {
-      console.log(`IA RESPONDERIA FALLBACK: "${filtered}"`);
-    }
-
+    
     if (context.serviceText && context.date && context.unitId) {
         console.log(`list_slots chamada = SIM (unit=${context.unitId}, date=${context.date})`);
+        console.log(`resultado = APROVADO`);
+    } else {
+        console.log(`resultado = FALHOU (dados incompletos)`);
     }
   }
 }
