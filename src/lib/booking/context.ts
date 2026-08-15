@@ -124,6 +124,13 @@ export function extractBookingSlots(
 
   const t = text.trim();
 
+  // --- Serviço (Pattern) ---
+  const foundService = SERVICE_PATTERNS.find((p) => p.re.test(t));
+  if (foundService) {
+    out.serviceText = foundService.name;
+    console.log(`[SERVICE_PATTERN_MATCH] Extracted: ${foundService.name}`);
+  }
+
   // --- Data ---
   if (/\bhoje\b/i.test(t)) {
     out.date = isoDate(now);
