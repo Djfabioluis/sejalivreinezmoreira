@@ -35,169 +35,275 @@ function Dashboard() {
         </CardHeader>
         <CardContent className="p-8 space-y-6 text-slate-900">
           <div className="bg-slate-100 p-6 rounded-lg font-mono text-sm whitespace-pre-wrap border border-slate-300">
-{`Execute esta instrucao no projeto: NÃO FAÇA NENHUMA ALTERAÇÃO AINDA.
+{`Execute esta instrucao no projeto: AUTORIZO A CORREÇÃO, MAS SOMENTE DA CAUSA RAIZ IDENTIFICADA
+NA AUDITORIA.
 
-TEMOS AGORA EVIDÊNCIA DE TESTE REAL EM DUAS UNIDADES.
+NÃO ALTERE O MAPEAMENTO DAS UNIDADES.
+NÃO ALTERE instanceId.
+NÃO ALTERE unitId.
+NÃO ALTERE PREÇOS.
+NÃO ALTERE WEBHOOK.
+NÃO ALTERE EVOLUTION.
+NÃO ALTERE MEMÓRIA/HISTÓRICO.
+NÃO CRIE SERVIÇOS NO BANCO.
 
-TESTE REAL:
+A auditoria confirmou:
 
-INTENÇÃO DO CLIENTE:
-"Quero fazer a mão hoje"
-
-==================================================
-VENTURA
-==================================================
-
-A Julia respondeu aproximadamente:
-
-"Para 'fazer a mão', qual serviço você gostaria de agendar?
-Temos algumas opções como manicure, blindagem ou alongamento."
-
-==================================================
-BOULEVARD
-==================================================
-
-A Julia respondeu:
-
-"Para que eu possa verificar a disponibilidade para você,
-qual serviço de manicure você gostaria de fazer?
-Mão Simples, Francesinha, ou outro?"
-
-IMPORTANTE:
-
-NÃO quero que você simplesmente force novamente:
-"mão = manicure"
-
-Também NÃO quero alteração de prompt.
-
-Quero descobrir POR QUE Ventura e Boulevard estão resolvendo
-a mesma intenção de forma diferente.
-
-FAÇA AUDITORIA FORENSE SOMENTE LEITURA.
-
-1. Consulte o catálogo REAL da BEMP da unidade VENTURA.
-
-Liste todos os serviços relacionados a:
-
-- mão
-- manicure
-- mão simples
-- francesinha
-- blindagem
-- alongamento
-
-Para cada resultado mostre:
-
-serviceId
-nome exato na BEMP
-categoria
-preço
-ativo/inativo
-unitId
-
-2. Faça exatamente a mesma consulta para BOULEVARD.
-
-3. Compare os dois catálogos.
-
-Quero saber se:
-
-A) os serviços realmente são diferentes entre as unidades;
-
-B) list_services está recebendo queries diferentes;
-
-C) a normalização de "mão" está diferente;
-
-D) o catálogo retornado pela BEMP é diferente;
-
-E) existe fallback semântico/IA gerando opções que não vieram
-do catálogo BEMP.
-
-==================================================
-TRACE OBRIGATÓRIO
-==================================================
-
-Para os dois atendimentos reais, mostre:
-
-UNIDADE =
-instanceId =
-unitId =
-mensagem original =
-serviceText extraído =
-serviceIntent =
-query enviada para list_services =
-list_services foi chamada = SIM/NÃO
-unitId enviado à BEMP =
-resposta BRUTA da BEMP =
-serviços retornados =
-serviceIds retornados =
-resposta final da Julia =
-
-==================================================
-REGRA CRÍTICA
-==================================================
-
-A JULIA NÃO PODE INVENTAR OPÇÕES DE SERVIÇO.
-
-Toda opção apresentada ao cliente precisa existir no catálogo
-REAL da BEMP daquela unidade.
-
-Se "Mão Simples", "Francesinha", "Blindagem" ou "Alongamento"
-forem mencionados pela Julia, identifique exatamente qual
-serviceId da BEMP originou cada opção.
-
-Se alguma option NÃO tiver serviceId correspondente:
-
-MARQUE:
 HALLUCINATED_SERVICE_OPTION = SIM
 
+e confirmou também que:
+
+"mão" -> MANICURE
+
+já está sendo normalizado corretamente.
+
+PORTANTO:
+
+NÃO faça nova correção da normalização de "mão".
+
+O problema agora é impedir que o LLM/Gemini invente,
+complete, renomeie ou sugira serviços que não vieram
+do catálogo REAL da BEMP.
+
 ==================================================
-DATA
+REGRA ABSOLUTA — CATÁLOGO BEMP É A FONTE DA VERDADE
 ==================================================
 
-Também valide que:
+Quando houver intenção de serviço:
 
-"hoje" foi capturado na primeira mensagem.
+1. Identifique a unidade pela instância inbound.
 
+2. Preserve o unitId dessa unidade durante TODO o atendimento.
+
+3. Normalize apenas a intenção de busca.
+
+Exemplo:
+
+"quero fazer a mão hoje"
+
+serviceIntent = MANICURE
 dateIntent = HOJE
 
-A Julia NÃO deve perguntar novamente qual dia depois que o
-cliente já informou "hoje".
+4. Consulte list_services usando:
 
-Mas NÃO consulte horários ainda se o serviço específico ainda
-não tiver serviceId definido.
+unitId da instância inbound
++
+serviceIntent normalizado
+
+5. A partir desse momento, SOMENTE os serviços realmente
+retornados pela BEMP podem ser apresentados ao cliente.
+
+O Gemini NÃO pode:
+
+- inventar nomes;
+- criar nomes amigáveis;
+- completar nomes;
+- criar modalidades;
+- sugerir serviços por conhecimento próprio;
+- misturar serviços de outra unidade;
+- transformar categoria em serviço inexistente;
+- apresentar exemplo que não esteja no retorno da BEMP.
 
 ==================================================
-RESULTADO FINAL
+CATALOG_ONLY MODE
 ==================================================
 
+Implemente uma proteção determinística:
+
+CATALOG_ONLY = TRUE
+
+Toda opção de serviço mencionada na resposta ao cliente
+deve possuir obrigatoriamente:
+
+serviceId
+serviceName
+unitId
+
+originados da resposta REAL de list_services/BEMP.
+
+Antes de enviar a resposta:
+
+para cada serviço citado:
+
+assert serviceId existe
+assert serviceName existe no retorno BEMP
+assert unitId == inboundUnitId
+
+Se qualquer condição falhar:
+
+NÃO ENVIE A OPÇÃO.
+
+HALLUCINATED_SERVICE_OPTION deve ser impossível de chegar
+ao WhatsApp.
+
+==================================================
+CASO "MÃO"
+==================================================
+
+Entrada:
+
+"Quero fazer a mão hoje"
+
+NÃO responder:
+
+"Você se refere a manicure?"
+
+NÃO inventar:
+
+"Mão Simples"
+"Francesinha"
+"Blindagem"
+"Alongamento"
+
+a menos que esses nomes EXATOS tenham sido retornados
+pela BEMP para aquela unidade.
+
+Fluxo correto:
+
+"mão"
+→ serviceIntent MANICURE
+→ preservar HOJE
+→ list_services(unitId correto, MANICURE)
+→ receber catálogo BEMP.
+
+SE retornar exatamente 1 serviço compatível:
+
+selecionar o serviceId real
+e prosseguir para disponibilidade de HOJE.
+
+SE retornar mais de 1 serviço compatível:
+
+perguntar qual deles a cliente deseja,
+mostrando SOMENTE nomes retornados pela BEMP.
+
+SE retornar 0 serviços:
+
+NÃO inventar alternativas.
+
+Responder de forma segura informando que não encontrou
+esse serviço naquela unidade e, se apropriado, oferecer
+SOMENTE opções reais retornadas pelo catálogo da própria unidade.
+
+==================================================
+DATA NÃO PODE SER PERDIDA
+==================================================
+
+Se a mensagem original contém:
+
+"hoje"
+
+bookingContext.dateIntent = HOJE
+
+Essa informação deve sobreviver à etapa de escolha do serviço.
+
+Exemplo:
+
+CLIENTE:
+"Quero fazer a mão hoje"
+
+JULIA:
+[apresenta somente serviços reais BEMP, caso haja mais de um]
+
+CLIENTE:
+[seleciona serviço]
+
+A Julia NÃO deve perguntar:
+
+"Para qual dia?"
+
+Ela já sabe:
+
+dateIntent = HOJE.
+
+Depois de obter serviceId:
+
+→ list_slots
+→ inboundUnitId
+→ serviceId real
+→ data de HOJE
+
+==================================================
+ISOLAMENTO DE UNIDADE
+==================================================
+
+Adicione validação imediatamente antes de:
+
+list_services
+e
+list_slots
+
+assert bookingContext.unitId === inboundUnitId
+
+Nenhum dado de:
+
+CENTRO
 VENTURA
-unitId =
-"mão" normalizada para =
-query list_services =
-serviços reais BEMP encontrados =
-opções apresentadas pela Julia =
-todas vieram da BEMP = SIM/NÃO
-"hoje" preservado = SIM/NÃO
-
 BOULEVARD
-unitId =
-"mão" normalizada para =
-query list_services =
-serviços reais BEMP encontrados =
-opções apresentadas pela Julia =
-todas vieram da BEMP = SIM/NÃO
-"hoje" preservado = SIM/NÃO
 
-DIVERGÊNCIA ENTRE UNIDADES = SIM/NÃO
+pode atravessar entre instâncias.
 
-CAUSA RAIZ =
+==================================================
+VALIDAÇÃO
+==================================================
 
-NÃO ALTERE CÓDIGO.
-NÃO ALTERE PROMPT.
-NÃO ALTERE BANCO.
-NÃO FAÇA MIGRAÇÃO.
+Após implementar, execute testes automatizados:
 
-PARE E AGUARDE MINHA AUTORIZAÇÃO.`}
+VENTURA:
+"Quero fazer a mão hoje"
+
+BOULEVARD:
+"Quero fazer a mão hoje"
+
+CENTRO:
+"Quero fazer a mão hoje"
+
+Para cada unidade mostre:
+
+instanceId =
+inboundUnitId =
+serviceIntent =
+dateIntent =
+list_services chamada = SIM/NÃO
+unitId enviado =
+resposta bruta BEMP =
+serviceIds =
+serviceNames =
+opções efetivamente apresentadas =
+TODAS AS OPÇÕES EXISTEM NA BEMP = SIM/NÃO
+HALLUCINATED_SERVICE_OPTION = SIM/NÃO
+
+Depois valide continuação:
+
+cliente escolhe um serviço real.
+
+Mostre:
+
+serviceId preservado =
+dateIntent preservado =
+list_slots chamada = SIM/NÃO
+unitId enviado ao list_slots =
+data enviada =
+slots retornados =
+
+RESULTADO OBRIGATÓRIO:
+
+3 UNIDADES ISOLADAS = SIM
+CATALOG_ONLY = SIM
+HALLUCINATED_SERVICE_OPTION = NÃO
+"MÃO" NORMALIZADA PARA MANICURE = SIM
+"HOJE" PRESERVADO = SIM
+SERVIÇO ESCOLHIDO POSSUI serviceId BEMP = SIM
+LIST_SLOTS USA A MESMA UNIDADE INBOUND = SIM
+
+NÃO considere teste automatizado como prova final de produção.
+
+Depois da implementação:
+
+PARE.
+
+NÃO faça novas alterações.
+
+Aguarde minha autorização para TESTE REAL PELO WHATSAPP.`}
           </div>
         </CardContent>
       </Card>
