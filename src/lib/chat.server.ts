@@ -548,12 +548,12 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
     bookingContext
   });
 
-  const modelMessages = await convertToModelMessages(messages);
+  // const modelMessages = await convertToModelMessages(messages);
   const aiStartedAt = Date.now();
   const response = await generateText({
     model,
     system: systemPrompt + (sandbox ? SANDBOX_NOTE : ""),
-    messages: await convertToModelMessages(messages),
+    messages: messages,
     tools: buildTools(!!sandbox, effectiveUnitId, conversationKey, opts.messageId, bookingContext.subscriptionIntent, traceId, messages, bookingContext),
     maxSteps: 5,
     onStepFinish: async (step: any) => {
