@@ -35,170 +35,211 @@ function Dashboard() {
         </CardHeader>
         <CardContent className="p-8 space-y-6 text-slate-900">
           <div className="bg-slate-100 p-6 rounded-lg font-mono text-sm whitespace-pre-wrap border border-slate-300">
-{`Execute esta instrucao no projeto: CORREÇÃO PONTUAL — NÃO PERGUNTAR SE "MÃO" SIGNIFICA MANICURE.
+{`Execute esta instrucao no projeto: CORREÇÃO PONTUAL — A NORMALIZAÇÃO DE "MÃO" AINDA ESTÁ ERRADA.
 
-O teste real mostrou que a Julia está respondendo algo como:
+PROBLEMA REAL:
 
-"Quando você fala mão, está se referindo a manicure?"
+Mesmo após a correção, o sistema ainda mantém "mão" como
+REFERÊNCIA/CANDIDATO relacionado a manicure.
 
-Esse comportamento está INCORRETO.
+Isso está incorreto.
 
-REGRA DE NEGÓCIO:
+"MÃO" NÃO É UM SERVIÇO DO CATÁLOGO.
+"MÃO" NÃO É UM CANDIDATO.
+"MÃO" NÃO É UM NOME ALTERNATIVO QUE DEVE SER APRESENTADO À CLIENTE.
 
-No contexto de serviços do salão:
+"MÃO" é apenas uma expressão coloquial de entrada que deve ser
+NORMALIZADA internamente para a intenção:
+
+MANICURE
+
+==================================================
+REGRA CORRETA
+==================================================
+
+Entrada:
+
+"quero fazer a mão hoje"
+
+Após normalização:
+
+originalText = "quero fazer a mão hoje"
+serviceIntent = "manicure"
+serviceSearchQuery = "manicure"
+dateResolved = hoje
+
+A partir desse ponto:
+
+NÃO utilizar mais "mão" para resolver o serviço.
+
+list_services deve receber/buscar:
+
+"manicure"
+
+e NÃO:
 
 "mão"
 "fazer a mão"
-"fazer mão"
-"unha da mão"
-"fazer as mãos"
-
-devem ser normalizados DIRETAMENTE para:
-
-serviceIntent = MANICURE
-
-NÃO pedir confirmação semântica ao cliente.
+"mãos"
 
 ==================================================
-EXEMPLO
+IMPORTANTE
 ==================================================
 
-Cliente:
-"Quero fazer a mão hoje"
+Depois da normalização:
 
-CORRETO:
+serviceText NÃO pode permanecer = "mão"
 
-serviceIntent = manicure
-date = hoje
+Se existir serviceText usado pela resolução, deve ser:
 
-Depois consultar list_services da unidade correta.
+serviceTextNormalized = "manicure"
 
-INCORRETO:
+ou equivalente técnico.
 
-"Você quer dizer manicure?"
-"Quando fala mão, é manicure?"
-"Qual serviço você deseja?"
+O texto original pode permanecer apenas para auditoria:
+
+originalUserText = "quero fazer a mão hoje"
+
+mas NÃO para busca de serviço.
 
 ==================================================
-IMPORTANTE — NÃO CONFUNDIR COM AMBIGUIDADE DE CATÁLOGO
+NÃO CRIAR AMBIGUIDADE ENTRE:
 ==================================================
-
-A normalização:
-
-"mão" -> intenção MANICURE
-
-é determinística.
-
-But o serviceId continua vindo do catálogo REAL do BEMP.
-
-Fluxo:
 
 "mão"
-→ serviceIntent = manicure
-→ list_services da unidade correta
-→ analisar candidatos reais
+e
+"manicure"
 
-Se houver UM serviço de manicure compatível:
-→ resolver diretamente.
+Esses dois termos NÃO são dois candidatos.
 
-Se houver MAIS DE UM serviço realmente compatível:
-→ SERVICE_CLARIFICATION_REQUIRED
+"Mão" simplesmente normaliza para intenção manicure.
 
-Mas nesse caso a pergunta deve ser sobre QUAL OPÇÃO DE MANICURE,
-e NÃO sobre se "mão" significa manicure.
+A ambiguidade somente poderá existir ENTRE SERVIÇOS REAIS
+RETORNADOS PELO BEMP.
 
 Exemplo:
 
-Cliente:
-"Quero fazer a mão hoje"
-
 BEMP retorna:
+
+- MANICURE
+- MANICURE + PEDICURE
+- MANICURE BEAUTY CLUB
+
+Nesse caso pode existir necessidade de esclarecimento.
+
+Mas as opções são os serviços reais do BEMP.
+
+NUNCA apresentar:
+
+- Mão
 - Manicure
-- Manicure + Pedicure
 
-Julia pode perguntar:
-
-"Para hoje, você gostaria de Manicure ou Manicure + Pedicure?"
-
-A data HOJE deve permanecer salva.
+como duas opções.
 
 ==================================================
-DATA
+AUDITE O PIPELINE ATUAL
 ==================================================
 
-Se a mesma mensagem contém:
+Localize onde "mão" continua sobrevivendo depois da normalização.
 
-"hoje"
+Mostre:
 
-dateResolved deve ser preenchida imediatamente.
+arquivo =
+função =
+campo =
 
-A Julia NÃO pode perguntar novamente:
-"qual dia?"
-"para quando?"
+Verifique especialmente:
 
-Depois que o serviço for definido:
+serviceText
+serviceIntent
+serviceQuery
+normalizedService
+bookingContext.serviceText
+bookingContext.serviceName
+SERVICE_PATTERNS
+list_services query
+semantic resolver
 
-unitId
-+
-serviceId
-+
-dateResolved
-
-→ chamar list_slots.
+Quero descobrir em qual campo o texto "mão" está chegando
+até a resolução do catálogo.
 
 ==================================================
-TESTE REAL QUE DEVE PASSAR
+CORREÇÃO
 ==================================================
 
-Mensagem:
+Faça a menor alteração possível para garantir:
+
+"mão"
+"mãos"
+"fazer a mão"
+"fazer as mãos"
+"unha da mão"
+
+→ normalizedServiceIntent = "manicure"
+
+E a resolução subsequente utilize SOMENTE:
+
+"manicure"
+
+como consulta semântica ao catálogo.
+
+NÃO hardcode serviceId.
+NÃO hardcode preço.
+
+O serviceId continua vindo do BEMP.
+
+==================================================
+TESTE OBRIGATÓRIO
+==================================================
+
+Teste:
+
 "Oi, quero fazer a mão hoje"
 
-Resultado esperado:
+Mostre:
 
-"MÃO" NORMALIZADA PARA MANICURE = SIM
-PERGUNTOU SE MÃO SIGNIFICA MANICURE = NÃO
-"HOJE" RESOLVIDO = SIM
-PERGUNTOU A DATA NOVAMENTE = NÃO
-LIST_SERVICES CHAMADA = SIM
-UNITID CORRETO = SIM
-
-Se houver serviço único:
-SERVICEID RESOLVIDO = SIM
-LIST_SLOTS CHAMADA = SIM
-
-Se houver múltiplos serviços:
-SERVICE_CLARIFICATION_REQUIRED = SIM
-DATA "HOJE" PRESERVADA = SIM
-
-==================================================
-ESCOPO
-==================================================
-
-Não altere:
-- preços
-- price auditor
-- mapeamento das unidades
-- Evolution
-- webhook
-- Gemini/modelo
-- list_slots
-- regras de disponibilidade
-
-Corrija SOMENTE a normalização semântica para que
-"MÃO" seja intenção direta de MANICURE.
-
-Depois execute o teste acima e mostre:
-
-texto recebido =
-serviceIntent =
+originalText =
+serviceText capturado inicialmente =
+normalizedServiceIntent =
+query enviada ao list_services =
+candidatos retornados pelo BEMP =
 dateResolved =
-candidatos BEMP =
+serviceId final =
 resposta Julia =
-perguntou significado de "mão" = SIM/NÃO
-perguntou data novamente = SIM/NÃO
-resultado = APROVADO/FALHOU
 
-PARE depois do teste.`}
+RESULTADO OBRIGATÓRIO:
+
+"MÃO" EXISTE APÓS NORMALIZAÇÃO COMO QUERY DE SERVIÇO = NÃO
+
+QUERY ENVIADA AO BEMP = MANICURE
+
+"MÃO" APARECE COMO OPÇÃO PARA CLIENTE = NÃO
+
+MANICURE RESOLVIDA PELO CATÁLOGO = SIM/NÃO
+
+HOJE PRESERVADO = SIM
+
+PERGUNTOU SE MÃO É MANICURE = NÃO
+
+PERGUNTOU A DATA NOVAMENTE = NÃO
+
+==================================================
+NÃO ALTERAR
+==================================================
+
+Não alterar:
+- preços
+- unitId
+- wa_agentes
+- Evolution
+- list_slots
+- disponibilidade
+- Gemini/modelo
+- price auditor
+
+Corrija exclusivamente a NORMALIZAÇÃO ANTES DA BUSCA DO SERVIÇO.
+
+Depois do teste, PARE.`}
           </div>
         </CardContent>
       </Card>
@@ -218,8 +259,8 @@ PARE depois do teste.`}
             </div>
             <div className="space-y-1">
               <p className="text-slate-600">Alvo: BOULEVARD (+55 41 3073-1358)</p>
-              <p className="text-slate-600">Normalização: ATIVA (mão → manicure)</p>
-              <p className="text-slate-600">Bloqueio Confirmação Semântica: ATIVO</p>
+              <p className="text-slate-600">Normalização: INTENÇÃO FORÇADA (mão → manicure)</p>
+              <p className="text-slate-600">Busca no Catálogo: QUERY NORMALIZADA (manicure)</p>
             </div>
           </CardContent>
         </Card>
@@ -236,6 +277,7 @@ PARE depois do teste.`}
             <p className="text-slate-600">- Expandido patterns de "mão" (plural e variações)</p>
             <p className="text-slate-900 font-bold mt-2">src/lib/chat.server.ts</p>
             <p className="text-slate-600">- Injetada REGRA ABSOLUTA no System Prompt contra perguntas de confirmação semântica para "mão".</p>
+            <p className="text-slate-600">- Normalização forçada da query de busca em list_services (substituição de "mão" por "manicure").</p>
           </CardContent>
         </Card>
       </div>

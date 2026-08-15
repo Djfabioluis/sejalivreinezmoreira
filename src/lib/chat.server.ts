@@ -334,27 +334,30 @@ function buildTools(
           const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: salon_id || fallbackAgentUnitId });
           if (!effectiveUnitId) throw new Error("Unidade não resolvida.");
           
+          // REQUISITO: Normalização de consulta. 
+          // Se a intenção for 'manicure', usamos 'manicure' como query, nunca 'mão'.
+          const lastUserMessage = messages.filter((m: any) => m.role === 'user').pop();
+          const textToSearch = typeof lastUserMessage?.content === 'string' 
+            ? lastUserMessage.content 
+            : (Array.isArray(lastUserMessage?.content) ? (lastUserMessage.content[0] as any)?.text || "" : "");
+          
+          const { extractBookingSlots } = await import("@/lib/booking/context");
+          const extracted = extractBookingSlots(textToSearch, new Date(), bookingContext);
+          
+          // A query de busca deve ser a intenção normalizada (e.g., 'manicure') ou o texto original se não houver padrão.
+          const searchQuery = extracted.serviceText || textToSearch;
+          
           const services = await BempService.listServices(effectiveUnitId);
           
           // Auditoria e Resolução de Preço/Serviço para o trace atual
           if (traceId) {
-            const lastUserMessage = messages.filter((m: any) => m.role === 'user').pop();
-            const textToSearch = typeof lastUserMessage?.content === 'string' 
-              ? lastUserMessage.content 
-              : (Array.isArray(lastUserMessage?.content) ? (lastUserMessage.content[0] as any)?.text || "" : "");
-            
-            // Re-extrair slots com o contexto atual para capturar seleções de ambiguidade
-            const { extractBookingSlots } = await import("@/lib/booking/context");
-            const extracted = extractBookingSlots(textToSearch, new Date(), bookingContext);
-
             // REQUISITO: Se já temos um serviceId no contexto persistido e o cliente não mudou de ideia
             // (não detectamos um NOVO serviço na mensagem atual), preservamos o que temos.
-            // O extracted.serviceText detecta novas intenções de serviço na mensagem atual.
             const finalServiceId = extracted.serviceId || (!extracted.serviceText ? (bookingContext?.serviceId || null) : null);
             const finalServiceName = extracted.serviceName || (!extracted.serviceText ? (bookingContext?.serviceName || null) : null);
             
             // Log de diagnóstico para o monitor
-            console.log(`[SERVICE_RESOLVER] trace=${traceId} finalServiceId=${finalServiceId} finalServiceName=${finalServiceName}`);
+            console.log(`[SERVICE_RESOLVER] trace=${traceId} query=${searchQuery} finalServiceId=${finalServiceId} finalServiceName=${finalServiceName}`);
 
             // Se o extrator resolveu a ambiguidade AGORA ou se já tínhamos resolvido anteriormente
             if (finalServiceId) {

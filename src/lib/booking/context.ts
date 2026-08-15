@@ -93,7 +93,7 @@ function addDays(base: Date, days: number): Date {
 }
 
 const SERVICE_PATTERNS: Array<{ re: RegExp; name: string }> = [
-  // Patterns agora extraem a INTENÇÃO sem forçar nomes de serviços rígidos
+  // Patterns extraem a INTENÇÃO NORMALIZADA (MANICURE para termos como "mão")
   { re: /\b(?:m[ãa]os?|manicure|unha\s+da\s+m[ãa]o|fazer\s+a(?:s)?\s+m[ãa]o(?:s)?|fazer\s+m[ãa]o(?:s)?)\b/i, name: "manicure" },
   { re: /\b(?:p[ée]|pedicure|unha\s+do\s+p[ée]|fazer\s+o\s+p[ée])\b/i, name: "pedicure" },
   { re: /\bp[ée]\s+e\s+m[ãa]o\b/i, name: "pé e mão" },
