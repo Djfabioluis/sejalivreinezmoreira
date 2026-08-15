@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "../../../integrations/supabase/client";
 
 async function diagnoseBoulevardLeak() {
   console.log("==================================================");
@@ -41,6 +41,9 @@ async function diagnoseBoulevardLeak() {
             console.log(`Step: ${leak.step}`);
             console.log(`Trace ID: ${leak.trace_id}`);
             console.log(`Payload snippet: ${JSON.stringify(leak.payload).substring(0, 500)}`);
+            if (leak.context) {
+              console.log(`Context snippet: ${JSON.stringify(leak.context).substring(0, 500)}`);
+            }
         });
     } else {
         console.log("\nNenhum vazamento explícito de 'Ventura' ou '1377' encontrado nos logs do Boulevard.");
