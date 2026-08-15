@@ -19,10 +19,11 @@ export async function persistWaMessage(phone: string, message: any) {
     // ou passamos como argumentos posicionais se o cache do PostgREST estiver muito inconsistente.
     if (error && error.message.includes("Could not find the function")) {
        console.warn("[RPC] Retrying append_wa_message with alternate signature...");
-       return await (supabaseAdmin.rpc as any)("append_wa_message", {
+       const retry = await (supabaseAdmin.rpc as any)("append_wa_message", {
          p_new_message: message,
          p_phone: phone
        });
+       if (!retry.error) return { success: true };
     }
 
     if (error) {
