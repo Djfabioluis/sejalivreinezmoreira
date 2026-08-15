@@ -6,8 +6,7 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
  */
 export async function persistWaMessage(phone: string, message: any) {
   try {
-    // A assinatura do banco é (p_phone text, p_new_message jsonb)
-    // O PostgREST às vezes falha ao resolver por nomes se o cache estiver sujo.
+    // A assinatura no Postgres é append_wa_message(p_phone text, p_new_message jsonb)
     const { error } = await supabaseAdmin.rpc("append_wa_message", {
       p_phone: phone,
       p_new_message: message
@@ -16,9 +15,9 @@ export async function persistWaMessage(phone: string, message: any) {
     if (error) {
       console.error(`[RPC_ERROR] append_wa_message(phone: ${phone}):`, error);
       
-      // Tentativa 2: Parâmetros posicionais se o erro for de assinatura
+      // Fallback para nomes de argumentos alternativos se o cache estiver sujo
       if (error.message.includes("Could not find the function")) {
-         const { error: error2 } = await (supabaseAdmin as any).rpc("append_wa_message", {
+         const { error: error2 } = await (supabaseAdmin.rpc as any)("append_wa_message", {
             p_new_message: message,
             p_phone: phone
          });
