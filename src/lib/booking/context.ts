@@ -130,7 +130,16 @@ export function extractBookingSlots(
   const foundService = SERVICE_PATTERNS.find((p) => p.re.test(t));
   if (foundService) {
     out.serviceText = foundService.name;
-    console.log(`[SERVICE_PATTERN_MATCH] Extracted: ${foundService.name}`);
+    // Log para auditoria determinística
+    logEvent({
+      instance: 'unknown',
+      event: 'SERVICE_PATTERN_MATCHED',
+      status: 'success',
+      payload: { 
+        input: t,
+        patternMatch: foundService.name
+      }
+    }).catch(() => {});
   }
 
   // --- Data ---
