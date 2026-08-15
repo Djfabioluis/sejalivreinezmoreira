@@ -154,11 +154,12 @@ export function extractBookingSlots(
     }
   }
 
-  // --- Serviço (Resolução de Ambiguidade Prioritária) ---
+  // --- Serviço (Resolução de Ambiguidade Prioritária - Determinística) ---
   if (previous?.clarificationRequired && previous.candidates?.length) {
-    // 1. Tentar por índice ("o segundo", "opção 1")
+    // 1. Tentar por índice ("o segundo", "opção 1", "1", "primeiro")
+    // Padrões autorizados: "1", "primeiro", "o primeiro", "o 1"
     const ordinalMatch = t.match(/\b(?:a|o)?\s*(primeir[ao]|segund[ao]|terceir[ao]|quart[ao]|quint[ao])\b/i);
-    const numericMatch = t.match(/\b(?:op[çc][ãa]o\s+)?([1-5])\b/i);
+    const numericMatch = t.match(/\b(?:op[çc][ãa]o\s+|o\s+)?([1-5])\b/i);
     
     let index = -1;
     if (ordinalMatch) {
@@ -170,27 +171,36 @@ export function extractBookingSlots(
       else if (word.startsWith("quin")) index = 4;
     } else if (numericMatch) {
       index = parseInt(numericMatch[1]) - 1;
+    } else if (/^\s*([1-5])\s*[.!\s]*$/.test(t)) {
+      // Caso o cliente responda apenas o número puro "1"
+      index = parseInt(t.trim()) - 1;
     }
 
     if (index >= 0 && index < previous.candidates.length) {
       const selected = previous.candidates[index];
-      out.serviceId = selected.id;
+      console.log(`[DETERMINISTIC_SELECTION] Resolvido por índice: ${index + 1} (${selected.name})`);
+      out.serviceId = String(selected.id);
       out.serviceName = selected.name;
       out.clarificationRequired = false;
-      out.candidates = undefined; // Limpa para resetar estado
+      out.candidates = undefined; 
+      // Manter a data anterior se disponível
+      if (previous.date) out.date = previous.date;
       return out;
     }
 
-    // 2. Tentar por nome exato entre os candidatos
+    // 2. Tentar por nome exato entre os candidatos (case insensitive)
+    const normalizedInput = t.toLowerCase();
     const exactMatch = previous.candidates.find((c: any) => 
-      t.toLowerCase().includes(c.name.toLowerCase()) || 
-      c.name.toLowerCase().includes(t.toLowerCase())
+      normalizedInput.includes(c.name.toLowerCase()) || 
+      c.name.toLowerCase() === normalizedInput
     );
     if (exactMatch) {
-      out.serviceId = exactMatch.id;
+      console.log(`[DETERMINISTIC_SELECTION] Resolvido por nome: ${exactMatch.name}`);
+      out.serviceId = String(exactMatch.id);
       out.serviceName = exactMatch.name;
       out.clarificationRequired = false;
       out.candidates = undefined;
+      if (previous.date) out.date = previous.date;
       return out;
     }
   }
