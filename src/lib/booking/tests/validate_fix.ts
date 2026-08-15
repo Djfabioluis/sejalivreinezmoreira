@@ -19,7 +19,7 @@ async function test_flow(label: string, scenario: { messages: any[], unitId: str
     
     console.log("Contexto ANTES da IA:", JSON.stringify(currentContext, null, 2));
 
-    // 2. Chamar IA
+    // 2. Chamar IA (Usando apenas o content string, o SDK faz o wrap se necessário ou usamos o runAgent que já lida com isso)
     const result = await runAgent({
       conversationKey: `test-${label}-${Date.now()}`,
       unidadeId: scenario.unitId,

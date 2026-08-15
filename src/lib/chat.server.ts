@@ -375,7 +375,7 @@ function buildTools(
               }
             }
 
-            const searchPattern = extracted.serviceText || textToSearch;
+            const searchPattern = extracted.serviceText || (typeof textToSearch === 'string' ? textToSearch : "");
             const searchTerms = String(searchPattern).toLowerCase().split(/\s+/).filter(t => t.length > 2);
             
             // Se for um serviço inexistente (muito improvável dar match com algo útil), ignorar
