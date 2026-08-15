@@ -1,6 +1,6 @@
 
-import { runAgent } from "../chat.server";
-import { BookingContext } from "../booking/context";
+import { runAgent } from "../../chat.server";
+import { BookingContext } from "../context";
 
 async function testDeterministicCatalog() {
   console.log("=== TESTE AUTOMATIZADO: CONSULTA DETERMINÍSTICA DE CATÁLOGO ===");
