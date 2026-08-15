@@ -1,15 +1,22 @@
 import { createFileRoute } from '@tanstack/react-router'
-  const instructions = `Execute esta instrucao no projeto: URGENTE — NÃO FAÇA NENHUMA ALTERAÇÃO.
+  const instructions = `Execute esta instrucao no projeto: URGENTE — NOVA EVIDÊNCIA REAL DE PRODUÇÃO.
 
-PROBLEMA REAL EM PRODUÇÃO:
+NÃO FAÇA NENHUMA ALTERAÇÃO.
 
-A JULIA ESTÁ OFERECENDO PARA CLIENTES DA UNIDADE VENTURA
-HORÁRIOS PERTENCENTES À UNIDADE CENTRO.
+Além do problema já reportado:
 
-Isso significa que a validação anterior NÃO é suficiente para considerar
-o isolamento entre unidades aprovado.
+VENTURA -> Julia ofereceu horários do CENTRO
 
-DADOS CORRETOS JÁ VALIDADOS:
+agora ocorreu OUTRO ERRO REAL:
+
+BOULEVARD -> a IA se identificou para o cliente como unidade VENTURA.
+
+Portanto, NÃO trate mais este problema apenas como erro de list_slots.
+
+Temos evidência de CONTAMINAÇÃO/RESOLUÇÃO INCORRETA DE UNIDADE
+em diferentes pontos do fluxo.
+
+MAPEAMENTO CORRETO JÁ VALIDADO:
 
 CENTRO
 telefone = +55 41 99843-0354
@@ -26,177 +33,256 @@ telefone = +55 41 3073-1358
 instanceId = agente-554130731358
 unitId = 5258
 
-NÃO CORRIJA NADA AINDA.
-
-Quero DIAGNÓSTICO FORENSE de um atendimento REAL recente
-recebido pelo WhatsApp da VENTURA em que a Julia consultou/ofereceu
-horários.
-
 ==================================================
-1. LOCALIZE UM CASO REAL DO VENTURA
+NOVA PRIORIDADE: CASO REAL BOULEVARD
 ==================================================
 
-Localize uma conversa real recente originada da instância:
+Localize IMEDIATAMENTE nos logs o atendimento real mais recente
+da instância:
 
+agente-554130731358
+
+em que a IA se identificou como VENTURA.
+
+Não use teste simulado.
+Não use apenas bookingContext criado artificialmente.
+Quero o trace REAL do webhook até a resposta enviada ao WhatsApp.
+
+==================================================
+1. TRACE DA IDENTIDADE DA UNIDADE
+==================================================
+
+Mostre cronologicamente:
+
+WEBHOOK RECEBIDO
+instanceId =
+instanceName =
+telefone da instância =
+
+WA_AGENT LOOKUP
+registro encontrado =
+unidade_id =
+
+UNIDADE RESOLVIDA NO BANCO
+unitId =
+nome da unidade =
+
+BOOKING CONTEXT CRIADO
+conversationId =
+unitId =
+unitName =
+instanceId =
+
+CONTEXTO ENVIADO PARA IA
+unitId =
+unitName =
+nome da unidade informado ao modelo =
+
+RESPOSTA GERADA PELA IA
+texto exato da identificação da unidade =
+
+WHATSAPP OUTBOUND
+instanceId usada para envio =
+telefone/instância de saída =
+
+==================================================
+2. DESCUBRA ONDE BOULEVARD VIROU VENTURA
+==================================================
+
+O valor correto esperado é:
+
+instanceId agente-554130731358
+-> unitId 5258
+-> BOULEVARD
+
+Procure o PRIMEIRO ponto do trace onde aparece:
+
+1377
+VENTURA
+ou qualquer identificador pertencente ao Ventura.
+
+Mostre:
+
+ÚLTIMO ESTADO CORRETO:
+arquivo =
+função =
+valor =
+
+PRIMEIRO ESTADO INCORRETO:
+arquivo =
+função =
+linha =
+valor =
+
+ORIGEM DO VALOR INCORRETO =
+
+==================================================
+3. AUDITE TODAS AS FONTES DE IDENTIDADE
+==================================================
+
+Pesquise no código e no runtime por qualquer lugar que determine
+ou sobrescreva a unidade:
+
+- wa_agentes.unidade_id
+- bookingContext.unitId
+- bookingContext.unitName
+- instanceId
+- instanceName
+- agentId
+- conversationId
+- telefone da instância
+- telefone do cliente
+- unidade salva na conversa
+- unidade salva no CRM
+- memória
+- histórico
+- system prompt dinâmico
+- contexto injetado no Gemini
+- resolveEffectiveUnit
+- fallbacks
+- defaults
+- cache
+- variáveis globais
+- session
+- local/context store
+- recuperação de conversa anterior
+
+Procure especificamente:
+
+"Ventura"
+"Centro"
+"Boulevard"
+1377
+1378
+5258
+
+Quero saber se existe QUALQUER identificação de unidade
+hardcoded ou fallback.
+
+==================================================
+4. TESTE CRÍTICO DE ISOLAMENTO
+==================================================
+
+SEM enviar mensagens aos clientes e SEM alterar código:
+
+Crie três execuções independentes usando o pipeline real.
+
+ENTRADA CENTRO:
+agente-5541998430354
+
+Esperado:
+1378 / CENTRO
+
+ENTRADA VENTURA:
 agente-5541998803684
 
-telefone da unidade:
-+55 41 99880-3684
+Esperado:
+1377 / VENTURA
 
-Mostre:
+ENTRADA BOULEVARD:
+agente-554130731358
 
-conversationId =
-telefone do cliente =
-instanceId inbound =
-unitId obtido de wa_agentes =
-unidade resolvida =
-bookingContext.unitId =
-serviceId =
-data solicitada =
+Esperado:
+5258 / BOULEVARD
 
-Não exponha dados pessoais desnecessários do cliente.
+Em CADA execução mostre:
 
-==================================================
-2. TRACE O UNITID ATÉ A CONSULTA DA AGENDA
-==================================================
+INBOUND_INSTANCE
+WA_AGENT_UNIT
+BOOKING_CONTEXT_UNIT
+AI_CONTEXT_UNIT
+AI_CONTEXT_UNIT_NAME
+OUTBOUND_INSTANCE
 
-Quero acompanhar o valor do unitId em CADA etapa:
-
-INBOUND
-instanceId =
-unitId =
-
-CONTEXT
-bookingContext.unitId =
-
-SERVICE RESOLUTION
-unitId usado =
-serviceId =
-
-ANTES DE list_slots
-unitId esperado = 1377
-unitId efetivamente enviado =
-
-REQUEST PARA BEMP
-endpoint =
-unitId/identificador da unidade enviado =
-serviceId =
-data =
-demais identificadores relevantes =
-
-RESPOSTA BEMP
-unidade da resposta =
-slots retornados =
-
-RESPOSTA DA JULIA
-horários offeredcidos =
+Nenhum valor pode mudar durante o pipeline.
 
 ==================================================
-3. COMPARE VENTURA CONTRA CENTRO
+5. TESTE DE CONTAMINAÇÃO ENTRE CONVERSAS
 ==================================================
 
-Para a MESMA data e serviço do atendimento encontrado,
-consulte separadamente, sem enviar mensagens:
+Execute sequencialmente:
 
-VENTURA = unitId 1377
-CENTRO = unitId 1378
+A. CENTRO
+B. VENTURA
+C. BOULEVARD
+D. CENTRO novamente
+E. BOULEVARD novamente
 
-Mostre:
+Use conversations/sessions independentes.
 
-VENTURA
-slots =
+Verifique se a unidade da execução anterior contamina a seguinte.
 
-CENTRO
-slots =
+Depois execute em ordem inversa:
 
-HORÁRIOS QUE A JULIA OFERECEU AO CLIENTE =
+A. BOULEVARD
+B. VENTURA
+C. CENTRO
 
-Depois determine:
-
-os horários oferecidos correspondem ao VENTURA = SIM/NÃO
-
-os horários oferecidos correspondem ao CENTRO = SIM/NÃO
+Compare os resultados.
 
 ==================================================
-4. PROCURE VAZAMENTO DE CONTEXTO
+6. NÃO CORRIJA
 ==================================================
 
-Audite especificamente se existe:
+NÃO altere:
+- wa_agentes
+- bookingContext
+- prompt
+- Gemini
+- list_slots
+- Evolution
+- webhook
+- memória
+- CRM
+- banco
+- preços
+- serviços
 
-- unitId default/fallback para Centro
-- unitId hardcoded 1378
-- cache de disponibilidade sem unitId na chave
-- bookingContext compartilhado entre conversas
-- contexto recuperado pelo telefone errado
-- serviceId resolvido em uma unidade e usado em outra
-- list_slots ignorando bookingContext.unitId
-- função convertendo instanceId para unidade novamente
-- fallback selecionando primeira unidade
-- estado/memória de conversa anterior contaminando a atual
-- resposta de disponibilidade reutilizada entre unidades
-- variável global contendo unidade
-- consulta BEMP sem filtro efetivo da unidade
-
-Pesquise o fluxo REAL, não apenas testes automatizados.
-
-==================================================
-5. REGRA DE SEGURANÇA
-
-NÃO implemente correção.
-NÃO mude prompt.
-NÃO mude Gemini.
-NÃO mude preços.
-NÃO altere wa_agentes.
-NÃO altere bookingContext.
-NÃO altere list_slots ainda.
-NÃO envie mensagens para clientes.
+Estamos fazendo diagnóstico forense.
 
 ==================================================
 RESULTADO OBRIGATÓRIO
 ==================================================
 
-CASO REAL VENTURA ENCONTRADO = SIM/NÃO
+CASO REAL BOULEVARD ENCONTRADO = SIM/NÃO
 
-INSTANCE INBOUND =
-UNITID INBOUND =
-BOOKINGCONTEXT UNITID =
-UNITID ENVIADO AO LIST_SLOTS =
-UNITID/UNIDADE ENVIADO À BEMP =
+INBOUND INSTANCE =
+UNITID APÓS WA_AGENTES =
+UNIDADE APÓS WA_AGENTES =
 
-SLOTS VENTURA =
+BOOKING_CONTEXT UNITID =
+BOOKING_CONTEXT UNITNAME =
 
-SLOTS CENTRO =
+AI CONTEXT UNITID =
+AI CONTEXT UNITNAME =
 
-HORÁRIOS OFERECIDOS PELA JULIA =
+UNIDADE QUE A IA DISSE AO CLIENTE =
 
-HORÁRIOS ERAM DO CENTRO = SIM/NÃO
+OUTBOUND INSTANCE =
 
-PONTO EXATO ONDE 1377 VIROU 1378 =
+BOULEVARD VIROU VENTURA = SIM/NÃO
+
+PONTO EXATO DA TROCA =
 arquivo:
 função:
 linha:
-causa:
 
-OU, se o unitId não mudou:
+ORIGEM DO 1377/VENTURA =
 
-PONTO EXATO ONDE A CONSULTA IGNOROU A UNIDADE =
-arquivo:
-função:
-linha:
-causa:
+HÁ CONTAMINAÇÃO ENTRE CONVERSAS = SIM/NÃO
 
-CLASSIFICAÇÃO DA CAUSA =
-[ROTEAMENTO]
-[BOOKING_CONTEXT]
-[LIST_SLOTS]
-[BEMP_REQUEST]
-[CACHE]
-[MEMÓRIA]
-[SERVICE_RESOLUTION]
-[OUTRO]
+HÁ FALLBACK DE UNIDADE = SIM/NÃO
 
-CORREÇÃO RECOMENDADA =
-descreva, mas NÃO execute.
+HÁ UNIDADE HARDCODED = SIM/NÃO
+
+AS 3 INSTÂNCIAS PERMANECEM ISOLADAS DE PONTA A PONTA = SIM/NÃO
+
+CAUSA RAIZ COMPROVADA =
+
+CORREÇÃO MÍNIMA RECOMENDADA =
+(descreva, NÃO execute)
+
+NÃO FAÇA CORREÇÃO.
 
 PARE E AGUARDE MINHA AUTORIZAÇÃO.`;
 
