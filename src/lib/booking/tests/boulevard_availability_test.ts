@@ -109,7 +109,7 @@ async function testBoulevardAvailability() {
 
   // Validação
   const aiText = response.text;
-  const foundTimes = bempTimes.filter(t => aiText.includes(t));
+  const foundTimes = bempTimes.filter((t: string) => aiText.includes(t));
   
   console.log("\nValidação obrigatória:");
   if (bempTimes.length > 0) {
