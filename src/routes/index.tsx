@@ -1,92 +1,96 @@
 import { createFileRoute } from '@tanstack/react-router'
-  const instructions = `Execute esta instrucao no projeto: PARE. NÃO FAÇA NENHUMA ALTERAÇÃO.
+  const instructions = `Execute esta instrucao no projeto: AUTORIZO A CORREÇÃO EXCLUSIVAMENTE DO MAPEAMENTO DE UNIDADES.
 
-O número informado como CENTRO está ERRADO.
-
-Você informou:
+A auditoria confirmou:
 
 CENTRO
-instanceId = agente-554130731358
-unitId = 1378
-WhatsApp = +55 41 3073-1358
+telefone = +55 41 99843-0354
+instanceId = agente-5541998430354
+unitId correto = 1378
 
-Mas esse número +55 41 3073-1358 pertence à unidade BOULEVARD.
-
-NÃO use esse número como Centro.
-NÃO execute teste ainda.
-NÃO altere instâncias automaticamente.
-
-Quero AUDITORIA REAL do mapeamento das 3 unidades.
-
-Para cada unidade mostre:
-
-UNIDADE
-instanceId Evolution
-instanceName Evolution
-telefone conectado na Evolution
-agentId
-unitId
-nome da unidade no banco
-telefone oficial da unidade no banco
-webhook configurado
-status da instância
-
-Tabela obrigatória:
-
-UNIDADE | TELEFONE EVOLUTION | instanceId | agentId | unitId | NOME BANCO | TELEFONE BANCO | MAPEAMENTO CORRETO?
-
-CENTRO
 VENTURA
+telefone = +55 41 99880-3684
+instanceId = agente-5541998803684
+unitId correto = 1377
+
 BOULEVARD
+telefone = +55 41 3073-1358
+instanceId = agente-554130731358
+unitId correto = 5258
 
-Depois faça o cruzamento por fonte:
+O erro identificado está em:
+public.wa_agentes.unidade_id
 
-1. Evolution API
-2. tabela de agentes/instâncias
-3. tabela de unidades
-4. configuração do webhook
-5. roteamento usado no inbound
+CORRIJA SOMENTE os vínculos de unidade_id da tabela wa_agentes
+para que cada instanceId fique associado ao unitId correto acima.
 
-Não resolva unidade pelo nome visual "Julia", "Bruno" ou pelo índice da lista.
-
-Use os identificadores técnicos reais.
+NÃO ALTERE:
+- prompt
+- Gemini
+- Evolution
+- webhook
+- preços
+- SERVICE_PRICE_RESOLVED
+- resolução de serviços
+- memória
+- histórico
+- follow-up
+- regras de agendamento
+- list_slots
+- interface
 
 IMPORTANTE:
+Não confie apenas nos valores atuais de wa_agentes para fazer a correção.
+Valide cada unitId contra a unidade real da BEMP antes do UPDATE.
 
-Verifique especificamente:
+Após corrigir, NÃO faça outras alterações.
+
+FAÇA UMA AUDITORIA PÓS-CORREÇÃO e mostre:
+
+1. SELECT/resultado de wa_agentes após a correção:
+telefone | instanceId | unidade_id
+
+2. Para cada instanceId, demonstre qual unidade BEMP foi resolvida:
+CENTRO -> 1378
+VENTURA -> 1377
+BOULEVARD -> 5258
+
+3. Execute um teste de resolução de contexto para cada telefone, SEM enviar
+mensagem ao cliente:
+
++55 41 99843-0354
+deve resolver -> CENTRO / 1378
+
++55 41 99880-3684
+deve resolver -> VENTURA / 1377
 
 +55 41 3073-1358
+deve resolver -> BOULEVARD / 5258
 
-e informe com evidência a qual unidade ele realmente pertence.
+4. Confirme se o bookingContext recebe o unitId correto nas três instâncias.
 
-Não altere nada.
+5. NÃO teste horários ainda.
+6. NÃO envie mensagens reais.
+7. NÃO faça nenhuma correção adicional.
 
-Ao final responda somente:
+RESULTADO FINAL OBRIGATÓRIO:
 
-CENTRO:
-telefone =
-instanceId =
-unitId =
+CENTRO = telefone / instanceId / unitId / PASSOU ou FALHOU
+VENTURA = telefone / instanceId / unitId / PASSOU ou FALHOU
+BOULEVARD = telefone / instanceId / unitId / PASSOU ou FALHOU
 
-VENTURA:
-telefone =
-instanceId =
-unitId =
+bookingContext Centro = unitId
+bookingContext Ventura = unitId
+bookingContext Boulevard = unitId
 
-BOULEVARD:
-telefone =
-instanceId =
-unitId =
+MAPEAMENTO CORRIGIDO = SIM/NÃO
+3 INSTÂNCIAS VALIDADAS = SIM/NÃO
 
-MAPEAMENTO INCORRETO ENCONTRADO = SIM/NÃO
+Se qualquer uma falhar, mostre a evidência e PARE.
 
-ONDE ESTÁ O ERRO =
-(tabela/campo/configuração)
+NÃO corrija outro problema.
 
-CORREÇÃO NECESSÁRIA =
-(descrever somente, NÃO executar)
-
-PARE e aguarde autorização.`;
+PARE E AGUARDE MINHA AUTORIZAÇÃO.`;
 
 export const Route = createFileRoute('/')({
   component: Dashboard,
