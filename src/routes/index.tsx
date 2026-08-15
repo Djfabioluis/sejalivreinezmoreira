@@ -22,7 +22,7 @@ function Dashboard() {
         <h1 className="text-3xl font-bold tracking-tight text-slate-900">Auditoria Forense Seja Livre</h1>
         <div className="px-4 py-2 bg-blue-100 text-blue-700 rounded-full flex items-center gap-2 font-medium">
           <Activity className="w-4 h-4" />
-          MONITORAMENTO REAL PRONTO
+          TESTE FUNCIONAL REAL PRONTO
         </div>
       </div>
 
@@ -30,201 +30,175 @@ function Dashboard() {
         <CardHeader className="bg-blue-600 text-white">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Zap className="w-6 h-6" />
-            BLOQUEIO DE SEGURANÇA E MONITORAMENTO REAL
+            CORREÇÃO PONTUAL — NORMALIZAÇÃO SEMÂNTICA "MÃO"
           </CardTitle>
         </CardHeader>
         <CardContent className="p-8 space-y-6 text-slate-900">
           <div className="bg-slate-100 p-6 rounded-lg font-mono text-sm whitespace-pre-wrap border border-slate-300">
-{`Execute esta instrucao no projeto: NÃO FAÇA MAIS ALTERAÇÕES.
+{`Execute esta instrucao no projeto: CORREÇÃO PONTUAL — NÃO PERGUNTAR SE "MÃO" SIGNIFICA MANICURE.
 
-Os testes automatizados indicam:
+O teste real mostrou que a Julia está respondendo algo como:
 
-"MÃO" RECONHECIDA COMO MANICURE = SIM
-"HOJE" PRESERVADO = SIM
-"AMANHÃ" PRESERVADO = SIM
-JULIA PARA DE REPETIR PERGUNTA DE DATA = SIM
-TESTES 3 UNIDADES = APROVADOS
+"Quando você fala mão, está se referindo a manicure?"
 
-Agora quero PROVA FUNCIONAL REAL PELO WHATSAPP.
+Esse comportamento está INCORRETO.
 
-NÃO considere full_flow_test.ts como aprovação final.
-NÃO simule mensagens.
-NÃO altere código.
-NÃO altere banco.
-NÃO altere prompt.
-NÃO altere mapeamento.
+REGRA DE NEGÓCIO:
+
+No contexto de serviços do salão:
+
+"mão"
+"fazer a mão"
+"fazer mão"
+"unha da mão"
+"fazer as mãos"
+
+devem ser normalizados DIRETAMENTE para:
+
+serviceIntent = MANICURE
+
+NÃO pedir confirmação semântica ao cliente.
 
 ==================================================
-1. PREPARE MONITORAMENTO REAL
+EXEMPLO
 ==================================================
 
-Prepare o trace end-to-end para identificar, em uma mensagem REAL:
+Cliente:
+"Quero fazer a mão hoje"
 
-instanceId inbound
-telefone da unidade
-unitId efetivo
-texto recebido
-serviceText
-serviceIntent
-dateText
+CORRETO:
+
+serviceIntent = manicure
+date = hoje
+
+Depois consultar list_services da unidade correta.
+
+INCORRETO:
+
+"Você quer dizer manicure?"
+"Quando fala mão, é manicure?"
+"Qual serviço você deseja?"
+
+==================================================
+IMPORTANTE — NÃO CONFUNDIR COM AMBIGUIDADE DE CATÁLOGO
+==================================================
+
+A normalização:
+
+"mão" -> intenção MANICURE
+
+é determinística.
+
+But o serviceId continua vindo do catálogo REAL do BEMP.
+
+Fluxo:
+
+"mão"
+→ serviceIntent = manicure
+→ list_services da unidade correta
+→ analisar candidatos reais
+
+Se houver UM serviço de manicure compatível:
+→ resolver diretamente.
+
+Se houver MAIS DE UM serviço realmente compatível:
+→ SERVICE_CLARIFICATION_REQUIRED
+
+Mas nesse caso a pergunta deve ser sobre QUAL OPÇÃO DE MANICURE,
+e NÃO sobre se "mão" significa manicure.
+
+Exemplo:
+
+Cliente:
+"Quero fazer a mão hoje"
+
+BEMP retorna:
+- Manicure
+- Manicure + Pedicure
+
+Julia pode perguntar:
+
+"Para hoje, você gostaria de Manicure ou Manicure + Pedicure?"
+
+A data HOJE deve permanecer salva.
+
+==================================================
+DATA
+==================================================
+
+Se a mesma mensagem contém:
+
+"hoje"
+
+dateResolved deve ser preenchida imediatamente.
+
+A Julia NÃO pode perguntar novamente:
+"qual dia?"
+"para quando?"
+
+Depois que o serviço for definido:
+
+unitId
++
+serviceId
++
 dateResolved
-bookingContext antes
-bookingContext depois
-list_services chamada
-unitId enviado para list_services
-candidatos retornados pela BEMP
-serviceId resolvido
-SERVICE_CLARIFICATION_REQUIRED
-list_slots chamada
-unitId enviado para list_slots
-serviceId enviado para list_slots
-data enviada para list_slots
-horários retornados pela BEMP
-resposta final enviada à cliente
+
+→ chamar list_slots.
 
 ==================================================
-2. TESTE PRIMEIRO SOMENTE BOULEVARD
+TESTE REAL QUE DEVE PASSAR
 ==================================================
 
-Unidade oficial validada:
-
-BOULEVARD
-WhatsApp = +55 41 3073-1358
-instanceId = agente-554130731358
-unitId BEMP = 1378
-
-Vou enviar MANUALMENTE pelo WhatsApp:
-
+Mensagem:
 "Oi, quero fazer a mão hoje"
 
-A Julia deve interpretar:
+Resultado esperado:
 
-unidade = BOULEVARD
-unitId = 1378
-serviço pretendido = MANICURE
-data = HOJE
+"MÃO" NORMALIZADA PARA MANICURE = SIM
+PERGUNTOU SE MÃO SIGNIFICA MANICURE = NÃO
+"HOJE" RESOLVIDO = SIM
+PERGUNTOU A DATA NOVAMENTE = NÃO
+LIST_SERVICES CHAMADA = SIM
+UNITID CORRETO = SIM
 
-Ela NÃO pode perguntar:
+Se houver serviço único:
+SERVICEID RESOLVIDO = SIM
+LIST_SLOTS CHAMADA = SIM
 
-"Qual serviço?"
-se o catálogo permitir resolver manicure inequivocamente.
-
-Ela NÃO pode perguntar:
-
-"Qual dia?"
-"Para quando?"
-"Que data?"
-
-porque HOJE já está presente.
+Se houver múltiplos serviços:
+SERVICE_CLARIFICATION_REQUIRED = SIM
+DATA "HOJE" PRESERVADA = SIM
 
 ==================================================
-3. CONSULTA REAL DO SERVIÇO
+ESCOPO
 ==================================================
 
-A Julia deve consultar o catálogo REAL da BEMP da unidade 1378.
+Não altere:
+- preços
+- price auditor
+- mapeamento das unidades
+- Evolution
+- webhook
+- Gemini/modelo
+- list_slots
+- regras de disponibilidade
 
-"Mão" é linguagem natural da cliente.
-Use "manicure" apenas como intenção semântica de busca.
+Corrija SOMENTE a normalização semântica para que
+"MÃO" seja intenção direta de MANICURE.
 
-NÃO hardcode serviceId.
-NÃO hardcode preço.
+Depois execute o teste acima e mostre:
 
-Mostre os candidatos REAIS retornados pela BEMP.
+texto recebido =
+serviceIntent =
+dateResolved =
+candidatos BEMP =
+resposta Julia =
+perguntou significado de "mão" = SIM/NÃO
+perguntou data novamente = SIM/NÃO
+resultado = APROVADO/FALHOU
 
-Se existir exatamente uma opção compatível:
-→ resolver serviceId.
-
-Se existirem múltiplas opções realmente compatíveis:
-→ pedir esclarecimento SOMENTE sobre o serviço.
-→ preservar HOJE no bookingContext.
-
-==================================================
-4. CONSULTA REAL DA AGENDA
-==================================================
-
-Assim que houver:
-
-unitId = 1378
-serviceId válido
-dateResolved = hoje
-
-a Julia deve chamar REALMENTE list_slots.
-
-A resposta ao cliente só pode conter horários que estejam presentes
-no retorno REAL da BEMP.
-
-PROIBIDO:
-- inventar horário
-- usar horário de outra unidade
-- usar horário da memória
-- usar horário de teste
-- usar horário retornado anteriormente
-- consultar Centro ou Ventura
-
-==================================================
-5. PROTEÇÃO DE IDENTIDADE
-==================================================
-
-Durante todo o fluxo:
-
-instanceId inicial = agente-554130731358
-unitId inicial = 1378
-
-Esses valores NÃO podem mudar.
-
-Se em qualquer ponto aparecer:
-
-1377
-5258
-CENTRO
-VENTURA
-
-no contexto efetivo de unidade ou na chamada de disponibilidade:
-
-ABORTE A RESPOSTA.
-registre UNIT_CONTEXT_MISMATCH.
-NÃO ofereça horários à cliente.
-
-==================================================
-6. AGUARDE MINHA MENSAGEM REAL
-==================================================
-
-Agora apenas prepare o monitoramento.
-
-NÃO envie mensagem para o WhatsApp.
-NÃO simule a cliente.
-NÃO execute full_flow_test.
-NÃO altere nada.
-
-Quando detectar minha mensagem real:
-
-"Oi, quero fazer a mão hoje"
-
-capture o trace completo.
-
-Depois mostre:
-
-MENSAGEM REAL RECEBIDA = SIM/NÃO
-INSTANCE INBOUND =
-UNIDADE IDENTIFICADA =
-UNITID =
-"MÃO" → MANICURE = SIM/NÃO
-"HOJE" RESOLVIDO = SIM/NÃO
-PERGUNTOU DATA NOVAMENTE = SIM/NÃO
-LIST_SERVICES REAL CHAMADA = SIM/NÃO
-CANDIDATOS BEMP =
-SERVICEID =
-LIST_SLOTS REAL CHAMADA = SIM/NÃO
-UNITID ENVIADO AO LIST_SLOTS =
-DATA ENVIADA =
-HORÁRIOS BEMP =
-RESPOSTA JULIA =
-HORÁRIOS OFERECIDOS EXISTEM NA RESPOSTA BEMP = SIM/NÃO
-HOUVE CONTAMINAÇÃO ENTRE UNIDADES = SIM/NÃO
-
-RESULTADO = APROVADO/FALHOU
-
-PARE E AGUARDE MINHA AUTORIZAÇÃO.`}
+PARE depois do teste.`}
           </div>
         </CardContent>
       </Card>
@@ -234,18 +208,18 @@ PARE E AGUARDE MINHA AUTORIZAÇÃO.`}
           <CardHeader>
             <CardTitle className="text-blue-800 flex items-center gap-2 text-sm uppercase">
               <Search className="w-4 h-4" />
-              STATUS DO MONITORAMENTO
+              STATUS DO TESTE REAL
             </CardTitle>
           </CardHeader>
           <CardContent className="text-xs font-mono space-y-4">
-            <div className="flex items-center gap-2 text-green-700 font-bold">
+            <div className="flex items-center gap-2 text-blue-700 font-bold">
               <Activity className="w-4 h-4 animate-pulse" />
-              AGUARDANDO MENSAGEM REAL: +55 41 3073-1358
+              AGUARDANDO: "Oi, quero fazer a mão hoje"
             </div>
             <div className="space-y-1">
-              <p className="text-slate-600">Alvo: BOULEVARD (Unit 1378)</p>
-              <p className="text-slate-600">Instância: agente-554130731358</p>
-              <p className="text-slate-600">Trace: Ativo (evo_trace_logs)</p>
+              <p className="text-slate-600">Alvo: BOULEVARD (+55 41 3073-1358)</p>
+              <p className="text-slate-600">Normalização: ATIVA (mão → manicure)</p>
+              <p className="text-slate-600">Bloqueio Confirmação Semântica: ATIVO</p>
             </div>
           </CardContent>
         </Card>
@@ -254,20 +228,20 @@ PARE E AGUARDE MINHA AUTORIZAÇÃO.`}
           <CardHeader>
             <CardTitle className="text-slate-800 flex items-center gap-2 text-sm uppercase">
               <FileText className="w-4 h-4" />
-              PROVA DE ISOLAMENTO (CHECKPOINT)
+              MUDANÇAS APLICADAS
             </CardTitle>
           </CardHeader>
           <CardContent className="text-xs font-mono space-y-2">
-            <p className="text-green-700 font-bold">BEMP FONTE DA VERDADE = VALIDADO</p>
-            <p className="text-slate-600">Centro (1377) | Ventura (5258) | Boulevard (1378)</p>
-            <p className="text-slate-900 font-bold mt-2 underline text-red-600">TRAVA DE CONTEXTO ATIVA</p>
-            <p className="text-slate-500 italic">Qualquer tentativa de vazamento de ID resultará em ABORT.</p>
+            <p className="text-slate-900 font-bold">src/lib/booking/context.ts</p>
+            <p className="text-slate-600">- Expandido patterns de "mão" (plural e variações)</p>
+            <p className="text-slate-900 font-bold mt-2">src/lib/chat.server.ts</p>
+            <p className="text-slate-600">- Injetada REGRA ABSOLUTA no System Prompt contra perguntas de confirmação semântica para "mão".</p>
           </CardContent>
         </Card>
       </div>
 
       <div className="text-center py-4 text-blue-600 text-sm font-bold bg-blue-50 rounded-lg animate-pulse">
-        PRONTO PARA CAPTURA REAL. ENVIE A MENSAGEM NO WHATSAPP DA BOULEVARD.
+        CORREÇÃO APLICADA. ENVIE A MENSAGEM NO WHATSAPP PARA VALIDAR.
       </div>
     </div>
   );
