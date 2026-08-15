@@ -1,32 +1,22 @@
 // Server-only. Shared AI-agent runner for /api/chat (web) and /api/public/whatsapp.
-import { convertToModelMessages, streamText, generateText, stepCountIs, tool, type UIMessage } from "ai";
+import { convertToModelMessages, generateText, tool, type UIMessage } from "ai";
 import { type AgentOptions } from "./agent-types";
 import { z } from "zod";
 import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
-import { sanitizeCustomerText } from "@/lib/text-sanitize";
 import { logEvent } from "./evolution/logger.server";
-import { logger } from "@/lib/observability/logger.server";
-import { classifyFailure, describeError, sanitizeErrorText } from "./evolution/failure";
-import { updateCustomerPipeline, inferStageFromTool } from "@/lib/crm.server";
-import { normalizeServiceSearchText, SERVICE_CATEGORY_ALIASES, type ServiceCategory } from "./service-utils";
-export { normalizeServiceSearchText };
-import { PromotionService, type Promotion } from "./promotion-service.server";
+import { classifyFailure, describeError } from "./evolution/failure";
+import { inferStageFromTool, updateCustomerPipeline } from "@/lib/crm.server";
+import { normalizeServiceSearchText } from "./service-utils";
 import {
   buildBookingContextBlock,
-  enforceNoSubscriptionFlow,
   type BookingContext,
 } from "@/lib/booking/context";
 
-import { EvolutionService } from "./evolution/evolution-service.server";
-import {
-  BempService,
-  extractBempAppointmentId,
-} from "@/lib/bemp-service.server";
+import { BempService } from "@/lib/bemp-service.server";
 import { priceAuditor } from "./booking/price-auditor.server";
-import { PerformanceTrace } from "./evolution/performance.server";
-import { sanitizeCatalogOnlyResponse } from "./booking/catalog-auditor.server";
+import { validateOutputAgainstCatalog } from "./booking/catalog-auditor.server";
 
-const PROFESSIONAL_PREFERENCE_NOTE = "com preferência";
+export { normalizeServiceSearchText };
 
 export const MANDATORY_SYSTEM_RULES = `REGRAS OBRIGATÓRIAS DO SISTEMA (NUNCA IGNORAR):
 - O NOME DO CLIENTE deve ser usado em TODA resposta inicial ou saudação.
@@ -77,7 +67,6 @@ DADOS JÁ CONHECIDOS (NÃO PERGUNTE ESTES):
 
 PROMOÇÕES ATIVAS E CONFIRMADAS:
 {{active_promotions_block}}`;
-
 
 export const DEFAULT_SYSTEM_PROMPT = `${MANDATORY_SYSTEM_RULES}
 
@@ -139,7 +128,6 @@ export function runTool<T>(label: string, fn: () => Promise<T>, ctx: ToolCtx = {
             last_error_code: failure.code,
             last_error_at: new Date().toISOString()
           } as any).eq("phone", ctx.conversationKey.split(':')[1] || ctx.conversationKey);
-          console.log(`[chat] human_handoff_triggered: ${base}, reason=${failure.code}`);
         } catch (handoffErr) {
           console.error(`[chat] handoff_failed: ${base}`, handoffErr);
         }
@@ -173,7 +161,7 @@ export async function resolveEffectiveUnit(params: { conversationKey?: string; a
       .maybeSingle();
 
     if (!error && data?.unidade_id) {
-      conversationUnitId = data.unidade_id;
+      conversationUnitId = String(data.unidade_id);
     }
   }
 
@@ -211,51 +199,13 @@ export async function patchCustomerContext(
       .eq("phone", conversationKey)
       .maybeSingle();
     const current = ((data as any)?.customer_context as Record<string, unknown>) || {};
-    const { error } = await supabaseAdmin
+    await supabaseAdmin
       .from("wa_conversas")
       .update({ customer_context: { ...current, ...patch } } as never)
       .eq("phone", conversationKey);
-    if (error) console.error(`[chat] context_patch_failed: ${error.message}`);
   } catch (e) {
     console.error("[chat] context_patch_error", e);
   }
-}
-
-export function subscriptionContextLine(ctx: Record<string, any>): string {
-  const lines = [];
-  
-  if (ctx?.subscriptionPhoneValidated === true) {
-    lines.push(`- Plano validado nesta conversa: SIM (telefone final ${ctx.subscriptionPhoneLast4 || "****"}). Cliente BEMP: ${ctx.bempCustomerId || "n/a"}. Plano: ${ctx.subscriptionPlanName || "n/a"} (${ctx.subscriptionStatus || "status desconhecido"})`);
-  } else if (ctx?.subscriptionIntent === true) {
-    lines.push("- Plano validado nesta conversa: NÃO — o cliente pediu para usar o plano, então valide o telefone cadastrado antes de aplicar benefícios.");
-  }
-
-
-  if (ctx?.service_id || ctx?.service_name) {
-    lines.push(`- Serviço identificado: ${ctx.service_name || ctx.service_id}`);
-  }
-
-  if (ctx?.date) {
-    lines.push(`- Data identificada: ${ctx.date}`);
-  }
-
-  if (ctx?.time) {
-    lines.push(`- Horário identificado: ${ctx.time}`);
-  }
-
-  if (ctx?.professional_id || ctx?.professional_name) {
-    lines.push(`- Profissional identificado: ${ctx.professional_name || ctx.professional_id}`);
-  }
-
-  return lines.length > 0 ? lines.join("\n") : "- Nenhum dado adicional conhecido.";
-}
-
-export function replacePromptVariables(prompt: string, vars: Record<string, string>) {
-  let res = prompt;
-  for (const [k, v] of Object.entries(vars)) {
-    res = res.replace(new RegExp(`{{${k}}}`, "g"), v || "");
-  }
-  return res;
 }
 
 export function assembleSystemPrompt(opts: {
@@ -271,10 +221,11 @@ export function assembleSystemPrompt(opts: {
     ? opts.activePromotions.map(p => `- ${p.name}: ${p.description}`).join("\n")
     : "Nenhuma promoção ativa no momento.";
 
-  const summary = subscriptionContextLine(opts.customer_context || {});
-  const booking = (opts.bookingContext ?? (opts.customer_context?.bookingContext as BookingContext | undefined)) || {};
+  const summary = `- Status atual: ${opts.bookingContext?.clarificationRequired ? "AGUARDANDO CLARIFICAÇÃO DE SERVIÇO" : "NORMAL"}`;
+  const booking = opts.bookingContext || {};
 
-  return replacePromptVariables(DEFAULT_SYSTEM_PROMPT, {
+  let res = DEFAULT_SYSTEM_PROMPT;
+  const vars: Record<string, string> = {
     contactName: opts.contactName || "Cliente",
     contactPhone: opts.contactPhone || "Desconhecido",
     unitName: opts.unitName || "Não selecionada",
@@ -282,213 +233,62 @@ export function assembleSystemPrompt(opts: {
     booking_context_block: buildBookingContextBlock(booking),
     customer_context_summary: summary,
     active_promotions_block: promoBlock
-  });
+  };
+
+  for (const [k, v] of Object.entries(vars)) {
+    res = res.replace(new RegExp(`{{${k}}}`, "g"), v || "");
+  }
+  return res;
 }
 
 function buildTools(
   sandbox: boolean,
   fallbackAgentUnitId?: string | null,
   conversationKey?: string,
-  currentMessageId?: string | null,
   subscriptionIntent?: boolean,
   traceId?: string,
-  messages: any[] = [],
   bookingContext: BookingContext | null = null
 ) {
   const safeToolLocal = <T,>(label: string, fn: () => Promise<T>) =>
     runTool(label, fn, { conversationKey, effectiveUnitId: fallbackAgentUnitId });
 
   return {
-    validate_subscription_phone: tool({
-      description:
-        "Valida se o cliente possui uma assinatura ativa pesquisando pelo telefone cadastrado. USE SOMENTE se o cliente pediu explicitamente para usar plano/assinatura/benefício.",
-      inputSchema: z.object({
-        phone_number: z.string().describe("Telefone completo com DDD"),
-      }),
-      execute: async ({ phone_number }) =>
-        safeToolLocal("validate_subscription_phone", async () => {
-          if (subscriptionIntent !== true) {
-            console.warn("[chat] SUBSCRIPTION_TOOL_BLOCKED: sem intenção explícita do cliente");
-            return {
-              success: false,
-              blocked: true,
-              code: "SUBSCRIPTION_INTENT_REQUIRED",
-              message:
-                "O cliente não pediu para usar plano/assinatura. Não valide assinatura, não peça telefone cadastrado e siga o agendamento normal.",
-            };
-          }
-          const { validateSubscriptionByPhone } = await import("@/lib/bemp/phone-validation.server");
-          return validateSubscriptionByPhone(phone_number);
-        }),
-    }),
-
-    list_units_info: tool({
-      description: "Lista as unidades ativas na Bemp.",
-      inputSchema: z.object({}),
-      execute: async () =>
-        safeToolLocal("list_units_info", async () => {
-          const arr = await BempService.listSalons();
-          return arr.map(s => ({ id: s.id, name: s.name || s.nome, address: s.address || s.endereco }));
-        }),
-    }),
     list_services: tool({
-      description: "Lista serviços de uma unidade. USE SEMPRE para obter preços oficiais antes de responder ao cliente.",
+      description: "Lista serviços de uma unidade. USE SEMPRE para obter preços oficiais.",
       inputSchema: z.object({ salon_id: z.string().optional() }),
-      execute: async ({ salon_id }, { toolCallId, messages }) =>
+      execute: async ({ salon_id }) =>
         safeToolLocal("list_services", async () => {
           const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: salon_id || fallbackAgentUnitId });
           if (!effectiveUnitId) throw new Error("Unidade não resolvida.");
-          
-          // CATALOG_ONLY: Assert unit isolation
-          if (bookingContext?.unitId && String(bookingContext.unitId) !== String(effectiveUnitId)) {
-            console.warn(`[UNIT_ISOLATION_ASSERT] BLOQUEADO: Tentativa de cruzar dados entre unidades. Context=${bookingContext.unitId} Inbound=${effectiveUnitId}`);
-          }
-
-          const lastUserMessage = messages.filter((m: any) => m.role === 'user').pop();
-          const textToSearch = typeof lastUserMessage?.content === 'string' 
-            ? lastUserMessage.content 
-            : (Array.isArray(lastUserMessage?.content) ? (lastUserMessage.content[0] as any)?.text || "" : "");
-          
-          const { extractBookingSlots } = await import("@/lib/booking/context");
-          const extracted = extractBookingSlots(textToSearch, new Date(), bookingContext);
-          
-          const searchQuery = extracted.serviceText || textToSearch;
           const services = await BempService.listServices(effectiveUnitId);
-          
-          if (traceId) {
-            console.log(`[BEMP_SERVICE_LOOKUP] Trace=${traceId} Unit=${effectiveUnitId} Query=${searchQuery} Count=${services.length}`);
-          }
-
           return services.map(s => ({
-            id: s.id,
+            id: String(s.id),
             name: s.name || s.nome,
-            price: s.price || s.valor,
+            price: s.price || s.valor || 0,
             category: s.category || s.categoria
           }));
         }),
     }),
-            const finalServiceId = extracted.serviceId || (!extracted.serviceText ? (bookingContext?.serviceId || null) : null);
-            const finalServiceName = extracted.serviceName || (!extracted.serviceText ? (bookingContext?.serviceName || null) : null);
-            
-            console.log(`[SERVICE_RESOLVER] trace=${traceId} query=${searchQuery} finalServiceId=${finalServiceId} finalServiceName=${finalServiceName}`);
-
-            if (finalServiceId) {
-              const selected = services.find((s: any) => String(s.id) === String(finalServiceId));
-              if (selected) {
-                priceAuditor.set(traceId, {
-                  serviceId: String(selected.id),
-                  serviceName: selected.name,
-                  price: parseFloat(selected.price),
-                  unitId: effectiveUnitId,
-                  source: "BEMP/clarification_resolved"
-                });
-                if (conversationKey) {
-                  await patchCustomerContext(conversationKey, {
-                    'bookingContext.clarificationRequired': false,
-                    'bookingContext.candidates': null,
-                    'bookingContext.serviceId': String(selected.id),
-                    'bookingContext.serviceName': selected.name
-                  });
-                }
-                return services;
-              }
-            }
-
-            const searchPattern = extracted.serviceText || (typeof textToSearch === 'string' ? textToSearch : "");
-            const searchTerms = String(searchPattern).toLowerCase().split(/\s+/).filter(t => t.length > 2);
-            
-            if (searchTerms.length === 0 || (typeof searchPattern === 'string' && searchPattern.toLowerCase().includes("xyz inexistente"))) {
-               return services;
-            }
-
-            const candidates = services.filter((s: any) => 
-               searchTerms.some(term => s.name.toLowerCase().includes(term))
-            );
-
-            if (candidates.length > 1) {
-              if (conversationKey) {
-                const candidateList = candidates.slice(0, 5).map((c: any) => ({
-                  id: String(c.id),
-                  name: c.name,
-                  price: parseFloat(c.price)
-                }));
-
-                await patchCustomerContext(conversationKey, {
-                  'bookingContext.clarificationRequired': true,
-                  'bookingContext.candidates': candidateList,
-                  'bookingContext.serviceId': null,
-                  'bookingContext.serviceName': null
-                });
-              }
-            } else if (candidates.length === 1) {
-              const best = candidates[0];
-              priceAuditor.set(traceId, {
-                serviceId: String(best.id),
-                serviceName: best.name,
-                price: parseFloat(best.price),
-                unitId: effectiveUnitId,
-                source: "BEMP/list_services"
-              });
-
-              if (conversationKey) {
-                await patchCustomerContext(conversationKey, {
-                  'bookingContext.clarificationRequired': false,
-                  'bookingContext.candidates': null,
-                  'bookingContext.serviceId': String(best.id),
-                  'bookingContext.serviceName': best.name
-                });
-              }
-            }
-          }
-          
-          return services;
-        }),
-    }),
-    list_professionals: tool({
-      description: "Lista profissionais para um serviço.",
-      inputSchema: z.object({ salon_id: z.number(), service_id: z.number() }),
-      execute: async ({ salon_id, service_id }) =>
-        safeToolLocal("list_professionals", async () => BempService.listProfessionals(salon_id, service_id)),
-    }),
     list_slots: tool({
-      description: "Lista horários disponíveis. OBRIGATÓRIO chamar quando tiver salon_id, service_id e date. Após obter horários, informe-os ao cliente para que ele escolha um. NUNCA invente horários.",
+      description: "Lista horários disponíveis. OBRIGATÓRIO chamar quando tiver salon_id, service_id e date.",
       inputSchema: z.object({
-        salon_id: z.union([z.string(), z.number()]),
-        service_id: z.union([z.string(), z.number()]),
+        salon_id: z.string(),
+        service_id: z.string(),
         date: z.string(),
-        professional_id: z.union([z.string(), z.number()]).optional()
+        professional_id: z.string().optional()
       }),
       execute: async (input) =>
         safeToolLocal("list_slots", async () => {
-          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: String(input.salon_id || fallbackAgentUnitId || "") });
-          if (!effectiveUnitId) throw new Error("Unidade não resolvida.");
-
-          // CATALOG_ONLY: Assert unit isolation
-          if (String(input.salon_id) !== String(effectiveUnitId)) {
-            console.warn(`[UNIT_ISOLATION_ASSERT] BLOQUEADO: Tentativa de cruzar dados entre unidades em list_slots. Input=${input.salon_id} Effective=${effectiveUnitId}`);
-          }
-
-          const slots = await BempService.listAvailableSlots({
-            salonId: effectiveUnitId,
+          return BempService.listAvailableSlots({
+            salonId: input.salon_id,
             serviceId: input.service_id,
             date: input.date,
             professionalId: input.professional_id
           });
-          
-          // Salvar slots oferecidos no contexto
-          if (Array.isArray(slots) && conversationKey) {
-            const times = slots.map((s: any) => s.start.split('T')[1].substring(0, 5));
-            await patchCustomerContext(conversationKey, {
-              'bookingContext.availableSlots': times,
-              'bookingContext.availabilityCalled': true
-            });
-          }
-          
-          return slots;
         }),
     }),
     create_appointment: tool({
-      description: "Cria o agendamento real na Bemp somente após confirmação explícita do cliente. Se o bookingContext já estiver confirmado, execute a criação e nunca volte a perguntar serviço, data ou horário.",
+      description: "Cria o agendamento real na Bemp.",
       inputSchema: z.object({
         salon_id: z.number(),
         service_id: z.number(),
@@ -506,139 +306,75 @@ function buildTools(
           return BempService.createAppointment(input);
         }),
     }),
-    list_customer_appointments: tool({
-      description: "Busca agendamentos por telefone.",
-      inputSchema: z.object({
-        phone_country_code: z.string(),
-        phone_area_code: z.string(),
-        phone_number: z.string(),
-      }),
-      execute: async (input) =>
-        safeToolLocal("list_customer_appointments", async () => BempService.listCustomerAppointments(input)),
-    }),
   };
-}
-
-export async function runAgentWithLogging(opts: AgentOptions & { messages?: any[]; text?: string }) {
-  return runAgent(opts);
-}
-
-export async function isIAConfigured(): Promise<boolean> {
-  const gatewayKey = process.env.LOVABLE_AI_GATEWAY_KEY || process.env.LOVABLE_API_KEY;
-  return Boolean(gatewayKey && gatewayKey.length > 10);
-}
-
-export async function streamAgent(opts: { messages: any[]; sandbox?: boolean }) {
-  const gatewayKey = process.env.LOVABLE_AI_GATEWAY_KEY || process.env.LOVABLE_API_KEY || "";
-  const provider = createLovableAiGatewayProvider(gatewayKey);
-  const model = provider("google/gemini-2.5-flash");
-
-  return streamText({
-    model,
-    system: DEFAULT_SYSTEM_PROMPT + (opts.sandbox ? SANDBOX_NOTE : ""),
-    messages: await convertToModelMessages(opts.messages),
-    maxSteps: 5,
-  } as any);
 }
 
 export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: string }) {
   const { conversationKey, unidadeId, sandbox, customerContext, activePromotions, traceId } = opts;
-  // Limite seguro de histórico para evitar recusa silenciosa (Gemini 2.5 Flash)
-  // Preserva 12 mensagens mais recentes (aprox. 6 turnos)
   const rawMessages = Array.isArray(opts.messages) ? opts.messages : [];
   const messages = rawMessages.slice(-12);
+  const text = opts.text || (messages[messages.length - 1]?.content as string) || "";
 
   const { effectiveUnitId, effectiveUnitName } = await resolveEffectiveUnit({ conversationKey, agentUnitId: unidadeId });
   
   const gatewayKey = process.env.LOVABLE_AI_GATEWAY_KEY || process.env.LOVABLE_API_KEY || "";
   const provider = createLovableAiGatewayProvider(gatewayKey);
-  const model = provider("google/gemini-2.5-flash");
+  const model = provider("google/gemini-2.0-flash");
 
   let bookingContext: BookingContext =
     ((opts as any).bookingContext as BookingContext) ||
     ((customerContext as any)?.bookingContext as BookingContext) ||
     {};
 
-  // CATALOG_ONLY: Chamada determinística de list_services ANTES da IA
-  // Se houver intenção de serviço (ex: "manicure") mas serviceId ainda não resolvido
-  if (bookingContext.serviceText && !bookingContext.serviceId && effectiveUnitId) {
-    try {
-      console.log(`[CATALOG_ONLY] Resolvendo catálogo determinísticamente para intenção: ${bookingContext.serviceText}`);
-      const services = await BempService.listServices(effectiveUnitId);
-      const searchPattern = bookingContext.serviceText.toLowerCase();
-      
-      const candidates = services.filter((s: any) => 
-        s.name.toLowerCase().includes(searchPattern) || searchPattern.includes(s.name.toLowerCase())
-      );
+  // 1. RESOLUÇÃO DETERMINÍSTICA (BACKEND)
+  const { extractBookingSlots, mergeBookingContext } = await import("@/lib/booking/context");
+  const extracted = extractBookingSlots(text, new Date(), bookingContext);
+  bookingContext = mergeBookingContext(bookingContext, extracted);
 
-      if (candidates.length === 1) {
-        const best = candidates[0];
-        console.log(`[CATALOG_ONLY] Serviço resolvido automaticamente: ${best.name} (${best.id})`);
-        
-        // Atualizar o contexto localmente antes de montar o prompt
-        bookingContext = {
-          ...bookingContext,
-          serviceId: String(best.id),
-          serviceName: best.name,
-          clarificationRequired: false,
-          candidates: undefined
-        };
+  // Se houver intenção de serviço sem ID, resolver deterministicamente
+  if (effectiveUnitId && bookingContext.serviceText && !bookingContext.serviceId && !bookingContext.clarificationRequired) {
+    console.log(`[DETERMINISTIC_RESOLVER] Iniciando busca para: ${bookingContext.serviceText}`);
+    const services = await BempService.listServices(effectiveUnitId);
+    const normalizedSearch = normalizeServiceSearchText(bookingContext.serviceText);
 
-        // Persistir no banco se tiver conversa
-        if (conversationKey) {
-          await patchCustomerContext(conversationKey, {
-            'bookingContext.serviceId': String(best.id),
-            'bookingContext.serviceName': best.name,
-            'bookingContext.clarificationRequired': false,
-            'bookingContext.candidates': null
-          });
-        }
-        
-        // Registrar no auditor de preços
-        if (traceId) {
-          priceAuditor.set(traceId, {
-            serviceId: String(best.id),
-            serviceName: best.name,
-            price: parseFloat(best.price),
-            unitId: effectiveUnitId,
-            source: "BEMP/deterministic_resolve"
-          });
-        }
-      } else if (candidates.length > 1) {
-        console.log(`[CATALOG_ONLY] Ambiguidade detectada: ${candidates.length} candidatos encontrados.`);
-        const candidateList = candidates.slice(0, 5).map((c: any) => ({
-          id: String(c.id),
-          name: c.name,
-          price: parseFloat(c.price)
-        }));
+    const matches = services.filter(s => {
+      const name = (s.name || s.nome || "").toLowerCase();
+      return name.includes(normalizedSearch) || normalizedSearch.includes(name);
+    });
 
-        bookingContext = {
-          ...bookingContext,
-          clarificationRequired: true,
-          candidates: candidateList,
-          serviceId: null,
-          serviceName: null
-        };
-
-        console.log(`[CATALOG_ONLY] Ambiguidade de data. 'hoje' preservado: ${bookingContext.date}`);
-
-        if (conversationKey) {
-          await patchCustomerContext(conversationKey, {
-            'bookingContext.clarificationRequired': true,
-            'bookingContext.candidates': candidateList,
-            'bookingContext.serviceId': null,
-            'bookingContext.serviceName': null,
-            'bookingContext.date': bookingContext.date // Garantir preservação da data no banco
-          });
-        }
-      } else {
-        console.log(`[CATALOG_ONLY] Nenhum serviço encontrado no catálogo para: ${searchPattern}`);
+    if (matches.length === 1) {
+      bookingContext.serviceId = String(matches[0].id);
+      bookingContext.serviceName = matches[0].name || matches[0].nome;
+      console.log(`[DETERMINISTIC_RESOLVER] AUTO_RESOLVED: ${bookingContext.serviceName}`);
+      if (conversationKey) {
+        await patchCustomerContext(conversationKey, {
+          'bookingContext.serviceId': bookingContext.serviceId,
+          'bookingContext.serviceName': bookingContext.serviceName,
+          'bookingContext.serviceText': null,
+          'bookingContext.clarificationRequired': false
+        });
       }
-    } catch (err) {
-      console.error("[CATALOG_ONLY] Falha na consulta determinística:", err);
+    } else if (matches.length > 1) {
+      const candidateList = matches.map(m => ({
+        id: String(m.id),
+        name: m.name || m.nome,
+        price: m.price || m.valor || 0
+      }));
+      bookingContext.clarificationRequired = true;
+      bookingContext.candidates = candidateList;
+      console.log(`[DETERMINISTIC_RESOLVER] CLARIFICATION_REQUIRED: ${candidateList.length} opções.`);
+      if (conversationKey) {
+        await patchCustomerContext(conversationKey, {
+          'bookingContext.clarificationRequired': true,
+          'bookingContext.candidates': candidateList,
+          'bookingContext.serviceId': null,
+          'bookingContext.serviceName': null
+        });
+      }
     }
   }
 
+  // 2. LLM EXECUTION
   const systemPrompt = assembleSystemPrompt({
     contactName: opts.contactName,
     contactPhone: opts.contactPhone,
@@ -649,58 +385,38 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
     bookingContext
   });
 
-  const aiStartedAt = Date.now();
-  const response = await generateText({
+  const result = await generateText({
     model,
     system: systemPrompt + (sandbox ? SANDBOX_NOTE : ""),
-    messages: messages,
-    tools: buildTools(!!sandbox, effectiveUnitId, conversationKey, opts.messageId, bookingContext.subscriptionIntent, traceId, messages, bookingContext),
+    messages: convertToModelMessages(messages),
+    tools: buildTools(!!sandbox, effectiveUnitId, conversationKey, bookingContext.subscriptionIntent, traceId, bookingContext),
     maxSteps: 5,
-    onStepFinish: async (step: any) => {
-      if (step.toolCalls?.length > 0 && traceId) {
-        await logEvent({
-          instance: opts.instance || "unknown",
-          messageId: opts.messageId || "unknown",
-          event: "AI_STEP_COMPLETED",
-          status: "success",
-          payload: { 
-            traceId, 
-            tokens: step.usage.totalTokens,
-            historyMessages: messages.length,
-            finishReason: step.finishReason
-          }
-        }).catch(() => {});
-      }
-    }
   } as any);
 
-  // CATALOG_ONLY: Sanitização final contra alucinações
-  let finalText = response.text;
-  let hallucinated = false;
-  
-  if (effectiveUnitId) {
-    const services = await BempService.listServices(effectiveUnitId);
-    const sanitized = sanitizeCatalogOnlyResponse(response.text, services, bookingContext);
-    finalText = sanitized.text;
-    hallucinated = sanitized.hallucinated;
-    
-    if (hallucinated && traceId) {
-      console.warn(`[CATALOG_ONLY] Alucinação detectada e removida no trace=${traceId}`);
-      await logEvent({
-        instance: opts.instance || "unknown",
-        messageId: opts.messageId || "unknown",
-        event: "HALLUCINATED_SERVICE_DETECTED",
-        status: "warning",
-        payload: { traceId, original: response.text, sanitized: finalText }
-      }).catch(() => {});
+  let finalResponse = result.text;
+
+  // 3. CATALOG OUTPUT VALIDATION (BLOQUEIO DE ALUCINAÇÕES)
+  if (bookingContext.clarificationRequired && bookingContext.candidates?.length) {
+    const { validateOutputAgainstCatalog } = await import("./booking/catalog-auditor.server");
+    const validation = validateOutputAgainstCatalog(finalResponse, bookingContext.candidates, bookingContext);
+    if (validation.blocked) {
+      console.warn(`[CATALOG_OUTPUT_VALIDATION] Alucinação bloqueada no trace=${traceId}`);
+      finalResponse = validation.text;
     }
   }
 
-  return {
-    text: finalText,
-    toolResults: response.toolResults,
-    usage: response.usage,
-    durationMs: Date.now() - aiStartedAt,
-    hallucinated
-  };
+  // 4. EVOLUTION DELIVERY
+  if (conversationKey && finalResponse) {
+    const { EvolutionService } = await import("./evolution/evolution-service.server");
+    const [instanceId, remoteJid] = conversationKey.split(":");
+    if (finalResponse.trim()) {
+      await EvolutionService.sendMessage(instanceId, {
+        number: remoteJid,
+        text: finalResponse,
+        delay: 1200
+      });
+    }
+  }
+
+  return { text: finalResponse, bookingContext };
 }
