@@ -558,7 +558,7 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
     tools: buildTools(!!sandbox, effectiveUnitId, conversationKey, opts.messageId, bookingContext.subscriptionIntent, traceId, messages, bookingContext),
     maxSteps: 5,
     onStepFinish: async (step: any) => {
-      if (traceId) {
+      if (step.toolCalls?.length > 0 && traceId) {
         await logEvent({
           instance: opts.instance || "unknown",
           messageId: opts.messageId || "unknown",
