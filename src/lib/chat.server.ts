@@ -541,10 +541,87 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
   const provider = createLovableAiGatewayProvider(gatewayKey);
   const model = provider("google/gemini-2.5-flash");
 
-  const bookingContext: BookingContext =
+  let bookingContext: BookingContext =
     ((opts as any).bookingContext as BookingContext) ||
     ((customerContext as any)?.bookingContext as BookingContext) ||
     {};
+
+  // CATALOG_ONLY: Chamada determinística de list_services ANTES da IA
+  // Se houver intenção de serviço (ex: "manicure") mas serviceId ainda não resolvido
+  if (bookingContext.serviceText && !bookingContext.serviceId && effectiveUnitId) {
+    try {
+      console.log(`[CATALOG_ONLY] Resolvendo catálogo determinísticamente para intenção: ${bookingContext.serviceText}`);
+      const services = await BempService.listServices(effectiveUnitId);
+      const searchPattern = bookingContext.serviceText.toLowerCase();
+      
+      const candidates = services.filter((s: any) => 
+        s.name.toLowerCase().includes(searchPattern) || searchPattern.includes(s.name.toLowerCase())
+      );
+
+      if (candidates.length === 1) {
+        const best = candidates[0];
+        console.log(`[CATALOG_ONLY] Serviço resolvido automaticamente: ${best.name} (${best.id})`);
+        
+        // Atualizar o contexto localmente antes de montar o prompt
+        bookingContext = {
+          ...bookingContext,
+          serviceId: String(best.id),
+          serviceName: best.name,
+          clarificationRequired: false,
+          candidates: undefined
+        };
+
+        // Persistir no banco se tiver conversa
+        if (conversationKey) {
+          await patchCustomerContext(conversationKey, {
+            'bookingContext.serviceId': String(best.id),
+            'bookingContext.serviceName': best.name,
+            'bookingContext.clarificationRequired': false,
+            'bookingContext.candidates': null
+          });
+        }
+        
+        // Registrar no auditor de preços
+        if (traceId) {
+          priceAuditor.set(traceId, {
+            serviceId: String(best.id),
+            serviceName: best.name,
+            price: parseFloat(best.price),
+            unitId: effectiveUnitId,
+            source: "BEMP/deterministic_resolve"
+          });
+        }
+      } else if (candidates.length > 1) {
+        console.log(`[CATALOG_ONLY] Ambiguidade detectada: ${candidates.length} candidatos encontrados.`);
+        const candidateList = candidates.slice(0, 5).map((c: any) => ({
+          id: String(c.id),
+          name: c.name,
+          price: parseFloat(c.price)
+        }));
+
+        bookingContext = {
+          ...bookingContext,
+          clarificationRequired: true,
+          candidates: candidateList,
+          serviceId: null,
+          serviceName: null
+        };
+
+        if (conversationKey) {
+          await patchCustomerContext(conversationKey, {
+            'bookingContext.clarificationRequired': true,
+            'bookingContext.candidates': candidateList,
+            'bookingContext.serviceId': null,
+            'bookingContext.serviceName': null
+          });
+        }
+      } else {
+        console.log(`[CATALOG_ONLY] Nenhum serviço encontrado no catálogo para: ${searchPattern}`);
+      }
+    } catch (err) {
+      console.error("[CATALOG_ONLY] Falha na consulta determinística:", err);
+    }
+  }
 
   const systemPrompt = assembleSystemPrompt({
     contactName: opts.contactName,
