@@ -335,8 +335,7 @@ export async function streamAgent(opts: { messages: any[]; sandbox?: boolean }) 
 
 export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: string }) {
   const { conversationKey, unidadeId, sandbox, customerContext, activePromotions, traceId } = opts;
-  const rawMessages = Array.isArray(opts.messages) ? opts.messages : [];
-  const messages = rawMessages.slice(-12);
+  const messages = Array.isArray(opts.messages) ? opts.messages : [];
   const text = opts.text || (messages[messages.length - 1]?.content as string) || "";
 
   const { effectiveUnitId, effectiveUnitName } = await resolveEffectiveUnit({ conversationKey, agentUnitId: unidadeId });
