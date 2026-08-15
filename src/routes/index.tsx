@@ -218,8 +218,8 @@ PARE depois do teste.`}
             </div>
             <div className="space-y-1">
               <p className="text-slate-600">Alvo: BOULEVARD (+55 41 3073-1358)</p>
-              <p className="text-slate-600">Normalização: ATIVA (mão → manicure)</p>
-              <p className="text-slate-600">Bloqueio Confirmação Semântica: ATIVO</p>
+              <p className="text-slate-600">Normalização: INTENÇÃO FORÇADA (mão → manicure)</p>
+              <p className="text-slate-600">Busca no Catálogo: QUERY NORMALIZADA (manicure)</p>
             </div>
           </CardContent>
         </Card>
@@ -236,6 +236,7 @@ PARE depois do teste.`}
             <p className="text-slate-600">- Expandido patterns de "mão" (plural e variações)</p>
             <p className="text-slate-900 font-bold mt-2">src/lib/chat.server.ts</p>
             <p className="text-slate-600">- Injetada REGRA ABSOLUTA no System Prompt contra perguntas de confirmação semântica para "mão".</p>
+            <p className="text-slate-600">- Normalização forçada da query de busca em list_services (substituição de "mão" por "manicure").</p>
           </CardContent>
         </Card>
       </div>
