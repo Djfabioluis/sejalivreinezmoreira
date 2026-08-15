@@ -19,15 +19,11 @@ async function test_flow(label: string, scenario: { messages: any[], unitId: str
     
     console.log("Contexto ANTES da IA:", JSON.stringify(currentContext, null, 2));
 
-    // 2. Chamar IA (Passando objetos que o SDK da AI espera ANTES de converter)
+    // 2. Chamar IA
     const result = await runAgent({
       conversationKey: `test-${label}-${Date.now()}`,
       unidadeId: scenario.unitId,
-      messages: scenario.messages.slice(0, i + 1).map(m => ({
-        role: m.role,
-        content: m.content,
-        parts: [{ type: 'text', text: m.content }]
-      })),
+      messages: scenario.messages.slice(0, i + 1),
       customerContext: { bookingContext: currentContext },
       traceId: `test-trace-${label}-${i}`
     } as any);

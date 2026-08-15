@@ -505,7 +505,18 @@ export async function isIAConfigured(): Promise<boolean> {
   return Boolean(gatewayKey && gatewayKey.length > 10);
 }
 
-// streamAgent removido para simplificação e unificação com generateText assíncrono.
+export async function streamAgent(opts: { messages: any[]; sandbox?: boolean }) {
+  const gatewayKey = process.env.LOVABLE_AI_GATEWAY_KEY || process.env.LOVABLE_API_KEY || "";
+  const provider = createLovableAiGatewayProvider(gatewayKey);
+  const model = provider("google/gemini-2.5-flash");
+
+  return streamText({
+    model,
+    system: DEFAULT_SYSTEM_PROMPT + (opts.sandbox ? SANDBOX_NOTE : ""),
+    messages: await convertToModelMessages(opts.messages),
+    maxSteps: 5,
+  } as any);
+}
 
 export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: string }) {
   const { conversationKey, unidadeId, sandbox, customerContext, activePromotions, traceId } = opts;
