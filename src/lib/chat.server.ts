@@ -446,7 +446,7 @@ function buildTools(
       }),
       execute: async (input) =>
         safeToolLocal("list_slots", async () => {
-          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: input.salon_id || fallbackAgentUnitId });
+          const { effectiveUnitId } = await resolveEffectiveUnit({ conversationKey, agentUnitId: String(input.salon_id || fallbackAgentUnitId || "") });
           if (!effectiveUnitId) throw new Error("Unidade não resolvida.");
 
           // CATALOG_ONLY: Assert unit isolation
