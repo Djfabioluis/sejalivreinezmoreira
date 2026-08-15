@@ -1,63 +1,87 @@
 import { BookingContext } from "./context";
 
 /**
- * CATALOG_ONLY MODE - Sanitizer
- * Garante que a resposta da IA não contenha alucinações de serviços.
+ * CATALOG_ONLY MODE - Strict Validator
+ * Garante que a resposta da IA NUNCA contenha serviços fora do catálogo real.
+ * Transforma o sanitizer em um bloqueador determinístico.
  */
+export function validateOutputAgainstCatalog(
+  text: string,
+  allowedServices: any[],
+  bookingContext: BookingContext
+): { text: string; blocked: boolean; hallucinatedServices: string[] } {
+  if (!text) return { text, blocked: false, hallucinatedServices: [] };
+
+  const hallucinatedServices: string[] = [];
+  
+  // Normalizar allowedServices para comparação
+  const validNames = allowedServices.map(s => s.name.toLowerCase().trim());
+  const validIds = allowedServices.map(s => String(s.id));
+
+  // 1. Extrair potenciais nomes de serviços da resposta (usualmente em listas numeradas ou aspas)
+  // O Gemini costuma listar como "1. Nome do Serviço" ou "Gostaria de fazer o serviço X?"
+  const lines = text.split('\n');
+  
+  for (const line of lines) {
+    // Tentar identificar se a linha parece estar oferecendo um serviço
+    // Padrão: "1. Manicure", "- Esmaltação", "Opção: Alongamento"
+    const listMatch = line.match(/^\s*(?:\d+[.)]|-|[*])\s*(.+)$/);
+    if (listMatch) {
+      const candidateName = listMatch[1].trim().toLowerCase();
+      // Verificação de correspondência (nome exato ou contido)
+      const isAllowed = validNames.some(vn => 
+        candidateName === vn || 
+        vn.includes(candidateName) ||
+        (candidateName.length > 5 && vn.includes(candidateName))
+      );
+
+      if (!isAllowed) {
+        hallucinatedServices.push(listMatch[1].trim());
+      }
+    }
+  }
+
+  // 2. Verificação de segurança adicional para termos conhecidos de alucinação (blacklist fallback)
+  const commonHallucinations = [
+    "unhas de gel", "banho de gel", "blindagem", "manicure simples", 
+    "pé simples", "mão simples", "francesinha", "alongamento"
+  ];
+
+  for (const h of commonHallucinations) {
+    if (text.toLowerCase().includes(h)) {
+      const exists = validNames.some(vn => vn.includes(h) || h.includes(vn));
+      if (!exists) {
+        if (!hallucinatedServices.includes(h)) hallucinatedServices.push(h);
+      }
+    }
+  }
+
+  if (hallucinatedServices.length > 0) {
+    console.error(`[CATALOG_VALIDATION_FAILED] Alucinações detectadas: ${hallucinatedServices.join(', ')}`);
+    
+    // Gerar resposta segura contendo APENAS o que é permitido
+    let safeResponse = "Olá! Para te ajudar a agendar, selecione uma das opções reais do nosso catálogo:\n\n";
+    allowedServices.forEach((s, i) => {
+      safeResponse += `${i + 1}. ${s.name}${s.price ? ` (R$ ${s.price.toFixed(2).replace('.', ',')})` : ''}\n`;
+    });
+    safeResponse += "\nQual dessas opções você deseja? 💜";
+
+    return { 
+      text: safeResponse, 
+      blocked: true, 
+      hallucinatedServices 
+    };
+  }
+
+  return { text, blocked: false, hallucinatedServices: [] };
+}
+
+/** Legacy support - wraps the new validator */
 export function sanitizeCatalogOnlyResponse(
   text: string,
   services: any[],
   bookingContext: BookingContext
 ): { text: string; hallucinated: boolean } {
-  if (!text) return { text, hallucinated: false };
-
-  const lines = text.split('\n');
-  let hallucinated = false;
-  const sanitizedLines: string[] = [];
-
-  // Padrões de alucinação conhecidos (opções inventadas comumente pela IA)
-  const hallucinations = [
-    "manicure simples",
-    "francesinha",
-    "blindagem",
-    "alongamento",
-    "pé simples",
-    "mão simples",
-    "unhas de gel",
-    "banho de gel"
-  ];
-
-  for (const line of lines) {
-    let currentLine = line;
-    let lineHallucinated = false;
-
-    // Se a linha cita um dos padrões suspeitos, verificamos se ele existe no catálogo real
-    for (const h of hallucinations) {
-      if (currentLine.toLowerCase().includes(h)) {
-        const exists = services.some(s => 
-          s.name.toLowerCase().includes(h) || 
-          h.includes(s.name.toLowerCase())
-        );
-
-        if (!exists) {
-          lineHallucinated = true;
-          hallucinated = true;
-          // Removemos a menção alucinada ou a linha inteira se for apenas a opção
-          currentLine = currentLine.replace(new RegExp(h, 'gi'), '').trim();
-        }
-      }
-    }
-
-    if (currentLine.length > 5 || !lineHallucinated) {
-      sanitizedLines.push(currentLine);
-    }
-  }
-
-  // Fallback se tudo for removido (improvável)
-  let finalText = sanitizedLines.join('\n').trim();
-  if (finalText.length < 10 && hallucinated) {
-     finalText = "Encontrei opções de serviço para você. Qual você gostaria de realizar? 💜";
-  }
-
-  return { text: finalText, hallucinated };
+  const result = validateOutputAgainstCatalog(text, services, bookingContext);
+  return { text: result.text, hallucinated: result.blocked };
 }
