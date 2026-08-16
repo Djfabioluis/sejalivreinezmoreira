@@ -1,5 +1,5 @@
 
-import { getEvolutionConfig, findMessages } from '../evolution.server';
+import { getEvolutionConfig, findMessages } from '../../evolution.server';
 
 async function run() {
   console.log("--- 1. CONFIGURAÇÃO REAL VENTURA (5258) ---");
@@ -20,7 +20,6 @@ async function run() {
     if (target) {
       console.log('MESSAGE_PRESENT_IN_EVOLUTION = SIM');
       console.log('MESSAGE_ID =', target.key.id);
-      console.log('MESSAGE_TIMESTAMP =', new Date(target.messageTimestamp * 1000).toISOString());
     } else {
       console.log('MESSAGE_PRESENT_IN_EVOLUTION = NÃO ENCONTRADA');
     }
