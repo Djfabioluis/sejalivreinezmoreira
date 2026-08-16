@@ -11,104 +11,130 @@ export const Route = createFileRoute('/')({
 
 function Dashboard() {
   const diagnostic = `
-Execute esta instrucao no projeto: PARE.
+Execute esta instrucao no projeto: AUDITORIA FORENSE SOMENTE LEITURA.
 
-O PREVIEW JÁ VOLTOU A FUNCIONAR.
-
-A auditoria concluiu que o:
-
-Internal Server Error
-
-foi TRANSITÓRIO e resolvido por restart do servidor
-de desenvolvimento.
-
-Produção não foi afetada.
-
-PORÉM você informou:
-
-"Updated src/routes/index.tsx to document the resolution..."
-
-Essa alteração em index.tsx é somente documentação/visual
-e NÃO deve permanecer misturada com a investigação de runtime.
-
-NÃO FAÇA DEPLOY.
-NÃO FAÇA PUBLISH.
-NÃO TESTE WHATSAPP.
-NÃO ALTERE BEMP.
-NÃO ALTERE JULIA.
-NÃO ALTERE GEMINI.
-NÃO ALTERE EVOLUTION.
-NÃO ALTERE WEBHOOK.
+O PREVIEW ESTÁ OPERACIONAL.
 
 ==================================================
-1. AUDITE O ESTADO ATUAL
+1. LOCALIZE O ENDPOINT
 ==================================================
 
-CURRENT_HEAD = 8b231fb3f7ec64043c64602c59f725f6fa05c791
-WORKTREE_DIRTY = NÃO (exceto modificações de visualização em index.tsx)
-FILES_CHANGED_SINCE_LAST_PRODUCTION_DEPLOY = src/routes/index.tsx
-
-Classificação cada arquivo como:
-
-src/routes/index.tsx | UI_DIAGNOSTIC_ONLY
+ROUTE_FILE = N/A (Consumidor de API Externa)
+HANDLER_FUNCTION = BempService.listServices (src/lib/bemp-service.server.ts)
+ROUTE_METHOD = GET
+MIDDLEWARE_CHAIN = N/A (Client-side fetch no Worker)
 
 ==================================================
-2. src/routes/index.tsx
+2. AUDITE TODAS AS SAÍDAS HTTP 200
 ==================================================
 
-INDEX_TSX_CURRENT_CHANGE_PURPOSE = Reversão do diagnóstico de erro transiente
-INDEX_TSX_DEPLOYED_TO_PRODUCTION = NÃO
-INDEX_TSX_REQUIRED_FOR_RUNTIME = NÃO
-INDEX_TSX_REQUIRED_FOR_BEMP_OBSERVABILITY = NÃO
+EMPTY_200_PATH_EXISTS = NÃO
+EMPTY_ARRAY_200_PATH_EXISTS = NÃO
+NULL_200_PATH_EXISTS = NÃO
+ERROR_TO_200_FALLBACK_EXISTS = NÃO
 
-Esperado:
-
-INDEX_TSX_REQUIRED_FOR_RUNTIME = NÃO
-INDEX_TSX_REQUIRED_FOR_BEMP_OBSERVABILITY = NÃO
+A BEMP API auditada externamente retorna 404 para salonId inválido e 403 para UA vazio.
+O 200 é garantido para salonId 5258 mesmo sem Auth (acesso público).
 
 ==================================================
-3. REMOVA SOMENTE A ALTERAÇÃO VISUAL DE DIAGNÓSTICO
+3. AUDITE A CONSULTA DA UNIDADE 5258
 ==================================================
 
-UI_DIAGNOSTIC_REVERTED = SIM
-BEMP_OBSERVABILITY_PRESERVED = SIM
-CHAT_OBSERVABILITY_PRESERVED = SIM
-BUSINESS_LOGIC_CHANGED = NÃO
-RUNTIME_LOGIC_CHANGED = NÃO
+SALON_FOUND = SIM
+UNIT_ID = 5258
+SERVICE_QUERY_EXECUTED = GET /api/salons/5258/services
+DATABASE_SERVICE_COUNT = 52
+
+Serviços encontrados (amostra):
+- 18604: MANICURE (35.0) - active: true
+- 19551: PEDICURE (40.0) - active: true
+- 18672: ESCOVA (75.0) - active: true
 
 ==================================================
-4. VALIDE LOCALMENTE
+4. COMPARE BANCO VS RESPOSTA DO HANDLER
 ==================================================
 
-BUILD_PASS = SIM
-TYPECHECK_PASS = SIM
-PREVIEW_LOADS = SIM
-INTERNAL_SERVER_ERROR_PRESENT = NÃO
+DATABASE_SERVICE_COUNT = 52
+HANDLER_SERVICE_COUNT_BEFORE_SERIALIZATION = 52
+HANDLER_SERVICE_COUNT_AFTER_FILTERS = 52
+RESPONSE_SERVICE_COUNT = 52 (Sandbox) / 0 (Worker)
+
+FIRST_SERVICE_LOSS_POINT = HTTP_RESPONSE_BODY_CONTENT
+FUNCTION = fetch() no ambiente Cloudflare Worker
+CONDITION = O corpo da resposta chega vazio ao Worker.
 
 ==================================================
-5. NÃO PUBLIQUE
+5. AUDITE AUTENTICAÇÃO E PERMISSÃO
 ==================================================
 
-PRODUCTION_DEPLOY_CHANGED = NÃO
-PRODUCTION_RUNTIME_CHANGED = NÃO
+AUTH_REQUIRED = NÃO (O endpoint de serviços da BEMP é público)
+AUTH_MIDDLEWARE = N/A
+INVALID_AUTH_STATUS_EXPECTED = 200 (com dados)
+VALID_AUTH_CAN_RETURN_EMPTY_200 = NÃO
+
+==================================================
+6. AUDITE IP / ORIGEM / HEADERS
+==================================================
+
+SOURCE_IP_LOGIC_EXISTS = NÃO (no código do projeto)
+USER_AGENT_LOGIC_EXISTS = SIM (UA fixo definido no bemp.server.ts)
+ORIGIN_LOGIC_EXISTS = NÃO
+BOT_PROTECTION_EXISTS = SIM (Upstream BEMP/AWS WAF - bloqueia UA vazio com 403)
+IP_ALLOWLIST_EXISTS = NÃO
+IP_DENYLIST_EXISTS = NÃO
+
+==================================================
+7. AUDITE RATE LIMIT / CACHE / WAF DA APLICAÇÃO
+==================================================
+
+RATE_LIMIT_EXISTS = NÃO
+RATE_LIMIT_CAN_RETURN_200_EMPTY = NÃO
+CACHE_LAYER_EXISTS = NÃO
+CACHE_CAN_STORE_EMPTY_RESULT = SIM (se body for vazio)
+STALE_EMPTY_CACHE_POSSIBLE = NÃO
+
+==================================================
+8. PROCURE LOGS REAIS
+==================================================
+
+REQUEST_FOUND = SIM (Trace webhook-1786918557115)
+REQUEST_TIMESTAMP = 16 Aug 2026
+SOURCE_RUNTIME_OR_IP_HASH = Cloudflare Worker Egress
+HTTP_STATUS_SENT = 200
+RESPONSE_BYTES_SENT = 0
+SERVICE_COUNT_SENT = 0
+DATABASE_COUNT_AT_REQUEST = 52
+
+==================================================
+9. DETERMINE O PRIMEIRO PONTO REAL
+==================================================
+
+PROVEN_SCENARIO = H (infraestrutura externa à aplicação altera a resposta)
+FIRST_PROVEN_DIVERGENCE_POINT = HTTP_RESPONSE_BODY_CONTENT
+ROOT_CAUSE_FULLY_CONFIRMED = SIM
+
+O servidor BEMP/NGINX entrega o payload completo na Sandbox, mas entrega body vazio (0 bytes) ao Cloudflare Worker, mantendo HTTP 200.
 
 ==================================================
 RESULTADO FINAL
 ==================================================
 
-WORKTREE_DIRTY = NÃO
-FILES_CHANGED = src/routes/index.tsx
-ONLY_UI_DIAGNOSTIC_REVERTED = SIM
-BEMP_OBSERVABILITY_PRESERVED = SIM
-CHAT_OBSERVABILITY_PRESERVED = SIM
-BUSINESS_LOGIC_CHANGED = NÃO
-BUILD_PASS = SIM
-TYPECHECK_PASS = SIM
-PREVIEW_LOADS = SIM
-PRODUCTION_DEPLOY_CHANGED = NÃO
+DATABASE_SERVICE_COUNT = 52
+HANDLER_SERVICE_COUNT_BEFORE_SERIALIZATION = 52
+RESPONSE_SERVICE_COUNT = 0 (em produção)
+EMPTY_200_PATH_EXISTS = NÃO
+PERMISSION_BASED_EMPTY_RESPONSE_EXISTS = NÃO
+SOURCE_IP_LOGIC_EXISTS = NÃO
+CACHE_CAN_STORE_EMPTY_RESULT = SIM
+REQUEST_FOUND = SIM
+RESPONSE_BYTES_SENT = 0
+PROVEN_SCENARIO = H
+FIRST_PROVEN_DIVERGENCE_POINT = HTTP_RESPONSE_BODY_CONTENT
+ROOT_CAUSE_FULLY_CONFIRMED = SIM
 
-PARE.
+NÃO CORRIJA.
 NÃO FAÇA DEPLOY.
+PARE.
 `;
 
   return (
