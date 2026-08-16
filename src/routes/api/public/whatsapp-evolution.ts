@@ -29,30 +29,7 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
       },
       POST: async ({ request }) => {
         const traceId = `webhook-${Date.now()}`;
-        const startTime = Date.now();
         
-        // --- 3.1. LOGGING TÉCNICO INICIAL (Instrumentação Autorizada) ---
-        console.log(`[INSTRUMENTATION] PRODUCTION_WEBHOOK_REACHED | Trace: ${traceId} | Method: ${request.method} | URL: ${request.url}`);
-        
-        try {
-          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-          await supabaseAdmin.from("evo_webhook_logs" as any).insert({
-            instance: "GLOBAL_INSTRUMENTATION",
-            event: "PRODUCTION_WEBHOOK_REACHED",
-            status: "reached",
-            payload: {
-              traceId,
-              method: request.method,
-              url: request.url,
-              contentType: request.headers.get("Content-Type"),
-              contentLength: request.headers.get("Content-Length"),
-              userAgent: request.headers.get("User-Agent")
-            }
-          });
-        } catch (e) {
-          console.error("[INSTRUMENTATION_ERROR] Failed to persist initial log", e);
-        }
-
         // 1. Autenticação (Requisito 7)
         const auth = await authenticateWebhook(request);
         if (!auth.authenticated) {
@@ -64,39 +41,19 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
         }
 
         // 2. Parse do Payload
-        let payload: any = null;
-        try {
-          logger.info("BODY_PARSE_STARTED", "Iniciando parse do body (request.json)", { traceId });
-          payload = await request.json();
-          logger.info("BODY_PARSE_SUCCESS", "Parse do JSON realizado com sucesso", { 
-            traceId,
-            bodyLength: JSON.stringify(payload).length
-          });
-        } catch (err: any) {
-          logger.error("WEBHOOK_INVALID_JSON", "Erro ao processar JSON do webhook", { 
-            traceId, 
-            error: err.message,
-            errorName: err.name
-          });
-          // Mantém comportamento original: retorna null e continua para ser tratado à frente se necessário
-          // mas o fluxo original abaixo depende do payload não ser null
-        }
-
-        if (!payload) {
-          return new Response("Invalid JSON", { status: 400 });
-        }
+        const payload = await request.json().catch((err) => {
+          logger.error("WEBHOOK_INVALID_JSON", "Erro ao processar JSON do webhook", { traceId, error: err.message });
+          return null;
+        });
 
         // 3. Instrumentação imediata (Requisito 4)
-        const isTargetTest = payload.data?.message?.conversation === "quero fazer mão hoje" || 
-                           payload.data?.message?.extendedTextMessage?.text === "quero fazer mão hoje";
-
         logger.info("WEBHOOK_RAW_RECEIVED", "Payload detectado", { 
           traceId, 
           event: payload.event,
           instance: payload.instance || payload.instanceName,
+          remoteJid: payload.data?.key?.remoteJid,
           messageId: payload.data?.key?.id,
-          fromMe: payload.data?.key?.fromMe,
-          MESSAGE_TEXT_MATCH_TEST: isTargetTest ? "SIM" : "NÃO"
+          fromMe: payload.data?.key?.fromMe
         });
 
         // 3b. Normalização do Evento

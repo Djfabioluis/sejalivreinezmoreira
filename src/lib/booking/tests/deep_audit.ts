@@ -1,5 +1,4 @@
-
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { supabaseAdmin } from "../../../integrations/supabase/client.server";
 
 async function deepAudit() {
   const { data: traces, error } = await supabaseAdmin
@@ -27,17 +26,19 @@ async function deepAudit() {
     const contextMerged = steps.find((s: any) => s.step === 'BOOKING_CONTEXT_MERGED');
     const evoStarted = steps.find((s: any) => s.step === 'EVOLUTION_SEND_STARTED');
 
-    const bodyStr = JSON.stringify(steps);
-    const isTarget = bodyStr.toLowerCase().includes("mão") || bodyStr.includes("AC94D2D15029C78C19E1AEC0F95158AD");
+    // Se tiver pelo menos um dado relevante, mostramos
+    if (parsed || toolStarted || contextMerged || evoStarted) {
+        console.log(`\nTRACE: ${tid} | Instância: ${first.instance_id}`);
+        if (parsed?.payload?.text) console.log(`  MENSAGEM: "${parsed.payload.text}"`);
+        if (toolStarted) console.log(`  LIST_SERVICES: CHAMADA`);
+        
+        if (contextMerged?.payload) {
+            const ctx = contextMerged.payload.context || contextMerged.payload;
+            if (ctx.clarificationRequired) console.log(`  AMBIGUIDADE: SIM (${ctx.candidates?.length} candidatos)`);
+            if (ctx.serviceId) console.log(`  SERVICE_ID: ${ctx.serviceId} (${ctx.serviceName})`);
+        }
 
-    if (isTarget) {
-        console.log(`\n!!! TARGET TRACE FOUND !!!`);
-        console.log(`TRACE: ${tid} | Instância: ${first.instance_id} | Time: ${first.timestamp}`);
-        steps.forEach((s: any) => {
-            console.log(`  [${s.timestamp}] Step: ${s.step}`);
-            if (s.step === 'MESSAGE_PARSED') console.log(`    TEXT: "${s.payload?.text}"`);
-            if (s.step === 'EVOLUTION_SEND_STARTED') console.log(`    REPLY: "${s.payload?.text}"`);
-        });
+        if (evoStarted?.payload?.text) console.log(`  RESPOSTA JULIA: "${evoStarted.payload.text}"`);
     }
   }
 }
