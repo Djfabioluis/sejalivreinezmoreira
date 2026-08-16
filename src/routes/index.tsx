@@ -8,190 +8,280 @@ function Dashboard() {
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-6 font-sans text-slate-900">
       <div className="flex items-center justify-between border-b pb-4">
-        <h1 className="text-2xl font-bold text-slate-900 whitespace-pre-wrap">Execute esta instrucao no projeto: PARE. NÃO ALTERE CÓDIGO.
-NÃO ALTERE O WEBHOOK.
-NÃO APONTE A EVOLUTION PARA PREVIEW.
-NÃO FAÇA DEPLOY.
-NÃO REENVIE A MENSAGEM AINDA.
+        <h1 className="text-2xl font-bold text-slate-900 whitespace-pre-wrap">Execute esta instrucao no projeto: PARE. NÃO ALTERE NADA.
 
-A nova auditoria confirmou:
+A configuração real da Ventura agora mostra:
 
-- a mensagem "quero fazer mão hoje" FOI recebida pela Evolution;
-- a mensagem FOI armazenada;
-- a instância Ventura está conectada;
-- o webhook da Ventura aponta para PRODUÇÃO;
-- as três unidades usam o webhook de produção;
-- o monitoramento anterior estava olhando PREVIEW.
+WEBHOOK_ENABLED = true
 
-Portanto o diagnóstico anterior
+WEBHOOK_URL =
+https://sejalivreinezmoreira.lovable.app/api/public/whatsapp-evolution
+
+WEBHOOK_EVENTS =
+["MESSAGES_UPSERT", "CONNECTION_UPDATE"]
+
+WEBHOOK_BASE64 = true
+
+Portanto:
+
+MESSAGES_UPSERT ESTÁ CONFIGURADO.
+
+A classificação anterior:
+
+FIRST_FAILURE_POINT =
 EVOLUTION_DID_NOT_EMIT_MESSAGE_EVENT
-não pode mais ser considerado comprovado.
 
-Agora quero SOMENTE AUDITORIA READ-ONLY DOS LOGS DE PRODUÇÃO.
+NÃO ESTÁ SUFICIENTEMENTE COMPROVADA.
+
+Não quero mais análise baseada somente em configuração.
+
+Quero agora PROVA DA ENTREGA REAL DO EVENTO.
 
 ==================================================
-1. LOCALIZE A MENSAGEM EM PRODUÇÃO
+1. LOCALIZE A MENSAGEM REAL NA EVOLUTION
 ==================================================
 
-Procure no ambiente de PRODUÇÃO pelo evento da mensagem:
+Instância:
+
+agente-5541998803684
+
+Mensagem:
 
 "quero fazer mão hoje"
 
-UNIDADE:
-VENTURA
-
-unitId esperado:
-5258
-
 Janela aproximada:
+
 17:35 UTC até 17:45 UTC
 
 Mostre:
 
-PRODUCTION_INBOUND_REQUEST_FOUND =
-PRODUCTION_REQUEST_TIMESTAMP =
-TRACE_ID =
-REQUEST_ID =
-WEBHOOK_EVENT_TYPE =
-INSTANCE_ID =
-UNIT_ID_RESOLVED =
-RAW_TEXT_MATCH =
+MESSAGE_FOUND_IN_EVOLUTION =
+MESSAGE_ID =
+MESSAGE_TIMESTAMP =
+MESSAGE_EVENT_TYPE =
+FROM_ME =
+INSTANCE_NAME =
+
+Obrigatório:
+
+MESSAGE_FOUND_IN_EVOLUTION = SIM
 
 ==================================================
-2. CONFIRME O ENDPOINT REAL
+2. EVENTO MESSAGES_UPSERT
 ==================================================
+
+Para esse MESSAGE_ID específico:
+
+MESSAGES_UPSERT_OBJECT_CREATED =
+MESSAGES_UPSERT_EMITTED =
+
+Não deduza pela configuração.
+
+Mostre evidência do log real da Evolution.
+
+==================================================
+3. TENTATIVA REAL DE WEBHOOK
+==================================================
+
+Para o mesmo MESSAGE_ID:
+
+WEBHOOK_DELIVERY_ATTEMPTED =
+WEBHOOK_TARGET_URL =
+WEBHOOK_METHOD =
+WEBHOOK_TIMESTAMP =
+WEBHOOK_HTTP_STATUS =
+WEBHOOK_RESPONSE_BODY =
+WEBHOOK_ERROR =
+WEBHOOK_RETRY_COUNT =
+
+Esta é a informação principal que quero.
+
+Se WEBHOOK_DELIVERY_ATTEMPTED = NÃO:
+
+mostre o motivo técnico exato.
+
+==================================================
+4. NÃO CONFUNDA EVENTO COM ENTREGA
+==================================================
+
+Separe:
+
+MESSAGE_RECEIVED_BY_EVOLUTION =
+MESSAGES_UPSERT_EMITTED =
+WEBHOOK_DELIVERY_ATTEMPTED =
+WEBHOOK_DELIVERY_SUCCESS =
+
+São quatro etapas diferentes.
+
+==================================================
+5. AUDITE WEBHOOK_BASE64
+==================================================
+
+A configuração mostra:
+
+WEBHOOK_BASE64 = true
+
+Sem alterar nada, verifique o endpoint:
+
+/api/public/whatsapp-evolution
 
 Mostre:
 
-EVOLUTION_WEBHOOK_TARGET_URL =
-PRODUCTION_WEBHOOK_ROUTE =
-REQUEST_PATH =
-HTTP_METHOD =
-HTTP_STATUS_RETURNED_TO_EVOLUTION =
+ENDPOINT_EXPECTS_BASE64 = SIM/NÃO
+ENDPOINT_EXPECTS_JSON = SIM/NÃO
+
+PAYLOAD_RECEIVED_FORMAT_EXPECTED =
+
+E compare com:
+
+EVOLUTION_PAYLOAD_FORMAT_SENT =
 
 Depois:
 
-WEBHOOK_REACHED_PRODUCTION = SIM/NÃO
+BASE64_CONFIGURATION_COMPATIBLE_WITH_ENDPOINT = SIM/NÃO
+
+Não mude esse campo ainda.
 
 ==================================================
-3. SE CHEGOU À PRODUÇÃO
+6. PROCURE A REQUEST EM PRODUÇÃO
 ==================================================
 
-Para o mesmo TRACE_ID mostre a sequência cronológica:
+Nos logs do ambiente de PRODUÇÃO, para o mesmo timestamp
+e MESSAGE_ID:
+
+PRODUCTION_REQUEST_FOUND =
+REQUEST_TIMESTAMP =
+REQUEST_PATH =
+REQUEST_METHOD =
+REQUEST_ID =
+HTTP_STATUS =
+
+Obrigatório pesquisar especificamente:
+
+/api/public/whatsapp-evolution
+
+==================================================
+7. SE A REQUEST CHEGOU
+==================================================
+
+Mostre a sequência:
 
 WEBHOOK_HANDLER_ENTERED =
+PAYLOAD_DECODED =
 PAYLOAD_PARSED =
-MESSAGE_ACCEPTED =
+EVENT_TYPE_DETECTED =
 INSTANCE_RESOLVED =
+UNIT_ID_RESOLVED =
+MESSAGE_EXTRACTED =
+MESSAGE_FILTERED =
 RUN_AGENT_STARTED =
-BOOKING_CONTEXT_LOADED =
-MODEL_CALL_STARTED =
-MODEL_CALL_SUCCESS =
-LIST_SERVICES_CALLED =
-RESPONSE_GENERATED =
-OUTBOUND_SEND_ATTEMPTED =
-OUTBOUND_SEND_SUCCESS =
+
+Se algum campo for NÃO:
+
+FIRST_FAILURE_POINT = exatamente essa etapa.
 
 ==================================================
-4. IDENTIFIQUE O PRIMEIRO PONTO DE FALHA
+8. SE NÃO CHEGOU À PRODUÇÃO
 ==================================================
 
-Escolha SOMENTE um:
+Se:
 
-[ ] produção não recebeu o webhook
-[ ] rota respondeu 404
-[ ] rota respondeu 401/403
-[ ] rota respondeu 5xx
-[ ] payload foi rejeitado
-[ ] instância não foi resolvida
-[ ] mensagem foi filtrada
-[ ] runAgent não iniciou
-[ ] erro no Gemini/modelo
-[ ] erro na BEMP
-[ ] erro na persistência
-[ ] resposta foi gerada mas não enviada
-[ ] Evolution recusou o envio da resposta
-[ ] outro
+WEBHOOK_DELIVERY_ATTEMPTED = SIM
 
-FIRST_FAILURE_POINT =
+e
 
-EXPECTED =
-ACTUAL =
-ERROR_CODE =
-ERROR_MESSAGE =
-FILE =
-FUNCTION =
+PRODUCTION_REQUEST_FOUND = NÃO
 
-==================================================
-5. SE HOUVE RESPOSTA GERADA
-==================================================
+investigue somente:
+
+DNS
+TLS
+redirect
+timeout
+network
+URL incorreta
 
 Mostre:
 
-RESPONSE_GENERATED =
-RESPONSE_TEXT_LENGTH =
-OUTBOUND_PROVIDER =
-OUTBOUND_ENDPOINT =
-OUTBOUND_HTTP_STATUS =
-OUTBOUND_MESSAGE_ID =
-OUTBOUND_ERROR =
+DELIVERY_NETWORK_ERROR =
+REDIRECT_OCCURRED =
+TLS_ERROR =
+TIMEOUT =
+DNS_ERROR =
 
 ==================================================
-6. NÃO CONFUNDA PREVIEW COM PRODUÇÃO
+9. SE O HTTP STATUS NÃO FOR 2XX
 ==================================================
 
-Mostre:
+Se a Evolution recebeu:
 
-PREVIEW_LOG_USED_IN_OLD_DIAGNOSIS = SIM/NÃO
-PRODUCTION_LOG_AVAILABLE = SIM/NÃO
+400
+401
+403
+404
+405
+422
+500
+502
+503
 
-Depois:
+mostre:
 
-OLD_DIAGNOSIS_INVALIDATED_BY_ENVIRONMENT_MISMATCH =
-SIM/NÃO
+STATUS =
+RESPONSE_BODY =
+ERROR_SOURCE =
+
+Não corrija.
 
 ==================================================
-7. NÃO CORRIJA NADA
+10. COMPARE COM UMA MENSAGEM QUE FUNCIONOU
 ==================================================
 
-NÃO altere:
+Se existir uma mensagem anterior da Ventura que
+foi processada pela Julia corretamente, compare:
 
-Evolution
-webhook URL
-event subscriptions
-Gemini
-model
-prompt
-BEMP
-list_services
-list_slots
-persistência
-unit mapping
-chat.server.ts
-context.ts
-banco
-RPC
+MENSAGEM FUNCIONAL:
+event type =
+webhook URL =
+base64 =
+HTTP status =
+request path =
+
+MENSAGEM ATUAL:
+event type =
+webhook URL =
+base64 =
+HTTP status =
+request path =
+
+DIFFERENCE_FOUND =
 
 ==================================================
 RESULTADO FINAL
 ==================================================
 
-MESSAGE_RECEIVED_BY_EVOLUTION =
-WEBHOOK_TARGET_IS_PRODUCTION =
-PRODUCTION_INBOUND_REQUEST_FOUND =
-WEBHOOK_REACHED_PRODUCTION =
+MESSAGE_FOUND_IN_EVOLUTION =
+MESSAGES_UPSERT_OBJECT_CREATED =
+MESSAGES_UPSERT_EMITTED =
+WEBHOOK_DELIVERY_ATTEMPTED =
+WEBHOOK_TARGET_URL =
+WEBHOOK_HTTP_STATUS =
+WEBHOOK_DELIVERY_SUCCESS =
+WEBHOOK_BASE64 =
+BASE64_CONFIGURATION_COMPATIBLE_WITH_ENDPOINT =
+PRODUCTION_REQUEST_FOUND =
+WEBHOOK_HANDLER_ENTERED =
+MESSAGE_EXTRACTED =
 RUN_AGENT_STARTED =
-MODEL_CALL_SUCCESS =
-LIST_SERVICES_CALLED =
-RESPONSE_GENERATED =
-OUTBOUND_SEND_ATTEMPTED =
-OUTBOUND_SEND_SUCCESS =
 FIRST_FAILURE_POINT =
 ROOT_CAUSE =
 SAFE_TO_FIX =
-SAFE_TO_DEPLOY = NÃO
 
-NÃO ALTERE NADA.
+NÃO ALTERE CÓDIGO.
+NÃO ALTERE EVOLUTION.
+NÃO REENVIE A MENSAGEM.
+NÃO FAÇA DEPLOY.
+
 PARE E AGUARDE MINHA AUTORIZAÇÃO.</h1>
       </div>
     </div>
