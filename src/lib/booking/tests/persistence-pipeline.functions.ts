@@ -15,6 +15,7 @@ export const testPersistencePipeline = createServerFn({ method: "POST" })
     const text1 = "quero fazer mão hoje";
     const res1 = await runAgent({
       text: text1,
+      messages: [{ role: "user", content: text1 }],
       conversationKey: phone,
       unidadeId: "5258", // Ventura
       sandbox: true,
