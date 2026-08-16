@@ -325,10 +325,12 @@ export async function streamAgent(opts: { messages: any[]; sandbox?: boolean }) 
   const provider = createLovableAiGatewayProvider(gatewayKey);
   const model = provider("google/gemini-2.0-flash");
 
+  const modelMessages = await convertToModelMessages(opts.messages);
+  
   return streamText({
     model,
     system: DEFAULT_SYSTEM_PROMPT + (opts.sandbox ? SANDBOX_NOTE : ""),
-    messages: convertToModelMessages(opts.messages),
+    messages: modelMessages,
     maxSteps: 5,
   } as any);
 }
