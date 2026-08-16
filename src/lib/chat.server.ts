@@ -36,7 +36,7 @@ export const MANDATORY_SYSTEM_RULES = `REGRAS OBRIGATÓRIAS DO SISTEMA (NUNCA IG
 - Se a ferramenta não retornar um preço para o serviço específico, responda: "Vou confirmar o valor certinho para você. 💜". NUNCA estime ou chute um valor.
 - Formate preços exatamente como retornados, no padrão R$ XX,XX.
 
-- NÃO ofereça troca de unidade nem pergunte "Centro ou outra unidade?" a menos que o cliente peça explicitamente para mudar.
+- NÃO ofereça troca de unidade nem pergunte "Centro ou outra unidade?" a menos que o cliente pedir explicitamente para mudar.
 - NÃO repita perguntas já respondidas. O bloco "CONTEXTO DE AGENDAMENTO" é a VERDADE do atendimento: tudo que estiver diferente de UNKNOWN já foi informado e está PROIBIDO perguntar novamente.
 - Pergunte SOMENTE o campo indicado em "PRÓXIMO CAMPO A OBTER".
 - Se o serviço já estiver no contexto, NUNCA pergunte "Qual serviço deseja realizar?", mesmo que a mensagem atual fale apenas de data, período ou horário.
@@ -325,7 +325,10 @@ export async function streamAgent(opts: { messages: any[]; sandbox?: boolean }) 
   const provider = createLovableAiGatewayProvider(gatewayKey);
   const model = provider("google/gemini-2.0-flash");
 
-  const modelMessages = await convertToModelMessages(opts.messages || []);
+  const modelMessages = (opts.messages || []).map(m => ({
+    role: m.role,
+    content: m.content || ""
+  })) as any;
   
   return streamText({
     model,
@@ -393,7 +396,7 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
     bookingContext
   });
 
-  const modelMessages = messages.map(m => ({
+  const modelMessages = (messages || []).map(m => ({
     role: m.role,
     content: m.content || ""
   })) as any;
