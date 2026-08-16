@@ -23,7 +23,7 @@ export const testPersistencePipeline = createServerFn({ method: "POST" })
       // TURNO 1
       const text1 = "quero fazer mão hoje";
       // CORREÇÃO DO HARNESS: messages deve ser Array
-      const messages1 = [{ role: "user", content: text1, parts: [{ type: "text", text: text1 }] }];
+      const messages1 = [{ role: "user", content: text1 }];
       
       logs.push("--- EXECUTANDO TURNO 1 ---");
       logs.push(`Calling runAgent with messages as Array: ${Array.isArray(messages1)}`);
