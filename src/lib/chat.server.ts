@@ -377,7 +377,7 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
     } else if (matches.length > 1) {
       bookingContext = mergeBookingContext(bookingContext, {
         clarificationRequired: true,
-        candidates: matches.map(m => ({ id: String(m.id), name: m.name || m.nome }))
+        candidates: matches.map(m => ({ id: String(m.id), name: m.name || m.nome, price: m.price || m.valor || 0 }))
       });
     }
   }
