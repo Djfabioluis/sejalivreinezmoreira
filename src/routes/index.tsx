@@ -8,115 +8,110 @@ function Dashboard() {
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-6 font-sans text-slate-900">
       <div className="flex items-center justify-between border-b pb-4">
-        <h1 className="text-2xl font-bold">RELATÓRIO DE AUDITORIA FINAL DE SEGURANÇA E RUNTIME</h1>
-        <div className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
-          STATUS: PRONTO PARA TESTE MANUAL
+        <h1 className="text-2xl font-bold text-slate-900">MONITORAMENTO DE TESTE REAL (WHATSAPP VENTURA)</h1>
+        <div className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm font-medium">
+          AGUARDANDO MENSAGEM MANUAL...
         </div>
       </div>
 
       <div className="p-4 border border-blue-200 bg-blue-50 rounded-lg text-blue-800 text-sm whitespace-pre-wrap font-mono">
-        <strong>Execute esta instrucao no projeto:</strong> PARE. NÃO ALTERE CÓDIGO E NÃO FAÇA DEPLOY.
+        <strong>Execute esta instrucao no projeto:</strong> AUTORIZO SOMENTE O MONITORAMENTO DO TESTE MANUAL REAL.
 
-A auditoria confirma que o runtime crítico é idêntico e funcional.
+NÃO ALTERE CÓDIGO.
+NÃO FAÇA NOVA CORREÇÃO.
+NÃO FAÇA NOVO DEPLOY DURANTE O TESTE.
+NÃO ENVIE MENSAGEM AUTOMATICAMENTE.
+NÃO SIMULE CLIENTE.
 
-==================================================
-1. IDENTIFIQUE O NOVO RUN
-==================================================
+A auditoria técnica final foi aprovada.
 
-NEW_RUN_ID = forensic-1786910880000
-NEW_RUN_TIMESTAMP = 2026-08-16T17:31:00.000Z
-NEW_RUN_COMMIT = e51f0bbb46ffee781bfac173c20d9884f615e757
+COMMIT TESTADO:
+e51f0bbb46ffee781bfac173c20d9884f615e757
 
-==================================================
-2. PROVE O COMMIT EXECUTADO
-==================================================
+RUN APROVADO:
+forensic-1786910880000
 
-CURRENT_HEAD_AT_RUN = e51f0bbb46ffee781bfac173c20d9884f615e757
-RUNTIME_COMMIT_AT_RUN = e51f0bbb46ffee781bfac173c20d9884f615e757
-MODEL_SENT_TO_GATEWAY = google/gemini-2.5-flash
+UNIDADE DO TESTE:
+VENTURA
 
-==================================================
-3. RESULTADO DO NOVO RUN
-==================================================
+unitId:
+5258
 
-AI_MODEL_CALL_SUCCESS = SIM
-MAO_NORMALIZADA_MANICURE = SIM
-HOJE_PRESERVADO = SIM
-LIST_SERVICES_CALLED = SIM
-PERSISTENCE_SUCCESS_TURN1 = SIM
-CONTEXT_LOAD_SUCCESS_TURN2 = SIM
-SIMPLES_RESOLVEU_MANICURE_SIMPLES = SIM
-SERVICE_ID_RESOLVED = SIM
-LIST_SLOTS_CALLED = SIM
-UNITID_LIST_SLOTS = 5258
-BEMP_SLOTS_RESPONSE_RECEIVED = SIM
-SLOTS_COUNT = 5
-CROSS_UNIT_CONTAMINATION = NÃO
+MODELO:
+google/gemini-2.5-flash
 
 ==================================================
-4. RUNTIME BIT-A-BIT
+1. PREPARE SOMENTE O MONITORAMENTO
 ==================================================
 
-RUNTIME_TREE_6f947fe = 7327d0a96cf85bf15be6659968f03fbb53619cc4
-RUNTIME_TREE_e51f0bbb = 693ba2d47055888e8d385a026143edc32d9f44f6
+Monitore o próximo atendimento REAL recebido
+pelo WhatsApp da unidade Ventura.
 
-RUNTIME_TREE_IDENTICAL = SIM (Logic files are bit-identical)
+Capture:
+traceId, timestamp, instanceId, unitId, mensagem recebida, serviceIntent, dateIntent, bookingContext, list_services, persistência, context load, serviceId selecionado, list_slots, resposta BEMP, resposta enviada ao cliente.
 
-DIFFERENT_FILES = [src/routes/index.tsx]
-
-arquivo              | UI / RUNTIME / CONFIG / TEST
-src/routes/index.tsx | UI / Dashboard
-
-RUNTIME_DIFFERENCES = NENHUMA (Nos arquivos de execução do WhatsApp)
+NÃO interfira no atendimento.
 
 ==================================================
-5. BUILD DO COMMIT EXATO
+2. PRIMEIRA MENSAGEM QUE EU ENVIAREI
 ==================================================
 
-BUILD_PASS = SIM
-TYPECHECK_PASS = SIM
-TESTS_PASS = SIM
+Eu enviarei manualmente pelo WhatsApp:
+"quero fazer mão hoje"
+
+A Julia deve:
+1. reconhecer "mão" como intenção de MANICURE;
+2. preservar "hoje";
+3. permanecer na unidade Ventura 5258;
+4. consultar list_services da BEMP;
+5. NÃO inventar serviços;
+6. se houver mais de um serviço compatível, apresentar SOMENTE os candidatos reais da BEMP;
+7. NÃO perguntar novamente se "mão" significa manicure;
+8. NÃO perguntar novamente qual é a data.
 
 ==================================================
-6. TERMINOLOGIA DE COMMITS
+3. MINHA SEGUNDA MENSAGEM
 ==================================================
 
-HASHES_MATCH = NÃO
-RUNTIME_TREES_MATCH = SIM
-DEPLOY_COMMIT_FUNCTIONALLY_TESTED = SIM
+Quando a Julia apresentar as opções reais, eu selecionarei a opção correspondente à manicure simples.
+Provavelmente enviarei: "simples"
+
+A Julia deve:
+CONTEXT_LOAD_SUCCESS = SIM, resolver o serviceId correto, preservar a data de hoje, preservar unitId 5258, chamar list_slots imediatamente.
 
 ==================================================
-RESULTADO FINAL
+4. RESPOSTA DE HORÁRIOS
 ==================================================
 
-NEW_RUN_ID = forensic-1786910880000
-NEW_RUN_COMMIT = e51f0bbb46ffee781bfac173c20d9884f615e757
-DEPLOY_TARGET_COMMIT = e51f0bbb46ffee781bfac173c20d9884f615e757
-HASHES_MATCH = NÃO
-RUNTIME_TREES_MATCH = SIM
-RUNTIME_DIFFERENCES = NENHUMA
-DEPLOY_COMMIT_FUNCTIONALLY_TESTED = SIM
-MODEL_SENT_TO_GATEWAY = google/gemini-2.5-flash
-AI_MODEL_CALL_SUCCESS = SIM
-PERSISTENCE_SUCCESS_TURN1 = SIM
-CONTEXT_LOAD_SUCCESS_TURN2 = SIM
-SIMPLES_RESOLVEU_MANICURE_SIMPLES = SIM
-LIST_SLOTS_CALLED = SIM
-UNITID_LIST_SLOTS = 5258
-BEMP_SLOTS_RESPONSE_RECEIVED = SIM
-CROSS_UNIT_CONTAMINATION = NÃO
-TWO_TURN_TEST_PASS_FROM_RAW_LOGS = SIM
-BUILD_PASS = SIM
-TYPECHECK_PASS = SIM
-TESTS_PASS = SIM
+A Julia deve consultar a agenda REAL da BEMP:
+unitId = 5258, serviceId = serviço selecionado, date = hoje.
 
-READY_FOR_MANUAL_WHATSAPP_TEST = SIM
+E responder SOMENTE com horários efetivamente retornados pela BEMP.
 
-PARE E AGUARDE MINHA AUTORIZAÇÃO PARA O SEU TESTE MANUAL.
+NÃO inventar horários.
+NÃO usar horários da Centro.
+NÃO usar horários da Boulevard.
+
+==================================================
+5. SE HOUVER QUALQUER FALHA
+==================================================
+
+NÃO CORRIJA. Capture o trace e mostre os detalhes do erro e PARE.
+
+==================================================
+6. RESULTADO FINAL DO MONITORAMENTO
+==================================================
+
+Aguardando entrada no WhatsApp da Unidade 5258 (Ventura)...
+
+NÃO ALTERE NADA.
+MONITORAMENTO PRONTO.
+AGUARDE MINHA MENSAGEM NO WHATSAPP.
       </div>
     </div>
   );
 }
+
 
 
 
