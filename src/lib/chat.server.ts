@@ -419,6 +419,7 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
       model,
       system: (systemPrompt + (sandbox ? SANDBOX_NOTE : "")).trim(),
       messages: modelMessages,
+      tools: buildTools(!!sandbox, effectiveUnitId, conversationKey, bookingContext.subscriptionIntent, traceId, bookingContext),
       maxSteps: 5,
     } as any);
   } catch (err: any) {
