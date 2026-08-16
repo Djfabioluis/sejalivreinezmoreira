@@ -62,7 +62,8 @@ export function validateOutputAgainstCatalog(
     // Gerar resposta segura contendo APENAS o que é permitido
     let safeResponse = "Olá! Para te ajudar a agendar, selecione uma das opções reais do nosso catálogo:\n\n";
     allowedServices.forEach((s, i) => {
-      safeResponse += `${i + 1}. ${s.name}${s.price ? ` (R$ ${s.price.toFixed(2).replace('.', ',')})` : ''}\n`;
+      const price = typeof s.price === 'number' ? s.price : parseFloat(String(s.price || 0));
+      safeResponse += `${i + 1}. ${s.name}${!isNaN(price) && price > 0 ? ` (R$ ${price.toFixed(2).replace('.', ',')})` : ''}\n`;
     });
     safeResponse += "\nQual dessas opções você deseja? 💜";
 
