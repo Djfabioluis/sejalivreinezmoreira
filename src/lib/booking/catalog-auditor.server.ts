@@ -49,7 +49,7 @@ export function validateOutputAgainstCatalog(
 
   for (const h of commonHallucinations) {
     if (text.toLowerCase().includes(h)) {
-      const exists = validNames.some(vn => vn.includes(h) || h.includes(vn));
+      const exists = (validNames || []).some(vn => vn && (vn.includes(h) || h.includes(vn)));
       if (!exists) {
         if (!hallucinatedServices.includes(h)) hallucinatedServices.push(h);
       }
