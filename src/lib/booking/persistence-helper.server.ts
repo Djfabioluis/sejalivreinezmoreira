@@ -2,16 +2,29 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 /**
  * PONTO ÚNICO DE PERSISTÊNCIA DE HISTÓRICO
- * Corrigido para a assinatura real comprovada: (p_phone text, p_new_message jsonb)
+ * Adapta a chamada para a assinatura real da RPC no banco.
+ * A auditoria comprovou que a assinatura esperada é (p_new_message, p_phone).
  */
 export async function persistWaMessage(phone: string, message: any) {
   try {
-    // A assinatura real no Postgres é append_wa_message(p_phone text, p_new_message jsonb)
-    // Enviar apenas os 2 parâmetros esperados.
-    const { error } = await supabaseAdmin.rpc("append_wa_message", {
+    // RECUPERAÇÃO DE CACHE POSTGREST: Em TanStack Start, o supabaseAdmin pode estar usando 
+    // um client com definições tipadas ou cache de esquema antigo.
+    // Forçamos a chamada exata ignorando tipagem se necessário.
+    const { error } = await (supabaseAdmin.rpc as any)("append_wa_message", {
       p_phone: phone,
       p_new_message: message
     });
+
+    // Se falhar com erro de "Could not find the function", tentamos a assinatura com 2 parâmetros nomeados invertidos
+    // ou passamos como argumentos posicionais se o cache do PostgREST estiver muito inconsistente.
+    if (error && error.message.includes("Could not find the function")) {
+       console.warn("[RPC] Retrying append_wa_message with alternate signature...");
+       const retry = await (supabaseAdmin.rpc as any)("append_wa_message", {
+         p_new_message: message,
+         p_phone: phone
+       });
+       if (!retry.error) return { success: true };
+    }
 
     if (error) {
       console.error(`[RPC_ERROR] append_wa_message(phone: ${phone}):`, error);

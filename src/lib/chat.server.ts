@@ -1,5 +1,5 @@
 // Server-only. Shared AI-agent runner for /api/chat (web) and /api/public/whatsapp.
-import { streamText, generateText, tool, type UIMessage } from "ai";
+import { convertToModelMessages, streamText, generateText, tool, type UIMessage } from "ai";
 import { type AgentOptions } from "./agent-types";
 import { z } from "zod";
 import { createLovableAiGatewayProvider } from "@/lib/ai-gateway.server";
@@ -36,7 +36,7 @@ export const MANDATORY_SYSTEM_RULES = `REGRAS OBRIGATÓRIAS DO SISTEMA (NUNCA IG
 - Se a ferramenta não retornar um preço para o serviço específico, responda: "Vou confirmar o valor certinho para você. 💜". NUNCA estime ou chute um valor.
 - Formate preços exatamente como retornados, no padrão R$ XX,XX.
 
-- NÃO ofereça troca de unidade nem pergunte "Centro ou outra unidade?" a menos que o cliente pedir explicitamente para mudar.
+- NÃO ofereça troca de unidade nem pergunte "Centro ou outra unidade?" a menos que o cliente peça explicitamente para mudar.
 - NÃO repita perguntas já respondidas. O bloco "CONTEXTO DE AGENDAMENTO" é a VERDADE do atendimento: tudo que estiver diferente de UNKNOWN já foi informado e está PROIBIDO perguntar novamente.
 - Pergunte SOMENTE o campo indicado em "PRÓXIMO CAMPO A OBTER".
 - Se o serviço já estiver no contexto, NUNCA pergunte "Qual serviço deseja realizar?", mesmo que a mensagem atual fale apenas de data, período ou horário.
@@ -75,7 +75,7 @@ ${DEFAULT_KNOWLEDGE_PROMPT}
 - NORMALIZAÇÃO SEMÂNTICA "MÃO": Se o cliente usar termos como "mão", "fazer a mão" ou "unhas da mão", considere SEMPRE como intenção direta de MANICURE. Você está PROIBIDA de perguntar se o cliente quis dizer manicure ou pedir confirmação semântica para este termo.
 - REGRA ABSOLUTA — CATÁLOGO BEMP É A FONTE DA VERDADE: Você está PROIBIDA de inventar, completar, renomear ou sugerir nomes de serviços que não estejam EXATAMENTE como retornados no contexto de agendamento. 
 - CATALOG_ONLY MODE ATIVO: Toda opção de serviço que você apresentar DEVE ter um serviceId correspondente no catálogo real fornecido. Se houver múltiplos candidatos (campo 'candidates' no contexto), apresente-os EXATAMENTE como escritos na lista de candidatos e peça para o cliente escolher apenas um deles. VOCÊ NÃO PODE ADICIONAR OPÇÕES, EXEMPLOS OU ALTERNATIVAS QUE NÃO ESTEJAM NA LISTA DE CANDIDATOS.
-- SE O SERVICE ID E UNIT ID ESTIVEREM PRESENTES NO CONTEXTO E O CLIENTE INFORMAR UMA DATA, Você DEVE OBRIGATORIAMENTE CHAMAR 'list_slots'.
+- SE O SERVICE ID E UNIT ID ESTIVEREM PRESENTES NO CONTEXTO E O CLIENTE INFORMAR UMA DATA, VOCÊ DEVE OBRIGATORIAMENTE CHAMAR 'list_slots'.
 - SE HOUVER 'candidates' NO CONTEXTO, APRESENTE AS OPÇÕES IMEDIATAMENTE. NÃO PERGUNTE A DATA SE ELA JÁ ESTIVER NO CONTEXTO (ex: hoje).
 - SE O CLIENTE JÁ INFORMOU A DATA (ex: "hoje"), ELA APARECERÁ NO CONTEXTO. NÃO PERGUNTE A DATA NOVAMENTE.`;
 
@@ -323,17 +323,12 @@ export async function isIAConfigured(): Promise<boolean> {
 export async function streamAgent(opts: { messages: any[]; sandbox?: boolean }) {
   const gatewayKey = process.env.LOVABLE_AI_GATEWAY_KEY || process.env.LOVABLE_API_KEY || "";
   const provider = createLovableAiGatewayProvider(gatewayKey);
-  const model = provider("google/gemini-2.5-flash");
+  const model = provider("google/gemini-2.0-flash");
 
-  const modelMessages = (opts.messages || []).map(m => ({
-    role: m.role,
-    content: m.content || ""
-  })) as any;
-  
   return streamText({
     model,
     system: DEFAULT_SYSTEM_PROMPT + (opts.sandbox ? SANDBOX_NOTE : ""),
-    messages: modelMessages,
+    messages: convertToModelMessages(opts.messages),
     maxSteps: 5,
   } as any);
 }
@@ -341,20 +336,14 @@ export async function streamAgent(opts: { messages: any[]; sandbox?: boolean }) 
 export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: string }) {
   const { conversationKey, unidadeId, sandbox, customerContext, activePromotions, traceId } = opts;
   const rawMessages = Array.isArray(opts.messages) ? opts.messages : [];
-  const text = opts.text || (rawMessages[rawMessages.length - 1]?.content as string) || "";
-  
-  // Se não houver mensagens (Turno 1 do teste), injetar a mensagem atual no histórico para o modelo
-  let messages = [...rawMessages];
-  if (messages.length === 0 && text) {
-    messages.push({ role: 'user', content: text });
-  }
-  messages = messages.slice(-12);
+  const messages = rawMessages.slice(-12);
+  const text = opts.text || (messages[messages.length - 1]?.content as string) || "";
 
   const { effectiveUnitId, effectiveUnitName } = await resolveEffectiveUnit({ conversationKey, agentUnitId: unidadeId });
   
   const gatewayKey = process.env.LOVABLE_AI_GATEWAY_KEY || process.env.LOVABLE_API_KEY || "";
   const provider = createLovableAiGatewayProvider(gatewayKey);
-  const model = provider("google/gemini-2.5-flash");
+  const model = provider("google/gemini-2.0-flash");
 
   let bookingContext: BookingContext =
     ((opts as any).bookingContext as BookingContext) ||
@@ -370,28 +359,61 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
   if (effectiveUnitId && bookingContext.serviceText && !bookingContext.serviceId && !bookingContext.clarificationRequired) {
     const services = await BempService.listServices(effectiveUnitId);
     const normalizedSearch = normalizeServiceSearchText(bookingContext.serviceText);
-    
+    const logCtx = { traceId, unitId: effectiveUnitId, serviceText: bookingContext.serviceText, normalizedSearch };
+
     const matches = services.filter(s => {
       const name = normalizeServiceSearchText(s.name || s.nome || "");
+      // Prioridade 1: Match exato após normalização
       if (name === normalizedSearch) return true;
+      // Prioridade 2: Search contido no nome (ex: "manicure" em "Manicure + Pedicure")
       if (name.includes(normalizedSearch)) return true;
+      // Prioridade 3: Nome contido no search (ex: "unha" em "quero fazer minha unha")
+      if (normalizedSearch.includes(name) && name.length > 3) return true;
       return false;
     });
 
+    await logEvent({
+      instance: conversationKey?.split(':')[0] || 'unknown',
+      event: 'BEMP_SERVICE_LOOKUP_COMPLETED',
+      status: 'success',
+      payload: { 
+        foundCount: matches.length,
+        candidates: matches.slice(0, 3).map(m => m.name || m.nome),
+        search: normalizedSearch
+      }
+    });
+
     if (matches.length === 1) {
-      bookingContext = mergeBookingContext(bookingContext, {
-        serviceId: String(matches[0].id),
-        serviceText: matches[0].name || matches[0].nome
-      });
+      bookingContext.serviceId = String(matches[0].id);
+      bookingContext.serviceName = matches[0].name || matches[0].nome;
+      if (conversationKey) {
+        await patchCustomerContext(conversationKey, {
+          'bookingContext.serviceId': bookingContext.serviceId,
+          'bookingContext.serviceName': bookingContext.serviceName,
+          'bookingContext.serviceText': null,
+          'bookingContext.clarificationRequired': false
+        });
+      }
     } else if (matches.length > 1) {
-      bookingContext = mergeBookingContext(bookingContext, {
-        clarificationRequired: true,
-        candidates: matches.map(m => ({ id: String(m.id), name: m.name || m.nome, price: m.price || m.valor || 0 }))
-      });
+      const candidateList = matches.map(m => ({
+        id: String(m.id),
+        name: m.name || m.nome,
+        price: m.price || m.valor || 0
+      }));
+      bookingContext.clarificationRequired = true;
+      bookingContext.candidates = candidateList;
+      if (conversationKey) {
+        await patchCustomerContext(conversationKey, {
+          'bookingContext.clarificationRequired': true,
+          'bookingContext.candidates': candidateList,
+          'bookingContext.serviceId': null,
+          'bookingContext.serviceName': null
+        });
+      }
     }
   }
 
-  // 2. CHAMADA AO MODELO
+  // 2. LLM EXECUTION
   const systemPrompt = assembleSystemPrompt({
     contactName: opts.contactName,
     contactPhone: opts.contactPhone,
@@ -402,41 +424,13 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
     bookingContext
   });
 
-  const modelMessages = (messages || []).map(m => {
-    if (!m) return { role: 'user', content: '' };
-    return {
-      role: m.role || 'user',
-      content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content || "")
-    };
-  }) as any;
-  
-  if (!Array.isArray(modelMessages)) {
-    throw new Error("CRITICAL_MAPPING_FAILURE: modelMessages is not an array");
-  }
-  
-  console.log("AUDIT_PAYLOAD_SENT", JSON.stringify({ 
-    modelId: (model as any).modelId,
-    messagesCount: modelMessages.length,
-    systemPromptLength: (systemPrompt + (sandbox ? SANDBOX_NOTE : "")).length
-  }));
-  let result;
-  try {
-    result = await generateText({
-      model,
-      system: (systemPrompt + (sandbox ? SANDBOX_NOTE : "")).trim(),
-      messages: modelMessages,
-      tools: buildTools(!!sandbox, effectiveUnitId, conversationKey, bookingContext.subscriptionIntent, traceId, bookingContext),
-      maxSteps: 5,
-    } as any);
-  } catch (err: any) {
-    const errorBody = err.data || err.responseBody || err.error || err.response?.data;
-    console.error("AUDIT_400_ERROR:", JSON.stringify({
-      message: err.message,
-      status: err.status,
-      data: errorBody
-    }, null, 2));
-    throw new Error(`AI_GATEWAY_ERROR: ${err.message} - ${JSON.stringify(errorBody)}`);
-  }
+  const result = await generateText({
+    model,
+    system: systemPrompt + (sandbox ? SANDBOX_NOTE : ""),
+    messages: convertToModelMessages(messages),
+    tools: buildTools(!!sandbox, effectiveUnitId, conversationKey, bookingContext.subscriptionIntent, traceId, bookingContext),
+    maxSteps: 5,
+  } as any);
 
   let finalResponse = result.text;
 
@@ -449,43 +443,31 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
     }
   }
 
-  // Se o modelo resolveu um candidato pelo índice (ex: "1")
-  if (bookingContext.clarificationRequired && !bookingContext.serviceId) {
-    const selectedIndex = parseInt(text);
-    if (!isNaN(selectedIndex) && bookingContext.candidates && bookingContext.candidates[selectedIndex - 1]) {
-      const selected = bookingContext.candidates[selectedIndex - 1];
-      bookingContext = mergeBookingContext(bookingContext, {
-        serviceId: selected.id,
-        serviceName: selected.name,
-        clarificationRequired: false,
-        candidates: []
+  // 4. EVOLUTION DELIVERY & PERSISTENCE
+  if (conversationKey && finalResponse) {
+    const { EvolutionService } = await import("./evolution/evolution-service.server");
+    const { persistWaMessage } = await import("@/lib/booking/persistence-helper.server");
+    const [instanceId, remoteJid] = conversationKey.split(":");
+    
+    if (finalResponse.trim()) {
+      // 4.1 Enviar para WhatsApp
+      await EvolutionService.sendText({
+        instance: instanceId,
+        to: remoteJid,
+        text: finalResponse,
+        module: "julia-ai"
+      });
+
+      // 4.2 Persistir Histórico via RPC Real (p_new_message, p_phone)
+      await persistWaMessage(conversationKey, {
+        role: "assistant",
+        content: finalResponse,
+        timestamp: new Date().toISOString(),
+        bookingContext, // Preserva o contexto determinístico no histórico
+        traceId
       });
     }
   }
 
-  // Se o modelo resolveu um candidato pelo nome
-  if (bookingContext.clarificationRequired && !bookingContext.serviceId) {
-    const matchedCandidate = bookingContext.candidates?.find(c => 
-      normalizeServiceSearchText(text).includes(normalizeServiceSearchText(c.name))
-    );
-    if (matchedCandidate) {
-      bookingContext = mergeBookingContext(bookingContext, {
-        serviceId: matchedCandidate.id,
-        serviceName: matchedCandidate.name,
-        clarificationRequired: false,
-        candidates: []
-      });
-    }
-  }
-
-  // 4. PERSISTÊNCIA DO CONTEXTO
-  if (conversationKey) {
-    await patchCustomerContext(conversationKey, { bookingContext });
-  }
-
-  return {
-    text: finalResponse,
-    bookingContext,
-    traceId
-  };
+  return { text: finalResponse, bookingContext };
 }

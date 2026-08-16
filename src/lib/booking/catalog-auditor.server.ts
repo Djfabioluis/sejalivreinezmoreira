@@ -29,10 +29,10 @@ export function validateOutputAgainstCatalog(
     if (listMatch) {
       const candidateName = listMatch[1].trim().toLowerCase();
       // Verificação de correspondência (nome exato ou contido)
-      const isAllowed = (validNames || []).some(vn => 
+      const isAllowed = validNames.some(vn => 
         candidateName === vn || 
-        (vn && vn.includes(candidateName)) ||
-        (candidateName.length > 5 && vn && vn.includes(candidateName))
+        vn.includes(candidateName) ||
+        (candidateName.length > 5 && vn.includes(candidateName))
       );
 
       if (!isAllowed) {
@@ -49,7 +49,7 @@ export function validateOutputAgainstCatalog(
 
   for (const h of commonHallucinations) {
     if (text.toLowerCase().includes(h)) {
-      const exists = (validNames || []).some(vn => vn && (vn.includes(h) || h.includes(vn)));
+      const exists = validNames.some(vn => vn.includes(h) || h.includes(vn));
       if (!exists) {
         if (!hallucinatedServices.includes(h)) hallucinatedServices.push(h);
       }
@@ -62,8 +62,7 @@ export function validateOutputAgainstCatalog(
     // Gerar resposta segura contendo APENAS o que é permitido
     let safeResponse = "Olá! Para te ajudar a agendar, selecione uma das opções reais do nosso catálogo:\n\n";
     allowedServices.forEach((s, i) => {
-      const price = typeof s.price === 'number' ? s.price : parseFloat(String(s.price || 0));
-      safeResponse += `${i + 1}. ${s.name}${!isNaN(price) && price > 0 ? ` (R$ ${price.toFixed(2).replace('.', ',')})` : ''}\n`;
+      safeResponse += `${i + 1}. ${s.name}${s.price ? ` (R$ ${s.price.toFixed(2).replace('.', ',')})` : ''}\n`;
     });
     safeResponse += "\nQual dessas opções você deseja? 💜";
 
