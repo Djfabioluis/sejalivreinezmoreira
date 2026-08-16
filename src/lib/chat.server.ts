@@ -427,12 +427,20 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
   });
 
   const modelMessages = await convertToModelMessages(messages);
-  
-  const result = await generateText({
-    model,
-    system: systemPrompt + (sandbox ? SANDBOX_NOTE : ""),
-    messages: modelMessages,
-    tools: buildTools(!!sandbox, effectiveUnitId, conversationKey, bookingContext.subscriptionIntent, traceId, bookingContext),
+  console.log("AUDIT_PAYLOAD:", JSON.stringify({ model: model.modelId, messages: modelMessages, maxSteps: 5 }, null, 2));
+  let result;
+  try {
+    result = await generateText({
+      model,
+      system: systemPrompt + (sandbox ? SANDBOX_NOTE : ""),
+      messages: modelMessages,
+      tools: buildTools(!!sandbox, effectiveUnitId, conversationKey, bookingContext.subscriptionIntent, traceId, bookingContext),
+      maxSteps: 5,
+    } as any);
+  } catch (e: any) {
+    console.log("AUDIT_ERROR_DETAILS:", JSON.stringify({ message: e.message, status: e.status, data: e.data, response: e.responseBody }, null, 2));
+    throw e;
+  }
     maxSteps: 5,
   } as any);
 
