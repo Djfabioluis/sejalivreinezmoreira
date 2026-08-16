@@ -396,10 +396,17 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
     bookingContext
   });
 
-  const modelMessages = (messages || []).map(m => ({
-    role: m.role,
-    content: m.content || ""
-  })) as any;
+  const modelMessages = (messages || []).map(m => {
+    if (!m) return { role: 'user', content: '' };
+    return {
+      role: m.role || 'user',
+      content: typeof m.content === 'string' ? m.content : JSON.stringify(m.content || "")
+    };
+  }) as any;
+  
+  if (!Array.isArray(modelMessages)) {
+    throw new Error("CRITICAL_MAPPING_FAILURE: modelMessages is not an array");
+  }
   
   console.log("AUDIT_PAYLOAD_SENT", JSON.stringify({ 
     modelId: model.modelId,
