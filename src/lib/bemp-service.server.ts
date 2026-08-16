@@ -69,7 +69,7 @@ export class BempService {
     logger.info("BEMP_RAW_RESPONSE_RECEIVED", "Listagem de serviços recebida", {
       unitId: String(salonId),
       bempRawCount: services.length,
-      services: services.map(s => ({
+      services: services.map((s: any) => ({
         serviceId: String(s.id),
         name: s.name || s.nome,
         price: s.price || s.valor,
