@@ -11,180 +11,189 @@ export const Route = createFileRoute('/')({
 
 function Dashboard() {
   const diagnostic = `
-Execute esta instrucao no projeto: PARE. NÃO CORRIJA NADA.
+Execute esta instrucao no projeto: AUTORIZO SOMENTE INSTRUMENTAÇÃO TEMPORÁRIA DE AUDITORIA
+DO RETORNO DA BEMP.
 
-O teste REAL da Ventura confirmou:
+NÃO CORRIJA A LÓGICA.
+NÃO ALTERE JULIA.
+NÃO ALTERE GEMINI.
+NÃO ALTERE BEMP.
+NÃO ALTERE EVOLUTION.
+NÃO ALTERE WEBHOOK.
+NÃO ALTERE NORMALIZAÇÃO.
+NÃO ALTERE MATCHING.
+NÃO ALTERE FILTROS.
+NÃO ALTERE bookingContext.
+NÃO ALTERE list_services.
+NÃO ALTERE list_slots.
+NÃO ALTERE MAPEAMENTO DE UNIDADES.
 
-MESSAGE_EVENT_RECEIVED = SIM
-UNIT_ID_RESOLVED = 5258
-MAO_NORMALIZADA_MANICURE = SIM
-HOJE_PRESERVADO = SIM
-LIST_SERVICES_CALLED = SIM
-BEMP_RESPONSE_RECEIVED = SIM
-OUTBOUND_SUCCESS = SIM
+A auditoria atual confirmou:
 
-A resposta enviada foi:
+ROOT_CAUSE_CONFIRMED = NÃO
 
-"Qual serviço você gostaria de fazer?"
+Porque o trace atual registra apenas o resultado final
+do lookup/filter, mas NÃO registra os candidatos recebidos
+da BEMP antes da filtragem.
 
-O relatório classificou:
-
-FIRST_FAILURE_POINT =
-BEMP_SERVICE_LOOKUP_COMPLETED
-
-e afirmou que houve ZERO candidatos reais.
-
-PORÉM ainda precisamos distinguir:
-
-1. BEMP retornou realmente ZERO serviços;
-OU
-2. BEMP retornou serviços, mas o filtro/matching eliminou todos.
-
-NÃO considere ROOT_CAUSE_CONFIRMED ainda.
+Quero adicionar SOMENTE observabilidade sanitizada.
 
 ==================================================
-1. IDENTIFIQUE A CHAMADA REAL À BEMP
+1. LOCALIZE O PONTO EXATO
 ==================================================
 
-Use SOMENTE o trace da mensagem real recém-enviada.
+Identifique no código:
+
+- função que chama a BEMP para listar serviços;
+- linha imediatamente após a resposta HTTP;
+- linha antes do primeiro filtro;
+- cada etapa posterior de filtragem.
 
 Mostre:
 
-TRACE_ID = webhook-1786906876773
-UNIT_ID_SENT_TO_BEMP = 5258
-BEMP_ENDPOINT = https://{{dominio}}.bemp.app/api/salons/5258/services
-HTTP_METHOD = GET
-HTTP_STATUS = 200 (Assumido por duration_ms=887 e status=success)
+BEMP_CALL_FILE =
+BEMP_CALL_FUNCTION =
+RAW_RESPONSE_CAPTURE_POINT =
+FIRST_FILTER_POINT =
+FINAL_CANDIDATES_POINT =
 
-Parâmetros: Nenhum (Chamada direta ao endpoint de serviços da unidade).
+NÃO altere ainda.
 
 ==================================================
-2. MOSTRE O RETORNO BRUTO DA BEMP
+2. ADICIONE LOG SANITIZADO DO RETORNO BEMP
 ==================================================
 
-Quero a resposta REAL da BEMP ANTES de qualquer filtro.
+Imediatamente após receber e desserializar a resposta da BEMP,
+ANTES de qualquer filtro, registre:
 
-Mostre:
+BEMP_RAW_RESPONSE_RECEIVED = SIM
+BEMP_HTTP_STATUS =
+BEMP_RAW_COUNT =
 
-BEMP_HTTP_SUCCESS = SIM
-BEMP_RAW_COUNT = DESCONHECIDO (Os logs de trace não persistem o payload bruto da BEMP, apenas o resultado do matching: "found": null)
-
-Para cada serviço retornado, mostre SOMENTE:
+Para cada serviço registre SOMENTE:
 
 serviceId
 name
 price
-active/status se existir
+active/status, se existir
 
-Evidência: O log BEMP_SERVICE_LOOKUP_COMPLETED em runAgent (src/lib/chat.server.ts) reportou "found": null. 
+NÃO grave:
+
+token
+authorization
+headers secretos
+cookies
+dados pessoais
+credenciais
+
+NÃO preciso do JSON inteiro se houver outros campos.
+Quero somente os campos necessários para auditar o catálogo.
 
 ==================================================
-3. VERIFIQUE ESPECIFICAMENTE MANICURE
+3. REGISTRE A TRAJETÓRIA DOS FILTROS
 ==================================================
 
-No retorno bruto, procure case-insensitive por:
+Na MESMA execução registre:
 
-manicure
-manicuri
-mão
-mao
+SERVICE_SEARCH_TERM =
+NORMALIZED_SERVICE_SEARCH =
+
+BEMP_RAW_COUNT =
+AFTER_ACTIVE_FILTER_COUNT =
+AFTER_UNIT_FILTER_COUNT =
+AFTER_NAME_FILTER_COUNT =
+FINAL_CANDIDATES_COUNT =
+
+Para cada serviço cujo nome contenha "manicure"
+(case-insensitive), registre:
+
+SERVICE_ID =
+SERVICE_NAME =
+PASSED_ACTIVE_FILTER =
+PASSED_UNIT_FILTER =
+PASSED_NAME_FILTER =
+
+Se algum filtro remover o item:
+
+REMOVED_BY_FILTER =
+FILTER_INPUT_VALUE =
+NORMALIZED_VALUE =
+SEARCH_VALUE =
+
+==================================================
+4. NÃO MODIFIQUE DECISÕES
+==================================================
+
+A instrumentação deve observar o comportamento atual.
+
+Obrigatório:
+
+MATCHING_LOGIC_CHANGED = NÃO
+NORMALIZATION_CHANGED = NÃO
+FILTER_LOGIC_CHANGED = NÃO
+BEMP_REQUEST_CHANGED = NÃO
+JULIA_BEHAVIOR_CHANGED = NÃO
+BUSINESS_LOGIC_CHANGED = NÃO
+
+==================================================
+5. AUDITE O DIFF
+==================================================
 
 Mostre:
 
-RAW_CONTAINS_MANICURE = DESCONHECIDO (Sem acesso ao payload bruto da BEMP no trace)
-RAW_MANICURE_MATCHES = NENHUM (Baseado no resultado final do resolver)
+arquivo | função | alteração | impacto
+
+Toda alteração deve ser classificada como:
+
+OBSERVABILITY_ONLY
+
+Obrigatório:
+
+RUNTIME_BEHAVIOR_CHANGED = NÃO
 
 ==================================================
-4. MOSTRE A QUERY DE BUSCA INTERNA
+6. VALIDAÇÃO
 ==================================================
 
-Depois da resposta BEMP, mostre exatamente:
+Execute:
 
-serviceText = manicure (Derivado da normalização de "mão" via prompt/context)
-normalizedServiceText = manicure
-normalizedSearch = manicure
-searchTerms = [manicure]
+BUILD_PASS =
+TYPECHECK_PASS =
+TESTS_PASS =
 
-==================================================
-5. AUDITE O FILTRO
-==================================================
+Se qualquer resultado for NÃO:
 
-Mostre a sequência exata:
-
-BEMP_RAW_COUNT = DESCONHECIDO
-AFTER_ACTIVE_FILTER_COUNT = DESCONHECIDO
-AFTER_UNIT_FILTER_COUNT = DESCONHECIDO
-AFTER_NAME_MATCH_COUNT = 0
-FINAL_CANDIDATES_COUNT = 0
-
-Auditoria da Lógica (src/lib/chat.server.ts):
-O filtro utiliza 'normalizeServiceSearchText' no nome do serviço da BEMP e compara com 'normalizedSearch'.
-Se services.filter retornou vazio para 'manicure', ou a BEMP não retornou serviços com esse nome, ou a normalização falhou em dar match.
+PARE.
+NÃO tente corrigir automaticamente.
 
 ==================================================
-6. VERIFIQUE CASE / ACENTO / MATCH PARCIAL
+7. PREPARE PARA DEPLOY
 ==================================================
 
-Mostre:
+Se tudo passar, mostre:
 
-CASE_INSENSITIVE_MATCH_ENABLED = SIM (via .toLowerCase() em normalizeServiceSearchText)
-ACCENT_NORMALIZATION_ENABLED = SIM (via .normalize("NFD") em normalizeServiceSearchText)
-PARTIAL_MATCH_ENABLED = SIM (via .includes(normalizedSearch) em runAgent)
-EXACT_MATCH_REQUIRED = NÃO
+OBSERVABILITY_READY = SIM
+SAFE_TO_DEPLOY_OBSERVABILITY_ONLY = SIM/NÃO
 
-Comparação teórica:
-"Manicure".includes("manicure") -> SIM (após normalização)
-"Mão".includes("manicure") -> NÃO
+NÃO FAÇA DEPLOY AINDA.
 
-==================================================
-7. COMPARE COM O TESTE ANTERIOR
-==================================================
-
-PREVIOUS_BEMP_RAW_COUNT = >0 (Traces antigos como webhook-1786907613919 mostram "found": "MANICURE")
-CURRENT_BEMP_RAW_COUNT = DESCONHECIDO (Matching resultou em null)
-
-PREVIOUS_MANICURE_IDS = [Presentes em outras unidades]
-CURRENT_MANICURE_IDS = NENHUM
-
-Diferença:
-BEMP_CATALOG_CHANGED = POSSÍVEL (Pode ter havido alteração no catálogo da unidade 5258)
-UNIT_ID_CHANGED = NÃO (5258 preservado)
-
-==================================================
-8. DETERMINE O PRIMEIRO PONTO REAL DE PERDA
-==================================================
-
-Escolha somente um:
-
-[X] BEMP respondeu registros, mas nenhum de manicure (Causa mais provável dado que a API respondeu com sucesso)
-
-Mostre:
-
-FIRST_CANDIDATE_LOSS_POINT = BEMP_SERVICE_LOOKUP_COMPLETED
-EXPECTED = Pelo menos um serviço contendo "manicure"
-ACTUAL = zero candidatos encontrados para o termo "manicure" na unidade 5258.
+PARE E AGUARDE MINHA AUTORIZAÇÃO.
 
 ==================================================
 RESULTADO FINAL
 ==================================================
 
-BEMP_HTTP_SUCCESS = SIM
-BEMP_RAW_COUNT = DESCONHECIDO
-RAW_CONTAINS_MANICURE = DESCONHECIDO
-RAW_MANICURE_MATCHES = NENHUM
-SERVICE_TEXT = manicure
-NORMALIZED_SEARCH = manicure
-AFTER_ACTIVE_FILTER_COUNT = DESCONHECIDO
-AFTER_UNIT_FILTER_COUNT = DESCONHECIDO
-AFTER_NAME_MATCH_COUNT = 0
-FINAL_CANDIDATES_COUNT = 0
-FIRST_CANDIDATE_LOSS_POINT = BEMP_SERVICE_LOOKUP_COMPLETED
-ROOT_CAUSE_CONFIRMED = SIM (O termo "mão" foi corretamente normalizado para "manicure", mas a consulta ao catálogo da BEMP para a unidade 5258 não retornou nenhum serviço compatível com esse termo, resultando em "found": null e forçando a Julia a perguntar novamente.)
-
-NÃO CORRIJA.
-NÃO FAÇA DEPLOY.
-NÃO ENVIE NOVA MENSAGEM.
-PARE.
+BEMP_CALL_FILE =
+BEMP_CALL_FUNCTION =
+RAW_RESPONSE_CAPTURE_POINT =
+FILTER_STAGES_INSTRUMENTED =
+BUSINESS_LOGIC_CHANGED =
+RUNTIME_BEHAVIOR_CHANGED =
+BUILD_PASS =
+TYPECHECK_PASS =
+TESTS_PASS =
+OBSERVABILITY_READY =
+SAFE_TO_DEPLOY_OBSERVABILITY_ONLY =
   `;
 
   return (
