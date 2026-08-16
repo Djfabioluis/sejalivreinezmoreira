@@ -10,214 +10,91 @@ export const Route = createFileRoute('/')({
 });
 
 function Dashboard() {
-  const diagnostic = `
-Execute esta instrucao no projeto: QUERO CORRIGIR ISSO AGORA COM A MENOR ALTERAÇÃO POSSÍVEL.
+  const diagnostic = `Execute esta instrucao no projeto: FAÇA A PREPARAÇÃO FINAL PARA PRODUÇÃO.
 
-PARE A AUDITORIA FORENSE.
+A correção funcional foi validada:
 
-PROBLEMA JÁ COMPROVADO:
-- BEMP direto retorna serviços;
-- unidade 5258 possui catálogo;
-- chamada do runtime de produção recebe HTTP 200 com body vazio;
-- URL e autenticação estão corretas;
-- normalização "mão" -> "manicure" está correta;
-- filtros NÃO são a causa.
-
-OBJETIVO:
-FAZER A CONSULTA DE SERVIÇOS FUNCIONAR EM PRODUÇÃO
-SEM ALTERAR A LÓGICA DE NEGÓCIO.
-
-NÃO ALTERE:
-- Julia
-- Gemini
-- Evolution
-- webhook
-- bookingContext
-- normalização
-- matching
-- list_slots
-- preços
-- unitId
-- mapeamento das unidades
-
-==================================================
-1. CRIE UM FALLBACK DE TRANSPORTE PARA A BEMP
-==================================================
-
-Arquivo principal:
-
-src/lib/bemp-service.server.ts
-
-Mantenha a chamada BEMP atual como PRIMARY.
-
-Se acontecer:
-
-HTTP status = 200
-E
-body realmente vazio
-
-OU
-
-JSON válido mas array final de serviços = []
-
-então execute SOMENTE UMA segunda tentativa por um
-runtime/backend alternativo que NÃO utilize o mesmo
-egress do Worker atual.
-
-PREFERÊNCIA:
-
-1. Supabase Edge Function já existente/conectada ao projeto;
-2. outro backend server-side já existente no projeto e que
-   tenha runtime/origem diferente;
-3. se não houver runtime alternativo real, NÃO invente um proxy.
-
-NÃO faça chamada BEMP pelo navegador.
-NÃO exponha token/API key no frontend.
-
-==================================================
-2. SE SUPABASE ESTIVER DISPONÍVEL
-==================================================
-
-Crie uma Edge Function mínima chamada:
-
-bemp-services-relay
-
-Entrada:
-
-unitId
-
-Ela deve:
-
-- validar unitId;
-- consultar a mesma BEMP usando as credenciais server-side;
-- usar o mesmo endpoint já configurado;
-- retornar o JSON da BEMP sem modificar os serviços;
-- não alterar nomes;
-- não filtrar serviços;
-- não alterar preços;
-- não armazenar credenciais no cliente.
-
-No BempService.listServices:
-
-PRIMARY -> chamada atual
-
-somente se PRIMARY retornar vazio inesperadamente:
-
-FALLBACK -> bemp-services-relay
-
-==================================================
-3. PROTEÇÕES
-==================================================
-
-Máximo:
-
-PRIMARY_ATTEMPTS = 1
-FALLBACK_ATTEMPTS = 1
-
-Sem loop.
-
-Se primary retornar serviços:
-
-NÃO use fallback.
-
-Se fallback retornar serviços:
-
-continue o fluxo normalmente.
-
-Se ambos falharem:
-
-retorne erro diagnosticável;
-NÃO transforme silenciosamente em [].
-
-==================================================
-4. OBSERVABILIDADE
-==================================================
-
-Registre sem dados sensíveis:
-
-BEMP_PRIMARY_STATUS
-BEMP_PRIMARY_BODY_LENGTH
-BEMP_PRIMARY_COUNT
-
-BEMP_FALLBACK_USED
-BEMP_FALLBACK_STATUS
-BEMP_FALLBACK_BODY_LENGTH
-BEMP_FALLBACK_COUNT
-
-BEMP_FINAL_COUNT
-
-==================================================
-5. TESTE
-==================================================
-
-NÃO ENVIE WHATSAPP.
-
-Teste somente a função de catálogo para:
-
-unitId = 5258
-
-Mostre:
-
-PRIMARY_COUNT =
-FALLBACK_USED =
-FALLBACK_COUNT =
-FINAL_SERVICE_COUNT =
-
-Depois confirme se existem serviços contendo:
-
-manicure
-
-Mostre:
-
-MANICURE_SERVICE_COUNT =
-
-e liste somente:
-
-serviceId
-name
-price
-
-==================================================
-6. NÃO PUBLIQUE AINDA
-==================================================
-
-Execute:
-
-BUILD_PASS =
-TYPECHECK_PASS =
-
-Mostre todos os arquivos alterados.
-
-Obrigatório:
+MANICURE_SERVICE_COUNT = 2
+BUILD_PASS = SIM
+TYPECHECK_PASS = SIM
+SAFE_TO_DEPLOY = SIM
 
 BUSINESS_LOGIC_CHANGED = NÃO
 BOOKING_LOGIC_CHANGED = NÃO
 MATCHING_CHANGED = NÃO
 NORMALIZATION_CHANGED = NÃO
 
-==================================================
-RESULTADO
-==================================================
+ANTES DO DEPLOY:
 
-RUNTIME_ALTERNATIVE_AVAILABLE =
-FALLBACK_IMPLEMENTED =
-PRIMARY_COUNT =
-FALLBACK_COUNT =
-FINAL_SERVICE_COUNT =
-MANICURE_SERVICE_COUNT =
+1. REVERTA SOMENTE as alterações de diagnóstico/visualização
+   feitas em:
+
+src/routes/index.tsx
+
+2. PRESERVE integralmente:
+
+src/routes/api/public/bemp-services-relay.ts
+src/lib/bemp-service.server.ts
+
+3. NÃO altere:
+Julia
+Gemini
+Evolution
+Webhook
+Booking
+Matching
+Normalização
+UnitId
+Preços
+List_slots
+
+4. Execute novamente:
+
 BUILD_PASS =
 TYPECHECK_PASS =
+
+5. Mostre:
+
+FILES_TO_DEPLOY =
+INDEX_TSX_CLEAN =
+BEMP_RELAY_PRESERVED =
+BEMP_FALLBACK_PRESERVED =
+BUSINESS_LOGIC_CHANGED =
 SAFE_TO_DEPLOY =
 
-SE NÃO EXISTIR UM RUNTIME ALTERNATIVO REAL:
+Esperado:
 
-FALLBACK_IMPLEMENTED = NÃO
-SAFE_TO_DEPLOY = NÃO
+INDEX_TSX_CLEAN = SIM
+BEMP_RELAY_PRESERVED = SIM
+BEMP_FALLBACK_PRESERVED = SIM
+BUSINESS_LOGIC_CHANGED = NÃO
+BUILD_PASS = SIM
+TYPECHECK_PASS = SIM
+SAFE_TO_DEPLOY = SIM
 
-e PARE.
+SE TODOS FOREM SIM:
 
-NÃO FAÇA DEPLOY AUTOMÁTICO.
-`;
+AUTORIZO O DEPLOY/PUBLISH DESTA VERSÃO.
+
+Após publicar, NÃO envie WhatsApp automaticamente.
+
+Faça apenas um teste técnico de produção para:
+
+unitId = 5258
+
+e mostre:
+
+PRODUCTION_PRIMARY_COUNT =
+PRODUCTION_FALLBACK_USED =
+PRODUCTION_FALLBACK_COUNT =
+PRODUCTION_FINAL_COUNT =
+PRODUCTION_MANICURE_COUNT =
+
+Se PRODUCTION_MANICURE_COUNT > 0:
+
+READY_FOR_REAL_WHATSAPP_TEST = SIM
+
+PARE.`;
 
   return (
     <div className="min-h-screen bg-slate-950 p-6 font-mono text-slate-300">
