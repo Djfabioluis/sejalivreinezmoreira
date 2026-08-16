@@ -40,6 +40,11 @@ export const testPersistencePipeline = createServerFn({ method: "POST" })
     const text2 = "1"; // Selecionando a primeira opção
     const res2 = await runAgent({
       text: text2,
+      messages: [
+        { role: "user", content: text1 },
+        { role: "assistant", content: (res1 as any).response || "" },
+        { role: "user", content: text2 }
+      ],
       conversationKey: phone,
       unidadeId: "5258",
       sandbox: true,
