@@ -395,7 +395,14 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
 
   const modelMessages = await convertToModelMessages(messages);
   
-  const result = await generateText({
+  console.log("AUDIT_PAYLOAD_SENT", JSON.stringify({ 
+    modelId: model.modelId,
+    messagesCount: modelMessages.length,
+    systemPromptLength: (systemPrompt + (sandbox ? SANDBOX_NOTE : "")).length
+  }));
+  let result;
+  try {
+    result = await generateText({
     model,
     system: systemPrompt + (sandbox ? SANDBOX_NOTE : ""),
     messages: modelMessages,
