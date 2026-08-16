@@ -20,7 +20,7 @@ export const testPersistencePipeline = createServerFn({ method: "POST" })
       unidadeId: "5258", // Ventura
       sandbox: true,
       customerContext: {}
-    });
+    } as any);
 
     // Simular persistência do Turno 1
     const message1 = { role: "user", content: text1, timestamp: new Date().toISOString() };
@@ -34,7 +34,7 @@ export const testPersistencePipeline = createServerFn({ method: "POST" })
     });
 
     // TURNO 2
-    // Primeiro carregar o contexto que deveria ter sido persistido (simulado pelo runAgent no próximo turno)
+    // Primeiro carregar o contexto que deveria ter sido persistido
     const { data: conv } = await supabaseAdmin.from("wa_conversas").select("customer_context").eq("phone", phone).single();
     
     const text2 = "1"; // Selecionando a primeira opção
@@ -42,14 +42,14 @@ export const testPersistencePipeline = createServerFn({ method: "POST" })
       text: text2,
       messages: [
         { role: "user", content: text1 },
-        { role: "assistant", content: (res1 as any).response || "" },
+        { role: "assistant", content: (res1 as any).text || "" },
         { role: "user", content: text2 }
       ],
       conversationKey: phone,
       unidadeId: "5258",
       sandbox: true,
       customerContext: conv?.customer_context || {}
-    });
+    } as any);
 
     results.push({
       turn: 2,
