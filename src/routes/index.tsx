@@ -31,7 +31,7 @@ function Dashboard() {
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-6 font-sans">
       <div className="flex items-center justify-between border-b pb-4">
-        <h1 className="text-2xl font-bold text-slate-900">RELATÓRIO DE PROVA TÉCNICA (VERSÃO bc4328f-v3)</h1>
+        <h1 className="text-2xl font-bold text-slate-900">RELATÓRIO DE EXECUÇÃO (VERSÃO bc4328f-v4)</h1>
         <div className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
           COMMIT: bc4328f-v3
         </div>
