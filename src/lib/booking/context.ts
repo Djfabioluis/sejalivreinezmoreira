@@ -122,8 +122,7 @@ export function extractBookingSlots(
   previous: BookingContext | null | undefined = null,
 ): Partial<BookingContext> {
   const out: Partial<BookingContext> = {};
-  if (!text) return out;
-
+  if (typeof text !== 'string') return out;
   const t = text.trim();
 
   // --- Serviço (Pattern) ---
