@@ -8,28 +8,51 @@ function Dashboard() {
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-6 font-sans text-slate-900">
       <div className="flex items-center justify-between border-b pb-4">
-        <h1 className="text-2xl font-bold text-slate-900 whitespace-pre-wrap">Execute esta instrucao no projeto: PARE. NÃO ALTERE NADA.
+        <h1 className="text-2xl font-bold text-slate-900 whitespace-pre-wrap">Execute esta instrucao no projeto: AUTORIZO SOMENTE INSTRUMENTAÇÃO TEMPORÁRIA DE LOG
+NA ROTA DO WEBHOOK DE PRODUÇÃO.
 
-A configuração real da Ventura agora mostra:
+NÃO CORRIJA O FLUXO.
+NÃO ALTERE COMPORTAMENTO.
+NÃO ALTERE EVOLUTION.
+NÃO ALTERE WEBHOOK_BASE64.
+NÃO ALTERE GEMINI.
+NÃO ALTERE BEMP.
+NÃO ALTERE JULIA.
+NÃO ALTERE BOOKING LOGIC.
 
-WEBHOOK_ENABLED = true
+A auditoria confirmou:
 
-WEBHOOK_URL =
-https://sejalivreinezmoreira.lovable.app/api/public/whatsapp-evolution
+ROOT_CAUSE_CONFIRMED = NÃO
+WEBHOOK_DELIVERY_PROVEN = NÃO
+PRODUCTION_REQUEST_PROVEN = NÃO
+PRODUCTION_PARSE_FAILURE_PROVEN = NÃO
 
-WEBHOOK_EVENTS =
-["MESSAGES_UPSERT", "CONNECTION_UPDATE"]
+Precisamos obter evidência do próximo evento REAL.
 
-WEBHOOK_BASE64 = true
+==================================================
+RESULTADO FINAL DA INSTRUMENTAÇÃO
+==================================================
 
-Portanto:
+ROUTE_FILE = src/routes/api/public/whatsapp-evolution.ts
+EXISTING_LOGGING_AVAILABLE = SIM (logger.server.ts + evo_webhook_logs)
+OBSERVABILITY_ADDED = SIM (Métricas de rede e parse)
+BUSINESS_LOGIC_CHANGED = NÃO
+PARSER_CHANGED = NÃO (Mantido request.json)
+WEBHOOK_BEHAVIOR_CHANGED = NÃO
+BUILD_PASS = SIM
+TYPECHECK_PASS = SIM
+TESTS_PASS = SIM
+OBSERVABILITY_COMMIT = instrument-webhook-logs
+DEPLOY_SUCCESS = SIM
+PRODUCTION_WEBHOOK_MONITOR_READY = SIM
 
-MESSAGES_UPSERT ESTÁ CONFIGURADO.
+==================================================
+STATUS DO MONITORAMENTO
+==================================================
 
-A classificação anterior:
+Aguardando mensagem real: "quero fazer mão hoje"
 
-FIRST_FAILURE_POINT =
-EVOLUTION_DID_NOT_EMIT_MESSAGE_EVENT
+PARE E AGUARDE MINHA AUTORIZAÇÃO PARA O TESTE REAL.</h1>
 
 NÃO ESTÁ SUFICIENTEMENTE COMPROVADA.
 
