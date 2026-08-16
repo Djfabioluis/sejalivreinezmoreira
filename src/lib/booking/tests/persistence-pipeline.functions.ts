@@ -23,7 +23,7 @@ export const testPersistencePipeline = createServerFn({ method: "POST" })
       // TURNO 1
       const text1 = "quero fazer mão hoje";
       // CORREÇÃO DO HARNESS: messages deve ser Array
-      const messages1 = [{ role: "user", content: text1 }];
+      const messages1 = [{ role: "user", content: text1, parts: [{ type: "text", text: text1 }] }];
       
       logs.push("--- EXECUTANDO TURNO 1 ---");
       logs.push(`Calling runAgent with messages as Array: ${Array.isArray(messages1)}`);
@@ -38,7 +38,7 @@ export const testPersistencePipeline = createServerFn({ method: "POST" })
       } as any);
 
       // Simular persistência do Turno 1
-      const message1 = { role: "user", content: text1, timestamp: new Date().toISOString() };
+      const message1 = { role: "user", content: text1, parts: [{ type: "text", text: text1 }], timestamp: new Date().toISOString() };
       const persist1 = await persistWaMessage(phone, message1);
 
       results.push({
@@ -53,9 +53,9 @@ export const testPersistencePipeline = createServerFn({ method: "POST" })
       
       const text2 = "1"; 
       const messages2 = [
-        { role: "user", content: text1 },
-        { role: "assistant", content: (res1 as any).text || "" },
-        { role: "user", content: text2 }
+        { role: "user", content: text1, parts: [{ type: "text", text: text1 }] },
+        { role: "assistant", content: (res1 as any).text || "", parts: [{ type: "text", text: (res1 as any).text || "" }] },
+        { role: "user", content: text2, parts: [{ type: "text", text: text2 }] }
       ];
 
       logs.push("--- EXECUTANDO TURNO 2 ---");
