@@ -20,7 +20,7 @@ export const testPersistencePipeline = createServerFn({ method: "POST" })
       unidadeId: "5258", // Ventura
       sandbox: true,
       customerContext: {}
-    });
+    } as any);
 
     // Simular persistência do Turno 1
     const message1 = { role: "user", content: text1, timestamp: new Date().toISOString() };
