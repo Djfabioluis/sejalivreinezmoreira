@@ -1,5 +1,5 @@
 
-import { getEvolutionConfig, findMessages } from './src/lib/evolution.server';
+import { getEvolutionConfig, findMessages } from '../evolution.server';
 
 async function run() {
   console.log("--- 1. CONFIGURAÇÃO REAL VENTURA (5258) ---");
@@ -8,12 +8,12 @@ async function run() {
     console.log('EVOLUTION_WEBHOOK_URL =', config.webhookUrl);
     console.log('WEBHOOK_ENABLED =', config.webhookEnabled);
     console.log('MESSAGES_UPSERT_SUBSCRIBED =', config.events?.includes('MESSAGES_UPSERT'));
-  } catch (e) { console.error("Erro Ventura:", e.message); }
+  } catch (e: any) { console.error("Erro Ventura:", e.message); }
 
   console.log("\n--- 7. EVOLUTION (PROVA DE MENSAGEM 5258) ---");
   try {
     const msgs = await findMessages('5258', { limit: 20 });
-    const target = msgs.find(m => {
+    const target = msgs.find((m: any) => {
       const text = (m.message?.conversation || m.message?.extendedTextMessage?.text || "").toLowerCase();
       return text.includes('mão');
     });
@@ -24,7 +24,7 @@ async function run() {
     } else {
       console.log('MESSAGE_PRESENT_IN_EVOLUTION = NÃO ENCONTRADA');
     }
-  } catch (e) { console.error("Erro History:", e.message); }
+  } catch (e: any) { console.error("Erro History:", e.message); }
 
   console.log("\n--- 8. TRÊS INSTÂNCIAS ---");
   try {
@@ -34,6 +34,6 @@ async function run() {
     console.log('CENTRO_WEBHOOK_URL =', c.webhookUrl);
     console.log('VENTURA_WEBHOOK_URL =', v.webhookUrl);
     console.log('BOULEVARD_WEBHOOK_URL =', b.webhookUrl);
-  } catch (e) { console.error("Erro Configs:", e.message); }
+  } catch (e: any) { console.error("Erro Configs:", e.message); }
 }
 run();
