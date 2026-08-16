@@ -1,5 +1,5 @@
 
-import { supabaseAdmin } from "../../integrations/supabase/client.server";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 async function audit() {
   const since = new Date(Date.now() - 15 * 60 * 1000).toISOString();
