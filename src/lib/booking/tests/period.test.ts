@@ -9,12 +9,12 @@ describe("Booking Context - Period Extraction & Flow", () => {
     const inputs = ["tarde", "a tarde", "à tarde", "de tarde", "pela tarde"];
     inputs.forEach(input => {
       const slots = extractBookingSlots(input, now);
+      console.log(`Input: "${input}", slots.period: "${slots.period}"`);
       expect(slots.period).toBe("tarde");
     });
   });
 
   it("should extract period 'manhã' and 'noite'", () => {
-    // Testamos com \b para garantir que "manhã" é capturado corretamente
     expect(extractBookingSlots("manhã", now).period).toBe("manhã");
     expect(extractBookingSlots("de manhã", now).period).toBe("manhã");
     expect(extractBookingSlots("noite", now).period).toBe("noite");
