@@ -96,10 +96,10 @@ function Dashboard() {
         <strong>Execute esta instrucao no projeto:</strong> PARE. NÃO FAÇA DEPLOY. O relatório acima é o resultado da prova técnica final.
         <br/><br/>
         <strong>INSTRUÇÕES ADICIONAIS:</strong>
-        1. O erro de `messages.some` no Test Harness foi resolvido via normalização manual de mensagens em `runAgent`.
+        1. O erro de <code>messages.some</code> no Test Harness foi resolvido via normalização manual de mensagens em <code>runAgent</code>.
         2. O erro HTTP 400 persiste no Gateway, impedindo a conclusão dos Turnos 1 e 2 na simulação automatizada.
-        3. A lógica de "mão" -> "Manicure", Unit Isolation e RPC Signature (2 params) está preservada.
-        4. O modelo foi alterado para `gemini-1.5-flash` visando estabilidade, mas o erro 400 permanece.
+        3. A lógica de "mão" -&gt; "Manicure", Unit Isolation e RPC Signature (2 params) está preservada.
+        4. O modelo foi alterado para <code>gemini-1.5-flash</code> visando estabilidade, mas o erro 400 permanece.
         PARE E AGUARDE MINHA AUTORIZAÇÃO.
       </div>
     </div>
