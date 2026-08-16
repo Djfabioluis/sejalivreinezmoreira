@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
-import { runAgent } from "./chat.server";
-import { persistWaMessage } from "./booking/persistence-helper.server";
+import { runAgent } from "../../chat.server";
+import { persistWaMessage } from "../persistence-helper.server";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 export const testPersistencePipeline = createServerFn({ method: "POST" })
