@@ -424,10 +424,12 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
     bookingContext
   });
 
+  const modelMessages = await convertToModelMessages(messages);
+  
   const result = await generateText({
     model,
     system: systemPrompt + (sandbox ? SANDBOX_NOTE : ""),
-    messages: convertToModelMessages(messages),
+    messages: modelMessages,
     tools: buildTools(!!sandbox, effectiveUnitId, conversationKey, bookingContext.subscriptionIntent, traceId, bookingContext),
     maxSteps: 5,
   } as any);
