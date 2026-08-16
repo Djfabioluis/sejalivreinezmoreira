@@ -1,46 +1,36 @@
-import { supabaseAdmin } from "../../../integrations/supabase/client.server";
 
-async function deepAudit() {
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+
+async function hunt() {
+  const since = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+  console.log(`Auditing ALL evo_trace_logs since: ${since}`);
+
   const { data: traces, error } = await supabaseAdmin
     .from('evo_trace_logs')
     .select('*')
-    .gt('timestamp', new Date(Date.now() - 60 * 60 * 1000).toISOString())
-    .order('timestamp', { ascending: true });
+    .gte('timestamp', since)
+    .order('timestamp', { ascending: false });
 
   if (error) {
     console.error(error);
     return;
   }
 
-  const grouped = (traces || []).reduce((acc: any, t: any) => {
-    if (!acc[t.trace_id]) acc[t.trace_id] = [];
-    acc[t.trace_id].push(t);
-    return acc;
-  }, {});
+  const latest = (traces || []);
+  console.log(`Found ${latest.length} trace steps.`);
 
-  for (const tid in grouped) {
-    const steps = grouped[tid];
-    const first = steps[0];
-    const parsed = steps.find((s: any) => s.step === 'MESSAGE_PARSED');
-    const toolStarted = steps.find((s: any) => s.step === 'tool_started' && s.payload?.tool === 'list_services');
-    const contextMerged = steps.find((s: any) => s.step === 'BOOKING_CONTEXT_MERGED');
-    const evoStarted = steps.find((s: any) => s.step === 'EVOLUTION_SEND_STARTED');
-
-    // Se tiver pelo menos um dado relevante, mostramos
-    if (parsed || toolStarted || contextMerged || evoStarted) {
-        console.log(`\nTRACE: ${tid} | Instância: ${first.instance_id}`);
-        if (parsed?.payload?.text) console.log(`  MENSAGEM: "${parsed.payload.text}"`);
-        if (toolStarted) console.log(`  LIST_SERVICES: CHAMADA`);
-        
-        if (contextMerged?.payload) {
-            const ctx = contextMerged.payload.context || contextMerged.payload;
-            if (ctx.clarificationRequired) console.log(`  AMBIGUIDADE: SIM (${ctx.candidates?.length} candidatos)`);
-            if (ctx.serviceId) console.log(`  SERVICE_ID: ${ctx.serviceId} (${ctx.serviceName})`);
-        }
-
-        if (evoStarted?.payload?.text) console.log(`  RESPOSTA JULIA: "${evoStarted.payload.text}"`);
-    }
+  const recentTids = new Set(latest.slice(0, 50).map(l => l.trace_id));
+  
+  for (const tid of recentTids) {
+      const steps = latest.filter(l => l.trace_id === tid);
+      const isMao = steps.some(s => JSON.stringify(s.payload).toLowerCase().includes("mão"));
+      if (isMao) {
+          console.log(`\n!!! MATCH IN TRACE: ${tid} !!!`);
+          steps.reverse().forEach(s => {
+              console.log(`  [${s.timestamp}] Step: ${s.step} | Payload: ${JSON.stringify(s.payload)}`);
+          });
+      }
   }
 }
 
-deepAudit();
+hunt();
