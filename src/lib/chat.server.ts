@@ -9,6 +9,7 @@ import { inferStageFromTool, updateCustomerPipeline } from "@/lib/crm.server";
 import { normalizeServiceSearchText } from "./service-utils";
 import {
   buildBookingContextBlock,
+  nextRequiredSlot,
   type BookingContext,
 } from "@/lib/booking/context";
 

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { runAgent } from "../chat.server";
-import { BempService } from "./bemp-service.server";
+import { runAgent } from "../../chat.server";
+import { BempService } from "../../bemp-service.server";
 
 vi.mock("./bemp-service.server", () => ({
   BempService: {
