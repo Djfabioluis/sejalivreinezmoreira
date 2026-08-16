@@ -13,64 +13,60 @@ function Dashboard() {
   const diagnostic = `
 Execute esta instrucao no projeto: AUDITORIA SOMENTE LEITURA.
 
-NÃO ALTERE NENHUM ARQUIVO.
+NÃO ALTERE CÓDIGO.
 NÃO FAÇA DEPLOY.
 NÃO FAÇA PUBLISH.
 NÃO ALTERE BANCO.
 
-ANTES DE QUALQUER INVESTIGAÇÃO,
-QUERO CONFIRMAR QUE ESTE É REALMENTE
-O PROJETO BACKEND/API DA BEMP.
+Quero apenas confirmar se ESTE projeto contém
+o backend/API real da BEMP.
+
+Procure no repositório inteiro por implementações de:
+
+/api/salons
+salons/:id/services
+/services
+serviceId
+salonId
+unitId
+
+Também procure código que:
+
+- consulta serviços de um salão/unidade;
+- acessa o banco de serviços;
+- responde requisições HTTP de catálogo;
+- implementa a API consumida pelo Bem Agenda AI.
 
 Mostre:
 
 PROJECT_NAME =
 PROJECT_PURPOSE =
-IS_BEMP_BACKEND_PROJECT = SIM/NÃO
 
-Depois procure SOMENTE por referências a:
+BEMP_BACKEND_IMPLEMENTED_HERE = SIM/NÃO
+SERVICES_ROUTE_IMPLEMENTED_HERE = SIM/NÃO
+DATABASE_SERVICES_ACCESS_EXISTS = SIM/NÃO
 
-/api/salons
-/services
-salonId
-unitId
+Se encontrou:
 
-Mostre:
-
-BEMP_SERVICES_ROUTE_FOUND = SIM/NÃO
 ROUTE_FILE =
 ROUTE_METHOD =
 ROUTE_PATTERN =
 HANDLER_FUNCTION =
+SERVICE_LAYER =
+DATABASE_LAYER =
 
-Procure também se este projeto possui
-algum código que consulta ou entrega catálogo
-de serviços para outras aplicações.
+Depois responda somente:
 
-Mostre:
+CORRECT_BEMP_BACKEND_PROJECT = SIM/NÃO
 
-SERVICES_API_IMPLEMENTED_HERE = SIM/NÃO
-DATABASE_ACCESS_FOR_SERVICES = SIM/NÃO
-EXTERNAL_API_ONLY = SIM/NÃO
+Se NÃO:
 
-Se:
-
-IS_BEMP_BACKEND_PROJECT = NÃO
-
-ou
-
-SERVICES_API_IMPLEMENTED_HERE = NÃO
-
-PARE imediatamente e responda apenas:
-
-WRONG_PROJECT = SIM
-
+PARE.
 NÃO ALTERE NADA.
 
-Se for o projeto correto, responda:
+Se SIM:
 
-WRONG_PROJECT = NÃO
-READY_FOR_SERVER_SIDE_BEMP_AUDIT = SIM
+READY_FOR_BEMP_SERVER_SIDE_AUDIT = SIM
 
 PARE.
 `;
