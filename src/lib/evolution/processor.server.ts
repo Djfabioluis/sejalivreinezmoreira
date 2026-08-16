@@ -39,6 +39,15 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
   for (const msg of messages) {
     const traceId = (payload as any)._traceId || `trace-${msg.instance}-${msg.messageId}`;
     
+    // --- 3.2. INSTRUMENTAÇÃO AUTORIZADA (Após normalização da mensagem) ---
+    logger.info("MESSAGE_EXTRACTED_FROM_PAYLOAD", "Mensagem normalizada", {
+      traceId,
+      instance: msg.instance,
+      messageId: msg.messageId,
+      messageType: msg.messageType,
+      fromMe: msg.fromMe
+    });
+
     // Iniciar Trace de Performance
     const trace = new PerformanceTrace({
       traceId,
