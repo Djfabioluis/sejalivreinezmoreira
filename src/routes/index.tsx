@@ -11,47 +11,127 @@ export const Route = createFileRoute('/')({
 
 function Dashboard() {
   const diagnostic = `
-Execute esta instrucao no projeto: NÃO ALTERE CÓDIGO.
-NÃO FAÇA NOVO PUBLISH.
+Execute esta instrucao no projeto: ACABEI DE ENVIAR UMA ÚNICA MENSAGEM REAL NO WHATSAPP
+DA UNIDADE VENTURA:
+
+"quero fazer mão hoje"
+
+NÃO ALTERE CÓDIGO.
+NÃO FAÇA DEPLOY.
 NÃO ALTERE EVOLUTION.
-NÃO ENVIE WHATSAPP.
+NÃO SIMULE NADA.
+NÃO ENVIE RESPOSTA MANUAL.
 
-O subdomínio publicado foi corrigido para:
+A rota de produção já foi validada:
 
-https://sejalivreinezmoreira.lovable.app
+PRIMARY_DOMAIN_404_RESOLVED = SIM
+ROUTE_REACHED = SIM
 
-Agora execute SOMENTE uma prova não destrutiva em:
+Agora leia SOMENTE os logs REAIS desse novo atendimento.
 
-POST
-https://sejalivreinezmoreira.lovable.app/api/public/whatsapp-evolution
+UNIDADE:
+VENTURA
 
-Use payload inválido/seguro que NÃO execute runAgent.
+unitId esperado:
+5258
+
+==================================================
+1. ENTRADA REAL
+==================================================
 
 Mostre:
 
-SAFE_PROBE_EXECUTED =
-HTTP_STATUS =
-FINAL_URL =
-REDIRECT_OCCURRED =
-ROUTE_REACHED =
-PRODUCTION_WEBHOOK_REACHED_LOG =
-RUN_AGENT_STARTED =
-PRIMARY_DOMAIN_404_RESOLVED =
+MESSAGE_EVENT_RECEIVED =
+REQUEST_TIMESTAMP =
+REQUEST_ID =
+TRACE_ID =
+EVENT_TYPE =
+INSTANCE_NAME =
+UNIT_ID_RESOLVED =
+MESSAGE_EXTRACTED =
 
-Critério:
+==================================================
+2. INTERPRETAÇÃO
+==================================================
 
-HTTP_STATUS não pode ser 404.
+Mostre:
+
+SERVICE_INTENT =
+MAO_NORMALIZADA_MANICURE =
+DATE_INTENT =
+HOJE_PRESERVADO =
 
 Esperado:
 
-ROUTE_REACHED = SIM
-PRODUCTION_WEBHOOK_REACHED_LOG = SIM
-RUN_AGENT_STARTED = NÃO
-PRIMARY_DOMAIN_404_RESOLVED = SIM
+SERVICE_INTENT = MANICURE
+MAO_NORMALIZADA_MANICURE = SIM
+HOJE_PRESERVADO = SIM
+
+==================================================
+3. CATÁLOGO BEMP
+==================================================
+
+Mostre:
+
+LIST_SERVICES_CALLED =
+BEMP_RESPONSE_RECEIVED =
+BEMP_RAW_COUNT =
+FILTERED_CANDIDATES =
+
+Liste SOMENTE nomes e IDs reais retornados pela BEMP.
+
+Não invente serviços.
+
+==================================================
+4. RESPOSTA DA JULIA
+==================================================
+
+Mostre:
+
+RUN_AGENT_STARTED =
+MODEL_CALL_STARTED =
+MODEL_CALL_SUCCESS =
+RESPONSE_GENERATED =
+OUTPUT_VALIDATED =
+OUTBOUND_ATTEMPTED =
+OUTBOUND_SUCCESS =
+
+Mostre também o texto exato enviado ao WhatsApp.
+
+==================================================
+5. CRITÉRIOS DO TESTE
+==================================================
+
+A Julia NÃO deve:
+
+- perguntar se "mão" significa manicure;
+- perguntar novamente a data;
+- inventar serviços;
+- usar serviços de outra unidade.
+
+Se houver mais de um serviço real compatível,
+ela pode apresentar SOMENTE os candidatos reais da BEMP.
+
+==================================================
+RESULTADO FINAL
+==================================================
+
+MESSAGE_EVENT_RECEIVED =
+UNIT_ID_RESOLVED =
+MAO_NORMALIZADA_MANICURE =
+HOJE_PRESERVADO =
+LIST_SERVICES_CALLED =
+BEMP_RESPONSE_RECEIVED =
+RUN_AGENT_STARTED =
+MODEL_CALL_SUCCESS =
+OUTPUT_VALIDATED =
+OUTBOUND_SUCCESS =
+FIRST_FAILURE_POINT =
+ROOT_CAUSE_CONFIRMED =
 
 NÃO CORRIJA NADA.
-RESPONDA SOMENTE COM O RESULTADO DO TESTE.
-PARE.
+
+PARE APÓS MOSTRAR OS LOGS REAIS.
   `;
 
   return (
