@@ -341,8 +341,14 @@ export async function streamAgent(opts: { messages: any[]; sandbox?: boolean }) 
 export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: string }) {
   const { conversationKey, unidadeId, sandbox, customerContext, activePromotions, traceId } = opts;
   const rawMessages = Array.isArray(opts.messages) ? opts.messages : [];
-  const messages = rawMessages.slice(-12);
-  const text = opts.text || (messages[messages.length - 1]?.content as string) || "";
+  const text = opts.text || (rawMessages[rawMessages.length - 1]?.content as string) || "";
+  
+  // Se não houver mensagens (Turno 1 do teste), injetar a mensagem atual no histórico para o modelo
+  let messages = [...rawMessages];
+  if (messages.length === 0 && text) {
+    messages.push({ role: 'user', content: text });
+  }
+  messages = messages.slice(-12);
 
   const { effectiveUnitId, effectiveUnitName } = await resolveEffectiveUnit({ conversationKey, agentUnitId: unidadeId });
   
