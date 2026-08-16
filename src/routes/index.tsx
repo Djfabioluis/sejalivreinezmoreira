@@ -18,18 +18,18 @@ NÃO FAÇA DEPLOY.
 NÃO FAÇA PUBLISH.
 NÃO ALTERE BANCO.
 
-Quero confirmar se ESTE é realmente o backend/API da BEMP
-que atende o Bem Agenda AI.
+Quero apenas identificar se ESTE é o backend real da BEMP.
 
-Procure no projeto por:
+Procure no projeto inteiro por:
 
 /api/salons
 /services
 salonId
-unitId
 serviceId
+unitId
 
-e por código que implemente uma API HTTP de serviços.
+e por implementação de API HTTP que forneça
+catálogo/serviços para outras aplicações.
 
 Mostre:
 
@@ -40,7 +40,7 @@ BEMP_BACKEND_IMPLEMENTED_HERE = SIM/NÃO
 SERVICES_ROUTE_IMPLEMENTED_HERE = SIM/NÃO
 DATABASE_SERVICES_ACCESS_EXISTS = SIM/NÃO
 
-Se encontrou a rota, mostre:
+Se encontrou:
 
 ROUTE_FILE =
 ROUTE_METHOD =
@@ -48,8 +48,6 @@ ROUTE_PATTERN =
 HANDLER_FUNCTION =
 SERVICE_LAYER =
 DATABASE_LAYER =
-
-Depois:
 
 CORRECT_BEMP_BACKEND_PROJECT = SIM/NÃO
 
