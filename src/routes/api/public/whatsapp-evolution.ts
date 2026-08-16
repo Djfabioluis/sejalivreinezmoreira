@@ -32,14 +32,26 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
         const startTime = Date.now();
         
         // --- 3.1. LOGGING TÉCNICO INICIAL (Instrumentação Autorizada) ---
-        logger.info("PRODUCTION_WEBHOOK_REACHED", "Requisição recebida na rota de produção", {
-          traceId,
-          method: request.method,
-          url: request.url,
-          contentType: request.headers.get("Content-Type"),
-          contentLength: request.headers.get("Content-Length"),
-          userAgent: request.headers.get("User-Agent")
-        });
+        console.log(`[INSTRUMENTATION] PRODUCTION_WEBHOOK_REACHED | Trace: ${traceId} | Method: ${request.method} | URL: ${request.url}`);
+        
+        try {
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          await supabaseAdmin.from("evo_webhook_logs" as any).insert({
+            instance: "GLOBAL_INSTRUMENTATION",
+            event: "PRODUCTION_WEBHOOK_REACHED",
+            status: "reached",
+            payload: {
+              traceId,
+              method: request.method,
+              url: request.url,
+              contentType: request.headers.get("Content-Type"),
+              contentLength: request.headers.get("Content-Length"),
+              userAgent: request.headers.get("User-Agent")
+            }
+          });
+        } catch (e) {
+          console.error("[INSTRUMENTATION_ERROR] Failed to persist initial log", e);
+        }
 
         // 1. Autenticação (Requisito 7)
         const auth = await authenticateWebhook(request);
