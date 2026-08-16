@@ -105,9 +105,8 @@ export class BempService {
 
     // 2. FALLBACK ATTEMPT (if primary is empty body OR primary failed)
     // IMPORTANT: transportEmpty = body length 0. [] is NOT transportEmpty.
-      // FORCED_FALLBACK_SIMULATION: (process.env.SIMULATE_EMPTY_BEMP === 'true')
-      const effectiveTransportEmpty = transportEmpty || (process.env.SIMULATE_EMPTY_BEMP === 'true');
-      const shouldTryFallback = !primarySuccess || effectiveTransportEmpty;
+    const shouldTryFallback = !primarySuccess || transportEmpty;
+
 
     let fallbackUsed = false;
     let fallbackStatus = 0;
