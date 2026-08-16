@@ -19,7 +19,7 @@ describe("Booking Context - Period Extraction & Flow", () => {
     expect(extractBookingSlots("à noite", now).period).toBe("noite");
   });
 
-  it("should determine nextRequiredSlot is 'availability' even if period is set (current state)", () => {
+  it("should return 'availability' but not repeat the question when period is set", () => {
     const ctx: BookingContext = {
       unitId: "5258",
       serviceId: "serv-123",
@@ -30,8 +30,9 @@ describe("Booking Context - Period Extraction & Flow", () => {
       selectedSlot: null
     };
     
-    // ATENÇÃO: O teste abaixo documenta o comportamento ATUAL (falho)
-    // Onde mesmo com period, ele ainda retorna 'availability'
     expect(nextRequiredSlot(ctx)).toBe("availability");
+    
+    const { getDeterministicResponse } = require("../lifecycle");
+    expect(getDeterministicResponse(ctx)).toBe(null);
   });
 });
