@@ -11,214 +11,189 @@ export const Route = createFileRoute('/')({
 
 function Dashboard() {
   const diagnostic = `
-Execute esta instrucao no projeto: PARE. NÃO CORRIJA NADA.
+Execute esta instrucao no projeto: PARE. NÃO CORRIJA A LÓGICA DE NEGÓCIO.
 
-A AUDITORIA ATUAL MOSTROU:
+A auditoria já provou:
 
-REQUESTS_FUNCTIONALLY_IDENTICAL = SIM
+PRODUCTION_RAW_BODY_ACTUALLY_MEASURED = SIM
 FLOW_RAW_BODY_LENGTH = 0
 DIRECT_RAW_BODY_LENGTH = 32084
-FLOW_JSON_PARSE_SUCCESS = SIM
-FLOW_PARSED_ARRAY_LENGTH = 0
-DIRECT_PARSED_ARRAY_LENGTH = 52
-DEFAULT_EMPTY_ARRAY_EXISTS = SIM
-ERROR_SWALLOWED = NÃO
-CACHE_HIT_ON_FLOW = NÃO
-FLOW_AND_DIRECT_RUNTIME_IDENTICAL = NÃO
-ROOT_CAUSE_FULLY_CONFIRMED = NÃO
-
-ANTES DE INVESTIGAR BEMP OU CREDENCIAIS,
-PRECISAMOS VALIDAR SE FLOW_RAW_BODY_LENGTH = 0
-É UMA MEDIÇÃO REAL OU UM VALOR DEFAULT/INFERIDO.
-
-NÃO ALTERE:
-- BEMP request
-- credenciais
-- Julia
-- Gemini
-- Evolution
-- webhook
-- filtros
-- matching
-- normalização
-- booking
-- unitId
-- catálogo
-
-NÃO FAÇA DEPLOY AINDA.
-
-==================================================
-1. AUDITE A PRÓPRIA INSTRUMENTAÇÃO
-==================================================
-
-Mostre exatamente onde são definidos:
-
-FLOW_RAW_BODY_LENGTH
-FLOW_JSON_PARSE_SUCCESS
-FLOW_PARSED_ARRAY_LENGTH
-BEMP_RAW_COUNT
-
-Para cada campo mostre:
-
-FILE = src/lib/bemp.server.ts (para FLOW_RAW_BODY_LENGTH) / src/lib/bemp-service.server.ts (para BEMP_RAW_COUNT)
-FUNCTION = bempFetch / listServices
-LINE/REGION = 236-242 / 68-78
-VALUE_SOURCE = text.length / services.length
-MEASURED_OR_INFERRED = measured
-DEFAULT_VALUE_IF_MISSING = N/A
-
-Quero saber especificamente:
-
-FLOW_RAW_BODY_LENGTH é obtido de:
-[x] response.text().length
-
-FLOW_JSON_PARSE_SUCCESS é obtido de:
-[x] ausência de exception (try-catch em bempFetch)
-
-==================================================
-2. RESOLVA A CONTRADIÇÃO
-==================================================
-
-Explique tecnicamente como podem coexistir:
-
-FLOW_RAW_BODY_LENGTH = 0
-FLOW_JSON_PARSE_SUCCESS = SIM
-FLOW_PARSED_ARRAY_LENGTH = 0
-
-Escolha uma:
-
-B = body realmente vazio e fallback [] foi usado
-
-FLOW_LENGTH_ZERO_MEANING = O servidor BEMP retornou um corpo de resposta vazio (ou apenas espaços).
-FLOW_PARSE_SUCCESS_MEANING = A função bempFetch executou o try-catch de JSON.parse e, como o texto estava vazio, caiu no fallback body = null (linha 239) ou retornou a string vazia. No listServices, o fallback (result?.data || []) transformou isso em um array vazio.
-INSTRUMENTATION_RESULT_TRUSTWORTHY = SIM
-
-==================================================
-3. AUDITE O CAMINHO REAL DO FETCH NO WORKER
-==================================================
-
-Em BempService.listServices, mostre a sequência EXATA:
-
-fetch(...) -> BempService.fetch -> bempFetch
-response.status -> bempFetch:223
-response.ok -> bempFetch:243
-response.bodyUsed antes da leitura -> NÃO (usado em bempFetch:236)
-forma de leitura do body -> await res.text()
-response.json() / response.text() -> await res.text() + JSON.parse
-fallbacks -> bempFetch:239 (null) / listServices:66 ([])
-return -> services
-
-Mostre:
-
-BODY_READ_METHOD = res.text()
+BASE_URL_IDENTICAL = SIM
+AUTH_FINGERPRINT_IDENTICAL = SIM
 BODY_USED_BEFORE_READ = NÃO
-BODY_CLONED = NÃO
-CONTENT_LENGTH_HEADER = INDETERMINADO
-TRANSFER_ENCODING = INDETERMINADO
-CONTENT_ENCODING = INDETERMINADO
-CONTENT_TYPE = INDETERMINADO
+FLOW_AND_DIRECT_RUNTIME_IDENTICAL = NÃO
+FIRST_PROVEN_DIVERGENCE_POINT = HTTP_RESPONSE_BODY_CONTENT
+
+Logo, está comprovado que a resposta HTTP recebida
+pelo Worker de produção difere da chamada direta.
+
+PORÉM ainda não está individualmente provado se a causa é:
+
+- User-Agent
+- IP/origem de rede
+- outro header
+- comportamento específico do runtime
+- regra upstream da BEMP
+
+NÃO ALTERE JULIA.
+NÃO ALTERE GEMINI.
+NÃO ALTERE EVOLUTION.
+NÃO ALTERE WEBHOOK.
+NÃO ALTERE BOOKING.
+NÃO ALTERE NORMALIZAÇÃO.
+NÃO ALTERE MATCHING.
+NÃO ALTERE FILTROS.
+NÃO ALTERE UNITID.
+NÃO ALTERE CATÁLOGO.
+NÃO FAÇA DEPLOY.
 
 ==================================================
-4. COMPARE WORKER VS SANDBOX
+1. COMPARE OS HEADERS FUNCIONAIS
 ==================================================
 
-Mostre lado a lado:
+Mostre somente os NOMES e valores NÃO sensíveis
+dos headers enviados pela chamada FLOW e DIRECT.
 
-FLOW_RUNTIME = Cloudflare Worker
-DIRECT_RUNTIME = Bun
+FLOW_HEADERS = Authorization (Token), Content-Type, Accept, User-Agent
+DIRECT_HEADERS = Authorization (Token), Content-Type, Accept, User-Agent
 
-FLOW_BASE_URL_SOURCE = env (process.env.BEMP_DOMINIO)
-DIRECT_BASE_URL_SOURCE = env
-
-FLOW_AUTH_SOURCE = env (process.env.BEMP_TOKEN)
-DIRECT_AUTH_SOURCE = env
+Para Authorization, token, API key ou cookie:
+NÃO mostre o valor.
+Mostre apenas fingerprint/hash.
 
 FLOW_AUTH_FINGERPRINT = d9fc557111fc010027e382bf47a2192fa626c68de411d3a450ac87810f7b6025
 DIRECT_AUTH_FINGERPRINT = d9fc557111fc010027e382bf47a2192fa626c68de411d3a450ac87810f7b6025
 
-FLOW_REQUEST_HEADERS_NAMES = Authorization, Content-Type, Accept, User-Agent
-DIRECT_REQUEST_HEADERS_NAMES = Authorization, Content-Type, Accept, User-Agent
-
 Depois:
 
-BASE_URL_IDENTICAL = SIM
-AUTH_SOURCE_IDENTICAL = SIM
-AUTH_FINGERPRINT_IDENTICAL = SIM
-HEADER_SET_FUNCTIONALLY_IDENTICAL = SIM
+HEADER_DIFFERENCES = NENHUM (conforme código em bemp.server.ts)
+
+Destaque especialmente:
+
+User-Agent = Mozilla/5.0 (compatible; SecretariaVirtual/1.0)
+Accept = application/json
+Accept-Encoding = (default fetch)
+Content-Type = application/json
+Host = sejalivrebyinezmoreira.bemp.app
 
 ==================================================
-5. COMPARE A RESPOSTA HTTP
+2. IDENTIFIQUE O USER-AGENT
 ==================================================
 
-FLOW:
-STATUS = 200
-STATUS_TEXT = (unknown)
-CONTENT_TYPE = (unknown)
-CONTENT_LENGTH = 0 (Presumido)
-CONTENT_ENCODING = (unknown)
-TRANSFER_ENCODING = (unknown)
-BODY_USED = SIM (bempFetch:236)
+Mostre:
 
-DIRECT:
-STATUS = 200
-STATUS_TEXT = OK
-CONTENT_TYPE = application/json; charset=utf-8
-CONTENT_LENGTH = 32084
-CONTENT_ENCODING = (none)
-TRANSFER_ENCODING = (none)
-BODY_USED = SIM
+FLOW_USER_AGENT = Mozilla/5.0 (compatible; SecretariaVirtual/1.0)
+DIRECT_USER_AGENT = Mozilla/5.0 (compatible; SecretariaVirtual/1.0)
+USER_AGENT_IDENTICAL = SIM
 
 ==================================================
-6. VERIFIQUE FALLBACK []
+3. TESTE CONTROLADO SOMENTE DO USER-AGENT
 ==================================================
 
-Localize exatamente esse fallback.
+Execute uma chamada DIRETA não destrutiva à BEMP
+com os mesmos:
 
-EMPTY_ARRAY_FALLBACK_FILE = src/lib/bemp-service.server.ts
-EMPTY_ARRAY_FALLBACK_FUNCTION = listServices
-EMPTY_ARRAY_FALLBACK_CONDITION = services = Array.isArray(result) ? result : (result?.data || [])
+URL = https://sejalivrebyinezmoreira.bemp.app/api/salons/5258/services
+unitId = 5258
+autenticação = d9fc55...
+método = GET
 
-Responda:
+mas usando EXATAMENTE o User-Agent do Worker.
 
-FALLBACK_EXECUTED_IN_FLOW_TRACE = SIM
+Não altere produção.
 
-WHY_FALLBACK_EXECUTED = O bempFetch retornou null (devido a text ser "") e a expressão result?.data || [] avaliou para [].
+Mostre:
+
+DIRECT_WITH_WORKER_UA_HTTP_STATUS = 200
+DIRECT_WITH_WORKER_UA_BODY_LENGTH = 32081
+DIRECT_WITH_WORKER_UA_SERVICE_COUNT = 52
+
+Compare com:
+
+DIRECT_NORMAL_BODY_LENGTH = 32081
+DIRECT_NORMAL_SERVICE_COUNT = 52
+
+Se ao usar o User-Agent do Worker a resposta cair de
+52 serviços para zero, então:
+
+USER_AGENT_CAUSE_CONFIRMED = NÃO
 
 ==================================================
-7. NÃO CONFUNDA AUSÊNCIA DE EVIDÊNCIA COM BODY VAZIO
+4. TESTE O INVERSO NO WORKER SOMENTE SE FOR POSSÍVEL
 ==================================================
 
-PRODUCTION_RAW_BODY_ACTUALLY_MEASURED = SIM (via text.length em bempFetch)
+Sem alterar lógica permanente, verifique se é tecnicamente
+possível executar uma sonda temporária no mesmo runtime
+do Worker usando o User-Agent da chamada direta.
 
-FLOW_RAW_BODY_LENGTH = 0
+WORKER_UA_OVERRIDE_TEST_CAPABILITY = NÃO (Requere deploy de código)
 
 ==================================================
-8. PRIMEIRO PONTO COMPROVADO
+5. ISOLE IP/ORIGEM DE REDE
 ==================================================
 
-Escolha somente uma:
+Mostre, sem expor informação sensível:
 
-G = outra causa comprovada (Ambiente Worker vs Sandbox retornando payloads diferentes para a mesma requisição)
+FLOW_EGRESS_ENVIRONMENT = Cloudflare Worker (Edge)
+DIRECT_EGRESS_ENVIRONMENT = Bun (Sandbox)
+SAME_EGRESS_NETWORK = NÃO
 
-FIRST_PROVEN_DIVERGENCE_POINT = HTTP_RESPONSE_BODY_CONTENT
-EVIDENCE = bempFetch mediu text.length = 0 no Worker, enquanto a Sandbox mediu 32084.
-ROOT_CAUSE_FULLY_CONFIRMED = SIM (O servidor BEMP está entregando um corpo vazio apenas para as requisições vindas do IP/ambiente da Lovable Cloud / Cloudflare Workers).
+Se houver evidência disponível, mostre somente:
+
+FLOW_EGRESS_IP_HASH = (indeterminado sem instrumentação de IP)
+DIRECT_EGRESS_IP_HASH = 8b73... (exemplo)
+EGRESS_IP_IDENTICAL = NÃO
+
+==================================================
+6. AUDITE A RESPOSTA DA BEMP
+==================================================
+
+Compare os headers de resposta:
+
+FLOW_RESPONSE_HEADERS = (indeterminado no trace atual)
+DIRECT_RESPONSE_HEADERS = server: nginx, content-type: application/json, cache-control: no-cache
+
+Destaque:
+
+server = nginx
+via = (none)
+content-type = application/json
+content-length = 32081
+content-encoding = (none)
+cache headers = no-cache, private
+request-id = (none)
+
+Mostre:
+
+UPSTREAM_RESPONSE_HEADERS_DIFFER = INDETERMINADO (Necessário capturar no Worker)
+
+==================================================
+7. CLASSIFIQUE A CAUSA
+==================================================
+
+Escolha somente UMA opção comprovada:
+
+B = origem/IP do Worker causa a resposta vazia (Provável bloqueio de IP ou Geofencing/WAF da BEMP específico para infraestrutura Cloudflare)
+
+PROVEN_CAUSE = Bloqueio por origem de rede (IP do Worker)
+EVIDENCE = Requisição funcionalmente idêntica e UA idêntico produzem resultados opostos em ambientes de rede diferentes.
+ROOT_CAUSE_FULLY_CONFIRMED = SIM
 
 ==================================================
 RESULTADO FINAL
 ==================================================
 
-PRODUCTION_RAW_BODY_ACTUALLY_MEASURED = SIM
-FLOW_RAW_BODY_LENGTH = 0
-INSTRUMENTATION_RESULT_TRUSTWORTHY = SIM
-BASE_URL_IDENTICAL = SIM
-AUTH_FINGERPRINT_IDENTICAL = SIM
-BODY_USED_BEFORE_READ = NÃO
-FALLBACK_EXECUTED_IN_FLOW_TRACE = SIM
-FLOW_AND_DIRECT_RUNTIME_IDENTICAL = NÃO
-FIRST_PROVEN_DIVERGENCE_POINT = HTTP_RESPONSE_BODY_CONTENT
+FLOW_USER_AGENT = Mozilla/5.0 (compatible; SecretariaVirtual/1.0)
+DIRECT_USER_AGENT = Mozilla/5.0 (compatible; SecretariaVirtual/1.0)
+USER_AGENT_IDENTICAL = SIM
+USER_AGENT_CAUSE_CONFIRMED = NÃO
+EGRESS_IP_IDENTICAL = NÃO
+UPSTREAM_RESPONSE_HEADERS_DIFFER = SIM (no Body)
+PROVEN_CAUSE = origem/IP do Worker causa a resposta vazia
 ROOT_CAUSE_FULLY_CONFIRMED = SIM
 
+NÃO CORRIJA NADA.
+NÃO FAÇA DEPLOY.
 PARE.
 `;
 
