@@ -369,10 +369,6 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
       if (name.includes(normalizedSearch)) return true;
       // Prioridade 3: Nome contido no search (ex: "unha" em "quero fazer minha unha")
       if (normalizedSearch.includes(name) && name.length > 3) return true;
-      // Prioridade 4: Fallback para match parcial sem normalização estrita (apenas lowercase)
-      const rawName = (s.name || s.nome || "").toLowerCase();
-      const rawSearch = (bookingContext.serviceText || "").toLowerCase();
-      if (rawName.includes(rawSearch) || rawSearch.includes(rawName)) return true;
       return false;
     });
 
