@@ -393,7 +393,7 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
     bookingContext
   });
 
-  const modelMessages = await convertToModelMessages(messages);
+  const modelMessages = await convertToModelMessages(messages || []);
   
   console.log("AUDIT_PAYLOAD_SENT", JSON.stringify({ 
     modelId: model.modelId,
