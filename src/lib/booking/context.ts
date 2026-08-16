@@ -257,9 +257,9 @@ export function extractBookingSlots(
 
 
   // --- Período ---
-  if (/\bmanh[ãa]\b/i.test(t)) out.period = "manhã";
-  else if (/\btarde\b/i.test(t)) out.period = "tarde";
-  else if (/\bnoite\b/i.test(t)) out.period = "noite";
+  if (/manh[ãa]/i.test(t)) out.period = "manhã";
+  else if (/tarde/i.test(t)) out.period = "tarde";
+  else if (/noite/i.test(t)) out.period = "noite";
 
   // --- Horário ---
   // Tenta extrair HH:mm de formatos variados
