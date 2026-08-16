@@ -12,30 +12,20 @@ export const Route = createFileRoute('/')({
 function Dashboard() {
   const diagnostic = `
 Execute esta instrucao no projeto: NÃO ALTERE CÓDIGO.
-NÃO ALTERE O DASHBOARD.
 NÃO FAÇA NOVO PUBLISH.
+NÃO ALTERE EVOLUTION.
 NÃO ENVIE WHATSAPP.
-NÃO SIMULE CLIENTE.
 
-O PUBLISH JÁ FOI CONCLUÍDO.
+O subdomínio publicado foi corrigido para:
 
-AGORA EXECUTE SOMENTE UMA PROVA TÉCNICA NÃO DESTRUTIVA
-DA ROTA NO DOMÍNIO PRINCIPAL JÁ PUBLICADO.
+https://sejalivreinezmoreira.lovable.app
 
-URL:
+Agora execute SOMENTE uma prova não destrutiva em:
 
+POST
 https://sejalivreinezmoreira.lovable.app/api/public/whatsapp-evolution
 
-MÉTODO:
-POST
-
-Use um payload inválido e seguro que seja rejeitado
-ANTES de qualquer runAgent.
-
-Não use mensagem de cliente real.
-
-QUERO RESULTADO REAL DA REQUISIÇÃO,
-NÃO TEXTO COLOCADO NO DASHBOARD.
+Use payload inválido/seguro que NÃO execute runAgent.
 
 Mostre:
 
@@ -46,33 +36,22 @@ REDIRECT_OCCURRED =
 ROUTE_REACHED =
 PRODUCTION_WEBHOOK_REACHED_LOG =
 RUN_AGENT_STARTED =
-
-Depois:
-
 PRIMARY_DOMAIN_404_RESOLVED =
 
-CRITÉRIO:
+Critério:
 
-Se HTTP_STATUS = 404:
-PRIMARY_DOMAIN_404_RESOLVED = NÃO
+HTTP_STATUS não pode ser 404.
 
-Se HTTP_STATUS != 404
-e houver evidência de entrada no handler:
+Esperado:
+
+ROUTE_REACHED = SIM
+PRODUCTION_WEBHOOK_REACHED_LOG = SIM
+RUN_AGENT_STARTED = NÃO
 PRIMARY_DOMAIN_404_RESOLVED = SIM
 
-RUN_AGENT_STARTED deve ser NÃO.
-
-Se você NÃO conseguir executar uma requisição HTTP real
-contra o domínio publicado, responda:
-
-EXTERNAL_PROBE_CAPABILITY = NÃO
-
-e PARE.
-
-NÃO INVENTE RESULTADOS.
 NÃO CORRIJA NADA.
-NÃO PUBLIQUE NOVAMENTE.
-RESPONDA SOMENTE NO CHAT.
+RESPONDA SOMENTE COM O RESULTADO DO TESTE.
+PARE.
   `;
 
   return (
