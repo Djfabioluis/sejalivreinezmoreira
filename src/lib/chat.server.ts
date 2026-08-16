@@ -428,7 +428,7 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
       status: err.status,
       name: err.name,
       code: err.code,
-      data: err.data || err.responseBody || err.error
+      data: err.data || err.responseBody || err.error || err.response?.data
     }, null, 2));
     throw err;
   }
