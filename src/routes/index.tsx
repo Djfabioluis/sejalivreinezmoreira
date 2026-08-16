@@ -11,148 +11,207 @@ export const Route = createFileRoute('/')({
 
 function Dashboard() {
   const diagnostic = `
-Execute esta instrucao no projeto: AUTORIZO SOMENTE INSTRUMENTAÇÃO TEMPORÁRIA DE AUDITORIA
-DO RETORNO DA BEMP.
+Execute esta instrucao no projeto: AUTORIZO SOMENTE A IMPLEMENTAÇÃO DA INSTRUMENTAÇÃO
+DE OBSERVABILIDADE JÁ LOCALIZADA.
 
-NÃO CORRIJA A LÓGICA.
-NÃO ALTERE JULIA.
-NÃO ALTERE GEMINI.
-NÃO ALTERE BEMP.
-NÃO ALTERE EVOLUTION.
-NÃO ALTERE WEBHOOK.
-NÃO ALTERE NORMALIZAÇÃO.
-NÃO ALTERE MATCHING.
-NÃO ALTERE FILTROS.
-NÃO ALTERE bookingContext.
-NÃO ALTERE list_services.
-NÃO ALTERE list_slots.
-NÃO ALTERE MAPEAMENTO DE UNIDADES.
+NÃO ALTERE O COMPORTAMENTO.
 
-A auditoria atual confirmou:
-
-ROOT_CAUSE_CONFIRMED = NÃO
-
-Porque o trace atual registra apenas o resultado final
-do lookup/filter, mas NÃO registra os candidatos recebidos
-da BEMP antes da filtragem.
-
-Quero adicionar SOMENTE observabilidade sanitizada.
-
-==================================================
-1. LOCALIZE O PONTO EXATO
-==================================================
-
-Identifique no código:
-
-- função que chama a BEMP para listar serviços;
-- linha imediatamente após a resposta HTTP;
-- linha antes do primeiro filtro;
-- cada etapa posterior de filtragem.
-
-Mostre:
+PONTOS CONFIRMADOS:
 
 BEMP_CALL_FILE =
+src/lib/bemp-service.server.ts
+
 BEMP_CALL_FUNCTION =
+BempService.listServices
+
 RAW_RESPONSE_CAPTURE_POINT =
+src/lib/bemp-service.server.ts:65
+
 FIRST_FILTER_POINT =
+src/lib/chat.server.ts:364
+
 FINAL_CANDIDATES_POINT =
-
-NÃO altere ainda.
+src/lib/chat.server.ts:373
 
 ==================================================
-2. ADICIONE LOG SANITIZADO DO RETORNO BEMP
+1. INSTRUMENTE A RESPOSTA BEMP ANTES DO FILTRO
 ==================================================
 
-Imediatamente após receber e desserializar a resposta da BEMP,
-ANTES de qualquer filtro, registre:
+Imediatamente após:
+
+await this.fetch(...)
+
+e depois de desserializar a resposta,
+ANTES de qualquer filtro, registre somente:
 
 BEMP_RAW_RESPONSE_RECEIVED = SIM
 BEMP_HTTP_STATUS =
 BEMP_RAW_COUNT =
 
-Para cada serviço registre SOMENTE:
+Para cada serviço:
 
 serviceId
 name
 price
 active/status, se existir
 
-NÃO grave:
+NÃO registre:
 
-token
-authorization
-headers secretos
+Authorization
+API keys
 cookies
+headers secretos
+tokens
 dados pessoais
-credenciais
-
-NÃO preciso do JSON inteiro se houver outros campos.
-Quero somente os campos necessários para auditar o catálogo.
 
 ==================================================
-3. REGISTRE A TRAJETÓRIA DOS FILTROS
+2. NÃO ALTERE A RESPOSTA
 ==================================================
 
-Na MESMA execução registre:
+A variável original retornada pela BEMP deve continuar
+exatamente igual.
+
+Obrigatório:
+
+BEMP_RESPONSE_MUTATED_BY_LOGGER = NÃO
+BEMP_REQUEST_CHANGED = NÃO
+BEMP_RESPONSE_TRANSFORMED = NÃO
+
+A instrumentação deve somente observar.
+
+==================================================
+3. INSTRUMENTE O FILTRO EM chat.server.ts
+==================================================
+
+No ponto:
+
+src/lib/chat.server.ts:364
+
+registre ANTES do filtro:
 
 SERVICE_SEARCH_TERM =
 NORMALIZED_SERVICE_SEARCH =
+FILTER_INPUT_COUNT =
 
-BEMP_RAW_COUNT =
-AFTER_ACTIVE_FILTER_COUNT =
-AFTER_UNIT_FILTER_COUNT =
-AFTER_NAME_FILTER_COUNT =
-FINAL_CANDIDATES_COUNT =
+Depois registre as etapas reais existentes no código.
 
-Para cada serviço cujo nome contenha "manicure"
-(case-insensitive), registre:
+Não invente etapas que não existam.
+
+Mostre:
+
+AFTER_FILTER_COUNT =
+
+Se atualmente existem múltiplas condições dentro de
+services.filter, registre o resultado individual de cada
+condição, sem mudar sua lógica.
+
+==================================================
+4. RASTREIE ESPECIFICAMENTE MANICURE
+==================================================
+
+Para cada serviço cujo nome REAL contenha
+case-insensitive:
+
+manicure
+manicuri
+mão
+mao
+
+registre:
 
 SERVICE_ID =
 SERVICE_NAME =
-PASSED_ACTIVE_FILTER =
-PASSED_UNIT_FILTER =
-PASSED_NAME_FILTER =
+RAW_SERVICE_NAME =
+NORMALIZED_SERVICE_NAME =
+SEARCH_TERM =
 
-Se algum filtro remover o item:
+ACTIVE_CONDITION_RESULT =
+UNIT_CONDITION_RESULT =
+NAME_CONDITION_RESULT =
+FINAL_MATCH_RESULT =
 
-REMOVED_BY_FILTER =
-FILTER_INPUT_VALUE =
-NORMALIZED_VALUE =
-SEARCH_VALUE =
+Se alguma dessas condições não existir no código atual,
+mostre:
+
+CONDITION_NOT_PRESENT
+
+Não crie uma nova condição.
 
 ==================================================
-4. NÃO MODIFIQUE DECISÕES
+5. PONTO FINAL
 ==================================================
 
-A instrumentação deve observar o comportamento atual.
+Em:
 
-Obrigatório:
+src/lib/chat.server.ts:373
+
+registre:
+
+FINAL_CANDIDATES_COUNT =
+
+Para cada candidato final:
+
+serviceId
+name
+price
+
+==================================================
+6. CORRELAÇÃO
+==================================================
+
+Todos os logs adicionados devem conter, quando disponível:
+
+traceId
+unitId
+
+para permitir correlacionar a resposta BEMP,
+o filtro e a resposta final da mesma mensagem.
+
+Não altere fluxo para criar trace novo.
+
+==================================================
+7. GARANTIAS OBRIGATÓRIAS
+==================================================
+
+Depois da implementação, confirme:
 
 MATCHING_LOGIC_CHANGED = NÃO
 NORMALIZATION_CHANGED = NÃO
 FILTER_LOGIC_CHANGED = NÃO
 BEMP_REQUEST_CHANGED = NÃO
+BEMP_RESPONSE_MUTATED = NÃO
 JULIA_BEHAVIOR_CHANGED = NÃO
 BUSINESS_LOGIC_CHANGED = NÃO
 
+Somente:
+
+OBSERVABILITY_CHANGED = SIM
+
 ==================================================
-5. AUDITE O DIFF
+8. MOSTRE O DIFF
 ==================================================
 
-Mostre:
+Liste todos os arquivos alterados:
 
-arquivo | função | alteração | impacto
+arquivo | linhas/função | alteração | classificação
 
-Toda alteração deve ser classificada como:
+Classificação permitida:
 
 OBSERVABILITY_ONLY
 
-Obrigatório:
+Se aparecer qualquer alteração classificada como:
 
-RUNTIME_BEHAVIOR_CHANGED = NÃO
+BUSINESS_LOGIC
+MATCHING
+NORMALIZATION
+FILTER
+BEMP_REQUEST
+JULIA
+
+PARE.
 
 ==================================================
-6. VALIDAÇÃO
+9. VALIDAÇÃO
 ==================================================
 
 Execute:
@@ -161,39 +220,46 @@ BUILD_PASS =
 TYPECHECK_PASS =
 TESTS_PASS =
 
-Se qualquer resultado for NÃO:
+Se qualquer um for NÃO:
 
 PARE.
-NÃO tente corrigir automaticamente.
+NÃO CORRIJA AUTOMATICAMENTE.
 
 ==================================================
-7. PREPARE PARA DEPLOY
+10. NÃO FAÇA DEPLOY
 ==================================================
 
-Se tudo passar, mostre:
+Mesmo se tudo passar:
 
-OBSERVABILITY_READY = SIM
-SAFE_TO_DEPLOY_OBSERVABILITY_ONLY = SIM/NÃO
+NÃO PUBLIQUE.
+NÃO FAÇA DEPLOY.
+NÃO ENVIE WHATSAPP.
+NÃO EXECUTE TESTE REAL.
 
-NÃO FAÇA DEPLOY AINDA.
+Mostre:
 
-PARE E AGUARDE MINHA AUTORIZAÇÃO.
+OBSERVABILITY_READY =
+SAFE_TO_DEPLOY_OBSERVABILITY_ONLY =
 
 ==================================================
 RESULTADO FINAL
 ==================================================
 
-BEMP_CALL_FILE =
-BEMP_CALL_FUNCTION =
-RAW_RESPONSE_CAPTURE_POINT =
-FILTER_STAGES_INSTRUMENTED =
+FILES_CHANGED =
+OBSERVABILITY_CHANGED =
 BUSINESS_LOGIC_CHANGED =
-RUNTIME_BEHAVIOR_CHANGED =
+MATCHING_LOGIC_CHANGED =
+NORMALIZATION_CHANGED =
+FILTER_LOGIC_CHANGED =
+BEMP_REQUEST_CHANGED =
+BEMP_RESPONSE_MUTATED =
 BUILD_PASS =
 TYPECHECK_PASS =
 TESTS_PASS =
 OBSERVABILITY_READY =
 SAFE_TO_DEPLOY_OBSERVABILITY_ONLY =
+
+PARE E AGUARDE MINHA AUTORIZAÇÃO.
   `;
 
   return (
