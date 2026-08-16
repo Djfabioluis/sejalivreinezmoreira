@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { extractBookingSlots, nextRequiredSlot, BookingContext } from "../context";
+import { getDeterministicResponse } from "../lifecycle";
 
 describe("Booking Context - Period Extraction & Flow", () => {
   const now = new Date("2026-08-16T12:00:00Z");
@@ -13,6 +14,7 @@ describe("Booking Context - Period Extraction & Flow", () => {
   });
 
   it("should extract period 'manhã' and 'noite'", () => {
+    // Testamos com \b para garantir que "manhã" é capturado corretamente
     expect(extractBookingSlots("manhã", now).period).toBe("manhã");
     expect(extractBookingSlots("de manhã", now).period).toBe("manhã");
     expect(extractBookingSlots("noite", now).period).toBe("noite");
@@ -31,8 +33,6 @@ describe("Booking Context - Period Extraction & Flow", () => {
     };
     
     expect(nextRequiredSlot(ctx)).toBe("availability");
-    
-    const { getDeterministicResponse } = require("../lifecycle");
     expect(getDeterministicResponse(ctx)).toBe(null);
   });
 });
