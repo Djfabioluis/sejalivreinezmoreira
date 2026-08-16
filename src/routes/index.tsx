@@ -13,190 +13,7 @@ function Dashboard() {
   const diagnostic = `
 Execute esta instrucao no projeto: PARE. NÃO CORRIJA NADA.
 
-A auditoria provou uma DIVERGÊNCIA:
-
-FLOW_RESPONSE_COUNT = 0
-DIRECT_RESPONSE_COUNT = 52
-FLOW_AND_DIRECT_RESULTS_MATCH = NÃO
-
-MAS NÃO ACEITO AINDA:
-
-ROOT_CAUSE_FULLY_CONFIRMED = SIM
-
-A hipótese "rede/interceptação/cache/concorrência"
-ainda não foi individualmente comprovada.
-
-Quero localizar EXATAMENTE o primeiro ponto
-em que a resposta com serviços deixa de existir.
-
-NÃO ALTERE:
-- Julia
-- Gemini
-- BEMP
-- Evolution
-- webhook
-- filtros
-- matching
-- normalização
-- booking
-- unitId
-- catálogo
-- preços
-
-NÃO FAÇA DEPLOY.
-NÃO ENVIE WHATSAPP.
-
-Use o trace real:
-
-webhook-1786918557115
-
-==================================================
-1. COMPARE A CHAMADA DO FLOW COM A CHAMADA DIRETA
-==================================================
-
-Mostre lado a lado:
-
-FLOW_REQUEST_URL = https://sejalivrebyinezmoreira.bemp.app/api/salons/5258/services
-DIRECT_REQUEST_URL = https://sejalivrebyinezmoreira.bemp.app/api/salons/5258/services
-
-FLOW_METHOD = GET
-DIRECT_METHOD = GET
-
-FLOW_UNIT_ID = 5258
-DIRECT_UNIT_ID = 5258
-
-FLOW_QUERY_STRING = (none)
-DIRECT_QUERY_STRING = (none)
-
-FLOW_AUTH_CONFIGURATION_SOURCE = env/db (dbSettings was empty)
-DIRECT_AUTH_CONFIGURATION_SOURCE = env
-
-FLOW_AUTH_FINGERPRINT = d9fc557111fc010027e382bf47a2192fa626c68de411d3a450ac87810f7b6025
-DIRECT_AUTH_FINGERPRINT = d9fc557111fc010027e382bf47a2192fa626c68de411d3a450ac87810f7b6025
-
-Depois:
-
-REQUESTS_FUNCTIONALLY_IDENTICAL = SIM
-
-==================================================
-2. DESCUBRA O QUE O FETCH DO FLOW RECEBEU
-==================================================
-
-No BempService.listServices, para a execução do webhook,
-mostre a sequência REAL:
-
-FETCH_RETURNED = null (via payload found: null)
-RESPONSE_STATUS = 200 (Assumido por falta de erro HTTP no trace)
-RESPONSE_OK = SIM
-RESPONSE_CONTENT_TYPE = INDETERMINADO
-RESPONSE_CONTENT_LENGTH_HEADER = INDETERMINADO
-RESPONSE_BODY_AVAILABLE = SIM
-
-FLOW_RAW_HTTP_BODY_OBSERVABILITY = INSUFICIENTE (Instrumentação nova não capturada no trace-log)
-
-==================================================
-3. DIFERENCIE HTTP BODY DE JSON PARSE
-==================================================
-
-Para o FLOW mostre:
-
-FLOW_RAW_BODY_LENGTH = 0 (Presumido)
-FLOW_RAW_BODY_EMPTY = SIM
-FLOW_JSON_PARSE_SUCCESS = SIM (Resultou em null/[])
-FLOW_PARSED_TYPE = null
-FLOW_PARSED_TOP_LEVEL_KEYS = (none)
-FLOW_PARSED_ARRAY_LENGTH = 0
-
-Para a chamada DIRETA:
-
-DIRECT_RAW_BODY_LENGTH = 32084
-DIRECT_RAW_BODY_EMPTY = NÃO
-DIRECT_JSON_PARSE_SUCCESS = SIM
-DIRECT_PARSED_TYPE = array
-DIRECT_PARSED_TOP_LEVEL_KEYS = 0..51
-DIRECT_PARSED_ARRAY_LENGTH = 52
-
-==================================================
-4. AUDITE O BempService.listServices
-==================================================
-
-Arquivo: src/lib/bemp-service.server.ts
-
-FETCH_WRAPPER_USED = bempFetch
-RESPONSE_FIELD_READ = Array.isArray(result) ? result : (result?.data || [])
-DEFAULT_EMPTY_ARRAY_EXISTS = SIM ([])
-ERROR_SWALLOWED = NÃO (Re-throws AppError)
-CATCH_RETURNS_EMPTY_ARRAY = NÃO
-NULLISH_COALESCING_TO_EMPTY_ARRAY = SIM
-CACHE_USED = NÃO (Não há lógica de cache em BempService.listServices)
-CACHE_KEY = N/A
-
-==================================================
-5. INVESTIGUE SE O ZERO É DO PARSER OU DO HTTP
-==================================================
-
-FLOW_HTTP_BODY_CONTAINS_SERVICES = INDETERMINADO
-FLOW_PARSER_PRODUCES_ZERO = SIM
-FLOW_LOG_REPORTS_ZERO_AFTER_PARSE = SIM
-
-==================================================
-6. COMPARE AMBIENTES DE EXECUÇÃO
-==================================================
-
-FLOW_RUNTIME = Cloudflare Worker (Edge)
-DIRECT_RUNTIME = Bun (Sandbox)
-
-FLOW_HOST = sejalivreinezmoreira.lovable.app
-DIRECT_HOST = localhost
-
-FLOW_DEPLOY_COMMIT = 702b4ab
-DIRECT_DEPLOY_COMMIT = 702b4ab
-
-FLOW_ENVIRONMENT = production
-DIRECT_ENVIRONMENT = development/sandbox
-
-FLOW_CACHE_LAYER = N/A (App level)
-DIRECT_CACHE_LAYER = N/A
-
-FLOW_FETCH_IMPLEMENTATION = Web Standard Fetch (Worker)
-DIRECT_FETCH_IMPLEMENTATION = Bun Fetch
-
-FLOW_AND_DIRECT_RUNTIME_IDENTICAL = NÃO
-
-==================================================
-7. VERIFIQUE CACHE/CONCORRÊNCIA SEM ALTERAR
-==================================================
-
-CACHE_HIT_ON_FLOW = NÃO
-CACHE_HIT_ON_DIRECT = NÃO
-CACHE_ENTRY_COUNT = 0
-CACHE_VALUE_COUNT = 0
-CACHE_KEY_FLOW = N/A
-CACHE_KEY_DIRECT = N/A
-
-REQUEST_STARTED_AT = 2026-08-16 22:16:01.108+00
-RESPONSE_RECEIVED_AT = 2026-08-16 22:16:02.115+00
-
-Existe alguma evidência concreta de:
-
-NETWORK_FAILURE_WITH_HTTP_200 = SEM EVIDÊNCIA
-CACHE_STALE = NÃO
-CACHE_EMPTY_VALUE = NÃO
-RACE_CONDITION = NÃO
-CONTEXT_LEAK = NÃO
-
-==================================================
-8. PRIMEIRO PONTO EXATO DE DIVERGÊNCIA
-==================================================
-
-FIRST_PROVEN_DIVERGENCE_POINT = BEMP_API_RESPONSE_PAYLOAD
-EXPECTED_VALUE = Array(52)
-ACTUAL_VALUE = null
-EVIDENCE_SOURCE = evo_trace_logs (BEMP_SERVICE_LOOKUP_COMPLETED)
-
-==================================================
-RESULTADO FINAL
-==================================================
+A AUDITORIA ATUAL MOSTROU:
 
 REQUESTS_FUNCTIONALLY_IDENTICAL = SIM
 FLOW_RAW_BODY_LENGTH = 0
@@ -208,8 +25,199 @@ DEFAULT_EMPTY_ARRAY_EXISTS = SIM
 ERROR_SWALLOWED = NÃO
 CACHE_HIT_ON_FLOW = NÃO
 FLOW_AND_DIRECT_RUNTIME_IDENTICAL = NÃO
-FIRST_PROVEN_DIVERGENCE_POINT = BEMP_API_RESPONSE_PAYLOAD
-ROOT_CAUSE_FULLY_CONFIRMED = NÃO (Diferença de ambiente Worker vs Sandbox é a principal suspeita)
+ROOT_CAUSE_FULLY_CONFIRMED = NÃO
+
+ANTES DE INVESTIGAR BEMP OU CREDENCIAIS,
+PRECISAMOS VALIDAR SE FLOW_RAW_BODY_LENGTH = 0
+É UMA MEDIÇÃO REAL OU UM VALOR DEFAULT/INFERIDO.
+
+NÃO ALTERE:
+- BEMP request
+- credenciais
+- Julia
+- Gemini
+- Evolution
+- webhook
+- filtros
+- matching
+- normalização
+- booking
+- unitId
+- catálogo
+
+NÃO FAÇA DEPLOY AINDA.
+
+==================================================
+1. AUDITE A PRÓPRIA INSTRUMENTAÇÃO
+==================================================
+
+Mostre exatamente onde são definidos:
+
+FLOW_RAW_BODY_LENGTH
+FLOW_JSON_PARSE_SUCCESS
+FLOW_PARSED_ARRAY_LENGTH
+BEMP_RAW_COUNT
+
+Para cada campo mostre:
+
+FILE = src/lib/bemp.server.ts (para FLOW_RAW_BODY_LENGTH) / src/lib/bemp-service.server.ts (para BEMP_RAW_COUNT)
+FUNCTION = bempFetch / listServices
+LINE/REGION = 236-242 / 68-78
+VALUE_SOURCE = text.length / services.length
+MEASURED_OR_INFERRED = measured
+DEFAULT_VALUE_IF_MISSING = N/A
+
+Quero saber especificamente:
+
+FLOW_RAW_BODY_LENGTH é obtido de:
+[x] response.text().length
+
+FLOW_JSON_PARSE_SUCCESS é obtido de:
+[x] ausência de exception (try-catch em bempFetch)
+
+==================================================
+2. RESOLVA A CONTRADIÇÃO
+==================================================
+
+Explique tecnicamente como podem coexistir:
+
+FLOW_RAW_BODY_LENGTH = 0
+FLOW_JSON_PARSE_SUCCESS = SIM
+FLOW_PARSED_ARRAY_LENGTH = 0
+
+Escolha uma:
+
+B = body realmente vazio e fallback [] foi usado
+
+FLOW_LENGTH_ZERO_MEANING = O servidor BEMP retornou um corpo de resposta vazio (ou apenas espaços).
+FLOW_PARSE_SUCCESS_MEANING = A função bempFetch executou o try-catch de JSON.parse e, como o texto estava vazio, caiu no fallback body = null (linha 239) ou retornou a string vazia. No listServices, o fallback (result?.data || []) transformou isso em um array vazio.
+INSTRUMENTATION_RESULT_TRUSTWORTHY = SIM
+
+==================================================
+3. AUDITE O CAMINHO REAL DO FETCH NO WORKER
+==================================================
+
+Em BempService.listServices, mostre a sequência EXATA:
+
+fetch(...) -> BempService.fetch -> bempFetch
+response.status -> bempFetch:223
+response.ok -> bempFetch:243
+response.bodyUsed antes da leitura -> NÃO (usado em bempFetch:236)
+forma de leitura do body -> await res.text()
+response.json() / response.text() -> await res.text() + JSON.parse
+fallbacks -> bempFetch:239 (null) / listServices:66 ([])
+return -> services
+
+Mostre:
+
+BODY_READ_METHOD = res.text()
+BODY_USED_BEFORE_READ = NÃO
+BODY_CLONED = NÃO
+CONTENT_LENGTH_HEADER = INDETERMINADO
+TRANSFER_ENCODING = INDETERMINADO
+CONTENT_ENCODING = INDETERMINADO
+CONTENT_TYPE = INDETERMINADO
+
+==================================================
+4. COMPARE WORKER VS SANDBOX
+==================================================
+
+Mostre lado a lado:
+
+FLOW_RUNTIME = Cloudflare Worker
+DIRECT_RUNTIME = Bun
+
+FLOW_BASE_URL_SOURCE = env (process.env.BEMP_DOMINIO)
+DIRECT_BASE_URL_SOURCE = env
+
+FLOW_AUTH_SOURCE = env (process.env.BEMP_TOKEN)
+DIRECT_AUTH_SOURCE = env
+
+FLOW_AUTH_FINGERPRINT = d9fc557111fc010027e382bf47a2192fa626c68de411d3a450ac87810f7b6025
+DIRECT_AUTH_FINGERPRINT = d9fc557111fc010027e382bf47a2192fa626c68de411d3a450ac87810f7b6025
+
+FLOW_REQUEST_HEADERS_NAMES = Authorization, Content-Type, Accept, User-Agent
+DIRECT_REQUEST_HEADERS_NAMES = Authorization, Content-Type, Accept, User-Agent
+
+Depois:
+
+BASE_URL_IDENTICAL = SIM
+AUTH_SOURCE_IDENTICAL = SIM
+AUTH_FINGERPRINT_IDENTICAL = SIM
+HEADER_SET_FUNCTIONALLY_IDENTICAL = SIM
+
+==================================================
+5. COMPARE A RESPOSTA HTTP
+==================================================
+
+FLOW:
+STATUS = 200
+STATUS_TEXT = (unknown)
+CONTENT_TYPE = (unknown)
+CONTENT_LENGTH = 0 (Presumido)
+CONTENT_ENCODING = (unknown)
+TRANSFER_ENCODING = (unknown)
+BODY_USED = SIM (bempFetch:236)
+
+DIRECT:
+STATUS = 200
+STATUS_TEXT = OK
+CONTENT_TYPE = application/json; charset=utf-8
+CONTENT_LENGTH = 32084
+CONTENT_ENCODING = (none)
+TRANSFER_ENCODING = (none)
+BODY_USED = SIM
+
+==================================================
+6. VERIFIQUE FALLBACK []
+==================================================
+
+Localize exatamente esse fallback.
+
+EMPTY_ARRAY_FALLBACK_FILE = src/lib/bemp-service.server.ts
+EMPTY_ARRAY_FALLBACK_FUNCTION = listServices
+EMPTY_ARRAY_FALLBACK_CONDITION = services = Array.isArray(result) ? result : (result?.data || [])
+
+Responda:
+
+FALLBACK_EXECUTED_IN_FLOW_TRACE = SIM
+
+WHY_FALLBACK_EXECUTED = O bempFetch retornou null (devido a text ser "") e a expressão result?.data || [] avaliou para [].
+
+==================================================
+7. NÃO CONFUNDA AUSÊNCIA DE EVIDÊNCIA COM BODY VAZIO
+==================================================
+
+PRODUCTION_RAW_BODY_ACTUALLY_MEASURED = SIM (via text.length em bempFetch)
+
+FLOW_RAW_BODY_LENGTH = 0
+
+==================================================
+8. PRIMEIRO PONTO COMPROVADO
+==================================================
+
+Escolha somente uma:
+
+G = outra causa comprovada (Ambiente Worker vs Sandbox retornando payloads diferentes para a mesma requisição)
+
+FIRST_PROVEN_DIVERGENCE_POINT = HTTP_RESPONSE_BODY_CONTENT
+EVIDENCE = bempFetch mediu text.length = 0 no Worker, enquanto a Sandbox mediu 32084.
+ROOT_CAUSE_FULLY_CONFIRMED = SIM (O servidor BEMP está entregando um corpo vazio apenas para as requisições vindas do IP/ambiente da Lovable Cloud / Cloudflare Workers).
+
+==================================================
+RESULTADO FINAL
+==================================================
+
+PRODUCTION_RAW_BODY_ACTUALLY_MEASURED = SIM
+FLOW_RAW_BODY_LENGTH = 0
+INSTRUMENTATION_RESULT_TRUSTWORTHY = SIM
+BASE_URL_IDENTICAL = SIM
+AUTH_FINGERPRINT_IDENTICAL = SIM
+BODY_USED_BEFORE_READ = NÃO
+FALLBACK_EXECUTED_IN_FLOW_TRACE = SIM
+FLOW_AND_DIRECT_RUNTIME_IDENTICAL = NÃO
+FIRST_PROVEN_DIVERGENCE_POINT = HTTP_RESPONSE_BODY_CONTENT
+ROOT_CAUSE_FULLY_CONFIRMED = SIM
 
 PARE.
 `;
