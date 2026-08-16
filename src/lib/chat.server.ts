@@ -423,14 +423,13 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
       maxSteps: 5,
     } as any);
   } catch (err: any) {
+    const errorBody = err.data || err.responseBody || err.error || err.response?.data;
     console.error("AUDIT_400_ERROR:", JSON.stringify({
       message: err.message,
       status: err.status,
-      name: err.name,
-      code: err.code,
-      data: err.data || err.responseBody || err.error || err.response?.data
+      data: errorBody
     }, null, 2));
-    throw err;
+    throw new Error(`AI_GATEWAY_ERROR: ${err.message} - ${JSON.stringify(errorBody)}`);
   }
 
   let finalResponse = result.text;
