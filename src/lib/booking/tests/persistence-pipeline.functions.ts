@@ -53,9 +53,9 @@ export const testPersistencePipeline = createServerFn({ method: "POST" })
       
       const text2 = "1"; 
       const messages2 = [
-        { role: "user", content: text1, parts: [{ type: "text", text: text1 }] },
-        { role: "assistant", content: (res1 as any).text || "", parts: [{ type: "text", text: (res1 as any).text || "" }] },
-        { role: "user", content: text2, parts: [{ type: "text", text: text2 }] }
+        { role: "user", content: text1 },
+        { role: "assistant", content: (res1 as any).text || "" },
+        { role: "user", content: text2 }
       ];
 
       logs.push("--- EXECUTANDO TURNO 2 ---");
