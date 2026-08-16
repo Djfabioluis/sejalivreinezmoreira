@@ -3,7 +3,7 @@ import { createFileRoute } from '@tanstack/react-router';
 export const Route = createFileRoute('/')({
   component: () => (
     <div className="p-6 font-mono text-sm whitespace-pre">
-      Execute esta instrucao no projeto: AUTORIZO A CORREÇÃO MÍNIMA AGORA.
+      {`Execute esta instrucao no projeto: AUTORIZO A CORREÇÃO MÍNIMA AGORA.
 
 CAUSA COMPROVADA:
 
@@ -202,7 +202,7 @@ PRODUCTION_MANICURE_COUNT > 0
 
 READY_FOR_REAL_WHATSAPP_TEST = SIM
 
-PARE.
+PARE.`}
     </div>
   )
 });
