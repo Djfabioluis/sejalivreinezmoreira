@@ -9,6 +9,7 @@ import { inferStageFromTool, updateCustomerPipeline } from "@/lib/crm.server";
 import { normalizeServiceSearchText } from "./service-utils";
 import {
   buildBookingContextBlock,
+  nextRequiredSlot,
   type BookingContext,
 } from "@/lib/booking/context";
 
@@ -462,7 +463,45 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
   }
 
   // 2. LLM EXECUTION
-  const systemPrompt = assembleSystemPrompt({
+    // --- AUTO LIST SLOTS (Requisito: Período informado -> Listar horários) ---
+    const requiredSlot = nextRequiredSlot(bookingContext);
+    if (requiredSlot === "availability" && bookingContext.period && !bookingContext.time && !bookingContext.selectedSlot) {
+      console.log(`[AUTO_LIST_SLOTS] Triggered for period: ${bookingContext.period}`);
+      const slots = await BempService.listAvailableSlots({
+        salonId: effectiveUnitId!,
+        serviceId: bookingContext.serviceId!,
+        date: bookingContext.date!,
+      });
+
+      const period = bookingContext.period;
+      const filtered = slots.filter((s: any) => {
+        const time = s.start || String(s);
+        const hour = parseInt(time.split(":")[0]);
+        if (period === "manhã") return hour < 12;
+        if (period === "tarde") return hour >= 12 && hour < 18;
+        if (period === "noite") return hour >= 18;
+        return true;
+      });
+
+      if (filtered.length > 0) {
+        const availableTimes = filtered.map((s: any) => s.start || String(s));
+        bookingContext.availableSlots = availableTimes;
+        await patchCustomerContext(conversationKey!, { bookingContext });
+        
+        const slotsText = availableTimes.slice(0, 10).join(", ");
+        return {
+          role: "assistant",
+          content: `Encontrei estes horários para ${period}:\n\n${slotsText}\n\nQual deles fica melhor para você? 💜`
+        };
+      } else {
+        return {
+          role: "assistant",
+          content: `Puxa, não encontrei horários disponíveis para ${period} no dia ${bookingContext.date}. Gostaria de tentar outro período ou outro dia? 💜`
+        };
+      }
+    }
+
+    const systemPrompt = assembleSystemPrompt({
     contactName: opts.contactName,
     contactPhone: opts.contactPhone,
     unitName: effectiveUnitName,

@@ -347,8 +347,10 @@ export function nextRequiredSlot(ctx: BookingContext): BookingSlot {
   if (!ctx.date) return "date";
   
   // Se temos o período mas não o horário, ainda estamos em 'availability', 
-  // mas o controlador de fluxo deve disparar a listagem de slots.
-  // Se NÃO temos o período nem o horário, pedimos a disponibilidade.
+  // mas o controlador de fluxo (agent.server.ts) deve disparar a listagem de slots.
+  // IMPORTANTE: Se period estiver presente e time/selectedSlot não, o fluxo determinístico
+  // deve intervir ANTES de perguntar novamente.
+  if (ctx.period && !ctx.time && !ctx.selectedSlot) return "availability";
   if (!ctx.selectedSlot && !ctx.time) return "availability";
 
   if (ctx.appointmentStatus === "CONFIRMED") return "completed";

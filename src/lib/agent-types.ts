@@ -13,5 +13,7 @@ export interface AgentOptions {
   /** Bloco "MEMÓRIA CONFIRMADA DO CLIENTE" injetado no system prompt. */
   memoryBlock?: string;
   activePromotions?: any[];
+  bookingContext?: any;
 }
+
 
