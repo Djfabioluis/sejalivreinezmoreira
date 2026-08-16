@@ -1,36 +1,45 @@
 
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
-async function hunt() {
-  const since = new Date(Date.now() - 30 * 60 * 1000).toISOString();
-  console.log(`Auditing ALL evo_trace_logs since: ${since}`);
-
+async function deepAudit() {
   const { data: traces, error } = await supabaseAdmin
     .from('evo_trace_logs')
     .select('*')
-    .gte('timestamp', since)
-    .order('timestamp', { ascending: false });
+    .gt('timestamp', new Date(Date.now() - 60 * 60 * 1000).toISOString())
+    .order('timestamp', { ascending: true });
 
   if (error) {
     console.error(error);
     return;
   }
 
-  const latest = (traces || []);
-  console.log(`Found ${latest.length} trace steps.`);
+  const grouped = (traces || []).reduce((acc: any, t: any) => {
+    if (!acc[t.trace_id]) acc[t.trace_id] = [];
+    acc[t.trace_id].push(t);
+    return acc;
+  }, {});
 
-  const recentTids = new Set(latest.slice(0, 50).map(l => l.trace_id));
-  
-  for (const tid of recentTids) {
-      const steps = latest.filter(l => l.trace_id === tid);
-      const isMao = steps.some(s => JSON.stringify(s.payload).toLowerCase().includes("mão"));
-      if (isMao) {
-          console.log(`\n!!! MATCH IN TRACE: ${tid} !!!`);
-          steps.reverse().forEach(s => {
-              console.log(`  [${s.timestamp}] Step: ${s.step} | Payload: ${JSON.stringify(s.payload)}`);
-          });
-      }
+  for (const tid in grouped) {
+    const steps = grouped[tid];
+    const first = steps[0];
+    const parsed = steps.find((s: any) => s.step === 'MESSAGE_PARSED');
+    const toolStarted = steps.find((s: any) => s.step === 'tool_started' && s.payload?.tool === 'list_services');
+    const contextMerged = steps.find((s: any) => s.step === 'BOOKING_CONTEXT_MERGED');
+    const evoStarted = steps.find((s: any) => s.step === 'EVOLUTION_SEND_STARTED');
+
+    const bodyStr = JSON.stringify(steps);
+    const isTarget = bodyStr.toLowerCase().includes("mão") || bodyStr.includes("AC94D2D15029C78C19E1AEC0F95158AD");
+
+    if (isTarget) {
+        console.log(`\n!!! TARGET TRACE FOUND !!!`);
+        console.log(`TRACE: ${tid} | Instância: ${first.instance_id} | Time: ${first.timestamp}`);
+        steps.forEach((s: any) => {
+            console.log(`  [${s.timestamp}] Step: ${s.step}`);
+            if (s.step === 'MESSAGE_PARSED') console.log(`    TEXT: "${s.payload?.text}"`);
+            if (s.step === 'EVOLUTION_SEND_STARTED') console.log(`    REPLY: "${s.payload?.text}"`);
+        });
+    }
   }
 }
 
-hunt();
+deepAudit();
