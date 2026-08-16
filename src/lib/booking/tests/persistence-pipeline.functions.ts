@@ -34,7 +34,7 @@ export const testPersistencePipeline = createServerFn({ method: "POST" })
     });
 
     // TURNO 2
-    // Primeiro carregar o contexto que deveria ter sido persistido (simulado pelo runAgent no próximo turno)
+    // Primeiro carregar o contexto que deveria ter sido persistido
     const { data: conv } = await supabaseAdmin.from("wa_conversas").select("customer_context").eq("phone", phone).single();
     
     const text2 = "1"; // Selecionando a primeira opção
@@ -42,7 +42,7 @@ export const testPersistencePipeline = createServerFn({ method: "POST" })
       text: text2,
       messages: [
         { role: "user", content: text1 },
-        { role: "assistant", content: (res1 as any).response || (res1 as any).text || "" },
+        { role: "assistant", content: (res1 as any).text || "" },
         { role: "user", content: text2 }
       ],
       conversationKey: phone,
