@@ -557,6 +557,71 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
     // REQUISITO 5: Fluxo Determinístico sem Gemini para perguntas estruturais
     const { getDeterministicResponse } = await import("@/lib/booking/lifecycle");
+    
+    // MÁQUINA DE ESTADOS: Se period está preenchido mas disponibilidade ainda é necessária,
+    // disparar list_slots automaticamente.
+    if (requiredSlot === "availability" && bookingContext.period && !bookingContext.time && !bookingContext.selectedSlot) {
+      trace?.record("AUTO_LIST_SLOTS_TRIGGERED", { period: bookingContext.period });
+      
+      const { BempService } = await import("@/lib/bemp-service.server");
+      try {
+        const slots = await BempService.listAvailableSlots({
+          salonId: Number(bookingContext.unitId),
+          serviceId: Number(bookingContext.serviceId),
+          date: bookingContext.date!,
+        });
+
+        const periodFilter = bookingContext.period;
+        const filtered = slots.filter((s: any) => {
+          const timeStr = s.start || String(s);
+          const hour = parseInt(timeStr.split(":")[0]);
+          if (periodFilter === "manhã") return hour < 12;
+          if (periodFilter === "tarde") return hour >= 12 && hour < 18;
+          if (periodFilter === "noite") return hour >= 18;
+          return true;
+        });
+
+        if (filtered.length > 0) {
+          const availableTimes = filtered.map((s: any) => s.start || String(s));
+          bookingContext.availableSlots = availableTimes;
+          await patchCustomerContext(finalKey, { bookingContext });
+          
+          const slotsText = availableTimes.slice(0, 10).join(", ");
+          const responseText = `Encontrei estes horários para ${bookingContext.period}:\n\n${slotsText}\n\nQual deles fica melhor para você? 💜`;
+          
+          const { replyWithAI } = await import("./reply.server");
+          await replyWithAI({
+            instance,
+            phone: contactPhone,
+            text: responseText,
+            conversationKey: finalKey,
+            messageId,
+            unitId: agent.unidade_id,
+            _trace: trace
+          }, traceId);
+
+          trace?.record("TOTAL_PROCESSING_COMPLETED", { reason: "auto_slots_sent" });
+          return;
+        } else {
+          const { replyWithAI } = await import("./reply.server");
+          await replyWithAI({
+            instance,
+            phone: contactPhone,
+            text: `Infelizmente não encontrei horários disponíveis para ${bookingContext.period} nesta data. 😔 Gostaria de tentar outro período ou outro dia?`,
+            conversationKey: finalKey,
+            messageId,
+            unitId: agent.unidade_id,
+            _trace: trace
+          }, traceId);
+          
+          trace?.record("TOTAL_PROCESSING_COMPLETED", { reason: "no_slots_found" });
+          return;
+        }
+      } catch (err: any) {
+        logger.error("AUTO_LIST_SLOTS_FAILED", err.message);
+      }
+    }
+
     const detResponse = getDeterministicResponse(bookingContext);
     
     if (detResponse) {

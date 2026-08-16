@@ -13,6 +13,11 @@ export function getDeterministicResponse(ctx: BookingContext): string | null {
     case "date":
       return "Qual dia você prefere? 💜";
     case "availability":
+      if (ctx.period && !ctx.time && !ctx.selectedSlot) {
+        // Se o período já está preenchido, não repetimos a pergunta genérica.
+        // O orquestrador (processor.server.ts) usará isso para decidir se chama list_slots.
+        return null;
+      }
       return "Vou verificar os horários disponíveis. Você prefere manhã, tarde ou noite?";
     case "confirmation":
       // A IA pode humanizar a confirmação, mas aqui fornecemos a base determinística

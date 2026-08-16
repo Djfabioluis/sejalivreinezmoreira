@@ -258,8 +258,8 @@ export function extractBookingSlots(
 
   // --- Período ---
   if (/manh[ãa]/i.test(t)) out.period = "manhã";
-  else if (/\btarde\b/i.test(t)) out.period = "tarde";
-  else if (/\bnoite\b/i.test(t)) out.period = "noite";
+  else if (/tarde/i.test(t)) out.period = "tarde";
+  else if (/noite/i.test(t)) out.period = "noite";
 
   // --- Horário ---
   // Tenta extrair HH:mm de formatos variados
@@ -345,7 +345,12 @@ export function nextRequiredSlot(ctx: BookingContext): BookingSlot {
   if (!ctx.unitId) return "unit";
   if (!ctx.serviceId && !ctx.serviceName) return "service";
   if (!ctx.date) return "date";
+  
+  // Se temos o período mas não o horário, ainda estamos em 'availability', 
+  // mas o controlador de fluxo deve disparar a listagem de slots.
+  // Se NÃO temos o período nem o horário, pedimos a disponibilidade.
   if (!ctx.selectedSlot && !ctx.time) return "availability";
+
   if (ctx.appointmentStatus === "CONFIRMED") return "completed";
   if (!ctx.customerConfirmed) return "confirmation";
   return "create_appointment";
