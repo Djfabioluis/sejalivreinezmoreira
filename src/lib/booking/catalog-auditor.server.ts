@@ -29,10 +29,10 @@ export function validateOutputAgainstCatalog(
     if (listMatch) {
       const candidateName = listMatch[1].trim().toLowerCase();
       // Verificação de correspondência (nome exato ou contido)
-      const isAllowed = validNames.some(vn => 
+      const isAllowed = (validNames || []).some(vn => 
         candidateName === vn || 
-        vn.includes(candidateName) ||
-        (candidateName.length > 5 && vn.includes(candidateName))
+        (vn && vn.includes(candidateName)) ||
+        (candidateName.length > 5 && vn && vn.includes(candidateName))
       );
 
       if (!isAllowed) {
