@@ -42,14 +42,14 @@ export const testPersistencePipeline = createServerFn({ method: "POST" })
       text: text2,
       messages: [
         { role: "user", content: text1 },
-        { role: "assistant", content: (res1 as any).response || "" },
+        { role: "assistant", content: (res1 as any).response || (res1 as any).text || "" },
         { role: "user", content: text2 }
       ],
       conversationKey: phone,
       unidadeId: "5258",
       sandbox: true,
       customerContext: conv?.customer_context || {}
-    });
+    } as any);
 
     results.push({
       turn: 2,
