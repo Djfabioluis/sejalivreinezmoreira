@@ -84,7 +84,7 @@ Depois:
 
 PERSISTENCE_ATTEMPTED = SIM
 PERSISTENCE_SUCCESS = SIM
-PERSISTED_BOOKING_CONTEXT = {"serviceText":"manicure","date":"2026-08-16","unitId":"5258","clarificationRequired":true}
+PERSISTED_BOOKING_CONTEXT = {"{"}"serviceText":"manicure","date":"2026-08-16","unitId":"5258","clarificationRequired":true{"}"}
 
 ==================================================
 3. PROVA DO TURNO 2
