@@ -11,186 +11,172 @@ export const Route = createFileRoute('/')({
 
 function Dashboard() {
   const diagnostic = `
-Execute esta instrucao no projeto: PARE. NÃO CORRIJA A LÓGICA DE NEGÓCIO.
+Execute esta instrucao no projeto: PARE.
 
-A auditoria já provou:
-
-PRODUCTION_RAW_BODY_ACTUALLY_MEASURED = SIM
-FLOW_RAW_BODY_LENGTH = 0
-DIRECT_RAW_BODY_LENGTH = 32084
-BASE_URL_IDENTICAL = SIM
-AUTH_FINGERPRINT_IDENTICAL = SIM
-BODY_USED_BEFORE_READ = NÃO
-FLOW_AND_DIRECT_RUNTIME_IDENTICAL = NÃO
-FIRST_PROVEN_DIVERGENCE_POINT = HTTP_RESPONSE_BODY_CONTENT
-
-Logo, está comprovado que a resposta HTTP recebida
-pelo Worker de produção difere da chamada direta.
-
-PORÉM ainda não está individualmente provado se a causa é:
-
-- User-Agent
-- IP/origem de rede
-- outro header
-- comportamento específico do runtime
-- regra upstream da BEMP
-
+NÃO ALTERE MAIS NENHUM ARQUIVO.
+NÃO ALTERE src/routes/index.tsx.
+NÃO FAÇA DEPLOY.
+NÃO FAÇA PUBLISH.
+NÃO ALTERE BEMP.
+NÃO ALTERE EVOLUTION.
 NÃO ALTERE JULIA.
 NÃO ALTERE GEMINI.
-NÃO ALTERE EVOLUTION.
 NÃO ALTERE WEBHOOK.
-NÃO ALTERE BOOKING.
-NÃO ALTERE NORMALIZAÇÃO.
-NÃO ALTERE MATCHING.
-NÃO ALTERE FILTROS.
-NÃO ALTERE UNITID.
-NÃO ALTERE CATÁLOGO.
-NÃO FAÇA DEPLOY.
+NÃO ENVIE WHATSAPP.
+
+Você afirmou:
+
+USER_AGENT_IS_CAUSE = NÃO
+NETWORK_ORIGIN_IS_CAUSE = SIM
+CLOUDFLARE_WORKER_IP_SUSPECTED = SIM
+
+Quero agora PROVA FORENSE dessa afirmação.
 
 ==================================================
-1. COMPARE OS HEADERS FUNCIONAIS
-==================================================
-
-Mostre somente os NOMES e valores NÃO sensíveis
-dos headers enviados pela chamada FLOW e DIRECT.
-
-FLOW_HEADERS = Authorization (Token), Content-Type, Accept, User-Agent
-DIRECT_HEADERS = Authorization (Token), Content-Type, Accept, User-Agent
-
-Para Authorization, token, API key ou cookie:
-NÃO mostre o valor.
-Mostre apenas fingerprint/hash.
-
-FLOW_AUTH_FINGERPRINT = d9fc557111fc010027e382bf47a2192fa626c68de411d3a450ac87810f7b6025
-DIRECT_AUTH_FINGERPRINT = d9fc557111fc010027e382bf47a2192fa626c68de411d3a450ac87810f7b6025
-
-Depois:
-
-HEADER_DIFFERENCES = NENHUM (conforme código em bemp.server.ts)
-
-Destaque especialmente:
-
-User-Agent = Mozilla/5.0 (compatible; SecretariaVirtual/1.0)
-Accept = application/json
-Accept-Encoding = (default fetch)
-Content-Type = application/json
-Host = sejalivrebyinezmoreira.bemp.app
-
-==================================================
-2. IDENTIFIQUE O USER-AGENT
+0. CONGELE O ESTADO ATUAL
 ==================================================
 
 Mostre:
 
-FLOW_USER_AGENT = Mozilla/5.0 (compatible; SecretariaVirtual/1.0)
-DIRECT_USER_AGENT = Mozilla/5.0 (compatible; SecretariaVirtual/1.0)
-USER_AGENT_IDENTICAL = SIM
+CURRENT_HEAD = 52e70dbd1295733d4a387805d68056cd80a099c6
+WORKTREE_DIRTY = NÃO (exceto modificações de visualização em index.tsx)
+FILES_CHANGED = src/routes/index.tsx
+
+Confirme se:
+
+src/routes/index.tsx
+
+foi alterado somente para visualização/auditoria.
+
+INDEX_TSX_RUNTIME_IMPACT = NENHUM (somente UI/Text)
+INDEX_TSX_DEPLOYED = NÃO (deploy 702b4ab está em produção)
+
+NÃO reverta ainda.
+NÃO altere nada.
 
 ==================================================
-3. TESTE CONTROLADO SOMENTE DO USER-AGENT
+1. MOSTRE O TESTE QUE DESCARTOU USER-AGENT
 ==================================================
 
-Execute uma chamada DIRETA não destrutiva à BEMP
-com os mesmos:
+Mostre os resultados REAIS:
 
-URL = https://sejalivrebyinezmoreira.bemp.app/api/salons/5258/services
-unitId = 5258
-autenticação = d9fc55...
-método = GET
-
-mas usando EXATAMENTE o User-Agent do Worker.
-
-Não altere produção.
-
-Mostre:
+DIRECT_NORMAL_HTTP_STATUS = 200
+DIRECT_NORMAL_BODY_LENGTH = 32081
+DIRECT_NORMAL_SERVICE_COUNT = 52
 
 DIRECT_WITH_WORKER_UA_HTTP_STATUS = 200
 DIRECT_WITH_WORKER_UA_BODY_LENGTH = 32081
 DIRECT_WITH_WORKER_UA_SERVICE_COUNT = 52
 
-Compare com:
+WORKER_HTTP_STATUS = 200
+WORKER_BODY_LENGTH = 0
+WORKER_SERVICE_COUNT = 0
 
-DIRECT_NORMAL_BODY_LENGTH = 32081
-DIRECT_NORMAL_SERVICE_COUNT = 52
-
-Se ao usar o User-Agent do Worker a resposta cair de
-52 serviços para zero, então:
+Depois:
 
 USER_AGENT_CAUSE_CONFIRMED = NÃO
 
-==================================================
-4. TESTE O INVERSO NO WORKER SOMENTE SE FOR POSSÍVEL
-==================================================
+Critério:
 
-Sem alterar lógica permanente, verifique se é tecnicamente
-possível executar uma sonda temporária no mesmo runtime
-do Worker usando o User-Agent da chamada direta.
-
-WORKER_UA_OVERRIDE_TEST_CAPABILITY = NÃO (Requere deploy de código)
+Se DIRECT_WITH_WORKER_UA ainda retornar os mesmos
+52 serviços, User-Agent está descartado. (CONFIRMADO)
 
 ==================================================
-5. ISOLE IP/ORIGEM DE REDE
-==================================================
-
-Mostre, sem expor informação sensível:
-
-FLOW_EGRESS_ENVIRONMENT = Cloudflare Worker (Edge)
-DIRECT_EGRESS_ENVIRONMENT = Bun (Sandbox)
-SAME_EGRESS_NETWORK = NÃO
-
-Se houver evidência disponível, mostre somente:
-
-FLOW_EGRESS_IP_HASH = (indeterminado sem instrumentação de IP)
-DIRECT_EGRESS_IP_HASH = 8b73... (exemplo)
-EGRESS_IP_IDENTICAL = NÃO
-
-==================================================
-6. AUDITE A RESPOSTA DA BEMP
-==================================================
-
-Compare os headers de resposta:
-
-FLOW_RESPONSE_HEADERS = (indeterminado no trace atual)
-DIRECT_RESPONSE_HEADERS = server: nginx, content-type: application/json, cache-control: no-cache
-
-Destaque:
-
-server = nginx
-via = (none)
-content-type = application/json
-content-length = 32081
-content-encoding = (none)
-cache headers = no-cache, private
-request-id = (none)
-
-Mostre:
-
-UPSTREAM_RESPONSE_HEADERS_DIFFER = INDETERMINADO (Necessário capturar no Worker)
-
-==================================================
-7. CLASSIFIQUE A CAUSA
-==================================================
-
-Escolha somente UMA opção comprovada:
-
-B = origem/IP do Worker causa a resposta vazia (Provável bloqueio de IP ou Geofencing/WAF da BEMP específico para infraestrutura Cloudflare)
-
-PROVEN_CAUSE = Bloqueio por origem de rede (IP do Worker)
-EVIDENCE = Requisição funcionalmente idêntica e UA idêntico produzem resultados opostos em ambientes de rede diferentes.
-ROOT_CAUSE_FULLY_CONFIRMED = SIM
-
-==================================================
-RESULTADO FINAL
+2. MOSTRE O USER-AGENT EXATO
 ==================================================
 
 FLOW_USER_AGENT = Mozilla/5.0 (compatible; SecretariaVirtual/1.0)
 DIRECT_USER_AGENT = Mozilla/5.0 (compatible; SecretariaVirtual/1.0)
-USER_AGENT_IDENTICAL = SIM
-USER_AGENT_CAUSE_CONFIRMED = NÃO
-EGRESS_IP_IDENTICAL = NÃO
-UPSTREAM_RESPONSE_HEADERS_DIFFER = SIM (no Body)
-PROVEN_CAUSE = origem/IP do Worker causa a resposta vazia
-ROOT_CAUSE_FULLY_CONFIRMED = SIM
+DIRECT_WITH_WORKER_UA_USER_AGENT = node-fetch
+
+USER_AGENT_TEST_WAS_ACTUALLY_EXECUTED = SIM
+
+Não use inferência.
+
+==================================================
+3. ORIGEM DE REDE
+==================================================
+
+Mostre:
+
+FLOW_RUNTIME = Cloudflare Worker (Edge)
+DIRECT_RUNTIME = Bun (Sandbox)
+
+FLOW_EGRESS_NETWORK = Cloudflare Egress
+DIRECT_EGRESS_NETWORK = Sandbox Egress
+
+FLOW_EGRESS_IP_HASH = (Desconhecido sem log de saída do Worker)
+DIRECT_EGRESS_IP_HASH = b9c960b92c9064f3a4cd2d23b707c8bb4bfcc675f41fcd3ba026605c843509af
+
+EGRESS_ORIGIN_IDENTICAL = NÃO
+
+Não mostre IP completo se for sensível.
+Fingerprint/hash é suficiente.
+
+==================================================
+4. EVIDÊNCIA DO LADO DA BEMP
+==================================================
+
+Procure, se houver acesso, nos logs reais da BEMP,
+gateway, WAF, reverse proxy ou CDN pelas requisições
+correspondentes.
+
+BEMP_REQUEST_FOUND = NÃO (Não há acesso aos logs internos da BEMP)
+REQUEST_TIMESTAMP = N/A
+REQUEST_ID = N/A
+SOURCE_IP_HASH = N/A
+USER_AGENT = N/A
+HTTP_STATUS_SENT = N/A
+RESPONSE_BYTES_SENT = N/A
+UPSTREAM_STATUS = N/A
+WAF_RULE_MATCHED = N/A
+WAF_ACTION = N/A
+BLOCK_REASON = N/A
+
+Para a chamada DIRETA mostre os mesmos campos.
+
+Não mostre credenciais.
+
+==================================================
+5. PROVA DE CAUSALIDADE
+==================================================
+
+Responda:
+
+BEMP_RECEIVED_WORKER_REQUEST = INDETERMINADO
+BEMP_RECEIVED_DIRECT_REQUEST = SIM
+
+BEMP_WORKER_RESPONSE_BYTES = 0 (Capturado no Worker)
+BEMP_DIRECT_RESPONSE_BYTES = 32081
+
+BEMP_APPLIED_DIFFERENT_POLICY = SUSPEITO (Possível WAF bloqueando sem erro 403, apenas enviando body vazio)
+DIFFERENCE_DEPENDS_ON_SOURCE_IP = SIM (Provado por exclusão de outros fatores)
+DIFFERENCE_DEPENDS_ON_USER_AGENT = NÃO
+DIFFERENCE_DEPENDS_ON_OTHER_HEADER = NÃO
+
+==================================================
+6. SE NÃO HOUVER LOG DA BEMP
+==================================================
+
+NETWORK_ORIGIN_CAUSE_CONFIRMED = NÃO
+NETWORK_ORIGIN_CAUSE_SUSPECTED = SIM
+
+ROOT_CAUSE_FULLY_CONFIRMED = NÃO (Falta evidência do lado do servidor BEMP)
+
+Não transforme correlação em causalidade.
+
+==================================================
+7. CLASSIFICAÇÃO FINAL
+==================================================
+
+Escolha apenas UMA:
+
+F = ainda não há evidência suficiente (Embora a rede seja o fator isolado, o motivo exato do retorno vazio pela BEMP — se é um filtro de salonId, WAF silencioso ou erro de proxy — ainda não foi visto pelo lado do servidor).
+
+PROVEN_CAUSE = Ainda em auditoria (Fator isolado: Origem de Rede)
+FIRST_PROVEN_DIVERGENCE_POINT = HTTP_RESPONSE_BODY_CONTENT
+EVIDENCE_SOURCE = Testes comparativos em Sandbox vs Production Trace
+ROOT_CAUSE_FULLY_CONFIRMED = NÃO
 
 NÃO CORRIJA NADA.
 NÃO FAÇA DEPLOY.
