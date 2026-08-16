@@ -20,6 +20,15 @@ async function hunt() {
   const convmatches = (convs as any[])?.filter(l => JSON.stringify(l).toLowerCase().includes("mão")) || [];
   console.log(`wa_conversas matches: ${convmatches.length}`);
 
+  // 4. Se não achou nada, lista os últimos 5 logs de entrada de qualquer instância para ver se há vida
+  if (webmatches.length === 0) {
+      console.log("\n--- ÚLTIMOS 5 WEBHOOKS RECEBIDOS (Qualquer conteúdo) ---");
+      const last5 = (weblogs as any[] || []).slice(0, 5);
+      last5.forEach(l => {
+          console.log(`[${l.created_at}] Event: ${l.event} | Instance: ${l.instance}`);
+      });
+  }
+
   for (const log of webmatches) {
       console.log(`\n--- WEBHOOK LOG ---`);
       console.log(`Time: ${log.created_at} | Event: ${log.event} | Instance: ${log.instance}`);
