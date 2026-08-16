@@ -1,5 +1,5 @@
 
-import { getEvolutionConfig } from './src/lib/evolution.server';
+import { getEvolutionConfig } from '../evolution.server';
 
 async function run() {
   console.log('--- DIAGNÓSTICO DE INFRAESTRUTURA ---');
