@@ -361,61 +361,28 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
   if (effectiveUnitId && bookingContext.serviceText && !bookingContext.serviceId && !bookingContext.clarificationRequired) {
     const services = await BempService.listServices(effectiveUnitId);
     const normalizedSearch = normalizeServiceSearchText(bookingContext.serviceText);
-    const logCtx = { traceId, unitId: effectiveUnitId, serviceText: bookingContext.serviceText, normalizedSearch };
-
+    
     const matches = services.filter(s => {
       const name = normalizeServiceSearchText(s.name || s.nome || "");
-      // Prioridade 1: Match exato após normalização
       if (name === normalizedSearch) return true;
-      // Prioridade 2: Search contido no nome (ex: "manicure" em "Manicure + Pedicure")
       if (name.includes(normalizedSearch)) return true;
-      // Prioridade 3: Nome contido no search (ex: "unha" em "quero fazer minha unha")
-      if (normalizedSearch.includes(name) && name.length > 3) return true;
       return false;
     });
 
-    await logEvent({
-      instance: conversationKey?.split(':')[0] || 'unknown',
-      event: 'BEMP_SERVICE_LOOKUP_COMPLETED',
-      status: 'success',
-      payload: { 
-        foundCount: matches.length,
-        candidates: matches.slice(0, 3).map(m => m.name || m.nome),
-        search: normalizedSearch
-      }
-    });
-
     if (matches.length === 1) {
-      bookingContext.serviceId = String(matches[0].id);
-      bookingContext.serviceName = matches[0].name || matches[0].nome;
-      if (conversationKey) {
-        await patchCustomerContext(conversationKey, {
-          'bookingContext.serviceId': bookingContext.serviceId,
-          'bookingContext.serviceName': bookingContext.serviceName,
-          'bookingContext.serviceText': null,
-          'bookingContext.clarificationRequired': false
-        });
-      }
+      bookingContext = mergeBookingContext(bookingContext, {
+        serviceId: String(matches[0].id),
+        serviceText: matches[0].name || matches[0].nome
+      });
     } else if (matches.length > 1) {
-      const candidateList = matches.map(m => ({
-        id: String(m.id),
-        name: m.name || m.nome,
-        price: m.price || m.valor || 0
-      }));
-      bookingContext.clarificationRequired = true;
-      bookingContext.candidates = candidateList;
-      if (conversationKey) {
-        await patchCustomerContext(conversationKey, {
-          'bookingContext.clarificationRequired': true,
-          'bookingContext.candidates': candidateList,
-          'bookingContext.serviceId': null,
-          'bookingContext.serviceName': null
-        });
-      }
+      bookingContext = mergeBookingContext(bookingContext, {
+        clarificationRequired: true,
+        candidates: matches.map(m => ({ id: String(m.id), name: m.name || m.nome }))
+      });
     }
   }
 
-  // 2. LLM EXECUTION
+  // 2. CHAMADA AO MODELO
   const systemPrompt = assembleSystemPrompt({
     contactName: opts.contactName,
     contactPhone: opts.contactPhone,
@@ -427,20 +394,12 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
   });
 
   const modelMessages = await convertToModelMessages(messages);
-  console.log("AUDIT_PAYLOAD:", JSON.stringify({ model: model.modelId, messages: modelMessages, maxSteps: 5 }, null, 2));
-  let result;
-  try {
-    result = await generateText({
-      model,
-      system: systemPrompt + (sandbox ? SANDBOX_NOTE : ""),
-      messages: modelMessages,
-      tools: buildTools(!!sandbox, effectiveUnitId, conversationKey, bookingContext.subscriptionIntent, traceId, bookingContext),
-      maxSteps: 5,
-    } as any);
-  } catch (e: any) {
-    console.log("AUDIT_ERROR_DETAILS:", JSON.stringify({ message: e.message, status: e.status, data: e.data, response: e.responseBody }, null, 2));
-    throw e;
-  }
+  
+  const result = await generateText({
+    model,
+    system: systemPrompt + (sandbox ? SANDBOX_NOTE : ""),
+    messages: modelMessages,
+    tools: buildTools(!!sandbox, effectiveUnitId, conversationKey, bookingContext.subscriptionIntent, traceId, bookingContext),
     maxSteps: 5,
   } as any);
 
@@ -455,31 +414,28 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
     }
   }
 
-  // 4. EVOLUTION DELIVERY & PERSISTENCE
-  if (conversationKey && finalResponse) {
-    const { EvolutionService } = await import("./evolution/evolution-service.server");
-    const { persistWaMessage } = await import("@/lib/booking/persistence-helper.server");
-    const [instanceId, remoteJid] = conversationKey.split(":");
-    
-    if (finalResponse.trim()) {
-      // 4.1 Enviar para WhatsApp
-      await EvolutionService.sendText({
-        instance: instanceId,
-        to: remoteJid,
-        text: finalResponse,
-        module: "julia-ai"
-      });
-
-      // 4.2 Persistir Histórico via RPC Real (p_new_message, p_phone)
-      await persistWaMessage(conversationKey, {
-        role: "assistant",
-        content: finalResponse,
-        timestamp: new Date().toISOString(),
-        bookingContext, // Preserva o contexto determinístico no histórico
-        traceId
+  // Se o modelo resolveu um candidato pelo índice (ex: "1")
+  if (bookingContext.clarificationRequired && !bookingContext.serviceId) {
+    const selectedIndex = parseInt(text);
+    if (!isNaN(selectedIndex) && bookingContext.candidates && bookingContext.candidates[selectedIndex - 1]) {
+      const selected = bookingContext.candidates[selectedIndex - 1];
+      bookingContext = mergeBookingContext(bookingContext, {
+        serviceId: selected.id,
+        serviceText: selected.name,
+        clarificationRequired: false,
+        candidates: []
       });
     }
   }
 
-  return { text: finalResponse, bookingContext };
+  // 4. PERSISTÊNCIA DO CONTEXTO
+  if (conversationKey) {
+    await patchCustomerContext(conversationKey, { bookingContext });
+  }
+
+  return {
+    text: finalResponse,
+    bookingContext,
+    traceId
+  };
 }
