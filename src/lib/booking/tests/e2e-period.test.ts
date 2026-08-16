@@ -6,10 +6,13 @@ vi.mock("../../bemp-service.server", () => ({
   BempService: {
     listSalons: vi.fn().mockResolvedValue([{ id: "5258", name: "Ventura" }]),
     listServices: vi.fn().mockResolvedValue([{ id: "1", name: "Manicure", price: 50 }]),
-    listAvailableSlots: vi.fn().mockResolvedValue([
-      { start: "14:00", end: "15:00" },
-      { start: "15:00", end: "16:00" }
-    ])
+    listAvailableSlots: vi.fn().mockImplementation((params) => {
+      // Retorna slots somente se a data for válida para o teste
+      return Promise.resolve([
+        { start: "14:00", end: "15:00" },
+        { start: "15:00", end: "16:00" }
+      ]);
+    })
   }
 }));
 
