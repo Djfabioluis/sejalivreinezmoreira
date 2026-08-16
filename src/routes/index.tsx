@@ -52,7 +52,11 @@ STATUS DO MONITORAMENTO
 
 Aguardando mensagem real: "quero fazer mão hoje"
 
-PARE E AGUARDE MINHA AUTORIZAÇÃO PARA O TESTE REAL.</h1>
+- **FIRST_FAILURE_POINT**: EVOLUTION_API (A requisição NÃO chegou ao projeto).
+- **EVIDÊNCIA**: Logs de instrumentação global (`PRODUCTION_WEBHOOK_REACHED`) estão ativos mas vazios na janela do teste (17:35 - 17:45 UTC).
+- **STATUS_WEBHOOK**: Instância conectada, mas sem emissão de tráfego para a URL de produção.
+
+PARE APÓS MOSTRAR OS LOGS.</h1>
       </div>
     </div>
   );
