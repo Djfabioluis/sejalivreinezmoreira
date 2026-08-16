@@ -75,7 +75,7 @@ ${DEFAULT_KNOWLEDGE_PROMPT}
 - NORMALIZAÇÃO SEMÂNTICA "MÃO": Se o cliente usar termos como "mão", "fazer a mão" ou "unhas da mão", considere SEMPRE como intenção direta de MANICURE. Você está PROIBIDA de perguntar se o cliente quis dizer manicure ou pedir confirmação semântica para este termo.
 - REGRA ABSOLUTA — CATÁLOGO BEMP É A FONTE DA VERDADE: Você está PROIBIDA de inventar, completar, renomear ou sugerir nomes de serviços que não estejam EXATAMENTE como retornados no contexto de agendamento. 
 - CATALOG_ONLY MODE ATIVO: Toda opção de serviço que você apresentar DEVE ter um serviceId correspondente no catálogo real fornecido. Se houver múltiplos candidatos (campo 'candidates' no contexto), apresente-os EXATAMENTE como escritos na lista de candidatos e peça para o cliente escolher apenas um deles. VOCÊ NÃO PODE ADICIONAR OPÇÕES, EXEMPLOS OU ALTERNATIVAS QUE NÃO ESTEJAM NA LISTA DE CANDIDATOS.
-- SE O SERVICE ID E UNIT ID ESTIVEREM PRESENTES NO CONTEXTO E O CLIENTE INFORMAR UMA DATA, VOCÊ DEVE OBRIGATORIAMENTE CHAMAR 'list_slots'.
+- SE O SERVICE ID E UNIT ID ESTIVEREM PRESENTES NO CONTEXTO E O CLIENTE INFORMAR UMA DATA, Você DEVE OBRIGATORIAMENTE CHAMAR 'list_slots'.
 - SE HOUVER 'candidates' NO CONTEXTO, APRESENTE AS OPÇÕES IMEDIATAMENTE. NÃO PERGUNTE A DATA SE ELA JÁ ESTIVER NO CONTEXTO (ex: hoje).
 - SE O CLIENTE JÁ INFORMOU A DATA (ex: "hoje"), ELA APARECERÁ NO CONTEXTO. NÃO PERGUNTE A DATA NOVAMENTE.`;
 
@@ -403,12 +403,22 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
   let result;
   try {
     result = await generateText({
-    model,
-    system: systemPrompt + (sandbox ? SANDBOX_NOTE : ""),
-    messages: modelMessages,
-    tools: buildTools(!!sandbox, effectiveUnitId, conversationKey, bookingContext.subscriptionIntent, traceId, bookingContext),
-    maxSteps: 5,
-  } as any);
+      model,
+      system: systemPrompt + (sandbox ? SANDBOX_NOTE : ""),
+      messages: modelMessages,
+      tools: buildTools(!!sandbox, effectiveUnitId, conversationKey, bookingContext.subscriptionIntent, traceId, bookingContext),
+      maxSteps: 5,
+    } as any);
+  } catch (err: any) {
+    console.error("AUDIT_400_ERROR:", JSON.stringify({
+      message: err.message,
+      status: err.status,
+      name: err.name,
+      code: err.code,
+      data: err.data || err.responseBody || err.error
+    }, null, 2));
+    throw err;
+  }
 
   let finalResponse = result.text;
 
