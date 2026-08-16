@@ -61,24 +61,94 @@ export class BempService {
   }
 
   static async listServices(salonId: string | number): Promise<any[]> {
+    const traceId = Math.random().toString(36).substring(7);
     const cfg = await getBempConfig();
-    const result = await this.fetch<any>(`${cfg.apiBase}/salons/${salonId}/services`, undefined, "bemp-services");
-    const services = Array.isArray(result) ? result : (result?.data || []);
+    const primaryUrl = `${cfg.apiBase}/salons/${salonId}/services`;
     
-    // OBSERVABILITY_ONLY: Registro sanitizado do retorno bruto
-    logger.info("BEMP_RAW_RESPONSE_RECEIVED", "Listagem de serviços recebida", {
+    // 1. PRIMARY ATTEMPT
+    let services: any[] = [];
+    let primarySuccess = false;
+    let primaryStatus = 0;
+    let primaryBodyLength = 0;
+
+    try {
+      const result = await this.fetch<any>(primaryUrl, undefined, "bemp-services");
+      services = Array.isArray(result) ? result : (result?.data || []);
+      primarySuccess = true;
+      primaryStatus = 200; // if fetch didn't throw, it's ok
+      primaryBodyLength = JSON.stringify(result).length;
+    } catch (err: any) {
+      primaryStatus = err.status || 500;
+      logger.error("BEMP_PRIMARY_FAILED", err.message, { salonId, traceId });
+    }
+
+    // 2. FALLBACK ATTEMPT (if primary is empty or failed)
+    const shouldTryFallback = !primarySuccess || services.length === 0;
+    let fallbackUsed = false;
+    let fallbackStatus = 0;
+    let fallbackBodyLength = 0;
+    let fallbackCount = 0;
+
+    if (shouldTryFallback) {
+      fallbackUsed = true;
+      try {
+        const origin = typeof window !== 'undefined' ? window.location.origin : process.env.VITE_APP_URL || 'http://localhost:8080';
+        const relayUrl = `${origin}/api/public/bemp-services-relay`;
+        
+        logger.info("BEMP_FALLBACK_START", "Iniciando fallback via relay route", { salonId, traceId });
+        
+        const res = await fetch(relayUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ unitId: salonId })
+        });
+
+        fallbackStatus = res.status;
+        const text = await res.text();
+        fallbackBodyLength = text.length;
+
+        if (res.ok && text) {
+          const result = JSON.parse(text);
+          const fallbackServices = Array.isArray(result) ? result : (result?.data || []);
+          if (fallbackServices.length > 0) {
+            services = fallbackServices;
+            fallbackCount = services.length;
+            logger.info("BEMP_FALLBACK_SUCCESS", "Fallback recuperou serviços", { 
+              salonId, 
+              traceId, 
+              count: fallbackCount 
+            });
+          }
+        }
+      } catch (fallbackErr: any) {
+        logger.error("BEMP_FALLBACK_CRITICAL_FAILED", fallbackErr.message, { salonId, traceId });
+      }
+    }
+
+    // OBSERVABILITY_ONLY: Registro sanitizado do retorno final
+    logger.info("BEMP_LOOKUP_COMPLETED", "Processo de consulta BEMP finalizado", {
       unitId: String(salonId),
-      bempRawCount: services.length,
-      services: services.map((s: any) => ({
-        serviceId: String(s.id),
-        name: s.name || s.nome,
-        price: s.price || s.valor,
-        active: s.active ?? s.status ?? true
-      }))
+      traceId,
+      primaryStatus,
+      primaryCount: services.length && !fallbackUsed ? services.length : 0,
+      fallbackUsed,
+      fallbackStatus,
+      fallbackCount,
+      finalCount: services.length
     });
+
+    if (services.length === 0 && (primaryStatus !== 200 || (fallbackUsed && fallbackStatus !== 200))) {
+      throw new AppError({
+        code: "BEMP_UNAVAILABLE",
+        message: "Não foi possível obter o catálogo de serviços em nenhuma das rotas.",
+        safeMessage: "O sistema de catálogo está temporariamente indisponível.",
+        statusCode: 503
+      });
+    }
 
     return services;
   }
+
 
   static async listProfessionals(salonId: string | number, serviceId: string | number): Promise<any[]> {
     const cfg = await getBempConfig();
