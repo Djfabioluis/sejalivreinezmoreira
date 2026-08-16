@@ -421,7 +421,22 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
       const selected = bookingContext.candidates[selectedIndex - 1];
       bookingContext = mergeBookingContext(bookingContext, {
         serviceId: selected.id,
-        serviceText: selected.name,
+        serviceName: selected.name,
+        clarificationRequired: false,
+        candidates: []
+      });
+    }
+  }
+
+  // Se o modelo resolveu um candidato pelo nome
+  if (bookingContext.clarificationRequired && !bookingContext.serviceId) {
+    const matchedCandidate = bookingContext.candidates?.find(c => 
+      normalizeServiceSearchText(text).includes(normalizeServiceSearchText(c.name))
+    );
+    if (matchedCandidate) {
+      bookingContext = mergeBookingContext(bookingContext, {
+        serviceId: matchedCandidate.id,
+        serviceName: matchedCandidate.name,
         clarificationRequired: false,
         candidates: []
       });
