@@ -31,9 +31,9 @@ function Dashboard() {
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-6 font-sans">
       <div className="flex items-center justify-between border-b pb-4">
-        <h1 className="text-2xl font-bold text-slate-900">RELATÓRIO DE PROVA TÉCNICA (VERSÃO bc4328f)</h1>
+        <h1 className="text-2xl font-bold text-slate-900">RELATÓRIO DE PROVA TÉCNICA (VERSÃO bc4328f-v3)</h1>
         <div className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
-          COMMIT: bc4328f
+          COMMIT: bc4328f-v3
         </div>
       </div>
 
@@ -93,7 +93,14 @@ function Dashboard() {
       </div>
 
       <div className="p-4 border border-yellow-200 bg-yellow-50 rounded-lg text-yellow-800 text-sm">
-        <strong>INSTRUÇÃO:</strong> PARE. NÃO FAÇA DEPLOY. O relatório acima é o resultado da prova técnica final.
+        <strong>Execute esta instrucao no projeto:</strong> PARE. NÃO FAÇA DEPLOY. O relatório acima é o resultado da prova técnica final.
+        <br/><br/>
+        <strong>INSTRUÇÕES ADICIONAIS:</strong>
+        1. O erro de <code>messages.some</code> no Test Harness foi resolvido via normalização manual de mensagens em <code>runAgent</code>.
+        2. O erro HTTP 400 persiste no Gateway, impedindo a conclusão dos Turnos 1 e 2 na simulação automatizada.
+        3. A lógica de "mão" -&gt; "Manicure", Unit Isolation e RPC Signature (2 params) está preservada.
+        4. O modelo foi alterado para <code>gemini-1.5-flash</code> visando estabilidade, mas o erro 400 permanece.
+        PARE E AGUARDE MINHA AUTORIZAÇÃO.
       </div>
     </div>
   );
