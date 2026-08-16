@@ -323,7 +323,7 @@ export async function isIAConfigured(): Promise<boolean> {
 export async function streamAgent(opts: { messages: any[]; sandbox?: boolean }) {
   const gatewayKey = process.env.LOVABLE_AI_GATEWAY_KEY || process.env.LOVABLE_API_KEY || "";
   const provider = createLovableAiGatewayProvider(gatewayKey);
-  const model = provider("google/gemini-1.5-flash");
+  const model = provider("google/gemini-2.0-flash-exp");
 
   const modelMessages = await convertToModelMessages(opts.messages);
   
