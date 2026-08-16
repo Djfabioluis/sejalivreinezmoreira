@@ -63,7 +63,21 @@ export class BempService {
   static async listServices(salonId: string | number): Promise<any[]> {
     const cfg = await getBempConfig();
     const result = await this.fetch<any>(`${cfg.apiBase}/salons/${salonId}/services`, undefined, "bemp-services");
-    return Array.isArray(result) ? result : (result?.data || []);
+    const services = Array.isArray(result) ? result : (result?.data || []);
+    
+    // OBSERVABILITY_ONLY: Registro sanitizado do retorno bruto
+    logger.info("BEMP_RAW_RESPONSE_RECEIVED", "Listagem de serviços recebida", {
+      unitId: String(salonId),
+      bempRawCount: services.length,
+      services: services.map(s => ({
+        serviceId: String(s.id),
+        name: s.name || s.nome,
+        price: s.price || s.valor,
+        active: s.active ?? s.status ?? true
+      }))
+    });
+
+    return services;
   }
 
   static async listProfessionals(salonId: string | number, serviceId: string | number): Promise<any[]> {

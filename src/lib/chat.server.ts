@@ -361,14 +361,59 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
     const normalizedSearch = normalizeServiceSearchText(bookingContext.serviceText);
     const logCtx = { traceId, unitId: effectiveUnitId, serviceText: bookingContext.serviceText, normalizedSearch };
 
+    // OBSERVABILITY_ONLY: Rastreio de filtragem
+    await logEvent({
+      instance: conversationKey?.split(':')[0] || 'unknown',
+      event: 'FILTER_PROCESS_START',
+      status: 'info',
+      payload: { 
+        traceId,
+        unitId: effectiveUnitId,
+        serviceSearchTerm: bookingContext.serviceText,
+        normalizedServiceSearch: normalizedSearch,
+        filterInputCount: services.length
+      }
+    });
+
     const matches = services.filter(s => {
-      const name = normalizeServiceSearchText(s.name || s.nome || "");
-      // Prioridade 1: Match exato após normalização
-      if (name === normalizedSearch) return true;
-      // Prioridade 2: Search contido no nome (ex: "manicure" em "Manicure + Pedicure")
-      if (name.includes(normalizedSearch)) return true;
-      // Prioridade 3: Nome contido no search (ex: "unha" em "quero fazer minha unha")
-      if (normalizedSearch.includes(name) && name.length > 3) return true;
+      const rawName = s.name || s.nome || "";
+      const name = normalizeServiceSearchText(rawName);
+      
+      const isExactMatch = name === normalizedSearch;
+      const nameIncludesSearch = name.includes(normalizedSearch);
+      const searchIncludesName = normalizedSearch.includes(name) && name.length > 3;
+      const finalMatch = isExactMatch || nameIncludesSearch || searchIncludesName;
+
+      // Rastreio específico para manicure
+      const isManicureRelated = /manicure|manicuri|mão|mao/i.test(rawName);
+      if (isManicureRelated) {
+        logEvent({
+          instance: conversationKey?.split(':')[0] || 'unknown',
+          event: 'FILTER_DETAIL_MANICURE',
+          status: 'info',
+          payload: {
+            traceId,
+            unitId: effectiveUnitId,
+            serviceId: String(s.id),
+            serviceName: rawName,
+            rawServiceName: rawName,
+            normalizedServiceName: name,
+            searchTerm: normalizedSearch,
+            ACTIVE_CONDITION_RESULT: "CONDITION_NOT_PRESENT", // Filtro de ativo não está no .filter atual
+            UNIT_CONDITION_RESULT: "CONDITION_NOT_PRESENT", // Filtro de unidade não está no .filter atual
+            NAME_CONDITION_RESULT: finalMatch,
+            isExactMatch,
+            nameIncludesSearch,
+            searchIncludesName,
+            FINAL_MATCH_RESULT: finalMatch
+          }
+        }).catch(() => {});
+      }
+
+      // Lógica original preservada
+      if (isExactMatch) return true;
+      if (nameIncludesSearch) return true;
+      if (searchIncludesName) return true;
       return false;
     });
 
@@ -377,7 +422,10 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
       event: 'BEMP_SERVICE_LOOKUP_COMPLETED',
       status: 'success',
       payload: { 
+        traceId,
+        unitId: effectiveUnitId,
         foundCount: matches.length,
+        afterFilterCount: matches.length,
         candidates: matches.slice(0, 3).map(m => m.name || m.nome),
         search: normalizedSearch
       }
