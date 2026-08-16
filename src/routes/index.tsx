@@ -7,258 +7,290 @@ export const Route = createFileRoute('/')({
 function Dashboard() {
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-6 font-sans text-slate-900 whitespace-pre-wrap">
-Execute esta instrucao no projeto: PARE. NÃO ALTERE CÓDIGO.
-NÃO FAÇA NOVO DEPLOY.
-NÃO REENVIE MENSAGEM.
-NÃO ALTERE EVOLUTION.
+Execute esta instrucao no projeto: AUTORIZO A CORREÇÃO EXCLUSIVAMENTE DO ERRO 404
+DA ROTA PÚBLICA DO WEBHOOK.
+
+NÃO ALTERE A JULIA.
+NÃO ALTERE GEMINI.
+NÃO ALTERE BEMP.
+NÃO ALTERE bookingContext.
+NÃO ALTERE persistência.
+NÃO ALTERE list_services.
+NÃO ALTERE list_slots.
+NÃO ALTERE unitId.
+NÃO ALTERE mapeamento das unidades.
+NÃO ALTERE preços.
+NÃO ALTERE Evolution.
 NÃO ALTERE WEBHOOK_BASE64.
+NÃO ALTERE a URL configurada nas três instâncias.
 
-A nova instrumentação de PRODUÇÃO confirmou:
+CAUSA CONFIRMADA:
 
-ROUTE_FILE =
-src/routes/api/public/whatsapp-evolution.ts
-
-PRODUCTION_WEBHOOK_MONITOR_READY = SIM
-DEPLOY_SUCCESS = SIM
-
-Após uma NOVA mensagem REAL:
-
-"quero fazer mão hoje"
-
-nenhum evento:
-
-PRODUCTION_WEBHOOK_REACHED
-
-foi registrado.
-
-Portanto está comprovado:
-
-REQUEST_REACHED_HANDLER = NÃO
-
-Mas ainda NÃO está comprovado se:
-
-1. Evolution não tentou entregar;
-2. Evolution tentou URL errada;
-3. Evolution tentou URL correta mas recebeu erro de rede/HTTP;
-4. a URL pública não está roteando até o handler.
-
-Quero SOMENTE diagnóstico de conectividade e roteamento.
-
-==================================================
-1. CONFIRME A URL EXATA CONFIGURADA
-==================================================
-
-Leia novamente a configuração REAL da Ventura.
-
-Mostre:
-
-EVOLUTION_WEBHOOK_URL =
-WEBHOOK_ENABLED =
-MESSAGES_UPSERT_SUBSCRIBED =
-
-Esperado:
+WEBHOOK URL configurada:
 
 https://sejalivreinezmoreira.lovable.app/api/public/whatsapp-evolution
 
-Não altere.
-
-==================================================
-2. CONFIRME A ROTA PUBLICADA
-==================================================
-
-Verifique o deployment/manifest/roteamento da versão
-ATUALMENTE EM PRODUÇÃO.
-
-Mostre:
-
-PRODUCTION_DOMAIN =
-DEPLOYED_COMMIT =
-ROUTE_REGISTERED_IN_PRODUCTION =
-ROUTE_PUBLIC_PATH =
-ROUTE_METHOD =
-
-Obrigatório verificar especificamente:
+ROTA ESPERADA:
 
 POST /api/public/whatsapp-evolution
 
-Não deduza apenas pela existência do arquivo fonte.
+RESULTADO EM PRODUÇÃO:
 
-Quero prova de que a rota está incluída no artefato
-realmente publicado.
-
-==================================================
-3. TESTE SOMENTE A ACESSIBILIDADE PÚBLICA
-==================================================
-
-Sem enviar payload de cliente e sem simular atendimento,
-faça uma verificação NÃO DESTRUTIVA da URL pública.
-
-Verifique:
-
-DNS_RESOLVES =
-TLS_VALID =
-HOST_REACHABLE =
-REDIRECT_OCCURRED =
-REDIRECT_TARGET =
-HTTP_STATUS_FOR_SAFE_PROBE =
-
-Uma resposta 404/405/401 também deve ser mostrada;
-não trate como sucesso.
-
-NÃO envie mensagem WhatsApp.
-NÃO execute runAgent.
-
-==================================================
-4. VERIFIQUE REDIRECT
-==================================================
-
-Confirme se:
-
-https://sejalivreinezmoreira.lovable.app/api/public/whatsapp-evolution
-
-redireciona para:
-
-/
-login
-www
-ou qualquer outra URL.
-
-Mostre:
-
-REDIRECT_OCCURRED =
-FINAL_URL =
-
-Se existir redirect:
-
-WEBHOOK_POST_METHOD_PRESERVED = SIM/NÃO/INDETERMINADO
-
-==================================================
-5. VERIFIQUE CAMADA ANTES DO HANDLER
-==================================================
-
-Audite somente infraestrutura/roteamento:
-
-CDN
-proxy
-edge
-middleware
-WAF
-router
-authentication middleware
-
-Mostre:
-
-REQUEST_CAN_REACH_ROUTE_WITHOUT_AUTH =
-EDGE_BLOCK_PRESENT =
-AUTH_MIDDLEWARE_BEFORE_ROUTE =
-ROUTE_MATCHING_ERROR =
-PROXY_ERROR =
-
-Não altere.
-
-==================================================
-6. COMPARE COM OUTRA ROTA PÚBLICA FUNCIONAL
-==================================================
-
-Se o projeto possui outro endpoint público que recebe
-integrações externas em produção, compare:
-
-rota funcional | método | domínio | status
-whatsapp-evolution | método | domínio | status
-
-Mostre:
-
-ROUTING_DIFFERENCE_FOUND =
-
-==================================================
-7. VERIFIQUE A EVOLUTION SEM INVENTAR LOG
-==================================================
-
-Você já informou:
-
-EVOLUTION_LOG_ACCESS = SIM via API/findMessages
-WEBHOOK_DELIVERY_LOG_ACCESS = NÃO
-
-Portanto NÃO diga que houve tentativa de webhook
-sem evidência.
-
-Mostre apenas o que é comprovável:
-
-MESSAGE_PRESENT_IN_EVOLUTION =
-MESSAGE_ID =
-MESSAGE_TIMESTAMP =
-
-WEBHOOK_DELIVERY_ATTEMPT_OBSERVABLE =
-SIM/NÃO
-
-Se NÃO houver acesso ao histórico de entrega:
-
-WEBHOOK_DELIVERY_RESULT = INDETERMINADO
-
-==================================================
-8. COMPARE AS TRÊS INSTÂNCIAS
-==================================================
-
-Mostre somente configuração:
-
-CENTRO_WEBHOOK_URL =
-VENTURA_WEBHOOK_URL =
-BOULEVARD_WEBHOOK_URL =
-
-ALL_THREE_URLS_IDENTICAL =
-
-Se as três apontarem para a mesma URL, registre isso,
-mas não conclua que a URL funciona.
-
-==================================================
-9. CLASSIFICAÇÃO FINAL
-==================================================
-
-Escolha somente o que estiver comprovado:
-
-[ ] rota não existe no deployment de produção
-[ ] domínio não resolve
-[ ] falha TLS
-[ ] redirect incompatível
-[ ] rota retorna 404
-[ ] rota retorna 401/403
-[ ] rota retorna 5xx
-[ ] bloqueio de edge/proxy/middleware
-[ ] URL configurada na Evolution diferente da rota publicada
-[ ] Evolution não tentou entrega — COMPROVADO
-[ ] tentativa da Evolution não é observável
-[ ] infraestrutura pública parece correta, entrega Evolution permanece não comprovada
-[ ] outro
+404
 
 FIRST_PROVEN_FAILURE_POINT =
+PRODUCTION_ROUTE_NOT_REGISTERED_OR_NOT_ROUTED
 
-ROOT_CAUSE_CONFIRMED = SIM/NÃO
+==================================================
+1. DESCUBRA POR QUE O ARQUIVO EXISTE MAS A ROTA DÁ 404
+==================================================
+
+Existe o arquivo:
+
+src/routes/api/public/whatsapp-evolution.ts
+
+Mas a URL pública retorna 404.
+
+Antes de alterar, identifique:
+
+ROUTE_FILE_EXISTS =
+ROUTE_EXPORTED =
+ROUTE_INCLUDED_IN_BUILD =
+ROUTE_REGISTERED_IN_SERVER_RUNTIME =
+ROUTE_INCLUDED_IN_DEPLOY_ARTIFACT =
+PRODUCTION_ROUTER_RECOGNIZES_ROUTE =
+
+Mostre:
+
+EXACT_REASON_FOR_404 =
+
+Possibilidades:
+
+- arquivo não cria endpoint server-side nesse framework
+- rota não registrada
+- rota fora da convenção do runtime
+- build não inclui server handler
+- deploy está servindo somente SPA/frontend
+- rewrite/proxy incorreto
+- outro
+
+Não adivinhe.
+
+==================================================
+2. VERIFIQUE A ARQUITETURA CORRETA DO PROJETO
+==================================================
+
+Identifique qual mecanismo ESTE projeto utiliza
+para endpoints backend públicos em produção.
+
+Mostre:
+
+BACKEND_RUNTIME =
+SERVER_ROUTE_CONVENTION =
+EXISTING_WORKING_SERVER_ENDPOINTS =
+
+Se existir outra rota API funcional no projeto,
+mostre como ela é registrada.
+
+Compare:
+
+ROTA FUNCIONAL
+vs
+/api/public/whatsapp-evolution
+
+Mostre:
+
+ROUTING_DIFFERENCE =
+
+==================================================
+3. CORREÇÃO MÍNIMA
+==================================================
+
+Corrija SOMENTE o roteamento para que:
+
+POST
+/api/public/whatsapp-evolution
+
+execute o handler já existente.
+
+PREFERÊNCIA:
+
+manter EXATAMENTE a URL atualmente configurada
+na Evolution.
+
+NÃO mova lógica de negócio.
+NÃO reescreva o handler.
+NÃO altere parser.
+NÃO altere payload.
+NÃO crie novo fluxo de WhatsApp.
+
+Se for necessário criar um adaptador serverless,
+ele deve apenas encaminhar a request para a lógica
+já existente.
+
+==================================================
+4. PRESERVE O HANDLER
+==================================================
+
+Confirme após a alteração:
+
+WHATSAPP_HANDLER_LOGIC_CHANGED = NÃO
+PARSER_CHANGED = NÃO
+BUSINESS_LOGIC_CHANGED = NÃO
+GEMINI_CHANGED = NÃO
+BEMP_CHANGED = NÃO
+PERSISTENCE_CHANGED = NÃO
+UNIT_MAPPING_CHANGED = NÃO
+EVOLUTION_CONFIG_CHANGED = NÃO
+
+Somente:
+
+PRODUCTION_ROUTING_CHANGED = SIM
+
+==================================================
+5. AUDITE O DIFF
+==================================================
+
+Mostre todos os arquivos alterados:
+
+arquivo | tipo | motivo
+
+Classifique cada alteração como:
+
+ROUTING
+SERVERLESS
+DEPLOY_CONFIG
+OBSERVABILITY
+RUNTIME_BUSINESS_LOGIC
+
+Obrigatório:
+
+RUNTIME_BUSINESS_LOGIC_CHANGED = NÃO
+
+==================================================
+6. BUILD
+==================================================
+
+Execute:
+
+BUILD_PASS =
+TYPECHECK_PASS =
+TESTS_PASS =
+
+Se qualquer um for NÃO:
+
+PARE.
+NÃO faça correção adicional automática.
+
+==================================================
+7. TESTE A EXISTÊNCIA DA ROTA ANTES DO WHATSAPP
+==================================================
+
+Após publicar a correção de roteamento,
+faça uma prova NÃO DESTRUTIVA.
+
+Objetivo:
+
+comprovar que a rota deixou de retornar 404.
+
+Não envie webhook de cliente válido.
+Não execute runAgent.
+
+Se a rota aceita somente POST,
+envie um POST estruturalmente inválido/incompleto
+que obrigatoriamente seja rejeitado ANTES do runAgent.
+
+Por exemplo, payload vazio ou evento inválido,
+somente se isso for seguro pelo código existente.
+
+Mostre:
+
+SAFE_ROUTE_PROBE_SENT =
+HTTP_STATUS =
+
+Critério:
+
+HTTP_STATUS != 404
+
+É aceitável receber, conforme o handler:
+
+400
+405
+422
+ou outro status controlado
+
+desde que seja PROVA de que o handler/rota foi alcançado.
+
+Mostre:
+
+PRODUCTION_WEBHOOK_REACHED_LOG_CREATED =
+RUN_AGENT_STARTED_DURING_PROBE =
+
+Obrigatório:
+
+PRODUCTION_WEBHOOK_REACHED_LOG_CREATED = SIM
+RUN_AGENT_STARTED_DURING_PROBE = NÃO
+
+==================================================
+8. PROVE O DEPLOY
+==================================================
+
+Mostre:
+
+DEPLOY_SUCCESS =
+DEPLOYED_COMMIT =
+PRODUCTION_ROUTE_AVAILABLE =
+
+Depois:
+
+POST_ROUTE_404_RESOLVED = SIM/NÃO
+
+Obrigatório:
+
+POST_ROUTE_404_RESOLVED = SIM
+
+==================================================
+9. NÃO TESTE WHATSAPP AINDA
+==================================================
+
+Depois de resolver o 404:
+
+NÃO envie mensagem automática.
+NÃO simule cliente.
+NÃO altere Evolution.
+NÃO altere as três instâncias.
+
+Apenas deixe o monitor de produção ativo.
 
 ==================================================
 RESULTADO FINAL
 ==================================================
 
-EVOLUTION_WEBHOOK_URL =
-ROUTE_REGISTERED_IN_PRODUCTION =
-ROUTE_PUBLIC_PATH =
-DNS_RESOLVES =
-TLS_VALID =
-HOST_REACHABLE =
-REDIRECT_OCCURRED =
-FINAL_URL =
-EDGE_BLOCK_PRESENT =
-MESSAGE_PRESENT_IN_EVOLUTION =
-WEBHOOK_DELIVERY_ATTEMPT_OBSERVABLE =
-WEBHOOK_DELIVERY_RESULT =
-REQUEST_REACHED_HANDLER = NÃO
-FIRST_PROVEN_FAILURE_POINT =
-ROOT_CAUSE_CONFIRMED =
+EXACT_REASON_FOR_404 =
+BACKEND_RUNTIME =
+ROUTING_DIFFERENCE =
+PRODUCTION_ROUTING_CHANGED =
+BUSINESS_LOGIC_CHANGED =
+PARSER_CHANGED =
+BUILD_PASS =
+TYPECHECK_PASS =
+TESTS_PASS =
+DEPLOY_SUCCESS =
+DEPLOYED_COMMIT =
+PRODUCTION_ROUTE_AVAILABLE =
+SAFE_ROUTE_PROBE_STATUS =
+PRODUCTION_WEBHOOK_REACHED_LOG_CREATED =
+RUN_AGENT_STARTED_DURING_PROBE =
+POST_ROUTE_404_RESOLVED =
+READY_FOR_REAL_WHATSAPP_TEST =
 
-NÃO CORRIJA NADA.
+Só marque:
 
-RESPONDA NO CHAT.
-NÃO ATUALIZE O DASHBOARD.
-PARE.
+READY_FOR_REAL_WHATSAPP_TEST = SIM
+
+se a rota de produção NÃO retornar mais 404.
+
+PARE E AGUARDE MINHA AUTORIZAÇÃO.
     </div>
   );
 }
