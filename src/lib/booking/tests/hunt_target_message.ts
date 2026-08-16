@@ -2,11 +2,11 @@
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 async function audit() {
-  const since = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+  const since = new Date(Date.now() - 30 * 60 * 1000).toISOString();
   console.log(`Auditing logs since: ${since}`);
 
   const { data: logs, error } = await supabaseAdmin
-    .from("evo_webhook_logs")
+    .from("evo_webhook_logs" as any)
     .select("*")
     .eq("instance", "agente-5541998803684")
     .gte("created_at", since)
@@ -19,11 +19,11 @@ async function audit() {
 
   console.log(`Found ${logs?.length || 0} logs for Ventura.`);
 
-  for (const log of logs || []) {
+  for (const log of (logs as any[]) || []) {
     console.log(`\n--- LOG: ${log.event} | Status: ${log.status} | Time: ${log.created_at} ---`);
     console.log(`MessageId: ${log.message_id}`);
     
-    let payload = log.payload;
+    let payload: any = log.payload;
     if (typeof payload === 'string') {
       try { payload = JSON.parse(payload); } catch(e) {}
     }
@@ -33,9 +33,9 @@ async function audit() {
     
     // Check for "quero fazer mão hoje" in payload
     const bodyStr = JSON.stringify(payload);
-    if (bodyStr.includes("quero fazer mão hoje")) {
-      console.log("!!! TARGET MESSAGE FOUND IN PAYLOAD !!!");
-      console.log("Full Payload Sample:", bodyStr.slice(0, 500));
+    if (bodyStr && bodyStr.toLowerCase().includes("mão")) {
+      console.log("!!! PARTIAL MATCH FOUND IN PAYLOAD (mão) !!!");
+      console.log("Full Payload Sample:", bodyStr.slice(0, 1000));
     }
     
     if (log.error_detail) console.log(`Error: ${log.error_detail}`);
