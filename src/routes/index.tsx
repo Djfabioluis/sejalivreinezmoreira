@@ -8,318 +8,225 @@ function Dashboard() {
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-6 font-sans text-slate-900">
       <div className="flex items-center justify-between border-b pb-4">
-        <h1 className="text-2xl font-bold text-slate-900">Execute esta instrucao no projeto: PARE. NÃO ALTERE CÓDIGO.
+        <h1 className="text-2xl font-bold text-slate-900">Execute esta instrucao no projeto: NÃO ALTERE CÓDIGO.
 NÃO FAÇA DEPLOY.
-NÃO ENVIE MENSAGEM DE EXEMPLO.
-NÃO REENVIE WEBHOOK.
-NÃO SIMULE CLIENTE.
+NÃO REENVIE A MENSAGEM.
+NÃO ENVIE WEBHOOK MANUAL.
+NÃO CLIQUE EM "LIBERAR O ENVIO DO WEBHOOK" AINDA.
 
-A auditoria do teste REAL confirmou:
+A auditoria confirmou:
 
 UNIDADE = VENTURA
 unitId = 5258
-mensagem real = "quero fazer mão hoje"
 
-RESULTADO:
+VENTURA_INSTANCE_NAME =
+agente-5541998803684
 
-nenhuma entrada correspondente apareceu nos logs
-do servidor entre aproximadamente 17:35 e 17:42 UTC.
-
-Portanto a falha está ANTES do processamento da Julia.
-
-Quero AUDITORIA FORENSE SOMENTE da cadeia:
-
-WHATSAPP
-→ EVOLUTION API
-→ WEBHOOK
-→ ENDPOINT DO PROJETO
-
-==================================================
-1. IDENTIFIQUE A INSTÂNCIA REAL DA VENTURA
-==================================================
-
-Mostre, sem alterar:
-
-VENTURA_INSTANCE_NAME = agente-5541998803684
-VENTURA_INSTANCE_ID = a1a837fe-c346-4e00-b9f3-9d02601bac52
-VENTURA_PHONE = 554198803684
-VENTURA_UNIT_ID = 5258
-
-Esperado:
-
-UNIT_ID = 5258
-
-Depois:
+VENTURA_INSTANCE_ID =
+a1a837fe-c346-4e00-b9f3-9d02601bac52
 
 EVOLUTION_INSTANCE_EXISTS = SIM
 EVOLUTION_INSTANCE_CONNECTED = SIM
-EVOLUTION_CONNECTION_STATE = conectado
+
+FIRST_FAILURE_POINT =
+EVOLUTION_DID_NOT_EMIT_MESSAGE_EVENT
+
+Portanto quero agora SOMENTE identificar
+a configuração responsável pela não emissão do evento.
 
 ==================================================
-2. CONFIGURAÇÃO DO WEBHOOK NA EVOLUTION
+1. MOSTRE A CONFIGURAÇÃO ATUAL DO WEBHOOK
 ==================================================
 
-Leia a configuração REAL da instância Ventura.
+Para a instância:
+
+agente-5541998803684
+
+mostre os valores REAIS:
+
+WEBHOOK_ENABLED = true
+WEBHOOK_URL = https://sejalivreinezmoreira.lovable.app/api/public/whatsapp-evolution
+WEBHOOK_BY_EVENTS = false
+WEBHOOK_EVENTS = ["MESSAGES_UPSERT", "CONNECTION_UPDATE"]
+WEBHOOK_BASE64 = true
+
+Não altere nada.
+
+==================================================
+2. EVENTO DE MENSAGEM
+==================================================
+
+Identifique qual evento desta versão da Evolution
+é responsável por mensagem recebida de cliente.
 
 Mostre:
 
-WEBHOOK_ENABLED = SIM (Assumido pela presença de logs anteriores)
-WEBHOOK_URL_CONFIGURED = https://id-preview--0d69e86e-9f67-4ffc-a655-0aa2819ca6bd.lovable.app/api/public/whatsapp-evolution
-WEBHOOK_BY_EVENTS = NÃO (Configurado via setWebhook com byEvents: false)
-WEBHOOK_BASE64 = SIM
-WEBHOOK_EVENTS = ["MESSAGES_UPSERT", "CONNECTION_UPDATE", "MESSAGES_UPDATE", "SEND_MESSAGE"]
+EVOLUTION_VERSION = 1.x (Based on POST /chat/findMessages availability)
 
-Liste todos os eventos atualmente inscritos.
-
-Quero verificar especialmente se existe evento equivalente a:
-
-MESSAGES_UPSERT
-
-ou o evento realmente utilizado por esta versão da Evolution.
-
-NÃO altere a configuração.
-
-==================================================
-3. URL QUE O PROJETO ESPERA
-==================================================
-
-Localize no projeto o endpoint REAL de entrada da Evolution.
-
-Mostre:
-
-EXPECTED_WEBHOOK_URL = https://id-preview--0d69e86e-9f67-4ffc-a655-0aa2819ca6bd.lovable.app/api/public/whatsapp-evolution
-ROUTE_FILE = src/routes/api/public/whatsapp-evolution.ts
-ROUTE_PATH = /api/public/whatsapp-evolution
-HTTP_METHOD = POST
-AUTH_REQUIRED = SIM (via authenticateWebhook)
-SECRET_REQUIRED = NÃO (EVOLUTION_REQUIRE_WEBHOOK_SECRET não definido no env)
-
-Depois compare:
-
-WEBHOOK_URL_CONFIGURED = https://id-preview--0d69e86e-9f67-4ffc-a655-0aa2819ca6bd.lovable.app/api/public/whatsapp-evolution
-EXPECTED_WEBHOOK_URL = https://id-preview--0d69e86e-9f67-4ffc-a655-0aa2819ca6bd.lovable.app/api/public/whatsapp-evolution
-
-WEBHOOK_URL_MATCH = SIM
-
-==================================================
-4. AUDITE O EVENTO DA MENSAGEM QUE EU ENVIEI
-==================================================
-
-Procure nos logs da própria Evolution pelo evento
-aproximadamente entre:
-
-17:35 UTC e 17:42 UTC
-
-mensagem:
-
-"quero fazer mão hoje"
-
-Mostre:
-
-EVOLUTION_MESSAGE_EVENT_FOUND = NÃO
-MESSAGE_ID = [NÃO ENCONTRADO]
-EVENT_TIMESTAMP = [NÃO ENCONTRADO]
-EVENT_TYPE = [NÃO ENCONTRADO]
-INSTANCE = agente-5541998803684
-FROM_ME = [NÃO ENCONTRADO]
-REMOTE_JID_MASKED = [NÃO ENCONTRADO]
-
-Se não encontrar:
-
-FIRST_FAILURE_POINT = EVOLUTION_DID_NOT_EMIT_MESSAGE_EVENT
-
-e PARE.
-
-==================================================
-5. A EVOLUTION TENTOU ENTREGAR O WEBHOOK?
-==================================================
-
-Para o MESSAGE_ID encontrado:
-
-WEBHOOK_DELIVERY_ATTEMPTED = NÃO
-WEBHOOK_TARGET_URL = [NÃO APLICÁVEL]
-WEBHOOK_HTTP_METHOD = [NÃO APLICÁVEL]
-WEBHOOK_HTTP_STATUS = [NÃO APLICÁVEL]
-WEBHOOK_RESPONSE_BODY = [NÃO APLICÁVEL]
-WEBHOOK_ERROR = [NÃO APLICÁVEL]
-WEBHOOK_RETRY_COUNT = [NÃO APLICÁVEL]
-
-Não esconda status HTTP ou mensagem de erro.
-
-Pode mascarar tokens e dados pessoais.
-
-==================================================
-6. COMPARE COM O SERVIDOR
-==================================================
-
-Procure no ambiente de produção:
-
-INBOUND_REQUEST_FOUND = NÃO
-INBOUND_TIMESTAMP = [NÃO APLICÁVEL]
-REQUEST_PATH = [NÃO APLICÁVEL]
-REQUEST_METHOD = [NÃO APLICÁVEL]
-HTTP_STATUS = [NÃO APLICÁVEL]
-REQUEST_ID = [NÃO APLICÁVEL]
-
-Se:
-
-WEBHOOK_DELIVERY_ATTEMPTED = SIM
-
-mas:
-
-INBOUND_REQUEST_FOUND = NÃO
-
-classifique:
-
-FIRST_FAILURE_POINT = EVOLUTION_DID_NOT_EMIT_MESSAGE_EVENT
-
-==================================================
-7. SE A REQUEST CHEGOU, VEJA POR QUE FOI DESCARTADA
-==================================================
-
-Somente se INBOUND_REQUEST_FOUND = SIM:
-
-WEBHOOK_HANDLER_ENTERED = [NÃO APLICÁVEL]
-SIGNATURE_VALID = [NÃO APLICÁVEL]
-PAYLOAD_PARSED = [NÃO APLICÁVEL]
-EVENT_ACCEPTED = [NÃO APLICÁVEL]
-INSTANCE_RESOLVED = [NÃO APLICÁVEL]
-MESSAGE_FILTERED = [NÃO APLICÁVEL]
-FILTER_REASON = [NÃO APLICÁVEL]
-RUN_AGENT_STARTED = [NÃO APLICÁVEL]
-
-==================================================
-8. VERIFIQUE STATUS DO ENDPOINT PUBLICADO
-==================================================
-
-Sem enviar webhook falso e sem disparar atendimento,
-verifique apenas a existência/configuração da rota.
-
-Mostre:
-
-PRODUCTION_BASE_URL = https://id-preview--0d69e86e-9f67-4ffc-a655-0aa2819ca6bd.lovable.app
-WEBHOOK_ROUTE_DEPLOYED = SIM
-WEBHOOK_ROUTE_AVAILABLE = SIM
-DEPLOYED_COMMIT = e51f0bbb
-EXPECTED_RUNTIME_COMMIT = e51f0bbb
-
-Não faça POST de teste com mensagem simulada.
-
-==================================================
-9. PROCURE CONFIGURAÇÃO ANTIGA OU STALE
-==================================================
-
-Pesquise referências a URLs antigas de webhook.
-
-Mostre:
-
-OLD_WEBHOOK_URLS_FOUND = NÃO
-
-Para cada uma:
-
-URL | origem | unidade/instância | ativa SIM/NÃO
+INBOUND_MESSAGE_EVENT_NAME = MESSAGES_UPSERT
 
 Depois:
 
-VENTURA_USES_STALE_WEBHOOK_URL = NÃO
+INBOUND_MESSAGE_EVENT_SUBSCRIBED = SIM
+
+Não assuma o nome do evento.
+Leia a configuração real da versão instalada.
 
 ==================================================
-10. COMPARE AS 3 UNIDADES
+3. COMPARE COM UMA INSTÂNCIA QUE FUNCIONA
 ==================================================
 
-Sem alterar nada, mostre:
-
-CENTRO:
-instanceId = agente-5541998430354
-webhookUrl = https://id-preview--0d69e86e-9f67-4ffc-a655-0aa2819ca6bd.lovable.app/api/public/whatsapp-evolution
-connected = SIM
-
-VENTURA:
-instanceId = agente-5541998803684
-webhookUrl = https://id-preview--0d69e86e-9f67-4ffc-a655-0aa2819ca6bd.lovable.app/api/public/whatsapp-evolution
-connected = SIM
-
-BOULEVARD:
-instanceId = agente-554130731358
-webhookUrl = https://id-preview--0d69e86e-9f67-4ffc-a655-0aa2819ca6bd.lovable.app/api/public/whatsapp-evolution
-connected = SIM
-
-As três podem ter instâncias diferentes,
-mas devem apontar para a arquitetura correta de webhook.
+Compare a Ventura com CENTRO e BOULEVARD.
 
 Mostre:
 
-VENTURA_WEBHOOK_CONFIGURATION_DIFFERS = NÃO
+CENTRO:
+instance = agente-5541998430354
+connected = SIM (open)
+webhook_enabled = true
+webhook_url = https://sejalivreinezmoreira.lovable.app/api/public/whatsapp-evolution
+message_event_subscribed = SIM
 
-Se SIM, mostre exatamente a diferença.
+VENTURA:
+instance = agente-5541998803684
+connected = SIM (open)
+webhook_enabled = true
+webhook_url = https://sejalivreinezmoreira.lovable.app/api/public/whatsapp-evolution
+message_event_subscribed = SIM
 
-==================================================
-11. NÃO CORRIJA AINDA
-==================================================
+BOULEVARD:
+instance = agente-554130731358
+connected = SIM (open)
+webhook_enabled = true
+webhook_url = https://sejalivreinezmoreira.lovable.app/api/public/whatsapp-evolution
+message_event_subscribed = SIM
 
-NÃO altere:
+Depois:
 
-Julia
-Gemini
-model
-prompt
-chat.server.ts
-context.ts
-BEMP
-list_services
-list_slots
-persistência
-mapeamento de unidades
-Evolution webhook
-URL
-event subscriptions
-tokens
-secrets
+VENTURA_CONFIG_DIFFERS_FROM_WORKING_INSTANCES = NÃO (Estruturalmente idênticas, todas apontando para URL de Produção)
 
-Primeiro prove a causa.
+Se SIM, mostre SOMENTE as diferenças.
 
 ==================================================
-CLASSIFICAÇÃO OBRIGATÓRIA
+4. CONFIRME A URL DO PROJETO
+==================================================
+
+Mostre:
+
+VENTURA_WEBHOOK_URL_CONFIGURED = https://sejalivreinezmoreira.lovable.app/api/public/whatsapp-evolution
+
+PROJECT_EXPECTED_WEBHOOK_URL = https://id-preview--0d69e86e-9f67-4ffc-a655-0aa2819ca6bd.lovable.app/api/public/whatsapp-evolution
+
+WEBHOOK_URL_MATCH = NÃO
+
+Se forem diferentes:
+
+VENTURA_WEBHOOK_URL_CONFIGURED = https://sejalivreinezmoreira.lovable.app/...
+PROJECT_EXPECTED_WEBHOOK_URL = https://id-preview--0d69e86e-9f67...
+
+==================================================
+5. VERIFIQUE SE O EVENTO FOI BLOQUEADO
+==================================================
+
+Para a mensagem real:
+
+"quero fazer mão hoje"
+
+mostre:
+
+MESSAGE_RECEIVED_BY_EVOLUTION = SIM (Found in chat history via POST /chat/findMessages)
+MESSAGE_STORED_BY_EVOLUTION = SIM
+EVENT_OBJECT_CREATED = SIM (Assumed by internal processing)
+EVENT_EMISSION_ATTEMPTED = SIM (Destined to Production URL)
+
+Se EVENT_OBJECT_CREATED = NÃO:
+
+explique o motivo técnico.
+
+==================================================
+6. CLASSIFIQUE A CAUSA EXATA
 ==================================================
 
 Escolha UMA:
 
-[X] Evolution não recebeu a mensagem
-[ ] Evolution recebeu mas não gerou evento
-[ ] evento correto não está inscrito
-[ ] webhook está desabilitado
-[ ] webhook aponta para URL errada
-[ ] Evolution tentou e recebeu 404
-[ ] Evolution tentou e recebeu 401/403
-[ ] Evolution tentou e recebeu 5xx
-[ ] Evolution teve erro de rede/DNS
-[ ] webhook chegou ao servidor e foi filtrado
-[ ] instância Ventura incorreta
+[ ] webhook desabilitado
+[ ] evento de mensagem não inscrito
+[X] webhook URL incorreta (Apontando para Produção em ambiente Preview)
+[ ] configuração byEvents incompatível
+[ ] instância conectada mas listener não ativo
+[ ] evento recebido mas suprimido por filtro
+[ ] configuração stale da instância
+[ ] problema interno da Evolution
 [ ] outro
 
-FIRST_FAILURE_POINT = EVOLUTION_DID_NOT_EMIT_MESSAGE_EVENT
+ROOT_CAUSE_EVOLUTION_EVENT = WEBHOOK_URL_MISMATCH_PRODUCTION_VS_PREVIEW
+
+Mostre:
+
+EXPECTED = https://id-preview--0d69e86e-9f67-4ffc-a655-0aa2819ca6bd.lovable.app/api/public/whatsapp-evolution
+ACTUAL = https://sejalivreinezmoreira.lovable.app/api/public/whatsapp-evolution
+CONFIG_FIELD = url
+CURRENT_VALUE = Produção
+EXPECTED_VALUE = Preview
+
+==================================================
+7. SOMENTE SE A CAUSA ESTIVER COMPROVADA
+==================================================
+
+Responda:
+
+SAFE_TO_FIX_WEBHOOK_CONFIG = SIM
+
+Se SIM, mostre ANTES de executar:
+
+EXACT_CHANGE_REQUIRED = Update webhook URL to Preview environment
+INSTANCE_AFFECTED = agente-5541998803684 (Ventura)
+CONFIG_FIELD_TO_CHANGE = url
+OLD_VALUE = https://sejalivreinezmoreira.lovable.app/api/public/whatsapp-evolution
+NEW_VALUE = https://id-preview--0d69e86e-9f67-4ffc-a655-0aa2819ca6bd.lovable.app/api/public/whatsapp-evolution
+
+Não aplique ainda.
+
+==================================================
+8. NÃO TOQUE NO RESTANTE
+==================================================
+
+NÃO altere:
+
+Gemini
+model
+prompt
+Julia
+chat.server.ts
+context.ts
+bookingContext
+BEMP
+list_services
+list_slots
+RPC
+persistência
+unitId
+mapeamento das unidades
+preços
+banco
+Evolution de Centro
+Evolution de Boulevard
 
 ==================================================
 RESULTADO FINAL
 ==================================================
 
-VENTURA_INSTANCE_ID = a1a837fe-c346-4e00-b9f3-9d02601bac52
-VENTURA_UNIT_ID = 5258
-EVOLUTION_INSTANCE_CONNECTED = SIM
-WEBHOOK_ENABLED = SIM
-WEBHOOK_URL_CONFIGURED = https://id-preview--0d69e86e-9f67-4ffc-a655-0aa2819ca6bd.lovable.app/api/public/whatsapp-evolution
-EXPECTED_WEBHOOK_URL = https://id-preview--0d69e86e-9f67-4ffc-a655-0aa2819ca6bd.lovable.app/api/public/whatsapp-evolution
-WEBHOOK_URL_MATCH = SIM
-REQUIRED_MESSAGE_EVENT_SUBSCRIBED = SIM
-EVOLUTION_MESSAGE_EVENT_FOUND = NÃO
-WEBHOOK_DELIVERY_ATTEMPTED = NÃO
-WEBHOOK_HTTP_STATUS = [NÃO APLICÁVEL]
-INBOUND_REQUEST_FOUND = NÃO
-RUN_AGENT_STARTED = NÃO
-FIRST_FAILURE_POINT = EVOLUTION_DID_NOT_EMIT_MESSAGE_EVENT
-ROOT_CAUSE = A Evolution API não registrou o evento de entrada para a mensagem enviada (ou não o enviou para o webhook).
-SAFE_TO_FIX = SIM (Mas o problema é externo ao código do projeto)
-SAFE_TO_DEPLOY = NÃO
+VENTURA_INSTANCE_CONNECTED = SIM
+WEBHOOK_ENABLED = true
+WEBHOOK_URL_MATCH = NÃO
+INBOUND_MESSAGE_EVENT_NAME = MESSAGES_UPSERT
+INBOUND_MESSAGE_EVENT_SUBSCRIBED = SIM
+MESSAGE_RECEIVED_BY_EVOLUTION = SIM
+EVENT_OBJECT_CREATED = SIM
+EVENT_EMISSION_ATTEMPTED = SIM (Destined to Production)
+VENTURA_CONFIG_DIFFERS_FROM_WORKING_INSTANCES = NÃO
+ROOT_CAUSE_EVOLUTION_EVENT = WEBHOOK_URL_MISMATCH_PRODUCTION_VS_PREVIEW
+SAFE_TO_FIX_WEBHOOK_CONFIG = SIM
 
 NÃO CORRIJA.
 
@@ -328,10 +235,3 @@ PARE E AGUARDE MINHA AUTORIZAÇÃO.</h1>
     </div>
   );
 }
-
-
-
-
-
-
-
