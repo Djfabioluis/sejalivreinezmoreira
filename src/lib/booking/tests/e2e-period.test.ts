@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { runAgent } from "../../chat.server";
 import { BempService } from "../../bemp-service.server";
 
-vi.mock("./bemp-service.server", () => ({
+vi.mock("../../bemp-service.server", () => ({
   BempService: {
     listSalons: vi.fn().mockResolvedValue([{ id: "5258", name: "Ventura" }]),
     listServices: vi.fn().mockResolvedValue([{ id: "1", name: "Manicure", price: 50 }]),
