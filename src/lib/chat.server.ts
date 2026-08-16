@@ -323,7 +323,7 @@ export async function isIAConfigured(): Promise<boolean> {
 export async function streamAgent(opts: { messages: any[]; sandbox?: boolean }) {
   const gatewayKey = process.env.LOVABLE_AI_GATEWAY_KEY || process.env.LOVABLE_API_KEY || "";
   const provider = createLovableAiGatewayProvider(gatewayKey);
-  const model = provider("google/gemini-2.0-flash");
+  const model = provider("google/gemini-1.5-flash");
 
   const modelMessages = (opts.messages || []).map(m => ({
     role: m.role,
@@ -409,7 +409,7 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
   }
   
   console.log("AUDIT_PAYLOAD_SENT", JSON.stringify({ 
-    modelId: model.modelId,
+    modelId: (model as any).modelId,
     messagesCount: modelMessages.length,
     systemPromptLength: (systemPrompt + (sandbox ? SANDBOX_NOTE : "")).length
   }));
