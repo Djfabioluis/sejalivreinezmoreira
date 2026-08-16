@@ -565,15 +565,16 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       
       const { BempService } = await import("@/lib/bemp-service.server");
       try {
-        const slots = await BempService.listSlots({
-          salon_id: Number(bookingContext.unitId),
-          service_id: Number(bookingContext.serviceId),
+        const slots = await BempService.listAvailableSlots({
+          salonId: Number(bookingContext.unitId),
+          serviceId: Number(bookingContext.serviceId),
           date: bookingContext.date!,
         });
 
         const periodFilter = bookingContext.period;
-        const filtered = slots.filter((s: string) => {
-          const hour = parseInt(s.split(":")[0]);
+        const filtered = slots.filter((s: any) => {
+          const timeStr = s.start || String(s);
+          const hour = parseInt(timeStr.split(":")[0]);
           if (periodFilter === "manhã") return hour < 12;
           if (periodFilter === "tarde") return hour >= 12 && hour < 18;
           if (periodFilter === "noite") return hour >= 18;
@@ -581,10 +582,11 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
         });
 
         if (filtered.length > 0) {
-          bookingContext.availableSlots = filtered;
+          const availableTimes = filtered.map((s: any) => s.start || String(s));
+          bookingContext.availableSlots = availableTimes;
           await patchCustomerContext(finalKey, { bookingContext });
           
-          const slotsText = filtered.slice(0, 10).join(", ");
+          const slotsText = availableTimes.slice(0, 10).join(", ");
           const responseText = `Encontrei estes horários para ${bookingContext.period}:\n\n${slotsText}\n\nQual deles fica melhor para você? 💜`;
           
           const { replyWithAI } = await import("./reply.server");
