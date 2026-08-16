@@ -20,39 +20,55 @@ export type BempResult<T> = {
  * Centraliza tratamento de erros, logs e padrões de dados.
  */
 export class BempService {
-  private static async fetch<T = JsonValue>(url: string, init?: RequestInit, module = "bemp-service"): Promise<T> {
+  private static async fetchRaw(url: string, init?: RequestInit, module = "bemp-service"): Promise<{ data: any; status: number; bodyLength: number; transportEmpty: boolean }> {
+    const cfg = await getBempConfig();
     const startedAt = Date.now();
-    logger.debug("BEMP_REQUEST_START", `${init?.method || "GET"} ${url}`, { module });
+    const method = (init?.method || "GET").toUpperCase();
     
     try {
-      const data = await bempFetch(url, init);
+      const res = await fetch(url, {
+        ...init,
+        headers: { ...cfg.headers, ...(init?.headers as Record<string, string> | undefined) },
+      });
+      
+      const status = res.status;
+      const text = await res.text();
+      const bodyLength = text.length;
+      const transportEmpty = bodyLength === 0;
       const durationMs = Date.now() - startedAt;
-      logger.info("BEMP_REQUEST_SUCCESS", `${init?.method || "GET"} ${url}`, { durationMs, module });
-      return data as T;
+
+      let data: any = null;
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = text;
+        }
+      }
+
+      if (!res.ok) {
+        throw new AppError({
+          code: status === 404 ? "NOT_FOUND" : status === 401 ? "UNAUTHORIZED" : status === 429 ? "RATE_LIMITED" : "BEMP_UNAVAILABLE",
+          message: `Bemp ${status}: ${text.slice(0, 100)}`,
+          statusCode: status,
+          cause: { status, text }
+        });
+      }
+
+      logger.info("BEMP_REQUEST_SUCCESS", `${method} ${url}`, { durationMs, module, status, bodyLength });
+      return { data, status, bodyLength, transportEmpty };
     } catch (error: any) {
       const durationMs = Date.now() - startedAt;
-      logger.error("BEMP_REQUEST_FAILED", error.message, { 
-        url, 
-        method: init?.method,
-        durationMs,
-        module,
-        status: error.status
-      });
-
-      let code = "BEMP_UNAVAILABLE";
-      if (error.status === 404) code = "NOT_FOUND";
-      if (error.status === 401) code = "UNAUTHORIZED";
-      if (error.status === 429) code = "RATE_LIMITED";
-
-      throw new AppError({
-        code: code,
-        message: error.message || "Erro de comunicação com a API BEMP.",
-        safeMessage: "Não foi possível sincronizar com o sistema de agenda (BEMP).",
-        statusCode: error.status || 500,
-        cause: error
-      });
+      logger.error("BEMP_REQUEST_FAILED", error.message, { url, method, durationMs, module });
+      throw error;
     }
   }
+
+  private static async fetch<T = JsonValue>(url: string, init?: RequestInit, module = "bemp-service"): Promise<T> {
+    const { data } = await this.fetchRaw(url, init, module);
+    return data as T;
+  }
+
 
   static async listSalons(): Promise<any[]> {
     const cfg = await getBempConfig();
