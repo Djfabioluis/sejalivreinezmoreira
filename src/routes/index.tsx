@@ -11,256 +11,118 @@ export const Route = createFileRoute('/')({
 
 function Dashboard() {
   const diagnostic = `
-Execute esta instrucao no projeto: AUTORIZO SOMENTE A IMPLEMENTAÇÃO DA INSTRUMENTAÇÃO
-DE OBSERVABILIDADE JÁ LOCALIZADA.
+Execute esta instrucao no projeto: AUTORIZO SOMENTE O DEPLOY DA INSTRUMENTAÇÃO
+DE OBSERVABILIDADE JÁ VALIDADA.
 
-NÃO ALTERE O COMPORTAMENTO.
+NÃO ALTERE MAIS NENHUM ARQUIVO.
+NÃO CORRIJA LÓGICA.
+NÃO REFATORE.
+NÃO ALTERE JULIA.
+NÃO ALTERE GEMINI.
+NÃO ALTERE BEMP.
+NÃO ALTERE EVOLUTION.
+NÃO ALTERE WEBHOOK.
+NÃO ALTERE NORMALIZAÇÃO.
+NÃO ALTERE MATCHING.
+NÃO ALTERE FILTROS.
+NÃO ALTERE BOOKING.
+NÃO ALTERE MAPEAMENTO DAS UNIDADES.
 
-PONTOS CONFIRMADOS:
+A auditoria confirmou:
 
-BEMP_CALL_FILE =
-src/lib/bemp-service.server.ts
-
-BEMP_CALL_FUNCTION =
-BempService.listServices
-
-RAW_RESPONSE_CAPTURE_POINT =
-src/lib/bemp-service.server.ts:65
-
-FIRST_FILTER_POINT =
-src/lib/chat.server.ts:364
-
-FINAL_CANDIDATES_POINT =
-src/lib/chat.server.ts:373
-
-==================================================
-1. INSTRUMENTE A RESPOSTA BEMP ANTES DO FILTRO
-==================================================
-
-Imediatamente após:
-
-await this.fetch(...)
-
-e depois de desserializar a resposta,
-ANTES de qualquer filtro, registre somente:
-
-BEMP_RAW_RESPONSE_RECEIVED = SIM
-BEMP_HTTP_STATUS =
-BEMP_RAW_COUNT =
-
-Para cada serviço:
-
-serviceId
-name
-price
-active/status, se existir
-
-NÃO registre:
-
-Authorization
-API keys
-cookies
-headers secretos
-tokens
-dados pessoais
-
-==================================================
-2. NÃO ALTERE A RESPOSTA
-==================================================
-
-A variável original retornada pela BEMP deve continuar
-exatamente igual.
-
-Obrigatório:
-
-BEMP_RESPONSE_MUTATED_BY_LOGGER = NÃO
-BEMP_REQUEST_CHANGED = NÃO
-BEMP_RESPONSE_TRANSFORMED = NÃO
-
-A instrumentação deve somente observar.
-
-==================================================
-3. INSTRUMENTE O FILTRO EM chat.server.ts
-==================================================
-
-No ponto:
-
-src/lib/chat.server.ts:364
-
-registre ANTES do filtro:
-
-SERVICE_SEARCH_TERM =
-NORMALIZED_SERVICE_SEARCH =
-FILTER_INPUT_COUNT =
-
-Depois registre as etapas reais existentes no código.
-
-Não invente etapas que não existam.
-
-Mostre:
-
-AFTER_FILTER_COUNT =
-
-Se atualmente existem múltiplas condições dentro de
-services.filter, registre o resultado individual de cada
-condição, sem mudar sua lógica.
-
-==================================================
-4. RASTREIE ESPECIFICAMENTE MANICURE
-==================================================
-
-Para cada serviço cujo nome REAL contenha
-case-insensitive:
-
-manicure
-manicuri
-mão
-mao
-
-registre:
-
-SERVICE_ID =
-SERVICE_NAME =
-RAW_SERVICE_NAME =
-NORMALIZED_SERVICE_NAME =
-SEARCH_TERM =
-
-ACTIVE_CONDITION_RESULT =
-UNIT_CONDITION_RESULT =
-NAME_CONDITION_RESULT =
-FINAL_MATCH_RESULT =
-
-Se alguma dessas condições não existir no código atual,
-mostre:
-
-CONDITION_NOT_PRESENT
-
-Não crie uma nova condição.
-
-==================================================
-5. PONTO FINAL
-==================================================
-
-Em:
-
-src/lib/chat.server.ts:373
-
-registre:
-
-FINAL_CANDIDATES_COUNT =
-
-Para cada candidato final:
-
-serviceId
-name
-price
-
-==================================================
-6. CORRELAÇÃO
-==================================================
-
-Todos os logs adicionados devem conter, quando disponível:
-
-traceId
-unitId
-
-para permitir correlacionar a resposta BEMP,
-o filtro e a resposta final da mesma mensagem.
-
-Não altere fluxo para criar trace novo.
-
-==================================================
-7. GARANTIAS OBRIGATÓRIAS
-==================================================
-
-Depois da implementação, confirme:
-
+OBSERVABILITY_CHANGED = SIM
+BUSINESS_LOGIC_CHANGED = NÃO
 MATCHING_LOGIC_CHANGED = NÃO
 NORMALIZATION_CHANGED = NÃO
 FILTER_LOGIC_CHANGED = NÃO
 BEMP_REQUEST_CHANGED = NÃO
 BEMP_RESPONSE_MUTATED = NÃO
-JULIA_BEHAVIOR_CHANGED = NÃO
-BUSINESS_LOGIC_CHANGED = NÃO
-
-Somente:
-
-OBSERVABILITY_CHANGED = SIM
+BUILD_PASS = SIM
+TYPECHECK_PASS = SIM
+OBSERVABILITY_READY = SIM
+SAFE_TO_DEPLOY_OBSERVABILITY_ONLY = SIM
 
 ==================================================
-8. MOSTRE O DIFF
+1. CONGELE A VERSÃO
 ==================================================
 
-Liste todos os arquivos alterados:
+Mostre antes do deploy:
 
-arquivo | linhas/função | alteração | classificação
+CURRENT_HEAD =
+DEPLOY_TARGET_COMMIT =
+FILES_TO_DEPLOY =
 
-Classificação permitida:
+Obrigatório:
 
-OBSERVABILITY_ONLY
+FILES_TO_DEPLOY deve conter somente as alterações
+de observabilidade já auditadas.
 
-Se aparecer qualquer alteração classificada como:
-
-BUSINESS_LOGIC
-MATCHING
-NORMALIZATION
-FILTER
-BEMP_REQUEST
-JULIA
-
-PARE.
+Não faça alterações adicionais.
 
 ==================================================
-9. VALIDAÇÃO
+2. PUBLIQUE EXATAMENTE ESSA VERSÃO
 ==================================================
 
-Execute:
-
-BUILD_PASS =
-TYPECHECK_PASS =
-TESTS_PASS =
-
-Se qualquer um for NÃO:
-
-PARE.
-NÃO CORRIJA AUTOMATICAMENTE.
-
-==================================================
-10. NÃO FAÇA DEPLOY
-==================================================
-
-Mesmo se tudo passar:
-
-NÃO PUBLIQUE.
-NÃO FAÇA DEPLOY.
-NÃO ENVIE WHATSAPP.
-NÃO EXECUTE TESTE REAL.
+AUTORIZO O DEPLOY.
 
 Mostre:
 
-OBSERVABILITY_READY =
-SAFE_TO_DEPLOY_OBSERVABILITY_ONLY =
+DEPLOY_SUCCESS =
+DEPLOYED_COMMIT =
+PRIMARY_DOMAIN =
+
+Obrigatório:
+
+PRIMARY_DOMAIN =
+https://sejalivreinezmoreira.lovable.app
+
+==================================================
+3. NÃO EXECUTE TESTE AUTOMÁTICO
+==================================================
+
+Depois do deploy:
+
+NÃO reexecute trace antigo.
+NÃO simule BEMP.
+NÃO simule WhatsApp.
+NÃO envie webhook.
+NÃO execute runAgent manualmente.
+
+A instrumentação deve apenas ficar aguardando
+a PRÓXIMA mensagem real.
+
+==================================================
+4. CONFIRME A INSTRUMENTAÇÃO ATIVA
+==================================================
+
+Mostre:
+
+BEMP_RAW_OBSERVABILITY_ACTIVE =
+FILTER_OBSERVABILITY_ACTIVE =
+TRACE_CORRELATION_ACTIVE =
+
+Obrigatório:
+
+BEMP_RAW_OBSERVABILITY_ACTIVE = SIM
+FILTER_OBSERVABILITY_ACTIVE = SIM
+TRACE_CORRELATION_ACTIVE = SIM
 
 ==================================================
 RESULTADO FINAL
 ==================================================
 
-FILES_CHANGED =
-OBSERVABILITY_CHANGED =
+DEPLOY_SUCCESS =
+DEPLOYED_COMMIT =
 BUSINESS_LOGIC_CHANGED =
-MATCHING_LOGIC_CHANGED =
-NORMALIZATION_CHANGED =
-FILTER_LOGIC_CHANGED =
-BEMP_REQUEST_CHANGED =
-BEMP_RESPONSE_MUTATED =
-BUILD_PASS =
-TYPECHECK_PASS =
-TESTS_PASS =
-OBSERVABILITY_READY =
-SAFE_TO_DEPLOY_OBSERVABILITY_ONLY =
+OBSERVABILITY_ACTIVE_IN_PRODUCTION =
+READY_FOR_ONE_REAL_WHATSAPP_TEST =
+
+READY_FOR_ONE_REAL_WHATSAPP_TEST = SIM
+somente se a instrumentação estiver realmente ativa
+no domínio principal.
 
 PARE E AGUARDE MINHA AUTORIZAÇÃO.
-  `;
+`;
 
   return (
     <div className="min-h-screen bg-slate-950 p-6 font-mono text-slate-300">
