@@ -11,196 +11,216 @@ export const Route = createFileRoute('/')({
 
 function Dashboard() {
   const diagnostic = `
-Execute esta instrucao no projeto: ACABEI DE ENVIAR UMA ÚNICA MENSAGEM REAL NO WHATSAPP
-DA UNIDADE VENTURA:
+Execute esta instrucao no projeto: PARE. NÃO CORRIJA NADA.
 
-"quero fazer mão hoje"
+O TRACE REAL:
 
-A INSTRUMENTAÇÃO DE OBSERVABILIDADE JÁ ESTÁ EM PRODUÇÃO.
+webhook-1786918557115
 
-NÃO ALTERE CÓDIGO.
+confirmou:
+
+BEMP_HTTP_STATUS = 200
+BEMP_RAW_COUNT = 0
+SERVICE_SEARCH_TERM = manicure
+NORMALIZED_SERVICE_SEARCH = manicure
+FINAL_CANDIDATES_COUNT = 0
+FIRST_CANDIDATE_LOSS_POINT = BEMP_API_RESPONSE
+
+Portanto o filtro posterior NÃO é a causa.
+
+AGORA QUERO DESCOBRIR POR QUE A CAMADA BEMP
+ENTREGOU ZERO SERVIÇOS PARA A UNIDADE 5258.
+
+NÃO ALTERE:
+- Julia
+- Gemini
+- Evolution
+- webhook
+- booking
+- normalização
+- matching
+- filtros
+- unitId
+- preços
+- catálogo
+
 NÃO FAÇA DEPLOY.
-NÃO SIMULE.
-NÃO REEXECUTE TRACE ANTIGO.
-NÃO ENVIE MENSAGEM.
-NÃO CORRIJA NADA.
-
-LEIA SOMENTE O TRACE NOVO GERADO POR ESSA MENSAGEM REAL.
-
-Quero os valores capturados pela nova instrumentação.
+NÃO ENVIE WHATSAPP.
 
 ==================================================
-1. IDENTIFIQUE O NOVO TRACE
+1. AUDITE A REQUISIÇÃO EXATA À BEMP
 ==================================================
 
-Mostre:
+Para o trace:
 
-TRACE_ID =
-REQUEST_TIMESTAMP =
-UNIT_ID =
-MESSAGE_TEXT =
+webhook-1786918557115
 
-Obrigatório:
-
-UNIT_ID = 5258
-
-==================================================
-2. RETORNO BEMP ANTES DE QUALQUER FILTRO
-==================================================
-
-Mostre:
-
-BEMP_RAW_RESPONSE_RECEIVED =
-BEMP_HTTP_STATUS =
-BEMP_RAW_COUNT =
-
-Liste TODOS os serviços registrados pela instrumentação:
-
-serviceId =
-name =
-price =
-active/status =
-
-Não use dados de execução anterior.
-
-==================================================
-3. MANICURE NO RAW
-==================================================
-
-Mostre:
-
-RAW_CONTAINS_MANICURE =
-RAW_MANICURE_MATCHES =
-
-Para cada serviço de manicure:
-
-SERVICE_ID =
-SERVICE_NAME =
-PRICE =
-
-==================================================
-4. BUSCA UTILIZADA
-==================================================
-
-Mostre:
-
-SERVICE_SEARCH_TERM =
-NORMALIZED_SERVICE_SEARCH =
-FILTER_INPUT_COUNT =
-
-==================================================
-5. TRAJETÓRIA DOS FILTROS
-==================================================
-
-Mostre as contagens REAIS registradas:
-
-BEMP_RAW_COUNT =
-AFTER_ACTIVE_FILTER_COUNT =
-AFTER_UNIT_FILTER_COUNT =
-AFTER_NAME_FILTER_COUNT =
-FINAL_CANDIDATES_COUNT =
-
-Se o código não possuir alguma dessas etapas separadamente,
 mostre:
 
-CONDITION_NOT_PRESENT
+BEMP_REQUEST_URL =
+BEMP_HTTP_METHOD =
+UNIT_ID_SENT =
+BEMP_QUERY_PARAMETERS =
+BEMP_HTTP_STATUS =
+BEMP_CONTENT_TYPE =
+BEMP_RESPONSE_BODY_LENGTH =
 
-Não invente uma etapa.
+Não mostre token, Authorization ou credenciais.
 
-==================================================
-6. TRAJETÓRIA DE CADA SERVIÇO MANICURE
-==================================================
+Confirme:
 
-Para cada serviço de manicure recebido da BEMP:
-
-SERVICE_ID =
-SERVICE_NAME =
-RAW_SERVICE_NAME =
-NORMALIZED_SERVICE_NAME =
-SEARCH_TERM =
-
-ACTIVE_CONDITION_RESULT =
-UNIT_CONDITION_RESULT =
-NAME_CONDITION_RESULT =
-FINAL_MATCH_RESULT =
-
-Se removido:
-
-REMOVED_BY_FILTER =
-FILTER_INPUT_VALUE =
-NORMALIZED_VALUE =
-SEARCH_VALUE =
+UNIT_ID_SENT = 5258
 
 ==================================================
-7. RESULTADO ENVIADO À JULIA
+2. AUDITE A ESTRUTURA BRUTA DA RESPOSTA
 ==================================================
+
+Não mostre dados sensíveis.
+
+Quero saber o FORMATO real do JSON recebido.
 
 Mostre:
 
-FINAL_CANDIDATES_COUNT =
+RAW_BODY_IS_EMPTY =
+RAW_JSON_TYPE = array/object/null/string
+RAW_TOP_LEVEL_KEYS =
 
-Para cada candidato final:
+Se for array:
 
-serviceId =
-name =
-price =
+RAW_TOP_LEVEL_ARRAY_LENGTH =
+
+Se for object, mostre as chaves existentes e,
+para cada chave que contenha array:
+
+KEY =
+ARRAY_LENGTH =
+
+Exemplos apenas para inspeção:
+
+data
+services
+items
+results
+content
+
+NÃO presuma que esses nomes existem.
+
+Use somente as chaves reais encontradas.
+
+==================================================
+3. COMPARE COM O PARSER DE BempService.listServices
+==================================================
+
+Arquivo:
+
+src/lib/bemp-service.server.ts
+
+Função:
+
+BempService.listServices
+
+Mostre exatamente:
+
+EXPECTED_RESPONSE_SHAPE =
+ACTUAL_RESPONSE_SHAPE =
 
 Depois:
 
-RUN_AGENT_STARTED =
-RESPONSE_GENERATED =
-OUTPUT_VALIDATED =
-OUTBOUND_SUCCESS =
-TEXT_SENT_TO_WHATSAPP =
+PARSER_READS_FIELD =
+ACTUAL_SERVICES_FIELD =
+
+Mostre:
+
+RESPONSE_SCHEMA_MATCH = SIM/NÃO
+
+Não altere código.
 
 ==================================================
-8. DEFINA A CAUSA SOMENTE COM A NOVA EVIDÊNCIA
+4. DISTINGA OS DOIS CENÁRIOS
+==================================================
+
+Precisamos escolher somente um:
+
+A)
+A BEMP realmente devolveu uma coleção vazia.
+
+B)
+A BEMP devolveu serviços, mas BempService.listServices
+está lendo o campo/estrutura errada.
+
+Mostre:
+
+BEMP_SERVER_RETURNED_ZERO_SERVICES = SIM/NÃO
+SERVICES_EXIST_ELSEWHERE_IN_RESPONSE = SIM/NÃO
+BEMP_ADAPTER_SCHEMA_MISMATCH = SIM/NÃO
+
+==================================================
+5. FAÇA UMA CONSULTA DIRETA NÃO DESTRUTIVA
+==================================================
+
+Faça UMA consulta GET à mesma API da BEMP,
+para a mesma unidade 5258,
+usando exatamente a mesma autenticação/configuração
+da aplicação.
+
+Não altere cadastro.
+
+Mostre:
+
+DIRECT_BEMP_HTTP_STATUS =
+DIRECT_BEMP_RESPONSE_TYPE =
+DIRECT_BEMP_SERVICE_COUNT =
+
+Se houver serviços, liste somente:
+
+serviceId
+name
+price
+
+Não mostre credenciais.
+
+==================================================
+6. COMPARE CHAMADA DO FLUXO VS CHAMADA DIRETA
+==================================================
+
+Mostre:
+
+FLOW_ENDPOINT =
+DIRECT_ENDPOINT =
+ENDPOINTS_IDENTICAL =
+
+FLOW_UNIT_ID =
+DIRECT_UNIT_ID =
+UNIT_IDS_IDENTICAL =
+
+FLOW_RESPONSE_COUNT =
+DIRECT_RESPONSE_COUNT =
+
+FLOW_AND_DIRECT_RESULTS_MATCH = SIM/NÃO
+
+==================================================
+7. CONCLUSÃO FORENSE
 ==================================================
 
 Escolha exatamente uma:
 
-A = BEMP retornou zero serviços
-B = BEMP retornou serviços, mas nenhum de manicure
-C = manicure veio da BEMP e foi removido por filtro ACTIVE
-D = manicure veio da BEMP e foi removido por filtro UNIT
-E = manicure veio da BEMP e foi removido por filtro NAME
-F = manicure chegou aos candidatos finais
-G = outra causa comprovada
+[ ] catálogo BEMP da unidade 5258 realmente retornou vazio
+[ ] parser/adaptador BEMP está lendo estrutura errada
+[ ] endpoint BEMP utilizado está incorreto
+[ ] unitId enviado está incorreto
+[ ] autenticação/permissão produz resposta vazia
+[ ] outra causa comprovada
+[ ] ainda não há evidência suficiente
 
 Mostre:
 
-PROVEN_SCENARIO =
-FIRST_CANDIDATE_LOSS_POINT =
-ROOT_CAUSE_CONFIRMED =
-
-Se os logs novos não estiverem presentes:
-
-OBSERVABILITY_CAPTURED_THIS_TRACE = NÃO
-ROOT_CAUSE_CONFIRMED = NÃO
-
-e PARE.
-
-==================================================
-RESULTADO FINAL
-==================================================
-
-TRACE_ID =
-BEMP_HTTP_STATUS =
-BEMP_RAW_COUNT =
-RAW_CONTAINS_MANICURE =
-RAW_MANICURE_MATCHES =
-SERVICE_SEARCH_TERM =
-NORMALIZED_SERVICE_SEARCH =
-AFTER_ACTIVE_FILTER_COUNT =
-AFTER_UNIT_FILTER_COUNT =
-AFTER_NAME_FILTER_COUNT =
-FINAL_CANDIDATES_COUNT =
-PROVEN_SCENARIO =
-FIRST_CANDIDATE_LOSS_POINT =
-ROOT_CAUSE_CONFIRMED =
+ULTIMATE_ROOT_CAUSE =
+EVIDENCE =
+ROOT_CAUSE_FULLY_CONFIRMED = SIM/NÃO
 
 NÃO CORRIJA NADA.
-PARE APÓS MOSTRAR A EVIDÊNCIA.
+
+PARE APÓS A AUDITORIA.
 `;
 
   return (
