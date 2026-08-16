@@ -20,39 +20,55 @@ export type BempResult<T> = {
  * Centraliza tratamento de erros, logs e padrões de dados.
  */
 export class BempService {
-  private static async fetch<T = JsonValue>(url: string, init?: RequestInit, module = "bemp-service"): Promise<T> {
+  private static async fetchRaw(url: string, init?: RequestInit, module = "bemp-service"): Promise<{ data: any; status: number; bodyLength: number; transportEmpty: boolean }> {
+    const cfg = await getBempConfig();
     const startedAt = Date.now();
-    logger.debug("BEMP_REQUEST_START", `${init?.method || "GET"} ${url}`, { module });
+    const method = (init?.method || "GET").toUpperCase();
     
     try {
-      const data = await bempFetch(url, init);
+      const res = await fetch(url, {
+        ...init,
+        headers: { ...cfg.headers, ...(init?.headers as Record<string, string> | undefined) },
+      });
+      
+      const status = res.status;
+      const text = await res.text();
+      const bodyLength = text.length;
+      const transportEmpty = bodyLength === 0;
       const durationMs = Date.now() - startedAt;
-      logger.info("BEMP_REQUEST_SUCCESS", `${init?.method || "GET"} ${url}`, { durationMs, module });
-      return data as T;
+
+      let data: any = null;
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = text;
+        }
+      }
+
+      if (!res.ok) {
+        throw new AppError({
+          code: status === 404 ? "NOT_FOUND" : status === 401 ? "UNAUTHORIZED" : status === 429 ? "RATE_LIMITED" : "BEMP_UNAVAILABLE",
+          message: `Bemp ${status}: ${text.slice(0, 100)}`,
+          statusCode: status,
+          cause: { status, text }
+        });
+      }
+
+      logger.info("BEMP_REQUEST_SUCCESS", `${method} ${url}`, { durationMs, module, status, bodyLength });
+      return { data, status, bodyLength, transportEmpty };
     } catch (error: any) {
       const durationMs = Date.now() - startedAt;
-      logger.error("BEMP_REQUEST_FAILED", error.message, { 
-        url, 
-        method: init?.method,
-        durationMs,
-        module,
-        status: error.status
-      });
-
-      let code = "BEMP_UNAVAILABLE";
-      if (error.status === 404) code = "NOT_FOUND";
-      if (error.status === 401) code = "UNAUTHORIZED";
-      if (error.status === 429) code = "RATE_LIMITED";
-
-      throw new AppError({
-        code: code,
-        message: error.message || "Erro de comunicação com a API BEMP.",
-        safeMessage: "Não foi possível sincronizar com o sistema de agenda (BEMP).",
-        statusCode: error.status || 500,
-        cause: error
-      });
+      logger.error("BEMP_REQUEST_FAILED", error.message, { url, method, durationMs, module });
+      throw error;
     }
   }
+
+  private static async fetch<T = JsonValue>(url: string, init?: RequestInit, module = "bemp-service"): Promise<T> {
+    const { data } = await this.fetchRaw(url, init, module);
+    return data as T;
+  }
+
 
   static async listSalons(): Promise<any[]> {
     const cfg = await getBempConfig();
@@ -70,20 +86,28 @@ export class BempService {
     let primarySuccess = false;
     let primaryStatus = 0;
     let primaryBodyLength = 0;
+    let transportEmpty = false;
 
     try {
-      const result = await this.fetch<any>(primaryUrl, undefined, "bemp-services");
-      services = Array.isArray(result) ? result : (result?.data || []);
-      primarySuccess = true;
-      primaryStatus = 200; // if fetch didn't throw, it's ok
-      primaryBodyLength = JSON.stringify(result).length;
+      const result = await this.fetchRaw(primaryUrl, undefined, "bemp-services");
+      primaryStatus = result.status;
+      primaryBodyLength = result.bodyLength;
+      transportEmpty = result.transportEmpty;
+      
+      if (!transportEmpty && result.data) {
+        services = Array.isArray(result.data) ? result.data : (result.data?.data || []);
+        primarySuccess = true;
+      }
     } catch (err: any) {
-      primaryStatus = err.status || 500;
-      logger.error("BEMP_PRIMARY_FAILED", err.message, { salonId, traceId });
+      primaryStatus = err.statusCode || err.status || 500;
+      logger.error("BEMP_PRIMARY_FAILED", err.message, { salonId, traceId, status: primaryStatus });
     }
 
-    // 2. FALLBACK ATTEMPT (if primary is empty or failed)
-    const shouldTryFallback = !primarySuccess || services.length === 0;
+    // 2. FALLBACK ATTEMPT (if primary is empty body OR primary failed)
+    // IMPORTANT: transportEmpty = body length 0. [] is NOT transportEmpty.
+    const shouldTryFallback = !primarySuccess || transportEmpty;
+
+
     let fallbackUsed = false;
     let fallbackStatus = 0;
     let fallbackBodyLength = 0;
@@ -92,10 +116,14 @@ export class BempService {
     if (shouldTryFallback) {
       fallbackUsed = true;
       try {
-        const origin = typeof window !== 'undefined' ? window.location.origin : process.env.VITE_APP_URL || 'http://localhost:8080';
+        const origin = process.env.VITE_APP_URL || 'http://localhost:8080';
         const relayUrl = `${origin}/api/public/bemp-services-relay`;
         
-        logger.info("BEMP_FALLBACK_START", "Iniciando fallback via relay route", { salonId, traceId });
+        logger.info("BEMP_FALLBACK_START", "Iniciando fallback via relay route", { 
+          salonId, 
+          traceId, 
+          reason: transportEmpty ? "EMPTY_BODY" : "FETCH_ERROR" 
+        });
         
         const res = await fetch(relayUrl, {
           method: 'POST',
@@ -110,37 +138,37 @@ export class BempService {
         if (res.ok && text) {
           const result = JSON.parse(text);
           const fallbackServices = Array.isArray(result) ? result : (result?.data || []);
-          if (fallbackServices.length > 0) {
-            services = fallbackServices;
-            fallbackCount = services.length;
-            logger.info("BEMP_FALLBACK_SUCCESS", "Fallback recuperou serviços", { 
-              salonId, 
-              traceId, 
-              count: fallbackCount 
-            });
-          }
+          services = fallbackServices;
+          fallbackCount = services.length;
+          logger.info("BEMP_FALLBACK_SUCCESS", "Fallback recuperou serviços", { 
+            salonId, 
+            traceId, 
+            count: fallbackCount 
+          });
         }
       } catch (fallbackErr: any) {
         logger.error("BEMP_FALLBACK_CRITICAL_FAILED", fallbackErr.message, { salonId, traceId });
       }
     }
 
-    // OBSERVABILITY_ONLY: Registro sanitizado do retorno final
+    // OBSERVABILITY
     logger.info("BEMP_LOOKUP_COMPLETED", "Processo de consulta BEMP finalizado", {
       unitId: String(salonId),
       traceId,
       primaryStatus,
-      primaryCount: services.length && !fallbackUsed ? services.length : 0,
+      primaryBodyLength,
+      primaryTransportEmpty: transportEmpty,
       fallbackUsed,
       fallbackStatus,
       fallbackCount,
       finalCount: services.length
     });
 
+    // If both failed or returned nothing diagnosticable
     if (services.length === 0 && (primaryStatus !== 200 || (fallbackUsed && fallbackStatus !== 200))) {
       throw new AppError({
         code: "BEMP_UNAVAILABLE",
-        message: "Não foi possível obter o catálogo de serviços em nenhuma das rotas.",
+        message: `Não foi possível obter o catálogo. Primary: ${primaryStatus}, Fallback: ${fallbackStatus}`,
         safeMessage: "O sistema de catálogo está temporariamente indisponível.",
         statusCode: 503
       });
@@ -148,6 +176,7 @@ export class BempService {
 
     return services;
   }
+
 
 
   static async listProfessionals(salonId: string | number, serviceId: string | number): Promise<any[]> {
