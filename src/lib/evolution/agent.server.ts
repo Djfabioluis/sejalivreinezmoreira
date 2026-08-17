@@ -718,6 +718,13 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       await patchCustomerContext(finalKey, { bookingContext });
     }
 
+    // RESET DE SESSÃO: Se extractBookingSlots detectou uma nova intenção clara,
+    // garantimos que os slots transitórios foram limpos (via _isReset injetado no teste/contexto).
+    if ((extracted as any)._isReset) {
+      trace?.record("BOOKING_SESSION_RESET_DETECTED", { reason: "new_intent" });
+    }
+
+
     // MÁQUINA DE ESTADOS DETERMINÍSTICA - CONFIRMAÇÃO
     const confirmableStatus =
       bookingContext.appointmentStatus === "AWAITING_CONFIRMATION" ||
