@@ -19,6 +19,13 @@ export interface BookingContext {
   time?: string | null;
   professionalId?: string | null;
   professionalName?: string | null;
+  /** "ANY" quando o cliente aceita qualquer profissional disponível. */
+  professionalPreference?: "ANY" | null;
+  /** Opções REAIS (BEMP) apresentadas ao cliente no turno anterior. */
+  professionalOptions?: Array<{ id: string; name: string }>;
+  /** TRUE quando a data já foi resolvida para uma data absoluta (imutável). */
+  dateLocked?: boolean;
+
   subscriptionIntent?: boolean;
   conversationGreeted?: boolean;
   intent?: string | null;
@@ -194,6 +201,11 @@ export function extractBookingSlots(
       }
     }
   }
+
+  // DATA ABSOLUTA IMUTÁVEL: assim que uma expressão relativa/explícita é resolvida,
+  // a data vira absoluta e nunca mais é recalculada (nem na virada da meia-noite).
+  if (out.date) out.dateLocked = true;
+
 
   // --- Serviço (Resolução de Ambiguidade Prioritária - Determinística) ---
   if (previous?.clarificationRequired && previous.candidates?.length) {
@@ -391,9 +403,76 @@ export function startNewBookingSession(ctx: BookingContext): BookingContext {
   next.customerConfirmed = false;
   next.clarificationRequired = false;
   next.candidates = undefined;
+  next.professionalId = null;
+  next.professionalName = null;
+  next.professionalPreference = null;
+  next.professionalOptions = undefined;
   if (next.appointmentStatus !== "CONFIRMED") next.appointmentStatus = "NONE";
   return next;
 }
+
+/* ------------------------------------------------------------------ */
+/* Profissional                                                        */
+/* ------------------------------------------------------------------ */
+
+const ANY_PROFESSIONAL =
+  /(qualquer|tanto\s*faz|indiferente|sem\s*prefer[eê]ncia|quem\s*(estiver|tiver)\s*dispon[ií]vel|o\s*que\s*estiver\s*dispon[ií]vel|pode\s*ser\s*qualquer)/i;
+
+/** TRUE quando o cliente aceita qualquer profissional disponível. */
+export function isAnyProfessionalChoice(text: string | null | undefined): boolean {
+  if (!text) return false;
+  const t = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  return ANY_PROFESSIONAL.test(t) || ANY_PROFESSIONAL.test(text);
+}
+
+const norm = (s: string) =>
+  s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
+
+/**
+ * Resolve a resposta do cliente contra as opções REAIS de profissionais.
+ * Aceita índice ("1", "primeiro") ou nome/parte do nome.
+ */
+export function matchProfessionalChoice(
+  text: string | null | undefined,
+  options: Array<{ id: string; name: string }> | null | undefined,
+): { id: string; name: string } | null {
+  if (!text || !options?.length) return null;
+  const t = norm(text);
+
+  const ordinals = ["primeir", "segund", "terceir", "quart", "quint"];
+  const ordIdx = ordinals.findIndex((o) => new RegExp(`\\b${o}[ao]\\b`).test(t));
+  if (ordIdx >= 0 && ordIdx < options.length) return options[ordIdx];
+
+  const numMatch = t.match(/^\s*(?:op[cç][aã]o\s*)?([1-9])\s*[.!)]?\s*$/) || t.match(/\bop[cç][aã]o\s*([1-9])\b/);
+  if (numMatch) {
+    const idx = Number(numMatch[1]) - 1;
+    // Índice além das opções reais = "qualquer profissional" (última opção da lista exibida)
+    if (idx >= 0 && idx < options.length) return options[idx];
+  }
+
+  const exact = options.find((o) => norm(o.name) === t);
+  if (exact) return exact;
+
+  const partial = options.find((o) => {
+    const n = norm(o.name);
+    if (n.length < 3) return false;
+    if (t.includes(n)) return true;
+    return n.split(" ").some((part) => part.length >= 3 && new RegExp(`\\b${part}\\b`).test(t));
+  });
+  return partial ?? null;
+}
+
+/** Índice "qualquer profissional" na lista exibida (options.length + 1). */
+export function isAnyProfessionalIndex(
+  text: string | null | undefined,
+  options: Array<{ id: string; name: string }> | null | undefined,
+): boolean {
+  if (!text || !options) return false;
+  const m = norm(text).match(/^\s*(?:op[cç][aã]o\s*)?([1-9])\s*[.!)]?\s*$/);
+  if (!m) return false;
+  return Number(m[1]) === options.length + 1;
+}
+
 
 /** Período só é válido se foi informado NA SESSÃO DE BOOKING ATUAL. */
 export function hasCurrentSessionPeriod(ctx: BookingContext): boolean {
@@ -436,6 +515,12 @@ export function mergeBookingContext(
     next.serviceName = extracted?.serviceName ?? null;
     next.serviceText = extracted?.serviceText ?? null;
     next.date = extracted?.date ?? null;
+    next.dateLocked = !!extracted?.date;
+    next.professionalId = null;
+    next.professionalName = null;
+    next.professionalPreference = null;
+    next.professionalOptions = undefined;
+
     next.period = extracted?.period ?? null;
     next.periodSessionId = extracted?.period ? next.bookingSessionId ?? null : null;
     next.time = extracted?.time ?? null;
@@ -502,6 +587,13 @@ export function nextRequiredSlot(ctx: BookingContext): BookingSlot {
   if (!ctx.unitId) return "unit";
   if (!ctx.serviceId && !ctx.serviceName) return "service";
   if (!ctx.date) return "date";
+
+  // NOVO ESTADO: PROFISSIONAL antes do período/horários.
+  if (!ctx.professionalId && ctx.professionalPreference !== "ANY" && !ctx.selectedSlot && !ctx.time) {
+    return "professional";
+  }
+
+
   
   // Se temos o período mas não o horário, ainda estamos em 'availability', 
   // mas o controlador de fluxo (agent.server.ts) deve disparar a listagem de slots.
@@ -630,6 +722,8 @@ export function clearTransientBooking(ctx: BookingContext): BookingContext {
   next.serviceName = null;
   next.serviceText = null;
   next.date = null;
+  next.dateLocked = false;
+
   next.period = null;
   next.time = null;
   next.selectedSlot = null;

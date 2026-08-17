@@ -383,6 +383,9 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       time: customerContext.bookingContext?.time ?? customerContext.time ?? null,
       professionalId: customerContext.bookingContext?.professionalId ?? customerContext.professional_id ?? null,
       professionalName: customerContext.bookingContext?.professionalName ?? customerContext.professional_name ?? null,
+      professionalPreference: customerContext.bookingContext?.professionalPreference ?? null,
+      professionalOptions: customerContext.bookingContext?.professionalOptions ?? undefined,
+      dateLocked: customerContext.bookingContext?.dateLocked === true,
       subscriptionIntent: customerContext.bookingContext?.subscriptionIntent === true,
       conversationGreeted: customerContext.bookingContext?.conversationGreeted === true,
       selectedSlot: customerContext.bookingContext?.selectedSlot ?? null,
@@ -459,6 +462,22 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     }
 
 
+
+    // SELEÇÃO DE PROFISSIONAL (turno seguinte à pergunta NEED_PROFESSIONAL)
+    if (!previousContext.professionalId && previousContext.professionalOptions?.length) {
+      const { matchProfessionalChoice, isAnyProfessionalChoice, isAnyProfessionalIndex } = await import("@/lib/booking/context");
+      if (isAnyProfessionalChoice(text) || isAnyProfessionalIndex(text, previousContext.professionalOptions)) {
+        extracted.professionalPreference = "ANY";
+        trace?.record("PROFESSIONAL_PREFERENCE_ANY");
+      } else {
+        const chosen = matchProfessionalChoice(text, previousContext.professionalOptions);
+        if (chosen) {
+          extracted.professionalId = String(chosen.id);
+          extracted.professionalName = String(chosen.name);
+          trace?.record("PROFESSIONAL_SELECTED", { professionalId: chosen.id, professionalName: chosen.name });
+        }
+      }
+    }
 
     const explicitSubscription = detectSubscriptionIntent(text);
     if (explicitSubscription) extracted.subscriptionIntent = true;
@@ -612,6 +631,42 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
        (bookingContext as any).createBookingKey = idempotencyKey;
        await patchCustomerContext(finalKey, { bookingContext });
 
+       // DATA ABSOLUTA IMUTÁVEL: usa SOMENTE bookingContext.date (nunca recalcula "amanhã").
+       const { resolveCreateDateTime } = await import("@/lib/booking/create-guard");
+       const createDate = resolveCreateDateTime(bookingContext);
+       trace?.record("BOOKING_CREATE_DATE_RESOLVED", {
+         contextDate: bookingContext.date,
+         resolvedDate: createDate.date,
+         time: createDate.time,
+         start: createDate.start,
+         mismatch: createDate.mismatch,
+       });
+
+       if (createDate.mismatch) {
+         trace?.record("DATE_SLOT_MISMATCH", { date: bookingContext.date, slot: bookingContext.selectedSlot });
+         bookingContext.selectedSlot = null;
+         bookingContext.selectedSlotEnd = null;
+         bookingContext.availableSlots = [];
+         bookingContext.time = null;
+         bookingContext.customerConfirmed = false;
+         bookingContext.awaitingConfirmation = false;
+         bookingContext.appointmentStatus = "NONE";
+         (bookingContext as any).createBookingKey = null;
+         (bookingContext as any).confirmationSentFor = null;
+         await patchCustomerContext(finalKey, { bookingContext });
+         await replyWithAI({
+           instance,
+           phone: contactPhone,
+           text: `Preciso reconfirmar os horários para ${formatBookingDate(bookingContext.date)}. 💜 Você prefere manhã, tarde ou noite?`,
+           conversationKey: finalKey,
+           messageId,
+           unitId: agent.unidade_id,
+           _trace: trace,
+         }, traceId);
+         trace?.record("TOTAL_PROCESSING_COMPLETED", { status: "blocked", reason: "date_slot_mismatch" });
+         return;
+       }
+
        // BEMP exige professional_id válido em /whatsapp_schedule.
        // Resolve determinístico: profissional disponível para o slot escolhido.
        if (!bookingContext.professionalId && bookingContext.unitId && bookingContext.serviceId) {
@@ -619,7 +674,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
            const { slotLocalTime } = await import("@/lib/booking/slot-time");
            const professionals = await BempService.listProfessionals(bookingContext.unitId, bookingContext.serviceId);
            const wantedTime = bookingContext.time;
-           const slotDate = String(bookingContext.selectedSlot || "").slice(0, 10) || bookingContext.date;
+           const slotDate = createDate.date;
            for (const p of professionals) {
              const pid = p?.id ?? p?.professional_id;
              if (!pid) continue;
@@ -655,7 +710,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
            salon_id: Number(bookingContext.unitId),
            service_id: Number(bookingContext.serviceId),
             professional_id: Number(bookingContext.professionalId),
-           start: bookingContext.selectedSlot || `${bookingContext.date}T${bookingContext.time}:00`,
+           start: createDate.start!,
            end: bookingContext.selectedSlotEnd || undefined,
            name: (msg as any).pushName || conv?.contact_name || "Cliente",
            phone_country_code: "55",
@@ -748,7 +803,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
     trace?.record("BOOKING_CONTEXT_MERGED");
 
-    const requiredSlot = nextRequiredSlot(bookingContext);
+    let requiredSlot = nextRequiredSlot(bookingContext);
     trace?.record("NEXT_REQUIRED_SLOT", { slot: requiredSlot });
 
     await patchCustomerContext(finalKey, {
@@ -796,6 +851,51 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       return;
     }
 
+    // ESTADO NEED_PROFESSIONAL: perguntar o profissional ANTES do período/horários.
+    if (!greetingOnly && requiredSlot === "professional" && bookingContext.unitId && bookingContext.serviceId) {
+      trace?.record("NEED_PROFESSIONAL", { serviceId: bookingContext.serviceId, date: bookingContext.date });
+      const { BempService } = await import("@/lib/bemp-service.server");
+      const { buildProfessionalQuestion } = await import("@/lib/booking/lifecycle");
+      let options: Array<{ id: string; name: string }> = [];
+      try {
+        const professionals = await BempService.listProfessionals(bookingContext.unitId, bookingContext.serviceId);
+        options = (professionals || [])
+          .map((p: any) => ({
+            id: String(p?.id ?? p?.professional_id ?? p?.employee_id ?? ""),
+            name: String(p?.name ?? p?.nome ?? p?.full_name ?? p?.professional_name ?? "").trim(),
+          }))
+          .filter((p) => p.id && p.name);
+        trace?.record("BEMP_PROFESSIONALS_LOADED", { count: options.length });
+      } catch (profErr: any) {
+        trace?.record("BEMP_PROFESSIONALS_FAILED", { error: profErr?.message });
+      }
+
+      if (options.length === 0) {
+        // Sem profissionais reais retornados: seguir com disponibilidade geral.
+        bookingContext.professionalPreference = "ANY";
+        bookingContext.professionalOptions = undefined;
+        requiredSlot = nextRequiredSlot(bookingContext);
+        await patchCustomerContext(finalKey, { bookingContext });
+      } else {
+        bookingContext.professionalOptions = options;
+        await patchCustomerContext(finalKey, { bookingContext });
+
+        const { replyWithAI } = await import("./reply.server");
+        await replyWithAI({
+          instance,
+          phone: contactPhone,
+          text: buildProfessionalQuestion(options),
+          conversationKey: finalKey,
+          messageId,
+          unitId: agent.unidade_id,
+          _trace: trace,
+        }, traceId);
+
+        trace?.record("TOTAL_PROCESSING_COMPLETED", { status: "success", reason: "professional_question_sent" });
+        return;
+      }
+    }
+
     // REQUISITO 5: Fluxo Determinístico sem Gemini para perguntas estruturais
     const { getDeterministicResponse } = await import("@/lib/booking/lifecycle");
     
@@ -810,11 +910,13 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
         const slots = await BempService.listAvailableSlots({
           salonId: Number(bookingContext.unitId),
           serviceId: Number(bookingContext.serviceId),
+          professionalId: bookingContext.professionalId ? String(bookingContext.professionalId) : undefined,
           date: bookingContext.date!,
         });
 
-        const { filterSlotsByPeriod, formatSlotsForDisplay, slotStart } = await import("@/lib/booking/slot-time");
-        const filtered = filterSlotsByPeriod(slots as any[], bookingContext.period);
+        const { filterSlotsByPeriod, formatSlotsForDisplay, slotStart, filterSlotsByLocalDate } = await import("@/lib/booking/slot-time");
+        const sameDay = filterSlotsByLocalDate(slots as any[], bookingContext.date);
+        const filtered = filterSlotsByPeriod(sameDay, bookingContext.period);
 
         if (filtered.length > 0) {
           // Preserva o slot REAL (ISO completo) internamente

@@ -33,6 +33,9 @@ describe("Booking Context Lifecycle", () => {
     expect(nextRequiredSlot(ctx)).toBe("date");
     
     ctx.date = "2026-08-14";
+    expect(nextRequiredSlot(ctx)).toBe("professional");
+
+    ctx.professionalPreference = "ANY";
     expect(nextRequiredSlot(ctx)).toBe("availability");
     
     ctx.selectedSlot = "15:30";
