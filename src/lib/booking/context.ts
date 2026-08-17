@@ -286,9 +286,13 @@ export function extractBookingSlots(
   const AFTERNOON_PATTERNS = /\b(?:tarde|a\s+tarde|à\s+tarde|de\s+tarde|pela\s+tarde)\b/i;
   const NIGHT_PATTERNS = /\b(?:noite|à\s+noite|de\s+noite|pela\s+noite)\b/i;
 
-  if (MORNING_PATTERNS.test(t)) out.period = "manhã";
-  else if (AFTERNOON_PATTERNS.test(t)) out.period = "tarde";
-  else if (NIGHT_PATTERNS.test(t)) out.period = "noite";
+  if (MORNING_PATTERNS.test(t)) {
+    out.period = "manhã";
+  } else if (AFTERNOON_PATTERNS.test(t)) {
+    out.period = "tarde";
+  } else if (NIGHT_PATTERNS.test(t)) {
+    out.period = "noite";
+  }
 
   // --- Horário ---
   const timeMatch = t.match(/\b([01]?\d|2[0-3])\s*(?::|h|hs|horas?)\s*([0-5]\d)?\b/i);
@@ -312,21 +316,29 @@ export function extractBookingSlots(
     } else {
       out.time = parsedTime;
     }
-  } else if (/\b(\d{1,2})\b/.test(t) && t.length <= 2) {
-    const h = Number(t);
-    if (h >= 7 && h <= 21) {
-      const parsedTime = `${String(h).padStart(2, "0")}:00`;
-      if (previous?.availableSlots?.length) {
-        const validSlot = previous.availableSlots.find(s => {
-          const slotTime = s.includes('T') ? s.split('T')[1].slice(0, 5) : s.slice(0, 5);
-          return slotTime === parsedTime;
-        });
-        if (validSlot) {
-          out.selectedSlot = validSlot;
+  } else {
+    // Tenta capturar apenas o número se for curto e parecer um horário (ex: "14", "14h")
+    const hourOnlyMatch = t.match(/^(\d{1,2})(?:\s*h\s*)?$/i);
+    if (hourOnlyMatch) {
+      const h = Number(hourOnlyMatch[1]);
+      if (h >= 7 && h <= 21) {
+        const parsedTime = `${String(h).padStart(2, "0")}:00`;
+        if (previous?.availableSlots?.length) {
+          const validSlot = previous.availableSlots.find(s => {
+            const slotTime = s.includes('T') ? s.split('T')[1].slice(0, 5) : s.slice(0, 5);
+            return slotTime === parsedTime;
+          });
+          if (validSlot) {
+            out.selectedSlot = validSlot;
+            out.time = parsedTime;
+          } else {
+            // Se informou apenas a hora mas não tem slot correspondente, salvamos o time para tentar buscar depois,
+            // mas o selectedSlot continua undefined
+            out.time = parsedTime;
+          }
+        } else {
           out.time = parsedTime;
         }
-      } else {
-        out.time = parsedTime;
       }
     }
   }
