@@ -355,8 +355,8 @@ export function extractBookingSlots(
   }
   
   // LOG PARA DEBUG
-  if (out.period || out.time) {
-    console.log(`[EXTRACTED_DEBUG] period=${out.period}, time=${out.time}, selectedSlot=${out.selectedSlot}`);
+  if (out.period || out.time || out.serviceText) {
+    console.log(`[EXTRACTED_DEBUG] text="${t}" period=${out.period}, time=${out.time}, selectedSlot=${out.selectedSlot}`);
   }
 
   return out;
