@@ -414,34 +414,53 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
     // ============================================================
     // CANCELAMENTO — PRIORIDADE MÁXIMA (antes de qualquer estado/IA)
+    // Diferencia fluxo em andamento x agendamento JÁ confirmado na BEMP.
     // ============================================================
     {
-      const {
-        detectCancelIntent,
-        hasBookingInProgress,
-        resetBookingForCancel,
-        CANCEL_FLOW_MESSAGE,
-        CANCEL_IDLE_MESSAGE,
-      } = await import("@/lib/booking/context");
+      const { handleCancelFlow } = await import("@/lib/booking/cancel-handler");
+      const { BempService } = await import("@/lib/bemp-service.server");
 
-      if (detectCancelIntent(text)) {
-        const inProgress = hasBookingInProgress(previousContext as any);
-        const cleared = resetBookingForCancel(previousContext as any);
+      const cancelCtx = {
+        ...previousContext,
+        pendingCancellation: customerContext.bookingContext?.pendingCancellation === true,
+        pendingCancellationBookingId:
+          customerContext.bookingContext?.pendingCancellationBookingId ?? null,
+        pendingCancellationOptions:
+          customerContext.bookingContext?.pendingCancellationOptions ?? undefined,
+      };
+
+      const phoneParts = {
+        phone_country_code: "55",
+        phone_area_code: contactPhone.slice(0, 2),
+        phone_number: contactPhone.slice(2),
+      };
+
+      const cancelResult = await handleCancelFlow({
+        text,
+        ctx: cancelCtx as any,
+        conversationUnitId: agent.unidade_id ?? previousContext.unitId ?? null,
+        deps: {
+          listAppointments: () => BempService.listCustomerAppointments(phoneParts),
+          cancelAppointment: (bookingId: string) =>
+            BempService.cancelAppointment({ appointmentId: bookingId, ...phoneParts }),
+        },
+      });
+
+      if (cancelResult.handled) {
         trace?.record("CANCEL_INTENT_DETECTED", {
-          inProgress,
+          ...cancelResult.telemetry,
           skipServiceLookup: true,
           skipGemini: true,
-          nextState: "IDLE",
         });
 
-        await patchCustomerContext(finalKey, { bookingContext: cleared });
+        await patchCustomerContext(finalKey, { bookingContext: cancelResult.nextContext ?? cancelCtx });
 
         const { replyWithAI } = await import("./reply.server");
         await replyWithAI(
           {
             instance,
             phone: contactPhone,
-            text: inProgress ? CANCEL_FLOW_MESSAGE : CANCEL_IDLE_MESSAGE,
+            text: cancelResult.message ?? "",
             conversationKey: finalKey,
             messageId,
             unitId: agent.unidade_id,
