@@ -543,6 +543,47 @@ export function isShortAffirmative(text: string | null | undefined): boolean {
 }
 
 /* ------------------------------------------------------------------ */
+/* Saudação genérica / contexto antigo                                 */
+/* ------------------------------------------------------------------ */
+
+const GREETING_ONLY =
+  /^(oi+|ol[áa]|ola|opa|e a[íi]|bom\s*dia|boa\s*tarde|boa\s*noite|hey|hi|hello|oi\s*tudo\s*bem\??|ol[áa]\s*tudo\s*bem\??|tudo\s*bem\??)[\s,.!?😊💜🙏👋]*$/i;
+
+/** TRUE quando a mensagem é apenas uma saudação genérica, sem seleção ou pedido explícito. */
+export function isGenericGreeting(text: string | null | undefined): boolean {
+  if (!text) return false;
+  const t = text.trim();
+  if (t.length > 40) return false;
+  return GREETING_ONLY.test(t);
+}
+
+/**
+ * Limpa os campos transitórios de booking (contexto antigo), preservando
+ * apenas identidade: unidade, saudação e status já confirmado.
+ */
+export function clearTransientBooking(ctx: BookingContext): BookingContext {
+  const next: BookingContext = { ...ctx };
+  next.serviceId = null;
+  next.serviceName = null;
+  next.serviceText = null;
+  next.date = null;
+  next.period = null;
+  next.time = null;
+  next.selectedSlot = null;
+  next.selectedSlotEnd = null;
+  next.availableSlots = [];
+  next.candidates = undefined;
+  next.clarificationRequired = false;
+  next.awaitingConfirmation = false;
+  next.customerConfirmed = false;
+  next.availabilityCalled = false;
+  next.intent = null;
+  if (next.appointmentStatus !== "CONFIRMED") next.appointmentStatus = "NONE";
+  return next;
+}
+
+
+/* ------------------------------------------------------------------ */
 /* Proteção de duplicidade                                             */
 /* ------------------------------------------------------------------ */
 
