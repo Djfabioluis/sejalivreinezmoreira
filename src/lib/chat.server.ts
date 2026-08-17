@@ -351,6 +351,13 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
     ((customerContext as any)?.bookingContext as BookingContext) ||
     {};
 
+  // Sanitizar BookingContext: se for um objeto mas vier com campos vazios, garantir que são null
+  if (bookingContext && typeof bookingContext === 'object') {
+    Object.keys(bookingContext).forEach(key => {
+      if ((bookingContext as any)[key] === undefined) (bookingContext as any)[key] = null;
+    });
+  }
+
   // 1. RESOLUÇÃO DETERMINÍSTICA (BACKEND)
   const { extractBookingSlots, mergeBookingContext } = await import("@/lib/booking/context");
   const extracted = extractBookingSlots(text, new Date(), bookingContext);
