@@ -848,8 +848,9 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     // Mas se for uma NOVA intenção de agendamento, o lembrete é suprimido para priorizar o novo pedido.
     if (
       !greetingOnly &&
-      !isNewBookingIntent &&
+      !(extracted as any)?._isReset &&
       bookingContext.appointmentStatus === "AWAITING_CONFIRMATION" &&
+
 
       bookingContext.customerConfirmed !== true &&
       bookingContext.selectedSlot &&
