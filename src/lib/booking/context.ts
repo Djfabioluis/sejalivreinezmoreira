@@ -125,6 +125,29 @@ export function extractBookingSlots(
 
   const t = text.trim();
 
+  // RESET LOGIC: Se houver uma nova intenção clara de agendamento, limpamos dados antigos.
+  const isNewBookingIntent = /\b(?:quero|preciso|gostaria|agendar|marcar|fazer|hoje|amanh[ãa])\b/i.test(t) && 
+                            SERVICE_PATTERNS.some(p => p.re.test(t));
+  
+  if (isNewBookingIntent && previous && !previous.awaitingConfirmation) {
+    // Preservar apenas identidade e saudação
+    out.unitId = previous.unitId;
+    out.conversationGreeted = previous.conversationGreeted;
+    out.intent = null;
+    out.serviceId = null;
+    out.serviceName = null;
+    out.serviceText = null;
+    out.date = null;
+    out.period = null;
+    out.time = null;
+    out.selectedSlot = null;
+    out.availableSlots = [];
+    out.candidates = undefined;
+    out.clarificationRequired = false;
+    out.appointmentStatus = "NONE";
+    console.log("[BOOKING_RESET] Nova intenção detectada, limpando contexto antigo.");
+  }
+
   // --- Serviço (Pattern) ---
   const foundService = SERVICE_PATTERNS.find((p) => p.re.test(t));
   if (foundService) {
@@ -256,22 +279,52 @@ export function extractBookingSlots(
 
 
   // --- Período ---
-  if (/manh[ãa]/i.test(t)) out.period = "manhã";
-  else if (/tarde/i.test(t)) out.period = "tarde";
-  else if (/noite/i.test(t)) out.period = "noite";
+  const MORNING_PATTERNS = /\b(?:manh[ãa]|de\s+manh[ãa]|pela\s+manh[ãa])\b/i;
+  const AFTERNOON_PATTERNS = /\b(?:tarde|a\s+tarde|à\s+tarde|de\s+tarde|pela\s+tarde)\b/i;
+  const NIGHT_PATTERNS = /\b(?:noite|à\s+noite|de\s+noite|pela\s+noite)\b/i;
+
+  if (MORNING_PATTERNS.test(t)) out.period = "manhã";
+  else if (AFTERNOON_PATTERNS.test(t)) out.period = "tarde";
+  else if (NIGHT_PATTERNS.test(t)) out.period = "noite";
 
   // --- Horário ---
-  // Tenta extrair HH:mm de formatos variados
   const timeMatch = t.match(/\b([01]?\d|2[0-3])\s*(?::|h|hs|horas?)\s*([0-5]\d)?\b/i);
   if (timeMatch) {
     const hh = String(Number(timeMatch[1])).padStart(2, "0");
     const mm = timeMatch[2] ? timeMatch[2] : "00";
-    out.time = `${hh}:${mm}`;
+    const parsedTime = `${hh}:${mm}`;
+    
+    // Validação contra slots reais se existirem no previous
+    if (previous?.availableSlots?.length) {
+      const validSlot = previous.availableSlots.find(s => {
+        // Extrai HH:mm de ISO ou string formatada
+        const slotTime = s.includes('T') ? s.split('T')[1].slice(0, 5) : s.slice(0, 5);
+        return slotTime === parsedTime;
+      });
+      
+      if (validSlot) {
+        out.selectedSlot = validSlot;
+        out.time = parsedTime;
+      }
+    } else {
+      out.time = parsedTime;
+    }
   } else if (/\b(\d{1,2})\b/.test(t) && t.length <= 2) {
-    // Se o cliente digitar apenas "14", tratar como 14:00
     const h = Number(t);
     if (h >= 7 && h <= 21) {
-      out.time = `${String(h).padStart(2, "0")}:00`;
+      const parsedTime = `${String(h).padStart(2, "0")}:00`;
+      if (previous?.availableSlots?.length) {
+        const validSlot = previous.availableSlots.find(s => {
+          const slotTime = s.includes('T') ? s.split('T')[1].slice(0, 5) : s.slice(0, 5);
+          return slotTime === parsedTime;
+        });
+        if (validSlot) {
+          out.selectedSlot = validSlot;
+          out.time = parsedTime;
+        }
+      } else {
+        out.time = parsedTime;
+      }
     }
   }
 
@@ -312,9 +365,14 @@ export function mergeBookingContext(
   next.subscriptionIntent = prev.subscriptionIntent === true || extracted?.subscriptionIntent === true;
   next.intent = extracted?.intent || prev.intent || null;
   
-  // REQUISITO 7: Se serviceId ou date sumirem no loop, restauramos do prev
-  if (!next.serviceId && prev.serviceId) next.serviceId = prev.serviceId;
-  if (!next.serviceName && prev.serviceName) next.serviceName = prev.serviceName;
+  // PRESERVE CANDIDATES during clarification
+  if (prev.clarificationRequired && !extracted?.serviceId && prev.candidates) {
+    next.candidates = prev.candidates;
+    next.clarificationRequired = true;
+  }
+
+  if (!next.serviceId && prev.serviceId && !extracted?.serviceText) next.serviceId = prev.serviceId;
+  if (!next.serviceName && prev.serviceName && !extracted?.serviceText) next.serviceName = prev.serviceName;
   if (!next.serviceText && prev.serviceText) next.serviceText = prev.serviceText;
   if (!next.date && prev.date) next.date = prev.date;
 
