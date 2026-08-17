@@ -1,7 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { logEvent } from "./logger.server";
-import { sendEvolutionText, sendEvolutionPresence } from "../evolution.server";
+import { sendEvolutionPresence } from "../evolution.server";
+import { EvolutionService } from "./evolution-service.server";
 import { PerformanceTrace } from "./performance.server";
 
 export const sendManualWAMessage = createServerFn({ method: "POST" })
@@ -34,10 +35,16 @@ export const sendManualWAMessage = createServerFn({ method: "POST" })
       
       trace.record("EVOLUTION_SEND_STARTED", { instance: params.instance });
 
-      const sent = await sendEvolutionText(params.instance, params.phone, params.text, typingMs);
+      const sent = await EvolutionService.sendText({
+        instance: params.instance,
+        to: params.phone,
+        text: params.text,
+        typingMs,
+        module: "manual"
+      });
 
       if (sent) {
-        const sentMessageId = sent.data?.key?.id || sent.data?.message?.key?.id || params.messageId || traceId;
+        const sentMessageId = params.messageId || traceId;
         trace.record("EVOLUTION_SEND_SUCCESS", { evolutionId: sentMessageId });
         trace.record("MESSAGE_SENT", { sentMessageId });
 
@@ -238,10 +245,16 @@ async function proceedWithSend(params: ReplyParams, trace: PerformanceTrace, tra
     trace.record("OUTBOUND_DEDUPE_CHECK_FAILED", { error: dedupeErr?.message });
   }
 
-  const sentResult = await sendEvolutionText(params.instance, params.phone, params.text, typingMs);
+  const sentResult = await EvolutionService.sendText({
+    instance: params.instance,
+    to: params.phone,
+    text: params.text,
+    typingMs,
+    module: "julia-ai"
+  });
   
   if (sentResult) {
-    const sentMessageId = sentResult.data?.key?.id || sentResult.data?.message?.key?.id || params.messageId || traceId;
+    const sentMessageId = params.messageId || traceId;
     trace.record("EVOLUTION_SEND_SUCCESS", { evolutionId: sentMessageId });
     trace.record("MESSAGE_SENT", { sentMessageId });
 
