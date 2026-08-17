@@ -575,7 +575,8 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     
     // MÁQUINA DE ESTADOS: Se period está preenchido mas disponibilidade ainda é necessária,
     // disparar list_slots automaticamente.
-    if (!greetingOnly && requiredSlot === "availability" && bookingContext.period && !bookingContext.time && !bookingContext.selectedSlot) {
+    const { hasCurrentSessionPeriod } = await import("@/lib/booking/context");
+    if (!greetingOnly && requiredSlot === "availability" && hasCurrentSessionPeriod(bookingContext) && !bookingContext.time && !bookingContext.selectedSlot) {
       trace?.record("AUTO_LIST_SLOTS_TRIGGERED", { period: bookingContext.period });
       
       const { BempService } = await import("@/lib/bemp-service.server");
