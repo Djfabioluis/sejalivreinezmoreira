@@ -192,6 +192,10 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
         const conversationKey = outboundConversationKey;
 
         trace.record("CONVERSATION_LOOKUP_STARTED", { conversationKey });
+        
+        // PONTO DE SINCRONIZAÇÃO: Antes de marcar modo humano, verificamos se a conversa já foi processada 
+        // ou está bloqueada. Como já fizemos o claimEvent acima para o eco, estamos seguros aqui.
+        
         const { error: updateError } = await supabaseAdmin
           .from("wa_conversas")
           .update({ 
@@ -202,9 +206,11 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
             ai_pause_reason: "HUMAN_AGENT_REPLIED",
             last_human_message_at: new Date().toISOString()
           })
-          .eq("phone", conversationKey);
+          .eq("phone", conversationKey)
+          .neq("attendance_mode", "HUMAN"); // Otimização idempotente
         
         trace.record("CONVERSATION_LOOKUP_COMPLETED", { updatedToHuman: !updateError });
+
 
         if (updateError) {
           console.error("[takeover] Error updating to HUMAN mode:", updateError);
@@ -218,7 +224,11 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
           payload: { traceId, phone, conversationKey, remoteJid: msg.remoteJid, fromMe: msg.fromMe }
         });
         
+        // Finalizar eco humano como processado
+        await markEventProcessed(msg.instance, msg.messageId);
+        
         trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "human_takeover_processed" });
+
         continue;
       }
 
