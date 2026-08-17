@@ -972,36 +972,42 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
          const apptId = extractBempAppointmentId(result);
          if (apptId) {
            bookingContext.appointmentId = String(apptId);
-           bookingContext.appointmentStatus = "CONFIRMED";
-           trace?.record("BOOKING_CREATE_SUCCESS", { appointmentId: apptId });
-           
-           // Resposta Final Obrigatória
-            const finalMsg = `Agendamento confirmado! 💜\n\nServiço: ${bookingContext.serviceName}\nData: ${formatBookingDate(bookingContext.date)}\nHorário: ${bookingContext.time}\n\nTe esperamos!`;
+            bookingContext.appointmentStatus = "CONFIRMED";
+            trace?.record("BOOKING_CREATE_SUCCESS", { appointmentId: apptId });
+            
+            // Resposta Final Obrigatória
+             const finalMsg = `Agendamento confirmado! 💜\n\nServiço: ${bookingContext.serviceName}\nData: ${formatBookingDate(bookingContext.date)}\nHorário: ${bookingContext.time}\n\nTe esperamos!`;
 
-           await replyWithAI({
-             instance,
-             phone: contactPhone,
-             text: finalMsg,
-             conversationKey: finalKey,
-             messageId,
-             unitId: agent.unidade_id,
-             _trace: trace
-           }, traceId);
+            await replyWithAI({
+              instance,
+              phone: contactPhone,
+              text: finalMsg,
+              conversationKey: finalKey,
+              messageId,
+              unitId: agent.unidade_id,
+              _trace: trace
+            }, traceId);
 
-           // Limpa apenas campos transitórios (preserva cliente/telefone/unitId)
-           const cleared = clearTransientBooking(bookingContext);
-           Object.assign(bookingContext, cleared, {
-             appointmentStatus: "CONFIRMED",
-             appointmentId: String(apptId),
-             customerConfirmed: false,
-             awaitingConfirmation: false,
-           });
-           (bookingContext as any).createBookingKey = null;
-           (bookingContext as any).confirmationSentFor = null;
+            // Limpeza atômica e terminal: o agendamento foi concluído.
+            // Transição para CONFIRMED reseta os seletores para não repetir confirmações.
+            const cleared = clearTransientBooking(bookingContext);
+            Object.assign(bookingContext, cleared, {
+              appointmentStatus: "CONFIRMED",
+              appointmentId: String(apptId),
+              customerConfirmed: false,
+              awaitingConfirmation: false,
+              selectedSlot: null,
+              time: null,
+            });
+            (bookingContext as any).createBookingKey = null;
+            (bookingContext as any).confirmationSentFor = null;
 
-           await patchCustomerContext(finalKey, { bookingContext });
-           trace?.record("TOTAL_PROCESSING_COMPLETED", { status: "success", reason: "booking_confirmed" });
-           return;
+            await patchCustomerContext(finalKey, { 
+              bookingContext,
+              appointment_confirmed_at: new Date().toISOString()
+            });
+            trace?.record("TOTAL_PROCESSING_COMPLETED", { status: "success", reason: "booking_confirmed" });
+            return;
          } else {
            createFailed = true;
            trace?.record("BOOKING_CREATE_FAILED", { error: "No ID returned" });

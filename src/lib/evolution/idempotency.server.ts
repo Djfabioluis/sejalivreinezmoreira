@@ -103,15 +103,25 @@ export async function markResponsePending(instance: string, sourceMessageId: str
  */
 export async function claimResponseSlot(instance: string, sourceMessageId: string): Promise<boolean> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  
+  // Usar RPC atômico para garantir que apenas UM processo consiga o slot de envio.
+  // assistant_response_status = 'sending' é o lock.
   const { data, error } = await supabaseAdmin
     .from("evo_events" as never)
-    .update({ assistant_response_status: "sending" } as never)
+    .update({ 
+      assistant_response_status: "sending",
+      processing_started_at: new Date().toISOString()
+    } as never)
     .match({ instance, message_id: sourceMessageId } as never)
-    .or("assistant_response_status.is.null,assistant_response_status.eq.pending,assistant_response_status.eq.failed")
+    .in("assistant_response_status", [null, "pending", "failed"])
     .select("id");
 
-  if (error) return true; // não bloquear o atendimento por erro de infraestrutura
-  return Array.isArray(data) ? data.length > 0 : true;
+  if (error) {
+    console.error(`[claimResponseSlot] DB Error: ${error.message}`);
+    return true; // fail-open para não travar o cliente por erro de DB
+  }
+  
+  return Array.isArray(data) ? data.length > 0 : false;
 }
 
 export async function markResponseFailed(instance: string, sourceMessageId: string, detail: string) {

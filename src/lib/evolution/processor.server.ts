@@ -276,14 +276,18 @@ source: ${identity.identitySource}`);
       trace.record("IDEMPOTENCY_CHECK_COMPLETED", { claimed, reason });
 
       if (!claimed) {
-        if (reason === "already_processed" || reason === "processing") {
+        // Log detalhado para o motivo do descarte
+        if (reason === "duplicate_message" || reason === "in_progress") {
           trace.record("DUPLICATE_MESSAGE_SKIPPED", { reason });
         }
+        
         trace.record("MESSAGE_PROCESSING_ABORTED", { 
           stage: "IDEMPOTENCY_CHECK", 
           reason: reason || "duplicate",
-          traceId
+          traceId,
+          inboundMessageId: msg.messageId
         });
+        
         trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "not_claimed" });
         continue;
       }
@@ -369,17 +373,24 @@ source: ${identity.identitySource}`);
 
 
       if (lockError || lockAcquired !== true) {
-        // Requisito 5: Se o lock falhar, marcar como erro e lançar exceção para retry
-        await markEventFailed(msg.instance, finalMessageId, "conversation_locked_retry");
+        // Se o lock falhar, marcar como erro e abortar SEM retry automático infinito se o erro for apenas "locked"
+        const lockReason = lockError ? "lock_error" : "lock_already_acquired";
+        
+        // Se já está locado, não é uma falha que exija retry imediato agressivo do webhook (deixa o processo original terminar)
+        await markEventFailed(msg.instance, finalMessageId, `conversation_locked:${lockReason}`);
+        
         trace.record("MESSAGE_PROCESSING_ABORTED", { 
           stage: "CONVERSATION_LOCK", 
-          reason: lockError ? "lock_error" : "lock_not_acquired",
+          reason: lockReason,
           traceId,
           error: lockError?.message
         });
         trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "lock_failed" });
         
-        throw new Error(lockError?.message || `CONVERSATION_LOCK_NOT_ACQUIRED: ${conversationKey}`);
+        // Não lançamos erro aqui para o webhook da Evolution. Respondemos 200 OK 
+        // para evitar que a Evolution API reenvie a mesma mensagem (retry externo),
+        // já que uma instância já está processando ou terminando.
+        continue;
       }
 
 

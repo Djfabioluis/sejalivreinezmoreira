@@ -188,6 +188,22 @@ async function proceedWithSend(params: ReplyParams, trace: PerformanceTrace, tra
 
   trace.record("AI_RESPONSE_GENERATED", { textSnippet: params.text.slice(0, 50) });
   trace.record("EVOLUTION_SEND_STARTED", { instance: params.instance });
+  
+  // REGRA DE OURO DE IDEMPOTÊNCIA OUTBOUND: 
+  // Nunca enviar sem marcar o início do envio para evitar corridas.
+  if (params.messageId) {
+    const { claimResponseSlot } = await import("./idempotency.server");
+    const canSend = await claimResponseSlot(params.instance, params.messageId);
+    if (!canSend) {
+      trace.record("OUTBOUND_BLOCKED_DUPLICATE", { 
+        reason: "response_slot_already_claimed", 
+        messageId: params.messageId 
+      });
+      console.warn(`[proceedWithSend] Bloqueando envio duplicado para a mesma mensagem de origem: ${params.messageId}`);
+      return false;
+    }
+  }
+
   const sentResult = await sendEvolutionText(params.instance, params.phone, params.text, typingMs);
   
   if (sentResult) {
