@@ -34,6 +34,8 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
   const { normalizeIncomingMessage } = await import("./media-normalizer");
   const { mediaPlaceholderText } = await import("./media-pipeline.server");
   const { appendIncomingMessage, updateConversationMetadata } = await import("./conversation.server");
+  const { claimResponseSlot } = await import("./idempotency.server");
+
 
 
   for (const msg of messages) {
@@ -51,7 +53,25 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
 
     try {
       // 2. fromMe (mensagem enviada pelo próprio número) → diferenciar IA vs Humano
+      // IDEMPOTÊNCIA GLOBAL: Antes de qualquer processamento, marcar o evento como 'processed' se for fromMe
+      // para evitar que retries do webhook disparem a lógica de takeover humano repetidamente.
       if (isFromMe(msg.fromMe)) {
+        const { claimed: echoClaimed } = await claimEvent({
+          instance: msg.instance,
+          messageId: msg.messageId,
+          remoteJid: msg.remoteJid,
+          phone: "echo-identity", // Identidade irrelevante para eco
+          timestamp: msg.timestamp,
+          text: extractMessageText(msg.message) || "",
+          traceId
+        });
+
+        if (!echoClaimed) {
+          trace.record("ECHO_DUPLICATE_ABORTED");
+          continue;
+        }
+
+
         trace.record("MESSAGE_PARSED", { direction: "OUTBOUND_ECHO" });
         const outboundText = extractMessageText(msg.message)?.trim() || "";
         const outboundIdentity = resolveCustomerIdentity(msg);

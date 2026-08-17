@@ -837,6 +837,8 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
        const { replyWithAI } = await import("./reply.server");
        const { formatBookingDate } = await import("@/lib/booking/lifecycle");
        const { clearTransientBooking } = await import("@/lib/booking/context");
+       const { claimResponseSlot } = await import("./reply.server");
+
 
        if (bookingContext.appointmentId) {
          trace?.record("BOOKING_CREATE_SKIPPED_DUPLICATE", { idempotencyKey });
@@ -975,8 +977,29 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
             bookingContext.appointmentStatus = "CONFIRMED";
             trace?.record("BOOKING_CREATE_SUCCESS", { appointmentId: apptId });
             
+            // PONTO DE SINCRONIZAÇÃO: Antes de enviar a resposta final, marcamos que o agendamento foi CONCLUÍDO.
+            // Isso previne que qualquer re-processamento da mensagem "Sim" tente criar novamente
+            // ou enviar confirmações duplicadas.
+            const cleared = clearTransientBooking(bookingContext);
+            Object.assign(bookingContext, cleared, {
+              appointmentStatus: "CONFIRMED",
+              appointmentId: String(apptId),
+              customerConfirmed: false,
+              awaitingConfirmation: false,
+              selectedSlot: null,
+              time: null,
+            });
+            (bookingContext as any).createBookingKey = null;
+            (bookingContext as any).confirmationSentFor = null;
+
+            await patchCustomerContext(finalKey, { 
+              bookingContext,
+              appointment_confirmed_at: new Date().toISOString()
+            });
+
             // Resposta Final Obrigatória
              const finalMsg = `Agendamento confirmado! 💜\n\nServiço: ${bookingContext.serviceName}\nData: ${formatBookingDate(bookingContext.date)}\nHorário: ${bookingContext.time}\n\nTe esperamos!`;
+
 
             await replyWithAI({
               instance,
