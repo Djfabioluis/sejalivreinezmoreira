@@ -526,6 +526,13 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
                   messageId,
                   unitId: agent.unidade_id,
                   _trace: trace,
+                  resolvedPrice: {
+                    serviceId: String(service.id),
+                    serviceName: service.name || service.nome || "serviço",
+                    price: Number(price),
+                    unitId: unitId,
+                    source: "bemp:listServices"
+                  }
                 }, traceId);
 
                 trace?.record("PRICE_RESPONSE_SENT", { serviceId: service.id, price: priceText });
