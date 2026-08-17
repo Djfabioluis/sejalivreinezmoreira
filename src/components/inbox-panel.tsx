@@ -26,6 +26,7 @@ import {
   updateConversationStatus, 
   sendManualWAMessage,
   extractConversationMessageText,
+  getUnitNameMap,
   type WAConversation 
 } from "@/lib/whatsapp-inbox.functions";
 import { listAgentes } from "@/lib/agentes-whatsapp.functions";
