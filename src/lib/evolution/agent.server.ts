@@ -467,7 +467,10 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     }
 
     // MÁQUINA DE ESTADOS DETERMINÍSTICA - CONFIRMAÇÃO
-    if (bookingContext.appointmentStatus === "AWAITING_CONFIRMATION" && isShortAffirmative(text)) {
+    const confirmableStatus =
+      bookingContext.appointmentStatus === "AWAITING_CONFIRMATION" ||
+      (bookingContext.appointmentStatus === "FAILED" && !!bookingContext.selectedSlot);
+    if (confirmableStatus && isShortAffirmative(text)) {
       bookingContext.customerConfirmed = true;
       bookingContext.awaitingConfirmation = false;
       bookingContext.appointmentStatus = "CREATING";
