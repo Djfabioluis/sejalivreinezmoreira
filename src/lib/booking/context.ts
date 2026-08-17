@@ -152,8 +152,6 @@ export function extractBookingSlots(
     (out as any)._isReset = true;
   }
 
-  console.log(`[EXTRACT_DEBUG] Processing text: "${t}"`);
-
   // --- Serviço (Pattern) ---
   const foundService = SERVICE_PATTERNS.find((p) => p.re.test(t));
   if (foundService) {
@@ -283,7 +281,7 @@ export function extractBookingSlots(
     }
   }
 
-
+  console.log(`[EXTRACT_DEBUG] Before period check for "${t}": out.period=${out.period}`);
   // --- Período ---
   const MORNING_PATTERNS = /\b(?:manh[ãa]|de\s+manh[ãa]|pela\s+manh[ãa])\b/i;
   const AFTERNOON_PATTERNS = /\b(?:tarde|a\s+tarde|à\s+tarde|de\s+tarde|pela\s+tarde)\b/i;
@@ -359,6 +357,7 @@ export function extractBookingSlots(
     console.log(`[EXTRACTED_DEBUG] text="${t}" period=${out.period}, time=${out.time}, selectedSlot=${out.selectedSlot}`);
   }
 
+  console.log(`[EXTRACT_DEBUG] Returning out for "${t}": ${JSON.stringify(out)}`);
   return out;
 }
 
@@ -396,7 +395,7 @@ export function mergeBookingContext(
     return next;
   }
 
-  for (const [key, value] of Object.entries(extracted || {})) {
+  console.log("[MERGE_DEBUG] Merge normal");
     if (EMPTY(value)) continue;
     // REQUISITO 6: Nunca substituir por null, merge aditivo
     (next as any)[key] = value;
