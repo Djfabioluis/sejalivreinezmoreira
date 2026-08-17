@@ -287,15 +287,12 @@ export function extractBookingSlots(
 
   console.log(`[EXTRACT_DEBUG] Before period check for "${t}": out.period=${out.period}`);
   // --- Período ---
-  const MORNING_PATTERNS = /(?:manh[aã]|de\s+manh[aã]|pela\s+manh[aã])/iu;
-  const AFTERNOON_PATTERNS = /(?:tarde|a\s+tarde|à\s+tarde|de\s+tarde|pela\s+tarde)/iu;
-  const NIGHT_PATTERNS = /(?:noite|à\s+noite|de\s+noite|pela\s+noite)/iu;
-
-  if (MORNING_PATTERNS.test(t)) {
+  const normalizedT = t.toLowerCase();
+  if (normalizedT.includes("manhã") || normalizedT.includes("manha") || normalizedT.includes("de manhã") || normalizedT.includes("pela manhã")) {
     out.period = "manhã";
-  } else if (AFTERNOON_PATTERNS.test(t)) {
+  } else if (normalizedT.includes("tarde") || normalizedT.includes("a tarde") || normalizedT.includes("à tarde") || normalizedT.includes("de tarde") || normalizedT.includes("pela tarde")) {
     out.period = "tarde";
-  } else if (NIGHT_PATTERNS.test(t)) {
+  } else if (normalizedT.includes("noite") || normalizedT.includes("a noite") || normalizedT.includes("à noite") || normalizedT.includes("de noite") || normalizedT.includes("pela noite")) {
     out.period = "noite";
   }
 
