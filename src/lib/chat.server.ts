@@ -480,10 +480,10 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
   // 2. LLM EXECUTION
   // 2. AUTO LIST SLOTS (Intervenção Determinística)
   // Se temos Unit, Service e Date, mas não Time, e temos Period -> Chamar list_slots
-  const { isGenericGreeting } = await import("@/lib/booking/context");
+  const { isGenericGreeting, hasCurrentSessionPeriod } = await import("@/lib/booking/context");
   const { filterSlotsByPeriod, formatSlotsForDisplay, slotStart } = await import("@/lib/booking/slot-time");
   const greetingOnly = isGenericGreeting(text);
-  const canListSlots = !greetingOnly && bookingContext.unitId && bookingContext.serviceId && bookingContext.date && bookingContext.period && !bookingContext.time;
+  const canListSlots = !greetingOnly && bookingContext.unitId && bookingContext.serviceId && bookingContext.date && hasCurrentSessionPeriod(bookingContext) && !bookingContext.time;
   
   if (canListSlots) {
     try {
