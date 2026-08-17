@@ -147,8 +147,9 @@ export function extractBookingSlots(
     out.appointmentStatus = "NONE";
     console.log("[BOOKING_RESET] Nova intenção detectada, limpando contexto antigo.");
     
-    // Após o reset, precisamos extrair os slots da mensagem atual usando o novo contexto limpo
-    // Mas para evitar recursão infinita, fazemos a extração manualmente para o que resta
+    // IMPORTANTE: Como fizemos um reset, o mergeBookingContext não deve tentar
+    // restaurar serviceId/date do previous. Marcamos isso no output.
+    (out as any)._isReset = true;
   }
 
   // --- Serviço (Pattern) ---
@@ -386,10 +387,10 @@ export function mergeBookingContext(
     next.clarificationRequired = true;
   }
 
-  if (!next.serviceId && prev.serviceId && extracted?.serviceId === undefined && !isNewBookingIntent) next.serviceId = prev.serviceId;
-  if (!next.serviceName && prev.serviceName && extracted?.serviceName === undefined && !isNewBookingIntent) next.serviceName = prev.serviceName;
-  if (!next.serviceText && prev.serviceText && extracted?.serviceText === undefined && !isNewBookingIntent) next.serviceText = prev.serviceText;
-  if (!next.date && prev.date && extracted?.date === undefined && !isNewBookingIntent) next.date = prev.date;
+  if (!next.serviceId && prev.serviceId && extracted?.serviceId === undefined) next.serviceId = prev.serviceId;
+  if (!next.serviceName && prev.serviceName && extracted?.serviceName === undefined) next.serviceName = prev.serviceName;
+  if (!next.serviceText && prev.serviceText && extracted?.serviceText === undefined) next.serviceText = prev.serviceText;
+  if (!next.date && prev.date && extracted?.date === undefined) next.date = prev.date;
 
   return next;
 }
