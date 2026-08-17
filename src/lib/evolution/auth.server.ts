@@ -16,24 +16,20 @@ export async function authenticateWebhook(request: Request): Promise<{ authentic
     providedSecret = authHeader.substring(7).trim();
   }
 
-  const requireSecret = process.env.EVOLUTION_REQUIRE_WEBHOOK_SECRET === "true";
+  const requireSecret = process.env.NODE_ENV === "production" || process.env.EVOLUTION_REQUIRE_WEBHOOK_SECRET === "true";
 
   if (!config.webhookSecret) {
-    // Se não há segredo configurado no banco/env, permitimos o tráfego 
-    // com um aviso no log (Segurança Fail-Open para ambiente inicial).
-    console.warn("[WEBHOOK_AUTH] EVOLUTION_WEBHOOK_SECRET not configured. Allowing traffic.");
+    if (requireSecret) {
+      logger.error("WEBHOOK_AUTH_FAILED", "EVOLUTION_WEBHOOK_SECRET não configurado em produção.", { url: request.url });
+      return { authenticated: false, error: "Unauthorized: Webhook secret not configured" };
+    }
+    console.warn("[WEBHOOK_AUTH] EVOLUTION_WEBHOOK_SECRET not configured. Allowing traffic in development.");
     return { authenticated: true };
   }
 
-  // Se o segredo está configurado mas não foi enviado
   if (!providedSecret) {
-    if (requireSecret) {
-      logger.warn("WEBHOOK_AUTH_MISSING", "Segredo obrigatório não enviado", { url: request.url });
-      return { authenticated: false, error: "Unauthorized: Webhook secret required" };
-    }
-    // Compatibilidade: Avisar mas permitir se não for obrigatório (Requisito 7)
-    console.warn("[WEBHOOK_AUTH] Secret configured but not provided in request. Allowing for compatibility.");
-    return { authenticated: true };
+    logger.warn("WEBHOOK_AUTH_MISSING", "Segredo obrigatório não enviado", { url: request.url });
+    return { authenticated: false, error: "Unauthorized: Webhook secret required" };
   }
 
   if (providedSecret !== config.webhookSecret) {

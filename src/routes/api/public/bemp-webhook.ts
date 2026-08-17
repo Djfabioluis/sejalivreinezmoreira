@@ -5,7 +5,11 @@ export const Route = createFileRoute("/api/public/bemp-webhook")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        // Nota: Em produção, validar assinatura se a BEMP fornecer.
+        const secret = request.headers.get('X-Bemp-Webhook-Secret');
+        if (process.env.BEMP_WEBHOOK_SECRET && secret !== process.env.BEMP_WEBHOOK_SECRET) {
+          return new Response("Unauthorized", { status: 401 });
+        }
+        
         const payload = await request.json().catch(() => null);
         if (!payload) return new Response("Bad Request", { status: 400 });
 

@@ -95,10 +95,9 @@ function addDays(base: Date, days: number): Date {
 }
 
 const SERVICE_PATTERNS: Array<{ re: RegExp; name: string }> = [
-  // Patterns extraem a INTENÇÃO NORMALIZADA (MANICURE para termos como "mão")
+  { re: /\bp[ée]\s+e\s+m[ãa]o\b/i, name: "pé e mão" },
   { re: /\b(?:manicure|unha\s+da\s+m[ãa]o|fazer\s+a(?:s)?\s+m[ãa]o(?:s)?|fazer\s+m[ãa]o(?:s)?|servi[çc]o\s+de\s+m[ãa]o|m[ãa]o|mao)\b/i, name: "manicure" },
   { re: /\b(?:p[ée]|pedicure|unha\s+do\s+p[ée]|fazer\s+o\s+p[ée])\b/i, name: "pedicure" },
-  { re: /\bp[ée]\s+e\s+m[ãa]o\b/i, name: "pé e mão" },
   { re: /\bcabelo\b/i, name: "cabelo" },
   { re: /\bescova\b/i, name: "escova" },
   { re: /\bcorte\b/i, name: "corte" },
@@ -125,6 +124,33 @@ export function extractBookingSlots(
   if (!text) return out;
 
   const t = text.trim();
+
+  // RESET LOGIC: Se houver uma nova intenção clara de agendamento, limpamos dados antigos.
+  const isNewBookingIntent = /\b(?:quero|preciso|gostaria|agendar|marcar|fazer|hoje|amanh[ãa])\b/i.test(t) && 
+                            SERVICE_PATTERNS.some(p => p.re.test(t));
+  
+  if (isNewBookingIntent && previous && !previous.awaitingConfirmation) {
+    // Preservar apenas identidade e saudação
+    out.unitId = previous.unitId;
+    out.conversationGreeted = previous.conversationGreeted;
+    out.intent = null;
+    out.serviceId = null;
+    out.serviceName = null;
+    out.serviceText = null;
+    out.date = null;
+    out.period = null;
+    out.time = null;
+    out.selectedSlot = null;
+    out.availableSlots = [];
+    out.candidates = undefined;
+    out.clarificationRequired = false;
+    out.appointmentStatus = "NONE";
+    console.log("[BOOKING_RESET] Nova intenção detectada, limpando contexto antigo.");
+    
+    // IMPORTANTE: Como fizemos um reset, o mergeBookingContext não deve tentar
+    // restaurar serviceId/date do previous. Marcamos isso no output.
+    (out as any)._isReset = true;
+  }
 
   // --- Serviço (Pattern) ---
   const foundService = SERVICE_PATTERNS.find((p) => p.re.test(t));
@@ -176,9 +202,15 @@ export function extractBookingSlots(
   }
 
   // --- Serviço (Resolução de Ambiguidade Prioritária - Determinística) ---
-  if (previous?.clarificationRequired && previous.candidates?.length && !out.serviceText) {
+  if (previous?.clarificationRequired && previous.candidates?.length) {
     console.log(`[DETERMINISTIC_RESOLUTION_ATTEMPT] Input: "${t}" | Candidates: ${previous.candidates.length}`);
+    const normalizedInput = t.toLowerCase().trim();
+    const isServiceInput = SERVICE_PATTERNS.some(p => p.re.test(t));
 
+    // Se a mensagem contém um NOVO padrão de serviço mas não contém índices,
+    // talvez o cliente ignorou as opções e pediu algo novo.
+    // Mas se for APENAS índice ou nome das opções, resolvemos aqui.
+    
     // 1. Tentar por índice ("o segundo", "opção 1", "1", "primeiro")
     // Padrões autorizados: "1", "primeiro", "o primeiro", "o 1"
     const ordinalMatch = t.match(/\b(?:a|o)?\s*(primeir[ao]|segund[ao]|terceir[ao]|quart[ao]|quint[ao])\b/i);
@@ -226,7 +258,6 @@ export function extractBookingSlots(
     }
 
     // 2. Tentar por nome exato entre os candidatos (case insensitive)
-    const normalizedInput = t.toLowerCase();
     const exactMatch = previous.candidates.find((c: any) => 
       normalizedInput.includes(c.name.toLowerCase()) || 
       c.name.toLowerCase() === normalizedInput
@@ -251,28 +282,67 @@ export function extractBookingSlots(
         }
       }).catch(() => {});
       
-      return out;
     }
   }
 
-
+  console.log(`[EXTRACT_DEBUG] Before period check for "${t}": out.period=${out.period}`);
   // --- Período ---
-  if (/manh[ãa]/i.test(t)) out.period = "manhã";
-  else if (/tarde/i.test(t)) out.period = "tarde";
-  else if (/noite/i.test(t)) out.period = "noite";
+  const normalizedT = t.toLowerCase();
+  if (normalizedT.includes("manhã") || normalizedT.includes("manha") || normalizedT.includes("de manhã") || normalizedT.includes("pela manhã")) {
+    out.period = "manhã";
+  } else if (normalizedT.includes("tarde") || normalizedT.includes("a tarde") || normalizedT.includes("à tarde") || normalizedT.includes("de tarde") || normalizedT.includes("pela tarde")) {
+    out.period = "tarde";
+  } else if (normalizedT.includes("noite") || normalizedT.includes("a noite") || normalizedT.includes("à noite") || normalizedT.includes("de noite") || normalizedT.includes("pela noite")) {
+    out.period = "noite";
+  }
 
   // --- Horário ---
-  // Tenta extrair HH:mm de formatos variados
   const timeMatch = t.match(/\b([01]?\d|2[0-3])\s*(?::|h|hs|horas?)\s*([0-5]\d)?\b/i);
   if (timeMatch) {
     const hh = String(Number(timeMatch[1])).padStart(2, "0");
     const mm = timeMatch[2] ? timeMatch[2] : "00";
-    out.time = `${hh}:${mm}`;
-  } else if (/\b(\d{1,2})\b/.test(t) && t.length <= 2) {
-    // Se o cliente digitar apenas "14", tratar como 14:00
-    const h = Number(t);
-    if (h >= 7 && h <= 21) {
-      out.time = `${String(h).padStart(2, "0")}:00`;
+    const parsedTime = `${hh}:${mm}`;
+    
+    // Validação contra slots reais se existirem no previous
+    if (previous?.availableSlots?.length) {
+      const validSlot = previous.availableSlots.find(s => {
+        // Extrai HH:mm de ISO ou string formatada
+        const slotTime = s.includes('T') ? s.split('T')[1].slice(0, 5) : s.slice(0, 5);
+        return slotTime === parsedTime;
+      });
+      
+      if (validSlot) {
+        out.selectedSlot = validSlot;
+        out.time = parsedTime;
+      } else {
+        // Se não for válido mas parece um horário, salvamos o time para permitir diálogo
+        out.time = parsedTime;
+      }
+    } else {
+      out.time = parsedTime;
+    }
+  } else {
+    // Tenta capturar apenas o número se for curto e parecer um horário (ex: "14", "14h")
+    const hourOnlyMatch = t.match(/^\s*(\d{1,2})(?:\s*h\s*)?\s*$/i);
+    if (hourOnlyMatch) {
+      const h = Number(hourOnlyMatch[1]);
+      if (h >= 7 && h <= 21) {
+        const parsedTime = `${String(h).padStart(2, "0")}:00`;
+        if (previous?.availableSlots?.length) {
+          const validSlot = previous.availableSlots.find(s => {
+            const slotTime = s.includes('T') ? s.split('T')[1].slice(0, 5) : s.slice(0, 5);
+            return slotTime === parsedTime;
+          });
+          if (validSlot) {
+            out.selectedSlot = validSlot;
+            out.time = parsedTime;
+          } else {
+            out.time = parsedTime;
+          }
+        } else {
+          out.time = parsedTime;
+        }
+      }
     }
   }
 
@@ -283,7 +353,13 @@ export function extractBookingSlots(
   if (detectHarmonizationIntent(t)) {
     out.intent = "harmonizacao_bumbum_barriga";
   }
+  
+  // LOG PARA DEBUG
+  if (out.period || out.time || out.serviceText) {
+    console.log(`[EXTRACTED_DEBUG] text="${t}" period=${out.period}, time=${out.time}, selectedSlot=${out.selectedSlot}`);
+  }
 
+  console.log(`[EXTRACT_DEBUG] Returning out for "${t}": ${JSON.stringify(out)}`);
   return out;
 }
 
@@ -303,7 +379,25 @@ export function mergeBookingContext(
 ): BookingContext {
   const prev = previous || {};
   const next: BookingContext = { ...prev };
+  const isReset = (extracted as any)?._isReset === true;
+  
+  if (isReset) {
+    console.log("[MERGE_DEBUG] Aplicando reset de contexto");
+    next.serviceId = extracted?.serviceId ?? null;
+    next.serviceName = extracted?.serviceName ?? null;
+    next.serviceText = extracted?.serviceText ?? null;
+    next.date = extracted?.date ?? null;
+    next.period = extracted?.period ?? null;
+    next.time = extracted?.time ?? null;
+    next.selectedSlot = extracted?.selectedSlot ?? null;
+    next.availableSlots = extracted?.availableSlots ?? [];
+    next.candidates = extracted?.candidates ?? undefined;
+    next.clarificationRequired = extracted?.clarificationRequired ?? false;
+    next.appointmentStatus = "NONE";
+    return next;
+  }
 
+  console.log("[MERGE_DEBUG] Merge normal");
   for (const [key, value] of Object.entries(extracted || {})) {
     if (EMPTY(value)) continue;
     // REQUISITO 6: Nunca substituir por null, merge aditivo
@@ -313,11 +407,16 @@ export function mergeBookingContext(
   next.subscriptionIntent = prev.subscriptionIntent === true || extracted?.subscriptionIntent === true;
   next.intent = extracted?.intent || prev.intent || null;
   
-  // REQUISITO 7: Se serviceId ou date sumirem no loop, restauramos do prev
-  if (!next.serviceId && prev.serviceId) next.serviceId = prev.serviceId;
-  if (!next.serviceName && prev.serviceName) next.serviceName = prev.serviceName;
-  if (!next.serviceText && prev.serviceText) next.serviceText = prev.serviceText;
-  if (!next.date && prev.date) next.date = prev.date;
+  // PRESERVE CANDIDATES during clarification
+  if (prev.clarificationRequired && !extracted?.serviceId && prev.candidates) {
+    next.candidates = prev.candidates;
+    next.clarificationRequired = true;
+  }
+
+  if (!next.serviceId && prev.serviceId && extracted?.serviceId === undefined && !isReset) next.serviceId = prev.serviceId;
+  if (!next.serviceName && prev.serviceName && extracted?.serviceName === undefined && !isReset) next.serviceName = prev.serviceName;
+  if (!next.serviceText && prev.serviceText && extracted?.serviceText === undefined && !isReset) next.serviceText = prev.serviceText;
+  if (!next.date && prev.date && extracted?.date === undefined && !isReset) next.date = prev.date;
 
   return next;
 }

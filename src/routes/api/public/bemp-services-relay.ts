@@ -6,12 +6,22 @@ export const Route = createFileRoute("/api/public/bemp-services-relay")({
     handlers: {
       POST: async ({ request }) => {
         try {
+          const secret = request.headers.get('X-Bemp-Relay-Secret');
+          if (process.env.BEMP_RELAY_SECRET && secret !== process.env.BEMP_RELAY_SECRET) {
+            return new Response(JSON.stringify({ error: "Unauthorized" }), { 
+              status: 401,
+              headers: { "Content-Type": "application/json" }
+            });
+          }
+
           const bodyText = await request.text();
           let unitId: string | number | undefined;
+          let path: string | undefined;
           
           try {
             const payload = JSON.parse(bodyText);
             unitId = payload.unitId;
+            path = payload.path;
           } catch {
             return new Response(JSON.stringify({ error: "Invalid JSON payload" }), { 
               status: 400,
@@ -27,9 +37,9 @@ export const Route = createFileRoute("/api/public/bemp-services-relay")({
           }
 
           const cfg = await getBempConfig();
-          const url = `${cfg.apiBase}/salons/${unitId}/services`;
+          const url = path ? `${cfg.apiBase}${path}` : `${cfg.apiBase}/salons/${unitId}/services`;
           
-          console.log(`[bemp-relay] Fetching services for unit ${unitId} via relay route`);
+          console.log(`[bemp-relay] Fetching from ${url} via relay route`);
           
           const res = await fetch(url, {
             method: "GET",
