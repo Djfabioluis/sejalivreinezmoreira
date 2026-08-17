@@ -287,9 +287,9 @@ export function extractBookingSlots(
 
   console.log(`[EXTRACT_DEBUG] Before period check for "${t}": out.period=${out.period}`);
   // --- Período ---
-  const MORNING_PATTERNS = /\b(?:manh[ãa]|de\s+manh[ãa]|pela\s+manh[ãa])\b/i;
-  const AFTERNOON_PATTERNS = /\b(?:tarde|a\s+tarde|à\s+tarde|de\s+tarde|pela\s+tarde)\b/i;
-  const NIGHT_PATTERNS = /\b(?:noite|à\s+noite|de\s+noite|pela\s+noite)\b/i;
+  const MORNING_PATTERNS = /\b(?:manh[ãa]|de\s+manh[ãa]|pela\s+manh[ãa])\b/iu;
+  const AFTERNOON_PATTERNS = /\b(?:tarde|a\s+tarde|à\s+tarde|de\s+tarde|pela\s+tarde)\b/iu;
+  const NIGHT_PATTERNS = /\b(?:noite|à\s+noite|de\s+noite|pela\s+noite)\b/iu;
 
   if (MORNING_PATTERNS.test(t)) {
     out.period = "manhã";
@@ -317,13 +317,16 @@ export function extractBookingSlots(
       if (validSlot) {
         out.selectedSlot = validSlot;
         out.time = parsedTime;
+      } else {
+        // Se não for válido mas parece um horário, salvamos o time para permitir diálogo
+        out.time = parsedTime;
       }
     } else {
       out.time = parsedTime;
     }
   } else {
     // Tenta capturar apenas o número se for curto e parecer um horário (ex: "14", "14h")
-    const hourOnlyMatch = t.match(/^(\d{1,2})(?:\s*h\s*)?$/i);
+    const hourOnlyMatch = t.match(/^\s*(\d{1,2})(?:\s*h\s*)?\s*$/i);
     if (hourOnlyMatch) {
       const h = Number(hourOnlyMatch[1]);
       if (h >= 7 && h <= 21) {
@@ -337,8 +340,6 @@ export function extractBookingSlots(
             out.selectedSlot = validSlot;
             out.time = parsedTime;
           } else {
-            // Se informou apenas a hora mas não tem slot correspondente, salvamos o time para tentar buscar depois,
-            // mas o selectedSlot continua undefined
             out.time = parsedTime;
           }
         } else {
