@@ -152,6 +152,8 @@ export function extractBookingSlots(
     (out as any)._isReset = true;
   }
 
+  console.log(`[EXTRACT_DEBUG] Processing text: "${t}"`);
+
   // --- Serviço (Pattern) ---
   const foundService = SERVICE_PATTERNS.find((p) => p.re.test(t));
   if (foundService) {
@@ -377,6 +379,22 @@ export function mergeBookingContext(
   const prev = previous || {};
   const next: BookingContext = { ...prev };
   const isReset = (extracted as any)?._isReset === true;
+  
+  if (isReset) {
+    console.log("[MERGE_DEBUG] Aplicando reset de contexto");
+    next.serviceId = extracted?.serviceId ?? null;
+    next.serviceName = extracted?.serviceName ?? null;
+    next.serviceText = extracted?.serviceText ?? null;
+    next.date = extracted?.date ?? null;
+    next.period = extracted?.period ?? null;
+    next.time = extracted?.time ?? null;
+    next.selectedSlot = extracted?.selectedSlot ?? null;
+    next.availableSlots = extracted?.availableSlots ?? [];
+    next.candidates = extracted?.candidates ?? undefined;
+    next.clarificationRequired = extracted?.clarificationRequired ?? false;
+    next.appointmentStatus = "NONE";
+    return next;
+  }
 
   for (const [key, value] of Object.entries(extracted || {})) {
     if (EMPTY(value)) continue;
