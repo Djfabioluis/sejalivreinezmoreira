@@ -1035,15 +1035,18 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
             trace?.record("BOOKING_CREATE_SUCCESS", { appointmentId: apptId });
             
             // Persistir IMEDIATAMENTE antes de responder
+            // Ao marcar como CONFIRMED, os transient fields são limpos via clearTransientBooking
             const clearedBooking = clearTransientBooking(bookingContext);
             Object.assign(bookingContext, clearedBooking, {
               appointmentStatus: "CONFIRMED",
               appointmentId: String(apptId),
+              appointment_confirmed_at: new Date().toISOString(),
               customerConfirmed: false,
               awaitingConfirmation: false,
               selectedSlot: null,
               time: null,
             });
+
             (bookingContext as any).createBookingKey = null;
             (bookingContext as any).confirmationSentFor = null;
 
