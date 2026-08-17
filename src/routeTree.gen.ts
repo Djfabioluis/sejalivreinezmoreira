@@ -38,20 +38,12 @@ import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedAcessosRouteImport } from './routes/_authenticated/acessos'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
-import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin/index'
 import { Route as ApiPublicWhatsappEvolutionRouteImport } from './routes/api/public/whatsapp-evolution'
 import { Route as ApiPublicWhatsappRouteImport } from './routes/api/public/whatsapp'
 import { Route as ApiPublicTestIaRouteImport } from './routes/api/public/test-ia'
 import { Route as ApiPublicCrmCronRouteImport } from './routes/api/public/crm-cron'
 import { Route as ApiPublicBempWebhookRouteImport } from './routes/api/public/bemp-webhook'
 import { Route as ApiPublicBempServicesRelayRouteImport } from './routes/api/public/bemp-services-relay'
-import { Route as AuthenticatedAdminNotificacoesRouteImport } from './routes/_authenticated/admin/notificacoes'
-import { Route as AuthenticatedAdminManualRouteImport } from './routes/_authenticated/admin/manual'
-import { Route as AuthenticatedAdminDocumentosRouteImport } from './routes/_authenticated/admin/documentos'
-import { Route as AuthenticatedAdminContratosRouteImport } from './routes/_authenticated/admin/contratos'
-import { Route as AuthenticatedAdminConfiguracoesRouteImport } from './routes/_authenticated/admin/configuracoes'
-import { Route as AuthenticatedAdminColaboradoresRouteImport } from './routes/_authenticated/admin/colaboradores'
-import { Route as AuthenticatedAdminAssinaturasRouteImport } from './routes/_authenticated/admin/assinaturas'
 import { Route as Char91DotmcpChar93InvokeToolToolRouteImport } from './routes/[.mcp]/invoke-tool/$tool'
 import { Route as DotlovableOauthConsentRouteImport } from './routes/[.]lovable.oauth.consent'
 import { Route as ApiPublicWhatsappEvolutionTestRouteImport } from './routes/api/public/whatsapp-evolution/test'
@@ -213,11 +205,6 @@ const Char91DotmcpChar93ListToolsRoute =
     path: '/.mcp/list-tools',
     getParentRoute: () => rootRouteImport,
   } as any)
-const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => AuthenticatedAdminRoute,
-} as any)
 const ApiPublicWhatsappEvolutionRoute =
   ApiPublicWhatsappEvolutionRouteImport.update({
     id: '/api/public/whatsapp-evolution',
@@ -249,48 +236,6 @@ const ApiPublicBempServicesRelayRoute =
     id: '/api/public/bemp-services-relay',
     path: '/api/public/bemp-services-relay',
     getParentRoute: () => rootRouteImport,
-  } as any)
-const AuthenticatedAdminNotificacoesRoute =
-  AuthenticatedAdminNotificacoesRouteImport.update({
-    id: '/notificacoes',
-    path: '/notificacoes',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminManualRoute =
-  AuthenticatedAdminManualRouteImport.update({
-    id: '/manual',
-    path: '/manual',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminDocumentosRoute =
-  AuthenticatedAdminDocumentosRouteImport.update({
-    id: '/documentos',
-    path: '/documentos',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminContratosRoute =
-  AuthenticatedAdminContratosRouteImport.update({
-    id: '/contratos',
-    path: '/contratos',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminConfiguracoesRoute =
-  AuthenticatedAdminConfiguracoesRouteImport.update({
-    id: '/configuracoes',
-    path: '/configuracoes',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminColaboradoresRoute =
-  AuthenticatedAdminColaboradoresRouteImport.update({
-    id: '/colaboradores',
-    path: '/colaboradores',
-    getParentRoute: () => AuthenticatedAdminRoute,
-  } as any)
-const AuthenticatedAdminAssinaturasRoute =
-  AuthenticatedAdminAssinaturasRouteImport.update({
-    id: '/assinaturas',
-    path: '/assinaturas',
-    getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const Char91DotmcpChar93InvokeToolToolRoute =
   Char91DotmcpChar93InvokeToolToolRouteImport.update({
@@ -346,7 +291,7 @@ export interface FileRoutesByFullPath {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/acessos': typeof AuthenticatedAcessosRoute
-  '/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/admin': typeof AuthenticatedAdminRoute
   '/agendar': typeof AuthenticatedAgendarRoute
   '/agentes-whatsapp': typeof AuthenticatedAgentesWhatsappRoute
   '/aprendizado-ia': typeof AuthenticatedAprendizadoIaRoute
@@ -370,20 +315,12 @@ export interface FileRoutesByFullPath {
   '/checkout/return': typeof CheckoutReturnRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
-  '/admin/assinaturas': typeof AuthenticatedAdminAssinaturasRoute
-  '/admin/colaboradores': typeof AuthenticatedAdminColaboradoresRoute
-  '/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
-  '/admin/contratos': typeof AuthenticatedAdminContratosRoute
-  '/admin/documentos': typeof AuthenticatedAdminDocumentosRoute
-  '/admin/manual': typeof AuthenticatedAdminManualRoute
-  '/admin/notificacoes': typeof AuthenticatedAdminNotificacoesRoute
   '/api/public/bemp-services-relay': typeof ApiPublicBempServicesRelayRoute
   '/api/public/bemp-webhook': typeof ApiPublicBempWebhookRoute
   '/api/public/crm-cron': typeof ApiPublicCrmCronRoute
   '/api/public/test-ia': typeof ApiPublicTestIaRoute
   '/api/public/whatsapp': typeof ApiPublicWhatsappRoute
   '/api/public/whatsapp-evolution': typeof ApiPublicWhatsappEvolutionRouteWithChildren
-  '/admin/': typeof AuthenticatedAdminIndexRoute
   '/api/public/hooks/learning-patterns': typeof ApiPublicHooksLearningPatternsRoute
   '/api/public/hooks/lembretes': typeof ApiPublicHooksLembretesRoute
   '/api/public/hooks/whatsapp-health': typeof ApiPublicHooksWhatsappHealthRoute
@@ -398,6 +335,7 @@ export interface FileRoutesByTo {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/acessos': typeof AuthenticatedAcessosRoute
+  '/admin': typeof AuthenticatedAdminRoute
   '/agendar': typeof AuthenticatedAgendarRoute
   '/agentes-whatsapp': typeof AuthenticatedAgentesWhatsappRoute
   '/aprendizado-ia': typeof AuthenticatedAprendizadoIaRoute
@@ -421,20 +359,12 @@ export interface FileRoutesByTo {
   '/checkout/return': typeof CheckoutReturnRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
-  '/admin/assinaturas': typeof AuthenticatedAdminAssinaturasRoute
-  '/admin/colaboradores': typeof AuthenticatedAdminColaboradoresRoute
-  '/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
-  '/admin/contratos': typeof AuthenticatedAdminContratosRoute
-  '/admin/documentos': typeof AuthenticatedAdminDocumentosRoute
-  '/admin/manual': typeof AuthenticatedAdminManualRoute
-  '/admin/notificacoes': typeof AuthenticatedAdminNotificacoesRoute
   '/api/public/bemp-services-relay': typeof ApiPublicBempServicesRelayRoute
   '/api/public/bemp-webhook': typeof ApiPublicBempWebhookRoute
   '/api/public/crm-cron': typeof ApiPublicCrmCronRoute
   '/api/public/test-ia': typeof ApiPublicTestIaRoute
   '/api/public/whatsapp': typeof ApiPublicWhatsappRoute
   '/api/public/whatsapp-evolution': typeof ApiPublicWhatsappEvolutionRouteWithChildren
-  '/admin': typeof AuthenticatedAdminIndexRoute
   '/api/public/hooks/learning-patterns': typeof ApiPublicHooksLearningPatternsRoute
   '/api/public/hooks/lembretes': typeof ApiPublicHooksLembretesRoute
   '/api/public/hooks/whatsapp-health': typeof ApiPublicHooksWhatsappHealthRoute
@@ -451,7 +381,7 @@ export interface FileRoutesById {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/acessos': typeof AuthenticatedAcessosRoute
-  '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
+  '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/agendar': typeof AuthenticatedAgendarRoute
   '/_authenticated/agentes-whatsapp': typeof AuthenticatedAgentesWhatsappRoute
   '/_authenticated/aprendizado-ia': typeof AuthenticatedAprendizadoIaRoute
@@ -475,20 +405,12 @@ export interface FileRoutesById {
   '/checkout/return': typeof CheckoutReturnRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
-  '/_authenticated/admin/assinaturas': typeof AuthenticatedAdminAssinaturasRoute
-  '/_authenticated/admin/colaboradores': typeof AuthenticatedAdminColaboradoresRoute
-  '/_authenticated/admin/configuracoes': typeof AuthenticatedAdminConfiguracoesRoute
-  '/_authenticated/admin/contratos': typeof AuthenticatedAdminContratosRoute
-  '/_authenticated/admin/documentos': typeof AuthenticatedAdminDocumentosRoute
-  '/_authenticated/admin/manual': typeof AuthenticatedAdminManualRoute
-  '/_authenticated/admin/notificacoes': typeof AuthenticatedAdminNotificacoesRoute
   '/api/public/bemp-services-relay': typeof ApiPublicBempServicesRelayRoute
   '/api/public/bemp-webhook': typeof ApiPublicBempWebhookRoute
   '/api/public/crm-cron': typeof ApiPublicCrmCronRoute
   '/api/public/test-ia': typeof ApiPublicTestIaRoute
   '/api/public/whatsapp': typeof ApiPublicWhatsappRoute
   '/api/public/whatsapp-evolution': typeof ApiPublicWhatsappEvolutionRouteWithChildren
-  '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/api/public/hooks/learning-patterns': typeof ApiPublicHooksLearningPatternsRoute
   '/api/public/hooks/lembretes': typeof ApiPublicHooksLembretesRoute
   '/api/public/hooks/whatsapp-health': typeof ApiPublicHooksWhatsappHealthRoute
@@ -529,20 +451,12 @@ export interface FileRouteTypes {
     | '/checkout/return'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
-    | '/admin/assinaturas'
-    | '/admin/colaboradores'
-    | '/admin/configuracoes'
-    | '/admin/contratos'
-    | '/admin/documentos'
-    | '/admin/manual'
-    | '/admin/notificacoes'
     | '/api/public/bemp-services-relay'
     | '/api/public/bemp-webhook'
     | '/api/public/crm-cron'
     | '/api/public/test-ia'
     | '/api/public/whatsapp'
     | '/api/public/whatsapp-evolution'
-    | '/admin/'
     | '/api/public/hooks/learning-patterns'
     | '/api/public/hooks/lembretes'
     | '/api/public/hooks/whatsapp-health'
@@ -557,6 +471,7 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/acessos'
+    | '/admin'
     | '/agendar'
     | '/agentes-whatsapp'
     | '/aprendizado-ia'
@@ -580,20 +495,12 @@ export interface FileRouteTypes {
     | '/checkout/return'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
-    | '/admin/assinaturas'
-    | '/admin/colaboradores'
-    | '/admin/configuracoes'
-    | '/admin/contratos'
-    | '/admin/documentos'
-    | '/admin/manual'
-    | '/admin/notificacoes'
     | '/api/public/bemp-services-relay'
     | '/api/public/bemp-webhook'
     | '/api/public/crm-cron'
     | '/api/public/test-ia'
     | '/api/public/whatsapp'
     | '/api/public/whatsapp-evolution'
-    | '/admin'
     | '/api/public/hooks/learning-patterns'
     | '/api/public/hooks/lembretes'
     | '/api/public/hooks/whatsapp-health'
@@ -633,20 +540,12 @@ export interface FileRouteTypes {
     | '/checkout/return'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
-    | '/_authenticated/admin/assinaturas'
-    | '/_authenticated/admin/colaboradores'
-    | '/_authenticated/admin/configuracoes'
-    | '/_authenticated/admin/contratos'
-    | '/_authenticated/admin/documentos'
-    | '/_authenticated/admin/manual'
-    | '/_authenticated/admin/notificacoes'
     | '/api/public/bemp-services-relay'
     | '/api/public/bemp-webhook'
     | '/api/public/crm-cron'
     | '/api/public/test-ia'
     | '/api/public/whatsapp'
     | '/api/public/whatsapp-evolution'
-    | '/_authenticated/admin/'
     | '/api/public/hooks/learning-patterns'
     | '/api/public/hooks/lembretes'
     | '/api/public/hooks/whatsapp-health'
@@ -885,13 +784,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof Char91DotmcpChar93ListToolsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_authenticated/admin/': {
-      id: '/_authenticated/admin/'
-      path: '/'
-      fullPath: '/admin/'
-      preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
     '/api/public/whatsapp-evolution': {
       id: '/api/public/whatsapp-evolution'
       path: '/api/public/whatsapp-evolution'
@@ -933,55 +825,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/public/bemp-services-relay'
       preLoaderRoute: typeof ApiPublicBempServicesRelayRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/_authenticated/admin/notificacoes': {
-      id: '/_authenticated/admin/notificacoes'
-      path: '/notificacoes'
-      fullPath: '/admin/notificacoes'
-      preLoaderRoute: typeof AuthenticatedAdminNotificacoesRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/manual': {
-      id: '/_authenticated/admin/manual'
-      path: '/manual'
-      fullPath: '/admin/manual'
-      preLoaderRoute: typeof AuthenticatedAdminManualRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/documentos': {
-      id: '/_authenticated/admin/documentos'
-      path: '/documentos'
-      fullPath: '/admin/documentos'
-      preLoaderRoute: typeof AuthenticatedAdminDocumentosRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/contratos': {
-      id: '/_authenticated/admin/contratos'
-      path: '/contratos'
-      fullPath: '/admin/contratos'
-      preLoaderRoute: typeof AuthenticatedAdminContratosRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/configuracoes': {
-      id: '/_authenticated/admin/configuracoes'
-      path: '/configuracoes'
-      fullPath: '/admin/configuracoes'
-      preLoaderRoute: typeof AuthenticatedAdminConfiguracoesRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/colaboradores': {
-      id: '/_authenticated/admin/colaboradores'
-      path: '/colaboradores'
-      fullPath: '/admin/colaboradores'
-      preLoaderRoute: typeof AuthenticatedAdminColaboradoresRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
-    }
-    '/_authenticated/admin/assinaturas': {
-      id: '/_authenticated/admin/assinaturas'
-      path: '/assinaturas'
-      fullPath: '/admin/assinaturas'
-      preLoaderRoute: typeof AuthenticatedAdminAssinaturasRouteImport
-      parentRoute: typeof AuthenticatedAdminRoute
     }
     '/.mcp/invoke-tool/$tool': {
       id: '/.mcp/invoke-tool/$tool'
@@ -1042,34 +885,9 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface AuthenticatedAdminRouteChildren {
-  AuthenticatedAdminAssinaturasRoute: typeof AuthenticatedAdminAssinaturasRoute
-  AuthenticatedAdminColaboradoresRoute: typeof AuthenticatedAdminColaboradoresRoute
-  AuthenticatedAdminConfiguracoesRoute: typeof AuthenticatedAdminConfiguracoesRoute
-  AuthenticatedAdminContratosRoute: typeof AuthenticatedAdminContratosRoute
-  AuthenticatedAdminDocumentosRoute: typeof AuthenticatedAdminDocumentosRoute
-  AuthenticatedAdminManualRoute: typeof AuthenticatedAdminManualRoute
-  AuthenticatedAdminNotificacoesRoute: typeof AuthenticatedAdminNotificacoesRoute
-  AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
-}
-
-const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
-  AuthenticatedAdminAssinaturasRoute: AuthenticatedAdminAssinaturasRoute,
-  AuthenticatedAdminColaboradoresRoute: AuthenticatedAdminColaboradoresRoute,
-  AuthenticatedAdminConfiguracoesRoute: AuthenticatedAdminConfiguracoesRoute,
-  AuthenticatedAdminContratosRoute: AuthenticatedAdminContratosRoute,
-  AuthenticatedAdminDocumentosRoute: AuthenticatedAdminDocumentosRoute,
-  AuthenticatedAdminManualRoute: AuthenticatedAdminManualRoute,
-  AuthenticatedAdminNotificacoesRoute: AuthenticatedAdminNotificacoesRoute,
-  AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
-}
-
-const AuthenticatedAdminRouteWithChildren =
-  AuthenticatedAdminRoute._addFileChildren(AuthenticatedAdminRouteChildren)
-
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAcessosRoute: typeof AuthenticatedAcessosRoute
-  AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedAgendarRoute: typeof AuthenticatedAgendarRoute
   AuthenticatedAgentesWhatsappRoute: typeof AuthenticatedAgentesWhatsappRoute
   AuthenticatedAprendizadoIaRoute: typeof AuthenticatedAprendizadoIaRoute
@@ -1091,7 +909,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAcessosRoute: AuthenticatedAcessosRoute,
-  AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
+  AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedAgendarRoute: AuthenticatedAgendarRoute,
   AuthenticatedAgentesWhatsappRoute: AuthenticatedAgentesWhatsappRoute,
   AuthenticatedAprendizadoIaRoute: AuthenticatedAprendizadoIaRoute,
