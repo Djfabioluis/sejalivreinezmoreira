@@ -563,27 +563,19 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
 
   // 4. EVOLUTION DELIVERY & PERSISTENCE
   if (conversationKey && finalResponse) {
-    const { EvolutionService } = await import("./evolution/evolution-service.server");
-    const { persistWaMessage } = await import("@/lib/booking/persistence-helper.server");
+    const { replyWithAI } = await import("./evolution/reply.server");
     const [instanceId, remoteJid] = conversationKey.split(":");
     
     if (finalResponse.trim()) {
-      // 4.1 Enviar para WhatsApp
-      await EvolutionService.sendText({
+      await replyWithAI({
         instance: instanceId,
-        to: remoteJid,
+        phone: remoteJid,
         text: finalResponse,
-        module: "julia-ai"
-      });
-
-      // 4.2 Persistir Histórico via RPC Real (p_new_message, p_phone)
-      await persistWaMessage(conversationKey, {
-        role: "assistant",
-        content: finalResponse,
-        timestamp: new Date().toISOString(),
-        bookingContext, // Preserva o contexto determinístico no histórico
-        traceId
-      });
+        conversationKey,
+        messageId: opts.messages?.[opts.messages.length - 1]?.id,
+        unitId: effectiveUnitId,
+        _trace: (opts as any)._trace
+      }, traceId);
     }
   }
 
