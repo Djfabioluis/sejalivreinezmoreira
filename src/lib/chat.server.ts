@@ -480,7 +480,10 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
   // 2. LLM EXECUTION
   // 2. AUTO LIST SLOTS (Intervenção Determinística)
   // Se temos Unit, Service e Date, mas não Time, e temos Period -> Chamar list_slots
-  const canListSlots = bookingContext.unitId && bookingContext.serviceId && bookingContext.date && bookingContext.period && !bookingContext.time;
+  const { isGenericGreeting } = await import("@/lib/booking/context");
+  const { filterSlotsByPeriod, formatSlotsForDisplay, slotStart } = await import("@/lib/booking/slot-time");
+  const greetingOnly = isGenericGreeting(userMessage);
+  const canListSlots = !greetingOnly && bookingContext.unitId && bookingContext.serviceId && bookingContext.date && bookingContext.period && !bookingContext.time;
   
   if (canListSlots) {
     try {
@@ -492,27 +495,14 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
         date: bookingContext.date!
       });
 
-      // Filtro de período robusto baseado em HH:mm (ISO ou formatado)
-      const filtered = allSlots.filter((s: any) => {
-        const timeStr = typeof s === 'string' ? s : s.start || s.time || "";
-        const hourStr = timeStr.includes('T') ? timeStr.split('T')[1].slice(0, 2) : timeStr.slice(0, 2);
-        const hour = parseInt(hourStr);
-        
-        if (isNaN(hour)) return false;
-        
-        if (bookingContext.period === "manhã") return hour < 12;
-        if (bookingContext.period === "tarde") return hour >= 12 && hour < 18;
-        if (bookingContext.period === "noite") return hour >= 18;
-        return true;
-      });
+      // Filtro de período determinístico (horário local America/Sao_Paulo)
+      const filtered = filterSlotsByPeriod(allSlots as any[], bookingContext.period);
 
       if (filtered.length > 0) {
-        const slotOptions = filtered.map((s: any) => {
-          const timeStr = typeof s === 'string' ? s : s.start || s.time || "";
-          return timeStr.includes('T') ? timeStr.split('T')[1].slice(0, 5) : timeStr.slice(0, 5);
-        }).join(", ");
-        
-        bookingContext.availableSlots = filtered.map((s: any) => typeof s === 'string' ? s : s.start || s.time || "");
+        const slotOptions = formatSlotsForDisplay(filtered as any[], 10).join(", ");
+
+        // Preserva o slot REAL (ISO completo) internamente
+        bookingContext.availableSlots = (filtered as any[]).map((s: any) => slotStart(s) || String(s));
         
         // Persistir slots encontrados
         await patchCustomerContext(conversationKey, { bookingContext });
