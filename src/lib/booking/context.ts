@@ -164,8 +164,10 @@ export function extractBookingSlots(
   const isSessionReset = isNewBookingIntent && previous && (
     previous.appointmentStatus === "CONFIRMED" || 
     previous.appointmentStatus === "FAILED" ||
-    (previous.date && previous.appointmentStatus === "NONE" && !previous.awaitingConfirmation)
+    (previous.date && previous.appointmentStatus === "NONE" && !previous.awaitingConfirmation) ||
+    (previous.selectedSlot && previous.appointmentStatus === "AWAITING_CONFIRMATION")
   );
+
 
   if (isSessionReset) {
     // Preservar apenas identidade e saudação
