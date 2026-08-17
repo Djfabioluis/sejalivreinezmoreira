@@ -515,6 +515,12 @@ export function mergeBookingContext(
     next.serviceName = extracted?.serviceName ?? null;
     next.serviceText = extracted?.serviceText ?? null;
     next.date = extracted?.date ?? null;
+    next.dateLocked = !!extracted?.date;
+    next.professionalId = null;
+    next.professionalName = null;
+    next.professionalPreference = null;
+    next.professionalOptions = undefined;
+
     next.period = extracted?.period ?? null;
     next.periodSessionId = extracted?.period ? next.bookingSessionId ?? null : null;
     next.time = extracted?.time ?? null;
