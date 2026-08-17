@@ -1,3 +1,4 @@
+import { resolveTechnicalInstance } from "./instance-mapper.server";
 import { NormalizedEvolutionMessage } from "./types";
 import { logEvent } from "./logger.server";
 import { extractMessageText } from "./message-text";
@@ -16,7 +17,6 @@ interface AgentRecord {
 export async function findAgentByInstance(instanceName: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const instance = instanceName.trim();
-  import { resolveTechnicalInstance } from "./instance-mapper.server";
   const normalizedInstance = resolveTechnicalInstance(instance).toLowerCase();
   
   // Requisito 6: Buscar até 2 registros para detectar duplicidade
