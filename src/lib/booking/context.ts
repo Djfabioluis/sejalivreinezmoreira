@@ -288,13 +288,18 @@ export function extractBookingSlots(
   }
 
   console.log(`[EXTRACT_DEBUG] Before period check for "${t}": out.period=${out.period}`);
-  // --- Período ---
-  const normalizedT = t.toLowerCase();
-  if (normalizedT.includes("manhã") || normalizedT.includes("manha") || normalizedT.includes("de manhã") || normalizedT.includes("pela manhã")) {
+  // --- Período (sem acentos e sem confundir "amanhã" com "manhã") ---
+  const normalizedT = t
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\bdepois\s+de\s+amanha\b/g, " ")
+    .replace(/\bamanha\b/g, " ");
+  if (/\bmanha\b|\bmanhas\b|\bmanhazinha\b/.test(normalizedT)) {
     out.period = "manhã";
-  } else if (normalizedT.includes("tarde") || normalizedT.includes("a tarde") || normalizedT.includes("à tarde") || normalizedT.includes("de tarde") || normalizedT.includes("pela tarde")) {
+  } else if (/\btarde\b|\btardezinha\b/.test(normalizedT)) {
     out.period = "tarde";
-  } else if (normalizedT.includes("noite") || normalizedT.includes("a noite") || normalizedT.includes("à noite") || normalizedT.includes("de noite") || normalizedT.includes("pela noite")) {
+  } else if (/\bnoite\b|\bnoitinha\b/.test(normalizedT)) {
     out.period = "noite";
   }
 
