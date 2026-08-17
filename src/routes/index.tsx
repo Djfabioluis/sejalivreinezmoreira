@@ -1,8 +1,13 @@
 /**
- * Execute esta instrucao no projeto: Analise e corrija a integração entre a Evolution API, o webhook do projeto e a IA.
+ * Execute esta instrucao no projeto: PARE. CORRIJA PRIMEIRO A DUPLICAÇÃO/REPROCESSAMENTO DE MENSAGENS.
  * 
- * CONTEXTO CONFIRMADO: Evolution API 2.3.7, Instância agente-5541999102791.
+ * BUG REAL DE PRODUÇÃO COMPROVADO NO WHATSAPP.
+ * 
+ * EVIDÊNCIA:
+ * 14:57 cliente respondeu "sim" -> Julia confirmou.
+ * 14:59-15:01 Julia enviou 3 mensagens de confirmação repetidas SEM nova mensagem do cliente.
  */
+
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
