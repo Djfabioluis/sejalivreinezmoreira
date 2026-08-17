@@ -529,7 +529,9 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
                 }, traceId);
 
                 trace?.record("PRICE_RESPONSE_SENT", { serviceId: service.id, price: priceText });
-                return;
+                trace?.record("TOTAL_PROCESSING_COMPLETED", { status: "success", reason: "price_intent_short_circuit" });
+                return; // SHORT-CIRCUIT REAL
+
               } else {
                 const response = `Encontrei o serviço "${service.name || service.nome}", mas o valor não está disponível no catálogo no momento. 💜`;
                 const nextCtx = { ...previousContext, ...extracted, priceIntent: false };
