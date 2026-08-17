@@ -366,6 +366,8 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       nextRequiredSlot,
       isShortAffirmative,
       ensureNoDuplicateBookingQuestion,
+      isGenericGreeting,
+      clearTransientBooking,
     } = await import("@/lib/booking/context");
     const { patchCustomerContext } = await import("@/lib/chat.server");
 
@@ -428,6 +430,15 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     console.log(`[BOOKING_FIELDS_EXTRACTED] ${JSON.stringify(extracted)}`);
     console.log(`[BOOKING_CONTEXT_AFTER] ${JSON.stringify(bookingContext)}`);
     
+    // SAUDAÇÃO GENÉRICA: nunca continuar booking antigo automaticamente
+    const greetingOnly = isGenericGreeting(text);
+    if (greetingOnly) {
+      const cleaned = clearTransientBooking(bookingContext);
+      Object.assign(bookingContext, cleaned);
+      trace?.record("STALE_BOOKING_CONTEXT_CLEARED", { reason: "generic_greeting" });
+      await patchCustomerContext(finalKey, { bookingContext });
+    }
+
     // MÁQUINA DE ESTADOS DETERMINÍSTICA - CONFIRMAÇÃO
     if (bookingContext.appointmentStatus === "AWAITING_CONFIRMATION" && isShortAffirmative(text)) {
       bookingContext.customerConfirmed = true;
@@ -437,11 +448,15 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     }
 
     // MÁQUINA DE ESTADOS DETERMINÍSTICA - SELEÇÃO DE HORÁRIO
-    if (bookingContext.availableSlots?.length && !bookingContext.selectedSlot) {
-      const selected = bookingContext.availableSlots.find(s => text.includes(s) || (bookingContext.time && s.includes(bookingContext.time)));
+    if (!greetingOnly && bookingContext.availableSlots?.length && !bookingContext.selectedSlot) {
+      const { slotLocalTime } = await import("@/lib/booking/slot-time");
+      const selected = bookingContext.availableSlots.find(s => {
+        const hhmm = slotLocalTime(s);
+        return (!!hhmm && text.includes(hhmm)) || (!!bookingContext.time && slotLocalTime(s) === bookingContext.time);
+      });
       if (selected) {
         bookingContext.selectedSlot = selected;
-        bookingContext.time = selected.split(' ')[0] || selected;
+        bookingContext.time = slotLocalTime(selected) || bookingContext.time || null;
         bookingContext.appointmentStatus = "AWAITING_CONFIRMATION";
         bookingContext.awaitingConfirmation = true;
         trace?.record("BOOKING_SLOT_SELECTED", { slot: selected });
@@ -560,7 +575,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     
     // MÁQUINA DE ESTADOS: Se period está preenchido mas disponibilidade ainda é necessária,
     // disparar list_slots automaticamente.
-    if (requiredSlot === "availability" && bookingContext.period && !bookingContext.time && !bookingContext.selectedSlot) {
+    if (!greetingOnly && requiredSlot === "availability" && bookingContext.period && !bookingContext.time && !bookingContext.selectedSlot) {
       trace?.record("AUTO_LIST_SLOTS_TRIGGERED", { period: bookingContext.period });
       
       const { BempService } = await import("@/lib/bemp-service.server");
@@ -571,22 +586,17 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
           date: bookingContext.date!,
         });
 
-        const periodFilter = bookingContext.period;
-        const filtered = slots.filter((s: any) => {
-          const timeStr = s.start || String(s);
-          const hour = parseInt(timeStr.split(":")[0]);
-          if (periodFilter === "manhã") return hour < 12;
-          if (periodFilter === "tarde") return hour >= 12 && hour < 18;
-          if (periodFilter === "noite") return hour >= 18;
-          return true;
-        });
+        const { filterSlotsByPeriod, formatSlotsForDisplay, slotStart } = await import("@/lib/booking/slot-time");
+        const filtered = filterSlotsByPeriod(slots as any[], bookingContext.period);
 
         if (filtered.length > 0) {
-          const availableTimes = filtered.map((s: any) => s.start || String(s));
+          // Preserva o slot REAL (ISO completo) internamente
+          const availableTimes = filtered.map((s: any) => slotStart(s) || String(s));
           bookingContext.availableSlots = availableTimes;
           await patchCustomerContext(finalKey, { bookingContext });
-          
-          const slotsText = availableTimes.slice(0, 10).join(", ");
+
+          // Apresentação: somente HH:mm
+          const slotsText = formatSlotsForDisplay(availableTimes, 10).join("\n");
           const responseText = `Encontrei estes horários para ${bookingContext.period}:\n\n${slotsText}\n\nQual deles fica melhor para você? 💜`;
           
           const { replyWithAI } = await import("./reply.server");
