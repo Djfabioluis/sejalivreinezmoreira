@@ -396,7 +396,18 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       periodSessionId: customerContext.bookingContext?.periodSessionId ?? null,
     };
 
-    trace?.record("BOOKING_CONTEXT_LOADED", { service: previousContext.serviceName });
+    trace?.record("BOOKING_CONTEXT_LOADED", {
+      found: Boolean(customerContext.bookingContext),
+      state: previousContext.appointmentStatus,
+      unitId: previousContext.unitId,
+      serviceId: previousContext.serviceId,
+      serviceName: previousContext.serviceName,
+      date: previousContext.date,
+      period: previousContext.period,
+      time: previousContext.time,
+      selectedSlot: previousContext.selectedSlot,
+      availableSlotsCount: previousContext.availableSlots.length,
+    });
 
     const extracted: any = extractBookingSlots(text);
 
@@ -474,7 +485,10 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       bookingContext.customerConfirmed = true;
       bookingContext.awaitingConfirmation = false;
       bookingContext.appointmentStatus = "CREATING";
-      trace?.record("BOOKING_CUSTOMER_CONFIRMED");
+      trace?.record("BOOKING_CUSTOMER_CONFIRMED", {
+        confirmationDetected: true,
+        stateBefore: previousContext.appointmentStatus,
+      });
     }
 
     // MÁQUINA DE ESTADOS DETERMINÍSTICA - SELEÇÃO DE HORÁRIO
@@ -556,7 +570,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
     // CRIAÇÃO DETERMINÍSTICA PÓS CONFIRMAÇÃO
     if (bookingContext.customerConfirmed === true && bookingContext.appointmentStatus === "CREATING") {
-       trace?.record("BOOKING_CREATE_STARTED");
+       trace?.record("BOOKING_CREATE_STARTED", { function: "BempService.createAppointment" });
        const { BempService, extractBempAppointmentId } = await import("@/lib/bemp-service.server");
        
        // IDEMPOTÊNCIA: um "Sim" cria no máximo UM agendamento
@@ -565,12 +579,34 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
        const { formatBookingDate } = await import("@/lib/booking/lifecycle");
        const { clearTransientBooking } = await import("@/lib/booking/context");
 
-       if (
-         bookingContext.appointmentId ||
-         (bookingContext as any).createBookingKey === idempotencyKey
-       ) {
+       if (bookingContext.appointmentId) {
          trace?.record("BOOKING_CREATE_SKIPPED_DUPLICATE", { idempotencyKey });
+          const existingMsg = `Agendamento confirmado! 💜\n\nServiço: ${bookingContext.serviceName}\nData: ${formatBookingDate(bookingContext.date)}\nHorário: ${bookingContext.time}\n\nTe esperamos!`;
+          await replyWithAI({
+            instance,
+            phone: contactPhone,
+            text: existingMsg,
+            conversationKey: finalKey,
+            messageId,
+            unitId: agent.unidade_id,
+            _trace: trace,
+          }, traceId);
          await patchCustomerContext(finalKey, { bookingContext });
+          trace?.record("TOTAL_PROCESSING_COMPLETED", { status: "success", reason: "existing_booking_confirmed" });
+         return;
+       }
+       if ((bookingContext as any).createBookingKey === idempotencyKey) {
+         trace?.record("BOOKING_CREATE_SKIPPED_DUPLICATE", { idempotencyKey, pending: true });
+         await replyWithAI({
+           instance,
+           phone: contactPhone,
+           text: "Seu agendamento já está sendo processado. 💜 Vou manter apenas uma solicitação.",
+           conversationKey: finalKey,
+           messageId,
+           unitId: agent.unidade_id,
+           _trace: trace,
+         }, traceId);
+         trace?.record("TOTAL_PROCESSING_COMPLETED", { status: "success", reason: "duplicate_booking_pending" });
          return;
        }
        (bookingContext as any).createBookingKey = idempotencyKey;
@@ -604,10 +640,6 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
                }
              } catch {}
            }
-           if (!bookingContext.professionalId && professionals.length) {
-             const firstId = professionals[0]?.id ?? professionals[0]?.professional_id;
-             if (firstId) bookingContext.professionalId = String(firstId);
-           }
            trace?.record("BOOKING_PROFESSIONAL_RESOLVED", { professionalId: bookingContext.professionalId });
          } catch (profErr: any) {
            trace?.record("BOOKING_PROFESSIONAL_RESOLVE_FAILED", { error: profErr?.message });
@@ -616,17 +648,31 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
        let createFailed = false;
        try {
-         const result = await BempService.createAppointment({
+          if (!bookingContext.professionalId) {
+            throw new Error("BEMP_CONTRACT_INVALID: no professional available for selected slot");
+          }
+          const createRequest = {
            salon_id: Number(bookingContext.unitId),
            service_id: Number(bookingContext.serviceId),
-           professional_id: bookingContext.professionalId ? Number(bookingContext.professionalId) : undefined,
+            professional_id: Number(bookingContext.professionalId),
            start: bookingContext.selectedSlot || `${bookingContext.date}T${bookingContext.time}:00`,
            end: bookingContext.selectedSlotEnd || undefined,
            name: (msg as any).pushName || conv?.contact_name || "Cliente",
            phone_country_code: "55",
            phone_area_code: contactPhone.slice(0, 2),
            phone_number: contactPhone.slice(2),
-         });
+          };
+          trace?.record("BOOKING_CREATE_REQUEST_BUILT", {
+            endpoint: "/webhooks/whatsapp_schedule",
+            method: "POST",
+            salonId: createRequest.salon_id,
+            serviceId: createRequest.service_id,
+            professionalId: createRequest.professional_id,
+            start: createRequest.start,
+            end: createRequest.end,
+          });
+          const result = await BempService.createAppointment(createRequest);
+          trace?.record("BOOKING_CREATE_RESPONSE_RECEIVED", { httpStatus: 200, hasResponse: Boolean(result) });
 
          const apptId = extractBempAppointmentId(result);
          if (apptId) {
@@ -635,7 +681,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
            trace?.record("BOOKING_CREATE_SUCCESS", { appointmentId: apptId });
            
            // Resposta Final Obrigatória
-           const finalMsg = `Agendamento confirmado! 💜\n\nServiço: ${bookingContext.serviceName}\nData: ${formatBookingDate(bookingContext.date)}\nHorário: ${bookingContext.time}\nUnidade: ${agent.nome || 'Centro'}\n\nTe esperamos! ✨`;
+            const finalMsg = `Agendamento confirmado! 💜\n\nServiço: ${bookingContext.serviceName}\nData: ${formatBookingDate(bookingContext.date)}\nHorário: ${bookingContext.time}\n\nTe esperamos!`;
 
            await replyWithAI({
              instance,
@@ -667,7 +713,13 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
          }
        } catch (err: any) {
          createFailed = true;
-         trace?.record("BOOKING_CREATE_FAILED", { error: err?.message });
+          trace?.record("BOOKING_CREATE_FAILED", {
+            endpoint: "/webhooks/whatsapp_schedule",
+            method: "POST",
+            httpStatus: err?.statusCode ?? err?.status ?? null,
+            errorCode: err?.code ?? null,
+            errorMessage: err?.message,
+          });
        }
 
        // NUNCA silencioso: falha real recebe resposta segura
