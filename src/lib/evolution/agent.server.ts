@@ -392,6 +392,8 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       appointmentId: customerContext.bookingContext?.appointmentId ?? null,
       appointmentStatus: customerContext.bookingContext?.appointmentStatus ?? "NONE",
       availableSlots: customerContext.bookingContext?.availableSlots ?? [],
+      bookingSessionId: customerContext.bookingContext?.bookingSessionId ?? null,
+      periodSessionId: customerContext.bookingContext?.periodSessionId ?? null,
     };
 
     trace?.record("BOOKING_CONTEXT_LOADED", { service: previousContext.serviceName });
