@@ -287,7 +287,7 @@ export function extractBookingSlots(
 
   console.log(`[EXTRACT_DEBUG] Before period check for "${t}": out.period=${out.period}`);
   // --- Período ---
-  const MORNING_PATTERNS = /\b(?:manh[ãa]|de\s+manh[ãa]|pela\s+manh[ãa])\b/iu;
+  const MORNING_PATTERNS = /\b(?:manh[aã]|de\s+manh[aã]|pela\s+manh[aã])\b/iu;
   const AFTERNOON_PATTERNS = /\b(?:tarde|a\s+tarde|à\s+tarde|de\s+tarde|pela\s+tarde)\b/iu;
   const NIGHT_PATTERNS = /\b(?:noite|à\s+noite|de\s+noite|pela\s+noite)\b/iu;
 
