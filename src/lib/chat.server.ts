@@ -482,7 +482,7 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
   // Se temos Unit, Service e Date, mas não Time, e temos Period -> Chamar list_slots
   const { isGenericGreeting } = await import("@/lib/booking/context");
   const { filterSlotsByPeriod, formatSlotsForDisplay, slotStart } = await import("@/lib/booking/slot-time");
-  const greetingOnly = isGenericGreeting(userMessage);
+  const greetingOnly = isGenericGreeting(text);
   const canListSlots = !greetingOnly && bookingContext.unitId && bookingContext.serviceId && bookingContext.date && bookingContext.period && !bookingContext.time;
   
   if (canListSlots) {
