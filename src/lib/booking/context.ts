@@ -371,6 +371,7 @@ export function mergeBookingContext(
 ): BookingContext {
   const prev = previous || {};
   const next: BookingContext = { ...prev };
+  const isReset = (extracted as any)?._isReset === true;
 
   for (const [key, value] of Object.entries(extracted || {})) {
     if (EMPTY(value)) continue;
@@ -387,10 +388,10 @@ export function mergeBookingContext(
     next.clarificationRequired = true;
   }
 
-  if (!next.serviceId && prev.serviceId && extracted?.serviceId === undefined) next.serviceId = prev.serviceId;
-  if (!next.serviceName && prev.serviceName && extracted?.serviceName === undefined) next.serviceName = prev.serviceName;
-  if (!next.serviceText && prev.serviceText && extracted?.serviceText === undefined) next.serviceText = prev.serviceText;
-  if (!next.date && prev.date && extracted?.date === undefined) next.date = prev.date;
+  if (!next.serviceId && prev.serviceId && extracted?.serviceId === undefined && !isReset) next.serviceId = prev.serviceId;
+  if (!next.serviceName && prev.serviceName && extracted?.serviceName === undefined && !isReset) next.serviceName = prev.serviceName;
+  if (!next.serviceText && prev.serviceText && extracted?.serviceText === undefined && !isReset) next.serviceText = prev.serviceText;
+  if (!next.date && prev.date && extracted?.date === undefined && !isReset) next.date = prev.date;
 
   return next;
 }
