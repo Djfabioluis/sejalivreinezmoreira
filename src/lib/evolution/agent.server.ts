@@ -476,17 +476,18 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     }
 
     const extracted: any = extractBookingSlots(text, new Date(), previousContext);
+    const bookingContext = mergeBookingContext(previousContext, extracted);
 
     // ============================================================
     // PRICE_INTENT — Alta prioridade (após cancelamento)
     // ============================================================
-    if (extracted.priceIntent || previousContext.priceIntent) {
+    if (bookingContext.priceIntent && bookingContext.serviceText) {
       const { BempService } = await import("@/lib/bemp-service.server");
-      const unitId = agent.unidade_id || previousContext.unitId;
+      const unitId = agent.unidade_id || bookingContext.unitId;
       
       if (unitId) {
         // Tentar resolver serviço da mensagem ou do contexto
-        const serviceSearch = extracted.serviceText || previousContext.serviceText || previousContext.serviceName;
+        const serviceSearch = bookingContext.serviceText || bookingContext.serviceName;
         
         if (serviceSearch) {
           const { normalizeServiceSearchText } = await import("@/lib/service-utils");
@@ -510,7 +511,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
                 const response = `A ${service.name || service.nome} custa ${priceText} 💜\nQuer que eu veja os horários disponíveis?`;
                 
                 // Limpar priceIntent após responder, mas manter o resto do contexto
-                const nextCtx = { ...previousContext, ...extracted, priceIntent: false };
+                const nextCtx = { ...bookingContext, priceIntent: false };
                 if (!nextCtx.serviceId) {
                   nextCtx.serviceId = String(service.id);
                   nextCtx.serviceName = service.name || service.nome;
@@ -541,7 +542,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
               } else {
                 const response = `Encontrei o serviço "${service.name || service.nome}", mas o valor não está disponível no catálogo no momento. 💜`;
-                const nextCtx = { ...previousContext, ...extracted, priceIntent: false };
+                const nextCtx = { ...bookingContext, priceIntent: false };
                 await patchCustomerContext(finalKey, { bookingContext: nextCtx });
                 const { replyWithAI } = await import("./reply.server");
                 await replyWithAI({
@@ -559,7 +560,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
               }).join("\n");
               
               const response = `Encontrei estas opções de ${serviceSearch} 💜\n\n${options}\n\nQual delas você deseja?`;
-              const nextCtx = { ...previousContext, ...extracted, priceIntent: false };
+              const nextCtx = { ...bookingContext, priceIntent: false };
               await patchCustomerContext(finalKey, { bookingContext: nextCtx });
               const { replyWithAI } = await import("./reply.server");
               await replyWithAI({
@@ -586,7 +587,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
         } else {
           // Se não tem serviço, perguntar qual serviço
           const response = `Claro 💜 De qual serviço você gostaria de saber o valor?`;
-          const nextCtx = { ...previousContext, ...extracted };
+          const nextCtx = { ...bookingContext };
           await patchCustomerContext(finalKey, { bookingContext: nextCtx });
           const { replyWithAI } = await import("./reply.server");
           await replyWithAI({
@@ -603,7 +604,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     // mergeBookingContext(previousContext, extracted) já foi chamado acima e resultou em bookingContext.
     
 
-    if (!previousContext.serviceId && agent?.unidade_id && serviceSearchSource.length >= 3 && serviceSearchSource.length < 50) {
+    if (!bookingContext.serviceId && agent?.unidade_id && serviceSearchSource.length >= 3 && serviceSearchSource.length < 50) {
       const { normalizeServiceSearchText } = await import("@/lib/service-utils");
       const normalizedText = normalizeServiceSearchText(serviceSearchSource);
       if (normalizedText && normalizedText.length >= 3) {
@@ -623,17 +624,17 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
           const exact = matches.find((s: any) => normalizeServiceSearchText(s.name || s.nome || "") === normalizedText);
           const found = exact ?? (matches.length === 1 ? matches[0] : null);
           if (found) {
-            extracted.serviceId = String(found.id);
-            extracted.serviceName = String(found.name || (found as any).nome);
-            trace?.record("BEMP_SERVICE_LOOKUP_COMPLETED", { found: extracted.serviceName });
+            bookingContext.serviceId = String(found.id);
+            bookingContext.serviceName = String(found.name || (found as any).nome);
+            trace?.record("BEMP_SERVICE_LOOKUP_COMPLETED", { found: bookingContext.serviceName });
           } else if (matches.length > 1) {
-            extracted.candidates = matches.slice(0, 5).map((m: any) => ({
+            bookingContext.candidates = matches.slice(0, 5).map((m: any) => ({
               id: String(m.id),
               name: String(m.name || m.nome),
               price: m.price ?? m.valor ?? 0,
             }));
-            extracted.clarificationRequired = true;
-            trace?.record("BEMP_SERVICE_LOOKUP_COMPLETED", { candidates: extracted.candidates.length });
+            bookingContext.clarificationRequired = true;
+            trace?.record("BEMP_SERVICE_LOOKUP_COMPLETED", { candidates: bookingContext.candidates.length });
           } else {
             trace?.record("BEMP_SERVICE_LOOKUP_COMPLETED", { found: null });
           }
@@ -644,35 +645,67 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
     // Segurança: intenção canônica reconhecida (ex.: "Mão" -> manicure) nunca deve
     // fazer o fluxo repetir a pergunta de serviço.
-    if (!extracted.serviceId && !extracted.serviceName && extracted.serviceText && !extracted.clarificationRequired) {
-      extracted.serviceName = String(extracted.serviceText);
+    if (!bookingContext.serviceId && !bookingContext.serviceName && bookingContext.serviceText && !bookingContext.clarificationRequired) {
+      bookingContext.serviceName = String(bookingContext.serviceText);
     }
 
 
 
     // SELEÇÃO DE PROFISSIONAL (turno seguinte à pergunta NEED_PROFESSIONAL)
-    if (!previousContext.professionalId && previousContext.professionalOptions?.length) {
+    if (!bookingContext.professionalId && bookingContext.professionalOptions?.length) {
       const { matchProfessionalChoice, isAnyProfessionalChoice, isAnyProfessionalIndex } = await import("@/lib/booking/context");
-      if (isAnyProfessionalChoice(text) || isAnyProfessionalIndex(text, previousContext.professionalOptions)) {
-        extracted.professionalPreference = "ANY";
+      if (isAnyProfessionalChoice(text) || isAnyProfessionalIndex(text, bookingContext.professionalOptions)) {
+        bookingContext.professionalPreference = "ANY";
         trace?.record("PROFESSIONAL_PREFERENCE_ANY");
       } else {
-        const chosen = matchProfessionalChoice(text, previousContext.professionalOptions);
+        const chosen = matchProfessionalChoice(text, bookingContext.professionalOptions);
         if (chosen) {
-          extracted.professionalId = String(chosen.id);
-          extracted.professionalName = String(chosen.name);
+          bookingContext.professionalId = String(chosen.id);
+          bookingContext.professionalName = String(chosen.name);
           trace?.record("PROFESSIONAL_SELECTED", { professionalId: chosen.id, professionalName: chosen.name });
         }
       }
     }
 
     const explicitSubscription = detectSubscriptionIntent(text);
-    if (explicitSubscription) extracted.subscriptionIntent = true;
+    if (explicitSubscription) bookingContext.subscriptionIntent = true;
 
-    // mergeBookingContext já realizado acima para controle de fluxo proativo
-    console.log(`[BOOKING_FIELDS_EXTRACTED] ${JSON.stringify(extracted)}`);
-    console.log(`[BOOKING_CONTEXT_AFTER] ${JSON.stringify(bookingContext)}`);
+    // ============================================================
+    // FLOW CONTROL - Próximo passo (Requisito 5, 6, 7 e 8)
+    // ============================================================
     
+    const nextSlot = nextRequiredSlot(bookingContext);
+    trace?.record("NEXT_SLOT_DETERMINED", { nextSlot, context: bookingContext });
+
+    // Se o próximo passo for profissional, precisamos listar os profissionais.
+    if (nextSlot === "professional") {
+      const { BempService } = await import("@/lib/bemp-service.server");
+      const { buildProfessionalQuestion } = await import("@/lib/booking/lifecycle");
+      
+      const professionals = await BempService.listProfessionals(bookingContext.unitId || agent.unidade_id, bookingContext.serviceId || "");
+      
+      if (professionals.length > 0) {
+        // Salva as opções para o match no próximo turno
+        bookingContext.professionalOptions = professionals.map(p => ({ id: String(p.id), name: p.name }));
+        await patchCustomerContext(finalKey, { bookingContext });
+
+        const question = buildProfessionalQuestion(bookingContext.professionalOptions);
+        const { replyWithAI } = await import("./reply.server");
+        
+        await replyWithAI({
+          instance,
+          phone: contactPhone,
+          text: question,
+          conversationKey: finalKey,
+          messageId,
+          unitId: agent.unidade_id,
+          _trace: trace
+        }, traceId);
+
+        return;
+      }
+    }
+
     // SAUDAÇÃO GENÉRICA: nunca continuar booking antigo automaticamente
     const greetingOnly = isGenericGreeting(text);
     if (greetingOnly) {
@@ -692,7 +725,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       bookingContext.appointmentStatus = "CREATING";
       trace?.record("BOOKING_CUSTOMER_CONFIRMED", {
         confirmationDetected: true,
-        stateBefore: previousContext.appointmentStatus,
+        stateBefore: bookingContext.appointmentStatus,
       });
     }
 
