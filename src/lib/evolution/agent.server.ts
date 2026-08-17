@@ -16,7 +16,8 @@ interface AgentRecord {
 export async function findAgentByInstance(instanceName: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const instance = instanceName.trim();
-  const normalizedInstance = instance.toLowerCase();
+  import { resolveTechnicalInstance } from "./instance-mapper.server";
+  const normalizedInstance = resolveTechnicalInstance(instance).toLowerCase();
   
   // Requisito 6: Buscar até 2 registros para detectar duplicidade
   // Usamos ILIKE para normalização de case no banco
