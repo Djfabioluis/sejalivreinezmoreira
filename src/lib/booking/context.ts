@@ -282,9 +282,9 @@ export function extractBookingSlots(
         }
       }).catch(() => {});
       
-      return out;
-    }
+    return out;
   }
+}
 
   console.log(`[EXTRACT_DEBUG] Before period check for "${t}": out.period=${out.period}`);
   // --- Período ---
