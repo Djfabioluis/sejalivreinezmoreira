@@ -327,66 +327,6 @@ source: ${identity.identitySource}`);
       // conversationKey já definido acima na resolução de identidade
       trace.updateContext({ conversationId: conversationKey });
       
-      // Otimização: Tentar resolver Agente ANTES do Lock para falhar rápido se não existir
-      trace.record("AGENT_LOOKUP_STARTED", { instance: msg.instance });
-      const agent = await findAgentByInstance(msg.instance);
-      const isIAActive = isIAEnabled(agent);
-      trace.record("AGENT_RESOLVED", { agentId: agent?.id, iaEnabled: isIAActive });
-
-    if (!agent) {
-      trace.record("INBOUND_INSTANCE_NOT_RESOLVED", { 
-        stage: "AGENT_RESOLUTION", 
-        reason: "AGENT_NOT_FOUND",
-        traceId,
-        instance: msg.instance
-      });
-      console.error(`[INBOUND_INSTANCE_NOT_RESOLVED] Instance received: ${msg.instance}, remoteJid: ${msg.remoteJid}, messageId: ${finalMessageId}`);
-      await logEvent({
-        instance: msg.instance,
-        messageId: finalMessageId,
-        event: "INBOUND_INSTANCE_NOT_RESOLVED",
-        status: "failed",
-        payload: { 
-          traceId, 
-          instance: msg.instance, 
-          remoteJid: msg.remoteJid, 
-          phone,
-          availableInstances: "Audit table for manual resolution"
-        }
-      });
-
-      trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "AGENT_NOT_FOUND" });
-      await markEventFailed(msg.instance, finalMessageId, "AGENT_NOT_FOUND");
-      continue;
-    }
-
-
-    if (!isIAActive) {
-      const status = String(agent.status || "").toLowerCase().trim();
-      const reason = !agent.ia_ativa ? "IA_DISABLED_ADMIN" : 
-                     !agent.unidade_id ? "NO_UNIT" : 
-                     ["desativado", "disabled", "inativo"].includes(status) ? "AGENT_DISABLED" : "IA_INACTIVE_GENERAL";
-
-      trace.record("MESSAGE_PROCESSING_ABORTED", { 
-        stage: "AGENT_AI_CHECK", 
-        reason,
-        traceId,
-        instance: msg.instance
-      });
-      console.info(`[${reason}] Agent found but AI is not active for instance: ${msg.instance}`);
-      await logEvent({
-        instance: msg.instance,
-        messageId: finalMessageId,
-        event: reason,
-        status: "failed",
-        payload: { traceId, instance: msg.instance, phone, agentId: agent.id }
-      });
-      trace.record("TOTAL_PROCESSING_COMPLETED", { reason });
-      await markEventFailed(msg.instance, finalMessageId, reason);
-      continue;
-    }
-
-
       trace.record("CONVERSATION_LOCK_STARTED");
       const { data: lockAcquired, error: lockError } = await supabaseAdmin.rpc("acquire_conversation_lock" as any, {
         p_conversation_key: conversationKey,
@@ -401,14 +341,11 @@ source: ${identity.identitySource}`);
       
       trace.record("CONVERSATION_LOCK_COMPLETED", { acquired: lockAcquired === true, error: lockError?.message });
 
-
       if (lockError || lockAcquired !== true) {
-        // Se o lock falhar, marcar como erro e abortar SEM retry automático infinito se o erro for apenas "locked"
         const lockReason = lockError ? "lock_error" : "lock_already_acquired";
         
-        // Se já está locado, não é uma falha que exija retry imediato agressivo do webhook (deixa o processo original terminar)
+        // Se já está locado, não é uma falha que exija retry imediato agressivo do webhook
         await markEventFailed(msg.instance, finalMessageId, `conversation_locked:${lockReason}`);
-
         
         trace.record("MESSAGE_PROCESSING_ABORTED", { 
           stage: "CONVERSATION_LOCK", 
@@ -417,10 +354,56 @@ source: ${identity.identitySource}`);
           error: lockError?.message
         });
         trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "lock_failed" });
-        
-        // Não lançamos erro aqui para o webhook da Evolution. Respondemos 200 OK 
-        // para evitar que a Evolution API reenvie a mesma mensagem (retry externo),
-        // já que uma instância já está processando ou terminando.
+        continue;
+      }
+
+      // 5. Agente e Unidade (Após o lock para garantir ordem sequencial)
+      trace.record("AGENT_LOOKUP_STARTED", { instance: msg.instance });
+      const agent = await findAgentByInstance(msg.instance);
+      const isIAActive = isIAEnabled(agent);
+      trace.record("AGENT_RESOLVED", { agentId: agent?.id, iaEnabled: isIAActive });
+
+      if (!agent) {
+        trace.record("INBOUND_INSTANCE_NOT_RESOLVED", { 
+          stage: "AGENT_RESOLUTION", 
+          reason: "AGENT_NOT_FOUND",
+          traceId,
+          instance: msg.instance
+        });
+        await logEvent({
+          instance: msg.instance,
+          messageId: finalMessageId,
+          event: "INBOUND_INSTANCE_NOT_RESOLVED",
+          status: "failed",
+          payload: { traceId, instance: msg.instance, phone }
+        });
+
+        trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "AGENT_NOT_FOUND" });
+        await markEventFailed(msg.instance, finalMessageId, "AGENT_NOT_FOUND");
+        continue;
+      }
+
+      if (!isIAActive) {
+        const status = String(agent.status || "").toLowerCase().trim();
+        const reason = !agent.ia_ativa ? "IA_DISABLED_ADMIN" : 
+                       !agent.unidade_id ? "NO_UNIT" : 
+                       ["desativado", "disabled", "inativo"].includes(status) ? "AGENT_DISABLED" : "IA_INACTIVE_GENERAL";
+
+        trace.record("MESSAGE_PROCESSING_ABORTED", { 
+          stage: "AGENT_AI_CHECK", 
+          reason,
+          traceId,
+          instance: msg.instance
+        });
+        await logEvent({
+          instance: msg.instance,
+          messageId: finalMessageId,
+          event: reason,
+          status: "failed",
+          payload: { traceId, instance: msg.instance, phone, agentId: agent.id }
+        });
+        trace.record("TOTAL_PROCESSING_COMPLETED", { reason });
+        await markEventFailed(msg.instance, finalMessageId, reason);
         continue;
       }
 
