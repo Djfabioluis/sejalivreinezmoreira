@@ -67,10 +67,11 @@ describe('Slot Selection Silence Bug', () => {
 
     // Verify if replyWithAI was called with confirmation text
     expect(reply.replyWithAI).toHaveBeenCalled();
-    const callArgs = (reply.replyWithAI as any).mock.calls.find((c: any) => c[0].text.includes('Confirma seu agendamento?'));
-    expect(callArgs).toBeDefined();
-
-    expect(callArgs[0].text).toContain('18:00');
-    expect(callArgs[0].text).toContain('Juliana Muller');
+    const calls = (reply.replyWithAI as any).mock.calls;
+    const confirmationCall = calls.find((c: any) => c[0].text.includes('Confirma seu agendamento?'));
+    
+    expect(confirmationCall).toBeDefined();
+    expect(confirmationCall[0].text).toContain('18:00');
+    expect(confirmationCall[0].text).toContain('Juliana Muller');
   });
 });
