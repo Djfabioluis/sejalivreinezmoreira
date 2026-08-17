@@ -48,7 +48,7 @@ describe("TESTE A — quero marcar manicure amanhã", () => {
     expect(ctx.serviceName).toBe("Manicure");
     expect(ctx.date).toBe(TOMORROW);
     expect(ctx.subscriptionIntent).toBe(false);
-    expect(nextRequiredSlot(ctx)).toBe("availability");
+    expect(nextRequiredSlot(ctx)).toBe("professional");
   });
 });
 
