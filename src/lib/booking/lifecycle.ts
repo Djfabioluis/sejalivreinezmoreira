@@ -30,6 +30,37 @@ export function getDeterministicResponse(ctx: BookingContext): string | null {
   }
 }
 
+/** Formata YYYY-MM-DD para DD/MM/YYYY (sem conversão de timezone). */
+export function formatBookingDate(date?: string | null): string {
+  if (!date) return "";
+  const m = String(date).match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return String(date);
+  return `${m[3]}/${m[2]}/${m[1]}`;
+}
+
+/** Mensagem determinística de confirmação após o cliente escolher um horário. */
+export function buildConfirmationMessage(ctx: BookingContext): string {
+  const lines = [
+    "Perfeito! 💜",
+    "",
+    "Confirma seu agendamento?",
+    `Serviço: ${ctx.serviceName ?? ctx.serviceText ?? ""}`.trimEnd(),
+    `Data: ${formatBookingDate(ctx.date)}`,
+    `Horário: ${ctx.time ?? ""}`.trimEnd(),
+    "",
+    "Posso confirmar?",
+  ];
+  return lines.join("\n");
+}
+
+/** Relembra a confirmação pendente (ex.: cliente enviou "?"). */
+export function buildPendingConfirmationReminder(ctx: BookingContext): string {
+  const service = ctx.serviceName ?? ctx.serviceText ?? "seu atendimento";
+  const date = formatBookingDate(ctx.date);
+  const time = ctx.time ?? "";
+  return `Estamos quase lá 💜\n\nDeseja confirmar ${service}${date ? ` em ${date}` : ""}${time ? ` às ${time}` : ""}?`;
+}
+
 /**
  * Fallback seguro para quando a IA falha (AI_EMPTY_RESPONSE)
  */
