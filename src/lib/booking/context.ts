@@ -344,22 +344,36 @@ export function extractBookingSlots(
 
   // --- Horário ---
   const timeMatch = t.match(/\b([01]?\d|2[0-3])\s*(?::|h|hs|horas?)\s*([0-5]\d)?\b/i);
-  if (timeMatch) {
-    const hh = String(Number(timeMatch[1])).padStart(2, "0");
-    const mm = timeMatch[2] ? timeMatch[2] : "00";
+  
+  // Normalização agressiva para "as 18", "as 18h", "às 18", etc.
+  const naturalTimeMatch = t.match(/(?:^|\s)(?:as|às|a|o|quero|pode\s+ser\s+as|pode\s+ser\s+às|quero\s+o\s+das)\s*(\d{1,2})(?:\s*h\s*)?$/i);
+  
+  if (timeMatch || naturalTimeMatch) {
+    const match = timeMatch || naturalTimeMatch;
+    const hh = String(Number(match![1])).padStart(2, "0");
+    const mm = (timeMatch && timeMatch[2]) ? timeMatch[2] : "00";
     const parsedTime = `${hh}:${mm}`;
     
     // Validação contra slots reais se existirem no previous
     if (previous?.availableSlots?.length) {
-      const validSlot = previous.availableSlots.find(s => {
-        // Extrai HH:mm de ISO ou string formatada
+      // Priorizar HH:00 quando o cliente diz apenas a hora
+      const exactHour = `${hh}:00`;
+      const hourSlots = previous.availableSlots.filter(s => {
+        const slotTime = s.includes('T') ? s.split('T')[1].slice(0, 5) : s.slice(0, 5);
+        return slotTime.startsWith(hh);
+      });
+
+      const bestMatch = hourSlots.find(s => {
         const slotTime = s.includes('T') ? s.split('T')[1].slice(0, 5) : s.slice(0, 5);
         return slotTime === parsedTime;
-      });
+      }) || (mm === "00" ? hourSlots.find(s => {
+        const slotTime = s.includes('T') ? s.split('T')[1].slice(0, 5) : s.slice(0, 5);
+        return slotTime === exactHour;
+      }) : null);
       
-      if (validSlot) {
-        out.selectedSlot = validSlot;
-        out.time = parsedTime;
+      if (bestMatch) {
+        out.selectedSlot = bestMatch;
+        out.time = bestMatch.includes('T') ? bestMatch.split('T')[1].slice(0, 5) : bestMatch.slice(0, 5);
       } else {
         // Se não for válido mas parece um horário, salvamos o time para permitir diálogo
         out.time = parsedTime;
@@ -373,7 +387,9 @@ export function extractBookingSlots(
     if (hourOnlyMatch) {
       const h = Number(hourOnlyMatch[1]);
       if (h >= 7 && h <= 21) {
-        const parsedTime = `${String(h).padStart(2, "0")}:00`;
+        const hh = String(h).padStart(2, "0");
+        const parsedTime = `${hh}:00`;
+        
         if (previous?.availableSlots?.length) {
           const validSlot = previous.availableSlots.find(s => {
             const slotTime = s.includes('T') ? s.split('T')[1].slice(0, 5) : s.slice(0, 5);
