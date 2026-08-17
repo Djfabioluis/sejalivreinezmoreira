@@ -477,12 +477,14 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     // MÁQUINA DE ESTADOS DETERMINÍSTICA - SELEÇÃO DE HORÁRIO
     let slotJustSelected = false;
     if (!greetingOnly && bookingContext.availableSlots?.length && !bookingContext.selectedSlot) {
-      const { slotLocalTime } = await import("@/lib/booking/slot-time");
+      const { slotLocalTime, filterSlotsByLocalDate } = await import("@/lib/booking/slot-time");
+      // Só aceitar slots do dia local escolhido (evita off-by-one por timezone)
+      const dateScopedSlots = filterSlotsByLocalDate(bookingContext.availableSlots, bookingContext.date);
       const textTimeMatch = text.match(/\b([01]?\d|2[0-3])\s*(?::|h|hs|horas?)\s*([0-5]\d)?\b/i);
       const textTime = textTimeMatch
         ? `${String(Number(textTimeMatch[1])).padStart(2, "0")}:${textTimeMatch[2] ?? "00"}`
         : null;
-      const selected = bookingContext.availableSlots.find(s => {
+      const selected = dateScopedSlots.find(s => {
         const hhmm = slotLocalTime(s);
         if (!hhmm) return false;
         return text.includes(hhmm) || hhmm === textTime || (!!bookingContext.time && hhmm === bookingContext.time);
@@ -501,7 +503,9 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     if (agent.unidade_id) bookingContext.unitId = String(agent.unidade_id);
 
     // TRANSIÇÃO DETERMINÍSTICA: slot selecionado -> pedido de confirmação (nunca silencioso)
-    if (slotJustSelected) {
+    const confirmationKey = `${bookingContext.date ?? ""}T${bookingContext.time ?? ""}`;
+    if (slotJustSelected && (bookingContext as any).confirmationSentFor !== confirmationKey) {
+      (bookingContext as any).confirmationSentFor = confirmationKey;
       const { buildConfirmationMessage } = await import("@/lib/booking/lifecycle");
       const confirmText = buildConfirmationMessage(bookingContext);
       await patchCustomerContext(finalKey, { bookingContext });
