@@ -736,15 +736,19 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       const { slotLocalTime, filterSlotsByLocalDate } = await import("@/lib/booking/slot-time");
       // Só aceitar slots do dia local escolhido (evita off-by-one por timezone)
       const dateScopedSlots = filterSlotsByLocalDate(bookingContext.availableSlots, bookingContext.date);
-      const textTimeMatch = text.match(/\b([01]?\d|2[0-3])\s*(?::|h|hs|horas?)\s*([0-5]\d)?\b/i);
-      const textTime = textTimeMatch
-        ? `${String(Number(textTimeMatch[1])).padStart(2, "0")}:${textTimeMatch[2] ?? "00"}`
-        : null;
+      
       const selected = dateScopedSlots.find(s => {
         const hhmm = slotLocalTime(s);
         if (!hhmm) return false;
-        return text.includes(hhmm) || hhmm === textTime || (!!bookingContext.time && hhmm === bookingContext.time);
+        
+        // Piorizar bookingContext.time (populado pelo extrator aprimorado)
+        // se ele corresponder a um slot disponível
+        if (bookingContext.time === hhmm) return true;
+        
+        // Fallback para substring na mensagem (legado resiliente)
+        return text.includes(hhmm);
       });
+
       if (selected) {
         bookingContext.selectedSlot = selected;
         bookingContext.time = slotLocalTime(selected) || bookingContext.time || null;
