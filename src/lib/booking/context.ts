@@ -282,7 +282,6 @@ export function extractBookingSlots(
         }
       }).catch(() => {});
       
-      return out;
     }
   }
 
