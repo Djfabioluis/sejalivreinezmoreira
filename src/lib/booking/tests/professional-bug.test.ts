@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { extractBookingSlots, nextRequiredSlot, matchProfessionalChoice, isAnyProfessionalIndex } from '../context';
+import { extractBookingSlots, nextRequiredSlot, matchProfessionalChoice } from '../context';
 import { getLocalBookingDate } from '../local-date';
 
 describe('Professional Selection Bug Regression', () => {
@@ -29,6 +29,7 @@ describe('Professional Selection Bug Regression', () => {
   it('matches "juliana" and updates context correctly', () => {
     const chosen = matchProfessionalChoice('juliana', initialContext.professionalOptions);
     expect(chosen).toBeDefined();
+    if (!chosen) throw new Error('Professional not matched');
     expect(chosen.name).toBe('Juliana Muller');
 
     const updatedContext = { ...initialContext };
@@ -43,6 +44,7 @@ describe('Professional Selection Bug Regression', () => {
     const text = '1';
     const chosen = matchProfessionalChoice(text, initialContext.professionalOptions);
     expect(chosen).toBeDefined();
+    if (!chosen) throw new Error('Professional index not matched');
     expect(chosen.id).toBe('1');
     expect(chosen.name).toBe('Juliana Muller');
   });
