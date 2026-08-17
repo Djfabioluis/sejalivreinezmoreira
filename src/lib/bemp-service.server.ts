@@ -290,9 +290,8 @@ export class BempService {
     phone_area_code: string;
     phone_number: string;
   }): Promise<any[]> {
-    const result = await this.fetch<any>(`${BEMP_WEBHOOK_BASE}/whatsapp_appointments`, {
-      method: "POST",
-      body: JSON.stringify(params),
+    const result = await this.fetch<any>(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule?phone_country_code=${params.phone_country_code}&phone_area_code=${params.phone_area_code}&phone_number=${params.phone_number}`, {
+      method: "GET",
     }, "bemp-customer-appointments");
     return Array.isArray(result) ? result : (result?.data || []);
   }
