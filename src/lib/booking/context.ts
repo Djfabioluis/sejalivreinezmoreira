@@ -514,6 +514,13 @@ export function nextRequiredSlot(ctx: BookingContext): BookingSlot {
   if (!ctx.unitId) return "unit";
   if (!ctx.serviceId && !ctx.serviceName) return "service";
   if (!ctx.date) return "date";
+
+  // NOVO ESTADO: PROFISSIONAL antes do período/horários.
+  if (!ctx.professionalId && ctx.professionalPreference !== "ANY" && !ctx.selectedSlot && !ctx.time) {
+    return "professional";
+  }
+
+
   
   // Se temos o período mas não o horário, ainda estamos em 'availability', 
   // mas o controlador de fluxo (agent.server.ts) deve disparar a listagem de slots.
