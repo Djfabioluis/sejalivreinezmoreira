@@ -55,10 +55,12 @@ export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server
     const authHeader = request.headers.get('authorization');
 
     if (!authHeader) {
+      console.warn(`[AUTH_FAILURE] No authorization header for request: ${request.url}`);
       throw new Error('Unauthorized: No authorization header provided');
     }
 
     if (!authHeader.startsWith('Bearer ')) {
+      console.warn(`[AUTH_FAILURE] Invalid authorization header format for request: ${request.url}`);
       throw new Error('Unauthorized: Only Bearer tokens are supported');
     }
 
