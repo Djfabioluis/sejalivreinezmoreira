@@ -26,11 +26,12 @@ import {
   updateConversationStatus, 
   sendManualWAMessage,
   extractConversationMessageText,
+  getUnitNameMap,
   type WAConversation 
 } from "@/lib/whatsapp-inbox.functions";
 import { listAgentes } from "@/lib/agentes-whatsapp.functions";
 import { supabase } from "@/integrations/supabase/client";
-import { getUnitNameMap } from "@/lib/units.functions";
+
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Skeleton } from "@/components/ui/skeleton";
