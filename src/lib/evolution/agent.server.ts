@@ -392,17 +392,20 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       appointmentId: customerContext.bookingContext?.appointmentId ?? null,
       appointmentStatus: customerContext.bookingContext?.appointmentStatus ?? "NONE",
       availableSlots: customerContext.bookingContext?.availableSlots ?? [],
+      bookingSessionId: customerContext.bookingContext?.bookingSessionId ?? null,
+      periodSessionId: customerContext.bookingContext?.periodSessionId ?? null,
     };
 
     trace?.record("BOOKING_CONTEXT_LOADED", { service: previousContext.serviceName });
 
     const extracted: any = extractBookingSlots(text);
 
-    // BEMP proativo - OTIMIZADO: Somente se o texto parecer um serviço e não tivermos no contexto
-    if (!previousContext.serviceId && agent?.unidade_id && text.length > 3 && text.length < 50) {
+    // BEMP proativo - usa o termo CANÔNICO normalizado (ex.: "Mao" -> "manicure")
+    const serviceSearchSource: string = extracted?.serviceText || text;
+    if (!previousContext.serviceId && agent?.unidade_id && serviceSearchSource.length >= 3 && serviceSearchSource.length < 50) {
       const { normalizeServiceSearchText } = await import("@/lib/service-utils");
-      const normalizedText = normalizeServiceSearchText(text);
-      if (normalizedText && normalizedText.length > 3) {
+      const normalizedText = normalizeServiceSearchText(serviceSearchSource);
+      if (normalizedText && normalizedText.length >= 3) {
         trace?.record("BEMP_SERVICE_LOOKUP_STARTED");
         const { BempService } = await import("@/lib/bemp-service.server");
         try {
@@ -575,7 +578,8 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     
     // MÁQUINA DE ESTADOS: Se period está preenchido mas disponibilidade ainda é necessária,
     // disparar list_slots automaticamente.
-    if (!greetingOnly && requiredSlot === "availability" && bookingContext.period && !bookingContext.time && !bookingContext.selectedSlot) {
+    const { hasCurrentSessionPeriod } = await import("@/lib/booking/context");
+    if (!greetingOnly && requiredSlot === "availability" && hasCurrentSessionPeriod(bookingContext) && !bookingContext.time && !bookingContext.selectedSlot) {
       trace?.record("AUTO_LIST_SLOTS_TRIGGERED", { period: bookingContext.period });
       
       const { BempService } = await import("@/lib/bemp-service.server");
