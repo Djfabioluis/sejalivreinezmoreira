@@ -593,7 +593,7 @@ export function fallbackQuestionFor(ctx: BookingContext): string {
 /* Confirmações curtas                                                 */
 /* ------------------------------------------------------------------ */
 
-const AFFIRMATIVE = /^(isso|isso\s*mesmo|sim|s|certo|correto|exatamente|exato|ok|pode\s*ser|confirmo|é\s*isso|pode\s*marcar|pode\s*agendar|pode\s*confirmar|fechado|é\s*esse|esse\s*mesmo)[.!\s]*$/i;
+const AFFIRMATIVE = /^(isso|isso\s*mesmo|sim(\s*,?\s*(por\s*favor|pode|quero|claro))?|s|certo|correto|exatamente|exato|ok(ay)?|beleza|blz|claro|perfeito|com\s*certeza|pode|pode\s*ser|pode\s*sim|confirmo|confirma(r)?|quero\s*sim|é\s*isso|eh\s*isso|pode\s*marcar|pode\s*agendar|pode\s*confirmar|fechado|fechou|bora|vamos|é\s*esse|esse\s*mesmo|👍|✅)[.!\s👍💜✅]*$/i;
 
 export function isShortAffirmative(text: string | null | undefined): boolean {
   if (!text) return false;

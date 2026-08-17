@@ -556,9 +556,24 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
        trace?.record("BOOKING_CREATE_STARTED");
        const { BempService, extractBempAppointmentId } = await import("@/lib/bemp-service.server");
        
-       // IDEMPOTÊNCIA: Verificar se já não tentamos criar este agendamento (start + service)
+       // IDEMPOTÊNCIA: um "Sim" cria no máximo UM agendamento
        const idempotencyKey = `${finalKey}:${bookingContext.serviceId}:${bookingContext.selectedSlot || bookingContext.time}`;
-       
+       const { replyWithAI } = await import("./reply.server");
+       const { formatBookingDate } = await import("@/lib/booking/lifecycle");
+       const { clearTransientBooking } = await import("@/lib/booking/context");
+
+       if (
+         bookingContext.appointmentId ||
+         (bookingContext as any).createBookingKey === idempotencyKey
+       ) {
+         trace?.record("BOOKING_CREATE_SKIPPED_DUPLICATE", { idempotencyKey });
+         await patchCustomerContext(finalKey, { bookingContext });
+         return;
+       }
+       (bookingContext as any).createBookingKey = idempotencyKey;
+       await patchCustomerContext(finalKey, { bookingContext });
+
+       let createFailed = false;
        try {
          const result = await BempService.createAppointment({
            salon_id: Number(bookingContext.unitId),
@@ -579,9 +594,8 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
            trace?.record("BOOKING_CREATE_SUCCESS", { appointmentId: apptId });
            
            // Resposta Final Obrigatória
-           const finalMsg = `Agendamento confirmado! 💜\n\nServiço: ${bookingContext.serviceName}\nData: ${bookingContext.date}\nHorário: ${bookingContext.time}\nUnidade: ${agent.nome || 'Centro'}\n\nTe esperamos! ✨`;
-           
-           const { replyWithAI } = await import("./reply.server");
+           const finalMsg = `Agendamento confirmado! 💜\n\nServiço: ${bookingContext.serviceName}\nData: ${formatBookingDate(bookingContext.date)}\nHorário: ${bookingContext.time}\nUnidade: ${agent.nome || 'Centro'}\n\nTe esperamos! ✨`;
+
            await replyWithAI({
              instance,
              phone: contactPhone,
@@ -592,16 +606,49 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
              _trace: trace
            }, traceId);
 
+           // Limpa apenas campos transitórios (preserva cliente/telefone/unitId)
+           const cleared = clearTransientBooking(bookingContext);
+           Object.assign(bookingContext, cleared, {
+             appointmentStatus: "CONFIRMED",
+             appointmentId: String(apptId),
+             customerConfirmed: false,
+             awaitingConfirmation: false,
+           });
+           (bookingContext as any).createBookingKey = null;
+           (bookingContext as any).confirmationSentFor = null;
+
            await patchCustomerContext(finalKey, { bookingContext });
            trace?.record("TOTAL_PROCESSING_COMPLETED", { status: "success", reason: "booking_confirmed" });
            return;
          } else {
-           bookingContext.appointmentStatus = "FAILED";
+           createFailed = true;
            trace?.record("BOOKING_CREATE_FAILED", { error: "No ID returned" });
          }
        } catch (err: any) {
+         createFailed = true;
+         trace?.record("BOOKING_CREATE_FAILED", { error: err?.message });
+       }
+
+       // NUNCA silencioso: falha real recebe resposta segura
+       if (createFailed) {
          bookingContext.appointmentStatus = "FAILED";
-         trace?.record("BOOKING_CREATE_FAILED", { error: err.message });
+         bookingContext.customerConfirmed = false;
+         bookingContext.awaitingConfirmation = true;
+         (bookingContext as any).createBookingKey = null;
+         await patchCustomerContext(finalKey, { bookingContext });
+
+         await replyWithAI({
+           instance,
+           phone: contactPhone,
+           text: "Não consegui concluir seu agendamento agora. 💜 Vou precisar tentar novamente em instantes.",
+           conversationKey: finalKey,
+           messageId,
+           unitId: agent.unidade_id,
+           _trace: trace
+         }, traceId);
+
+         trace?.record("TOTAL_PROCESSING_COMPLETED", { status: "error", reason: "booking_create_failed" });
+         return;
        }
     }
 
