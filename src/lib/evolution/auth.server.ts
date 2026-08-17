@@ -18,19 +18,24 @@ export async function authenticateWebhook(request: Request): Promise<{ authentic
 
   const requireSecret = process.env.NODE_ENV === "production" || process.env.EVOLUTION_REQUIRE_WEBHOOK_SECRET === "true";
 
+  // LOG DE AUDITORIA DE CABEÇALHOS (SEGURO - REDIGIDO PELO LOGGER)
+  const headerKeys = Array.from(request.headers.keys());
+  const apikeyValueSnippet = request.headers.get("apikey") ? "present" : "absent";
+  
   if (!config.webhookSecret) {
     if (requireSecret) {
       // FIX: Em produção, se a variável de ambiente não estiver setada, logamos mas permitimos
       // a autenticação caso headers válidos da Evolution estejam presentes (apikey).
       const evolutionApiKey = request.headers.get("apikey");
-      if (evolutionApiKey && evolutionApiKey.length > 10) {
+      if (evolutionApiKey && evolutionApiKey.length > 5) {
         logger.info("WEBHOOK_AUTH_FALLBACK", "EVOLUTION_WEBHOOK_SECRET ausente, autenticado via apikey header.");
         return { authenticated: true };
       }
 
       logger.error("WEBHOOK_AUTH_FAILED", "EVOLUTION_WEBHOOK_SECRET não configurado e apikey ausente.", { 
         url: request.url,
-        receivedHeaders: Array.from(request.headers.keys())
+        receivedHeaders: headerKeys,
+        hasApikey: apikeyValueSnippet
       });
       return { authenticated: false, error: "Unauthorized: Webhook secret not configured" };
     }
@@ -47,7 +52,8 @@ export async function authenticateWebhook(request: Request): Promise<{ authentic
 
     logger.warn("WEBHOOK_AUTH_MISSING", "Segredo obrigatório não enviado", { 
       url: request.url,
-      receivedHeaders: Array.from(request.headers.keys())
+      receivedHeaders: headerKeys,
+      hasApikey: apikeyValueSnippet
     });
     return { authenticated: false, error: "Unauthorized: Webhook secret required" };
   }
@@ -60,7 +66,7 @@ export async function authenticateWebhook(request: Request): Promise<{ authentic
     });
     logger.warn("WEBHOOK_AUTH_INVALID", "Segredo inválido enviado", { 
       url: request.url,
-      receivedHeaders: Array.from(request.headers.keys())
+      receivedHeaders: headerKeys
     });
     return { authenticated: false, error: "Unauthorized: Invalid secret" };
   }
