@@ -34,6 +34,8 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
   const { normalizeIncomingMessage } = await import("./media-normalizer");
   const { mediaPlaceholderText } = await import("./media-pipeline.server");
   const { appendIncomingMessage, updateConversationMetadata } = await import("./conversation.server");
+  const { claimResponseSlot } = await import("./idempotency.server");
+
 
 
   for (const msg of messages) {
@@ -51,7 +53,25 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
 
     try {
       // 2. fromMe (mensagem enviada pelo próprio número) → diferenciar IA vs Humano
+      // IDEMPOTÊNCIA GLOBAL: Antes de qualquer processamento, marcar o evento como 'processed' se for fromMe
+      // para evitar que retries do webhook disparem a lógica de takeover humano repetidamente.
       if (isFromMe(msg.fromMe)) {
+        const { claimed: echoClaimed } = await claimEvent({
+          instance: msg.instance,
+          messageId: msg.messageId,
+          remoteJid: msg.remoteJid,
+          phone: "echo-identity", // Identidade irrelevante para eco
+          timestamp: msg.timestamp,
+          text: extractMessageText(msg.message) || "",
+          traceId
+        });
+
+        if (!echoClaimed) {
+          trace.record("ECHO_DUPLICATE_ABORTED");
+          continue;
+        }
+
+
         trace.record("MESSAGE_PARSED", { direction: "OUTBOUND_ECHO" });
         const outboundText = extractMessageText(msg.message)?.trim() || "";
         const outboundIdentity = resolveCustomerIdentity(msg);
@@ -172,6 +192,10 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
         const conversationKey = outboundConversationKey;
 
         trace.record("CONVERSATION_LOOKUP_STARTED", { conversationKey });
+        
+        // PONTO DE SINCRONIZAÇÃO: Antes de marcar modo humano, verificamos se a conversa já foi processada 
+        // ou está bloqueada. Como já fizemos o claimEvent acima para o eco, estamos seguros aqui.
+        
         const { error: updateError } = await supabaseAdmin
           .from("wa_conversas")
           .update({ 
@@ -182,9 +206,11 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
             ai_pause_reason: "HUMAN_AGENT_REPLIED",
             last_human_message_at: new Date().toISOString()
           })
-          .eq("phone", conversationKey);
+          .eq("phone", conversationKey)
+          .neq("attendance_mode", "HUMAN"); // Otimização idempotente
         
         trace.record("CONVERSATION_LOOKUP_COMPLETED", { updatedToHuman: !updateError });
+
 
         if (updateError) {
           console.error("[takeover] Error updating to HUMAN mode:", updateError);
@@ -198,7 +224,11 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
           payload: { traceId, phone, conversationKey, remoteJid: msg.remoteJid, fromMe: msg.fromMe }
         });
         
+        // Finalizar eco humano como processado
+        await markEventProcessed(msg.instance, msg.messageId);
+        
         trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "human_takeover_processed" });
+
         continue;
       }
 
@@ -276,14 +306,18 @@ source: ${identity.identitySource}`);
       trace.record("IDEMPOTENCY_CHECK_COMPLETED", { claimed, reason });
 
       if (!claimed) {
-        if (reason === "already_processed" || reason === "processing") {
+        // Log detalhado para o motivo do descarte
+        if (reason === "duplicate_message" || reason === "in_progress") {
           trace.record("DUPLICATE_MESSAGE_SKIPPED", { reason });
         }
+        
         trace.record("MESSAGE_PROCESSING_ABORTED", { 
           stage: "IDEMPOTENCY_CHECK", 
           reason: reason || "duplicate",
-          traceId
+          traceId,
+          inboundMessageId: msg.messageId
         });
+        
         trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "not_claimed" });
         continue;
       }
@@ -369,17 +403,24 @@ source: ${identity.identitySource}`);
 
 
       if (lockError || lockAcquired !== true) {
-        // Requisito 5: Se o lock falhar, marcar como erro e lançar exceção para retry
-        await markEventFailed(msg.instance, finalMessageId, "conversation_locked_retry");
+        // Se o lock falhar, marcar como erro e abortar SEM retry automático infinito se o erro for apenas "locked"
+        const lockReason = lockError ? "lock_error" : "lock_already_acquired";
+        
+        // Se já está locado, não é uma falha que exija retry imediato agressivo do webhook (deixa o processo original terminar)
+        await markEventFailed(msg.instance, finalMessageId, `conversation_locked:${lockReason}`);
+        
         trace.record("MESSAGE_PROCESSING_ABORTED", { 
           stage: "CONVERSATION_LOCK", 
-          reason: lockError ? "lock_error" : "lock_not_acquired",
+          reason: lockReason,
           traceId,
           error: lockError?.message
         });
         trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "lock_failed" });
         
-        throw new Error(lockError?.message || `CONVERSATION_LOCK_NOT_ACQUIRED: ${conversationKey}`);
+        // Não lançamos erro aqui para o webhook da Evolution. Respondemos 200 OK 
+        // para evitar que a Evolution API reenvie a mesma mensagem (retry externo),
+        // já que uma instância já está processando ou terminando.
+        continue;
       }
 
 
