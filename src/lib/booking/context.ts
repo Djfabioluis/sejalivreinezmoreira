@@ -33,6 +33,8 @@ export interface BookingContext {
   clarificationRequired?: boolean;
   candidates?: Array<{ id: string; name: string; price: number }>;
   availabilityCalled?: boolean;
+  bookingSessionId?: string | null;
+  periodSessionId?: string | null;
 }
 
 export type BookingSlot =
