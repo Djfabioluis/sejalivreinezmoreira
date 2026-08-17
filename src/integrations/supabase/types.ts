@@ -47,6 +47,66 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_audit_logs: {
+        Row: {
+          action: string
+          created_at: string | null
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          metadata: Json | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          metadata?: Json | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          metadata?: Json | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      admin_notifications: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          link: string | null
+          message: string
+          title: string
+          type: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          link?: string | null
+          message: string
+          title: string
+          type: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          link?: string | null
+          message?: string
+          title?: string
+          type?: string
+        }
+        Relationships: []
+      }
       agendamentos_notif: {
         Row: {
           bemp_appointment_id: string | null
@@ -256,6 +316,126 @@ export type Database = {
           response?: Json | null
         }
         Relationships: []
+      }
+      contract_events: {
+        Row: {
+          contract_id: string
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          event_type: string
+          id: string
+        }
+        Insert: {
+          contract_id: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          event_type: string
+          id?: string
+        }
+        Update: {
+          contract_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          event_type?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_events_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contract_files: {
+        Row: {
+          contract_id: string
+          created_at: string | null
+          file_type: string
+          id: string
+          storage_path: string
+        }
+        Insert: {
+          contract_id: string
+          created_at?: string | null
+          file_type: string
+          id?: string
+          storage_path: string
+        }
+        Update: {
+          contract_id?: string
+          created_at?: string | null
+          file_type?: string
+          id?: string
+          storage_path?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contract_files_contract_id_fkey"
+            columns: ["contract_id"]
+            isOneToOne: false
+            referencedRelation: "contracts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      contracts: {
+        Row: {
+          contract_number: string
+          created_at: string | null
+          generated_at: string | null
+          id: string
+          modality: string
+          professional_id: string
+          professional_percentage: number
+          salon_percentage: number
+          signature_deadline: string | null
+          signed_at: string | null
+          status: Database["public"]["Enums"]["contract_status"] | null
+          updated_at: string | null
+        }
+        Insert: {
+          contract_number: string
+          created_at?: string | null
+          generated_at?: string | null
+          id?: string
+          modality: string
+          professional_id: string
+          professional_percentage: number
+          salon_percentage: number
+          signature_deadline?: string | null
+          signed_at?: string | null
+          status?: Database["public"]["Enums"]["contract_status"] | null
+          updated_at?: string | null
+        }
+        Update: {
+          contract_number?: string
+          created_at?: string | null
+          generated_at?: string | null
+          id?: string
+          modality?: string
+          professional_id?: string
+          professional_percentage?: number
+          salon_percentage?: number
+          signature_deadline?: string | null
+          signed_at?: string | null
+          status?: Database["public"]["Enums"]["contract_status"] | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contracts_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "professional_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       crm_customer_pipeline: {
         Row: {
@@ -902,6 +1082,78 @@ export type Database = {
           },
         ]
       }
+      employee_manual_acknowledgements: {
+        Row: {
+          acknowledged_at: string | null
+          id: string
+          manual_id: string
+          professional_id: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          id?: string
+          manual_id: string
+          professional_id: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          id?: string
+          manual_id?: string
+          professional_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_manual_acknowledgements_manual_id_fkey"
+            columns: ["manual_id"]
+            isOneToOne: false
+            referencedRelation: "employee_manuals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "employee_manual_acknowledgements_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "professional_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_manuals: {
+        Row: {
+          content: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          pdf_storage_path: string | null
+          published_at: string | null
+          status: Database["public"]["Enums"]["manual_status"] | null
+          updated_at: string | null
+          version: string
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          pdf_storage_path?: string | null
+          published_at?: string | null
+          status?: Database["public"]["Enums"]["manual_status"] | null
+          updated_at?: string | null
+          version: string
+        }
+        Update: {
+          content?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          pdf_storage_path?: string | null
+          published_at?: string | null
+          status?: Database["public"]["Enums"]["manual_status"] | null
+          updated_at?: string | null
+          version?: string
+        }
+        Relationships: []
+      }
       evo_conversation_locks: {
         Row: {
           conversation_key: string
@@ -1253,6 +1505,60 @@ export type Database = {
           observacoes?: string | null
           telefone?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      professional_profiles: {
+        Row: {
+          address: string | null
+          cep: string | null
+          cpf: string | null
+          created_at: string | null
+          email: string | null
+          full_name: string
+          id: string
+          last_access_at: string | null
+          modality: string | null
+          phone: string | null
+          professional_percentage: number | null
+          rg: string | null
+          salon_percentage: number | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          cep?: string | null
+          cpf?: string | null
+          created_at?: string | null
+          email?: string | null
+          full_name: string
+          id: string
+          last_access_at?: string | null
+          modality?: string | null
+          phone?: string | null
+          professional_percentage?: number | null
+          rg?: string | null
+          salon_percentage?: number | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          cep?: string | null
+          cpf?: string | null
+          created_at?: string | null
+          email?: string | null
+          full_name?: string
+          id?: string
+          last_access_at?: string | null
+          modality?: string | null
+          phone?: string | null
+          professional_percentage?: number | null
+          rg?: string | null
+          salon_percentage?: number | null
+          status?: string | null
+          updated_at?: string | null
         }
         Relationships: []
       }
@@ -1832,6 +2138,13 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "operador"
+      contract_status:
+        | "NAO_GERADO"
+        | "AGUARDANDO_ASSINATURA"
+        | "ASSINATURA_EM_VALIDACAO"
+        | "ASSINADO"
+        | "CANCELADO"
+        | "ENCERRADO"
       crm_pipeline_stage:
         | "NOVO_CONTATO"
         | "IDENTIFICANDO_SERVICO"
@@ -1851,6 +2164,7 @@ export type Database = {
         | "CHOOSING_DATE"
         | "CHOOSING_TIME"
         | "AWAITING_CONFIRMATION"
+      manual_status: "RASCUNHO" | "PUBLICADO" | "ARQUIVADO"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1979,6 +2293,14 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "operador"],
+      contract_status: [
+        "NAO_GERADO",
+        "AGUARDANDO_ASSINATURA",
+        "ASSINATURA_EM_VALIDACAO",
+        "ASSINADO",
+        "CANCELADO",
+        "ENCERRADO",
+      ],
       crm_pipeline_stage: [
         "NOVO_CONTATO",
         "IDENTIFICANDO_SERVICO",
@@ -1999,6 +2321,7 @@ export const Constants = {
         "CHOOSING_TIME",
         "AWAITING_CONFIRMATION",
       ],
+      manual_status: ["RASCUNHO", "PUBLICADO", "ARQUIVADO"],
     },
   },
 } as const

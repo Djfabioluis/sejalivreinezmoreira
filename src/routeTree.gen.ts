@@ -9,14 +9,23 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as Admin_rootRouteImport } from './routes/admin/__root'
 import { Route as McpRouteImport } from './routes/mcp'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as CheckoutReturnRouteImport } from './routes/checkout/return'
 import { Route as ApiTtsRouteImport } from './routes/api/tts'
 import { Route as ApiTranscribeRouteImport } from './routes/api/transcribe'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as AdminNotificacoesRouteImport } from './routes/admin/notificacoes'
+import { Route as AdminManualRouteImport } from './routes/admin/manual'
+import { Route as AdminDocumentosRouteImport } from './routes/admin/documentos'
+import { Route as AdminContratosRouteImport } from './routes/admin/contratos'
+import { Route as AdminConfiguracoesRouteImport } from './routes/admin/configuracoes'
+import { Route as AdminColaboradoresRouteImport } from './routes/admin/colaboradores'
+import { Route as AdminAssinaturasRouteImport } from './routes/admin/assinaturas'
 import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
 import { Route as AuthenticatedSugestoesRouteImport } from './routes/_authenticated/sugestoes'
 import { Route as AuthenticatedPermissoesRouteImport } from './routes/_authenticated/permissoes'
@@ -52,6 +61,10 @@ import { Route as ApiPublicHooksWhatsappHealthRouteImport } from './routes/api/p
 import { Route as ApiPublicHooksLembretesRouteImport } from './routes/api/public/hooks/lembretes'
 import { Route as ApiPublicHooksLearningPatternsRouteImport } from './routes/api/public/hooks/learning-patterns'
 
+const Admin_rootRoute = Admin_rootRouteImport.update({
+  id: '/admin/__root',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const McpRoute = McpRouteImport.update({
   id: '/mcp',
   path: '/mcp',
@@ -69,6 +82,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CheckoutReturnRoute = CheckoutReturnRouteImport.update({
@@ -89,6 +107,41 @@ const ApiTranscribeRoute = ApiTranscribeRouteImport.update({
 const ApiChatRoute = ApiChatRouteImport.update({
   id: '/api/chat',
   path: '/api/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminNotificacoesRoute = AdminNotificacoesRouteImport.update({
+  id: '/admin/notificacoes',
+  path: '/admin/notificacoes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminManualRoute = AdminManualRouteImport.update({
+  id: '/admin/manual',
+  path: '/admin/manual',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminDocumentosRoute = AdminDocumentosRouteImport.update({
+  id: '/admin/documentos',
+  path: '/admin/documentos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminContratosRoute = AdminContratosRouteImport.update({
+  id: '/admin/contratos',
+  path: '/admin/contratos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminConfiguracoesRoute = AdminConfiguracoesRouteImport.update({
+  id: '/admin/configuracoes',
+  path: '/admin/configuracoes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminColaboradoresRoute = AdminColaboradoresRouteImport.update({
+  id: '/admin/colaboradores',
+  path: '/admin/colaboradores',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminAssinaturasRoute = AdminAssinaturasRouteImport.update({
+  id: '/admin/assinaturas',
+  path: '/admin/assinaturas',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedUsuariosRoute = AuthenticatedUsuariosRouteImport.update({
@@ -302,10 +355,19 @@ export interface FileRoutesByFullPath {
   '/permissoes': typeof AuthenticatedPermissoesRoute
   '/sugestoes': typeof AuthenticatedSugestoesRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
+  '/admin': typeof Admin_rootRoute
+  '/admin/assinaturas': typeof AdminAssinaturasRoute
+  '/admin/colaboradores': typeof AdminColaboradoresRoute
+  '/admin/configuracoes': typeof AdminConfiguracoesRoute
+  '/admin/contratos': typeof AdminContratosRoute
+  '/admin/documentos': typeof AdminDocumentosRoute
+  '/admin/manual': typeof AdminManualRoute
+  '/admin/notificacoes': typeof AdminNotificacoesRoute
   '/api/chat': typeof ApiChatRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
   '/checkout/return': typeof CheckoutReturnRoute
+  '/admin/': typeof AdminIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/public/bemp-services-relay': typeof ApiPublicBempServicesRelayRoute
@@ -345,6 +407,14 @@ export interface FileRoutesByTo {
   '/permissoes': typeof AuthenticatedPermissoesRoute
   '/sugestoes': typeof AuthenticatedSugestoesRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
+  '/admin': typeof AdminIndexRoute
+  '/admin/assinaturas': typeof AdminAssinaturasRoute
+  '/admin/colaboradores': typeof AdminColaboradoresRoute
+  '/admin/configuracoes': typeof AdminConfiguracoesRoute
+  '/admin/contratos': typeof AdminContratosRoute
+  '/admin/documentos': typeof AdminDocumentosRoute
+  '/admin/manual': typeof AdminManualRoute
+  '/admin/notificacoes': typeof AdminNotificacoesRoute
   '/api/chat': typeof ApiChatRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
@@ -390,10 +460,19 @@ export interface FileRoutesById {
   '/_authenticated/permissoes': typeof AuthenticatedPermissoesRoute
   '/_authenticated/sugestoes': typeof AuthenticatedSugestoesRoute
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
+  '/admin/__root': typeof Admin_rootRoute
+  '/admin/assinaturas': typeof AdminAssinaturasRoute
+  '/admin/colaboradores': typeof AdminColaboradoresRoute
+  '/admin/configuracoes': typeof AdminConfiguracoesRoute
+  '/admin/contratos': typeof AdminContratosRoute
+  '/admin/documentos': typeof AdminDocumentosRoute
+  '/admin/manual': typeof AdminManualRoute
+  '/admin/notificacoes': typeof AdminNotificacoesRoute
   '/api/chat': typeof ApiChatRoute
   '/api/transcribe': typeof ApiTranscribeRoute
   '/api/tts': typeof ApiTtsRoute
   '/checkout/return': typeof CheckoutReturnRoute
+  '/admin/': typeof AdminIndexRoute
   '/.lovable/oauth/consent': typeof DotlovableOauthConsentRoute
   '/.mcp/invoke-tool/$tool': typeof Char91DotmcpChar93InvokeToolToolRoute
   '/api/public/bemp-services-relay': typeof ApiPublicBempServicesRelayRoute
@@ -435,10 +514,19 @@ export interface FileRouteTypes {
     | '/permissoes'
     | '/sugestoes'
     | '/usuarios'
+    | '/admin'
+    | '/admin/assinaturas'
+    | '/admin/colaboradores'
+    | '/admin/configuracoes'
+    | '/admin/contratos'
+    | '/admin/documentos'
+    | '/admin/manual'
+    | '/admin/notificacoes'
     | '/api/chat'
     | '/api/transcribe'
     | '/api/tts'
     | '/checkout/return'
+    | '/admin/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/api/public/bemp-services-relay'
@@ -478,6 +566,14 @@ export interface FileRouteTypes {
     | '/permissoes'
     | '/sugestoes'
     | '/usuarios'
+    | '/admin'
+    | '/admin/assinaturas'
+    | '/admin/colaboradores'
+    | '/admin/configuracoes'
+    | '/admin/contratos'
+    | '/admin/documentos'
+    | '/admin/manual'
+    | '/admin/notificacoes'
     | '/api/chat'
     | '/api/transcribe'
     | '/api/tts'
@@ -522,10 +618,19 @@ export interface FileRouteTypes {
     | '/_authenticated/permissoes'
     | '/_authenticated/sugestoes'
     | '/_authenticated/usuarios'
+    | '/admin/__root'
+    | '/admin/assinaturas'
+    | '/admin/colaboradores'
+    | '/admin/configuracoes'
+    | '/admin/contratos'
+    | '/admin/documentos'
+    | '/admin/manual'
+    | '/admin/notificacoes'
     | '/api/chat'
     | '/api/transcribe'
     | '/api/tts'
     | '/checkout/return'
+    | '/admin/'
     | '/.lovable/oauth/consent'
     | '/.mcp/invoke-tool/$tool'
     | '/api/public/bemp-services-relay'
@@ -549,10 +654,19 @@ export interface RootRouteChildren {
   McpRoute: typeof McpRoute
   Char91DotmcpChar93ListToolsRoute: typeof Char91DotmcpChar93ListToolsRoute
   Char91DotwellKnownChar93OauthProtectedResourceRoute: typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
+  Admin_rootRoute: typeof Admin_rootRoute
+  AdminAssinaturasRoute: typeof AdminAssinaturasRoute
+  AdminColaboradoresRoute: typeof AdminColaboradoresRoute
+  AdminConfiguracoesRoute: typeof AdminConfiguracoesRoute
+  AdminContratosRoute: typeof AdminContratosRoute
+  AdminDocumentosRoute: typeof AdminDocumentosRoute
+  AdminManualRoute: typeof AdminManualRoute
+  AdminNotificacoesRoute: typeof AdminNotificacoesRoute
   ApiChatRoute: typeof ApiChatRoute
   ApiTranscribeRoute: typeof ApiTranscribeRoute
   ApiTtsRoute: typeof ApiTtsRoute
   CheckoutReturnRoute: typeof CheckoutReturnRoute
+  AdminIndexRoute: typeof AdminIndexRoute
   DotlovableOauthConsentRoute: typeof DotlovableOauthConsentRoute
   Char91DotmcpChar93InvokeToolToolRoute: typeof Char91DotmcpChar93InvokeToolToolRoute
   ApiPublicBempServicesRelayRoute: typeof ApiPublicBempServicesRelayRoute
@@ -569,6 +683,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/admin/__root': {
+      id: '/admin/__root'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof Admin_rootRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/mcp': {
       id: '/mcp'
       path: '/mcp'
@@ -597,6 +718,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/': {
+      id: '/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/checkout/return': {
       id: '/checkout/return'
       path: '/checkout/return'
@@ -623,6 +751,55 @@ declare module '@tanstack/react-router' {
       path: '/api/chat'
       fullPath: '/api/chat'
       preLoaderRoute: typeof ApiChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/notificacoes': {
+      id: '/admin/notificacoes'
+      path: '/admin/notificacoes'
+      fullPath: '/admin/notificacoes'
+      preLoaderRoute: typeof AdminNotificacoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/manual': {
+      id: '/admin/manual'
+      path: '/admin/manual'
+      fullPath: '/admin/manual'
+      preLoaderRoute: typeof AdminManualRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/documentos': {
+      id: '/admin/documentos'
+      path: '/admin/documentos'
+      fullPath: '/admin/documentos'
+      preLoaderRoute: typeof AdminDocumentosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/contratos': {
+      id: '/admin/contratos'
+      path: '/admin/contratos'
+      fullPath: '/admin/contratos'
+      preLoaderRoute: typeof AdminContratosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/configuracoes': {
+      id: '/admin/configuracoes'
+      path: '/admin/configuracoes'
+      fullPath: '/admin/configuracoes'
+      preLoaderRoute: typeof AdminConfiguracoesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/colaboradores': {
+      id: '/admin/colaboradores'
+      path: '/admin/colaboradores'
+      fullPath: '/admin/colaboradores'
+      preLoaderRoute: typeof AdminColaboradoresRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/assinaturas': {
+      id: '/admin/assinaturas'
+      path: '/admin/assinaturas'
+      fullPath: '/admin/assinaturas'
+      preLoaderRoute: typeof AdminAssinaturasRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/usuarios': {
@@ -937,10 +1114,19 @@ const rootRouteChildren: RootRouteChildren = {
   Char91DotmcpChar93ListToolsRoute: Char91DotmcpChar93ListToolsRoute,
   Char91DotwellKnownChar93OauthProtectedResourceRoute:
     Char91DotwellKnownChar93OauthProtectedResourceRoute,
+  Admin_rootRoute: Admin_rootRoute,
+  AdminAssinaturasRoute: AdminAssinaturasRoute,
+  AdminColaboradoresRoute: AdminColaboradoresRoute,
+  AdminConfiguracoesRoute: AdminConfiguracoesRoute,
+  AdminContratosRoute: AdminContratosRoute,
+  AdminDocumentosRoute: AdminDocumentosRoute,
+  AdminManualRoute: AdminManualRoute,
+  AdminNotificacoesRoute: AdminNotificacoesRoute,
   ApiChatRoute: ApiChatRoute,
   ApiTranscribeRoute: ApiTranscribeRoute,
   ApiTtsRoute: ApiTtsRoute,
   CheckoutReturnRoute: CheckoutReturnRoute,
+  AdminIndexRoute: AdminIndexRoute,
   DotlovableOauthConsentRoute: DotlovableOauthConsentRoute,
   Char91DotmcpChar93InvokeToolToolRoute: Char91DotmcpChar93InvokeToolToolRoute,
   ApiPublicBempServicesRelayRoute: ApiPublicBempServicesRelayRoute,
