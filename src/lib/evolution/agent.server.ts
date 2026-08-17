@@ -1012,22 +1012,23 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
               _trace: trace
             }, traceId);
 
-            // Limpeza atômica e terminal: o agendamento foi concluído.
-            // Transição para CONFIRMED reseta os seletores para não repetir confirmações.
-            const clearedFail = clearTransientBooking(bookingContext);
-            Object.assign(bookingContext, clearedFail, {
+            trace?.record("TOTAL_PROCESSING_COMPLETED", { status: "success", reason: "booking_confirmed" });
+            return;
+          } else {
+            createFailed = true;
+            trace?.record("BOOKING_CREATE_FAILED", { error: "No ID returned" });
+          }
+        } catch (err: any) {
+          createFailed = true;
+           trace?.record("BOOKING_CREATE_FAILED", {
+             endpoint: "/webhooks/whatsapp_schedule",
+             method: "POST",
+             httpStatus: err?.statusCode ?? err?.status ?? null,
+             errorCode: err?.code ?? null,
+             errorMessage: err?.message,
+           });
+        }
 
-              appointmentStatus: "CONFIRMED",
-              appointmentId: String(apptId),
-              customerConfirmed: false,
-              awaitingConfirmation: false,
-              selectedSlot: null,
-              time: null,
-            });
-            (bookingContext as any).createBookingKey = null;
-            (bookingContext as any).confirmationSentFor = null;
-
-            await patchCustomerContext(finalKey, { 
               bookingContext,
               appointment_confirmed_at: new Date().toISOString()
             });
