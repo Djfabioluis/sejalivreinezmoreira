@@ -292,23 +292,29 @@ export class BempService {
   }): Promise<any[]> {
     // Tentar múltiplas variações de telefone para máxima resiliência
     const variations = [
-      { cc: params.phone_country_code, ac: params.phone_area_code, n: params.phone_number },
-      { cc: params.phone_country_code, ac: params.phone_area_code, n: params.phone_number.slice(-8) },
-      { cc: params.phone_country_code, ac: params.phone_area_code, n: params.phone_number.replace(/^9/, "") },
-      { cc: params.phone_country_code, ac: "0" + params.phone_area_code, n: params.phone_number },
-      { cc: "55", ac: params.phone_area_code, n: params.phone_number },
+      { cc: params.phone_country_code, ac: params.phone_area_code, n: params.phone_number.slice(-8) }, // 8 dígitos (ex. 99102791) - FORMATO MAIS COMUM NA BEMP
+      { cc: params.phone_country_code, ac: params.phone_area_code, n: params.phone_number }, // Completo (pode ter 9 digitos)
+      { cc: params.phone_country_code, ac: params.phone_area_code, n: params.phone_number.replace(/^9/, "") }, // Sem o 9 inicial se for 9 digitos
+      { cc: params.phone_country_code, ac: "0" + params.phone_area_code, n: params.phone_number }, // AC com zero à esquerda
+      { cc: "55", ac: params.phone_area_code, n: params.phone_number }, // Forçar CC 55
     ];
 
-    console.log(`[bemp-search] Início da busca resiliente para: ${params.phone_country_code}${params.phone_area_code}${params.phone_number}`);
+    logger.info("BEMP_SEARCH_START", `Busca resiliente iniciada para: ${params.phone_country_code}${params.phone_area_code}${params.phone_number}`, { variationsCount: variations.length });
 
     for (const v of variations) {
       try {
         const url = `${BEMP_WEBHOOK_BASE}/whatsapp_schedule?phone_country_code=${v.cc}&phone_area_code=${v.ac}&phone_number=${v.n}`;
         const result = await this.fetch<any>(url, { method: "GET" }, `bemp-appointments-${v.cc}-${v.ac}-${v.n}`);
+        
+        // A API retorna { status: "success", code: 200, data: [...] } ou [...]
         const data = Array.isArray(result) ? result : (result?.data || []);
         
-        if (data.length > 0) {
-          console.log(`[bemp-search] SUCESSO com a variação: ${v.cc}-${v.ac}-${v.n}`);
+        if (Array.isArray(data) && data.length > 0) {
+          logger.info("BEMP_SEARCH_MATCH", `Reserva localizada com variação: ${v.cc}-${v.ac}-${v.n}`, { 
+            foundCount: data.length,
+            firstBookingId: data[0]?.id,
+            customerName: data[0]?.customer_name 
+          });
           return data;
         }
       } catch (err) {
@@ -317,10 +323,10 @@ export class BempService {
       }
     }
 
-    // Fallback Final: Busca por nome no catálogo (opcional se habilitado)
-    console.log(`[bemp-search] Falha total em todas as variações de telefone.`);
+    logger.warn("BEMP_SEARCH_FAILED", `Nenhuma reserva encontrada após ${variations.length} variações.`, { params });
     return [];
   }
+
 
   static async cancelAppointment(params: {
     appointmentId: string | number;
@@ -350,8 +356,19 @@ export class BempService {
       await tryUpdateBempScheduleNote(data, PROFESSIONAL_PREFERENCE_NOTE);
     }
 
+    // Persistência local (através do logger por enquanto para provar o ID)
+    const appointmentId = extractBempAppointmentId(data);
+    logger.info("CREATE_BOOKING_RESULT", "Agendamento criado na BEMP", { 
+      appointmentId,
+      customerName: input.customer_name,
+      serviceId: input.service_id,
+      professionalId: input.professional_id,
+      start: input.start
+    });
+
     return data;
   }
+
 
   static async searchServicesByCategory(params: {
     effectiveUnitId: string | number;
