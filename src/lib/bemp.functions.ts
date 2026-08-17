@@ -88,7 +88,9 @@ export const listCustomerAppointments = createServerFn({ method: "GET" })
       phone_area_code: data.phoneArea,
       phone_number: data.phoneNumber,
     });
-    return (await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule?${qs.toString()}`)) as JsonValue;
+    return (await bempFetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule?${qs.toString()}`, {
+      method: "GET"
+    })) as JsonValue;
   });
 
 export const getCustomer = createServerFn({ method: "GET" })
