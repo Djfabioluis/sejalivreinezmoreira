@@ -623,7 +623,7 @@ export function isGenericGreeting(text: string | null | undefined): boolean {
  * apenas identidade: unidade, saudação e status já confirmado.
  */
 export function clearTransientBooking(ctx: BookingContext): BookingContext {
-  const next: BookingContext = { ...ctx };
+  const next: BookingContext = startNewBookingSession({ ...ctx });
   next.serviceId = null;
   next.serviceName = null;
   next.serviceText = null;
