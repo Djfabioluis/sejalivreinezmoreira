@@ -1029,25 +1029,8 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
            });
         }
 
-              bookingContext,
-              appointment_confirmed_at: new Date().toISOString()
-            });
-            trace?.record("TOTAL_PROCESSING_COMPLETED", { status: "success", reason: "booking_confirmed" });
-            return;
-         } else {
-           createFailed = true;
-           trace?.record("BOOKING_CREATE_FAILED", { error: "No ID returned" });
-         }
-       } catch (err: any) {
-         createFailed = true;
-          trace?.record("BOOKING_CREATE_FAILED", {
-            endpoint: "/webhooks/whatsapp_schedule",
-            method: "POST",
-            httpStatus: err?.statusCode ?? err?.status ?? null,
-            errorCode: err?.code ?? null,
-            errorMessage: err?.message,
-          });
-       }
+       // NUNCA silencioso: falha real recebe resposta segura
+
 
        // NUNCA silencioso: falha real recebe resposta segura
        if (createFailed) {
