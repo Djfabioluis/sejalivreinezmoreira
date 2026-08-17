@@ -3,7 +3,6 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 export const getAdminStats = createServerFn({ method: "GET" })
   .handler(async () => {
-    // Check if tables exist by trying to count (simplistic check)
     try {
       const { count: profCount } = await supabaseAdmin
         .from('professional_profiles')
@@ -18,7 +17,7 @@ export const getAdminStats = createServerFn({ method: "GET" })
       const { count: pendingContracts } = await supabaseAdmin
         .from('contracts')
         .select('*', { count: 'exact', head: true })
-        .eq('status', 'PENDENTE');
+        .eq('status', 'AGUARDANDO_ASSINATURA');
 
       return {
         activeProfessionals: profCount || 0,
@@ -47,3 +46,4 @@ export const getCollaborators = createServerFn({ method: "GET" })
     if (error) throw error;
     return data || [];
   });
+
