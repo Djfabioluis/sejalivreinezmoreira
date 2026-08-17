@@ -11,9 +11,9 @@ export async function testPriceIntentShortCircuit() {
   // Simular contexto onde o serviço foi detectado junto com a intenção de preço
   const ctx: BookingContext = {
     unitId: "5258",
-    serviceText: "manicure",
+    serviceId: "123",
+    serviceName: "Manicure",
     priceIntent: true,
-    // Note: serviceId ainda não resolvido pela BEMP no início do processamento
   };
 
   console.log("Contexto Inicial:", JSON.stringify(ctx));
