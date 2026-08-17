@@ -87,10 +87,6 @@ const WEEKDAYS: Array<{ re: RegExp; index: number }> = [
   { re: /\bs[áa]bado\b/i, index: 6 },
 ];
 
-function isoDate(d: Date): string {
-  return getLocalBookingDate(d);
-}
-
 const SERVICE_PATTERNS: Array<{ re: RegExp; name: string }> = [
   { re: /\bp[ée]\s+e\s+m[ãa]o\b/i, name: "pé e mão" },
   { re: /\b(?:manicure|unha\s+da\s+m[ãa]o|fazer\s+a(?:s)?\s+m[ãa]o(?:s)?|fazer\s+m[ãa]o(?:s)?|servi[çc]o\s+de\s+m[ãa]o|m[ãa]o|mao)\b/i, name: "manicure" },
