@@ -297,6 +297,23 @@ export class BempService {
     return Array.isArray(result) ? result : (result?.data || []);
   }
 
+  static async cancelAppointment(params: {
+    appointmentId: string | number;
+    phone_country_code: string;
+    phone_area_code: string;
+    phone_number: string;
+  }): Promise<any> {
+    const qs = new URLSearchParams({
+      phone_country_code: params.phone_country_code,
+      phone_area_code: params.phone_area_code,
+      phone_number: params.phone_number,
+      id: String(params.appointmentId),
+    });
+    return this.fetch<any>(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule?${qs.toString()}`, {
+      method: "DELETE",
+    }, "bemp-cancel-appointment");
+  }
+
   static async createAppointment(input: any): Promise<any> {
     const payload = withProfessionalPreferenceNote(input);
     const data = await this.fetch<any>(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule`, {

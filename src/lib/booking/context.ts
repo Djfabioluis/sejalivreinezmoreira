@@ -794,7 +794,7 @@ export function ensureNoDuplicateBookingQuestion(text: string, ctx: BookingConte
 /* ------------------------------------------------------------------ */
 
 const CANCEL_INTENT =
-  /^(cancelar|cancela|cancelamento|quero\s+cancelar|cancelar\s+agendamento|cancelar\s+o\s+agendamento|desistir|desisti|pare|parar|nao\s+quero\s+mais|nao\s+quero|deixa\s+pra\s+la)[\s.,!?💜]*$/;
+  /^(cancelar|cancela|cancelamento|desmarcar|desmarca|quero\s+desmarcar|quero\s+cancelar|cancelar\s+meu\s+horario|cancelar\s+agendamento|cancelar\s+o\s+agendamento|cancelar\s+meu\s+agendamento|desistir|desisti|pare|parar|nao\s+quero\s+mais|nao\s+quero|deixa\s+pra\s+la)[\s.,!?💜]*$/;
 
 /** Detecta deterministicamente a intenção de cancelar (normalizado, sem acento). */
 export function detectCancelIntent(text: string | null | undefined): boolean {
