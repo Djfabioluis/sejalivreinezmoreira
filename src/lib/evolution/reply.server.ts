@@ -88,6 +88,13 @@ export interface ReplyParams {
     unitId: string;
     source: string;
   } | null;
+  resolvedPrices?: Array<{
+    serviceId: string;
+    serviceName: string;
+    price: number;
+    unitId: string;
+    source: string;
+  }>;
 }
 
 export async function replyToUser(params: ReplyParams) {
