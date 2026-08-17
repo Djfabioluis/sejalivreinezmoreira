@@ -99,6 +99,7 @@ async function runCancel(
   } catch (err: any) {
     t.bempCancelSuccess = false;
     t.cancelBookingError = err?.message ? String(err.message).slice(0, 200) : "unknown_error";
+    logger.error("CANCEL_API_FAILED", "Falha na execução do cancelamento BEMP", { ...t, error: err.message, bookingId: booking.id });
     return { handled: true, message: CANCEL_FAILED_MESSAGE, nextContext: ctx, telemetry: t };
   }
 }
@@ -181,6 +182,7 @@ export async function handleCancelFlow(params: {
     bookings = filterFutureBookingsForUnit(raw, conversationUnitId, now);
   } catch (err: any) {
     t.cancelBookingError = err?.message ? String(err.message).slice(0, 200) : "lookup_failed";
+    logger.error("CANCEL_LOOKUP_FAILED", "Falha na consulta BEMP", { ...t, error: err.message });
     return { handled: true, message: CANCEL_FAILED_MESSAGE, nextContext: ctx, telemetry: t };
   }
   t.futureBookingsFound = bookings.length;
