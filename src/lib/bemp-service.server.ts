@@ -350,8 +350,19 @@ export class BempService {
       await tryUpdateBempScheduleNote(data, PROFESSIONAL_PREFERENCE_NOTE);
     }
 
+    // Persistência local (através do logger por enquanto para provar o ID)
+    const appointmentId = extractBempAppointmentId(data);
+    logger.info("CREATE_BOOKING_RESULT", "Agendamento criado na BEMP", { 
+      appointmentId,
+      customerName: input.customer_name,
+      serviceId: input.service_id,
+      professionalId: input.professional_id,
+      start: input.start
+    });
+
     return data;
   }
+
 
   static async searchServicesByCategory(params: {
     effectiveUnitId: string | number;
