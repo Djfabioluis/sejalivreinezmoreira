@@ -19,6 +19,13 @@ export interface BookingContext {
   time?: string | null;
   professionalId?: string | null;
   professionalName?: string | null;
+  /** "ANY" quando o cliente aceita qualquer profissional disponível. */
+  professionalPreference?: "ANY" | null;
+  /** Opções REAIS (BEMP) apresentadas ao cliente no turno anterior. */
+  professionalOptions?: Array<{ id: string; name: string }>;
+  /** TRUE quando a data já foi resolvida para uma data absoluta (imutável). */
+  dateLocked?: boolean;
+
   subscriptionIntent?: boolean;
   conversationGreeted?: boolean;
   intent?: string | null;
