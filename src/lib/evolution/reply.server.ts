@@ -227,9 +227,12 @@ async function proceedWithSend(params: ReplyParams, trace: PerformanceTrace, tra
       trace.record("OUTBOUND_BLOCKED_DUPLICATE", {
         reason: "identical_text_within_window",
         conversationKey: params.conversationKey,
+        textSnippet: params.text.slice(0, 50)
       });
       console.warn("[proceedWithSend] Bloqueando envio duplicado por conteúdo idêntico recente.");
-      return false;
+      // Retornamos TRUE aqui porque o "bloqueio lógico" é um sucesso de processamento da IA,
+      // impedindo que o agent.server.ts dispare retries ou marque falha.
+      return true;
     }
   } catch (dedupeErr: any) {
     trace.record("OUTBOUND_DEDUPE_CHECK_FAILED", { error: dedupeErr?.message });
