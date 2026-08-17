@@ -467,7 +467,10 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     }
 
     // MÁQUINA DE ESTADOS DETERMINÍSTICA - CONFIRMAÇÃO
-    if (bookingContext.appointmentStatus === "AWAITING_CONFIRMATION" && isShortAffirmative(text)) {
+    const confirmableStatus =
+      bookingContext.appointmentStatus === "AWAITING_CONFIRMATION" ||
+      (bookingContext.appointmentStatus === "FAILED" && !!bookingContext.selectedSlot);
+    if (confirmableStatus && isShortAffirmative(text)) {
       bookingContext.customerConfirmed = true;
       bookingContext.awaitingConfirmation = false;
       bookingContext.appointmentStatus = "CREATING";
@@ -572,6 +575,44 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
        }
        (bookingContext as any).createBookingKey = idempotencyKey;
        await patchCustomerContext(finalKey, { bookingContext });
+
+       // BEMP exige professional_id válido em /whatsapp_schedule.
+       // Resolve determinístico: profissional disponível para o slot escolhido.
+       if (!bookingContext.professionalId && bookingContext.unitId && bookingContext.serviceId) {
+         try {
+           const { slotLocalTime } = await import("@/lib/booking/slot-time");
+           const professionals = await BempService.listProfessionals(bookingContext.unitId, bookingContext.serviceId);
+           const wantedTime = bookingContext.time;
+           const slotDate = String(bookingContext.selectedSlot || "").slice(0, 10) || bookingContext.date;
+           for (const p of professionals) {
+             const pid = p?.id ?? p?.professional_id;
+             if (!pid) continue;
+             try {
+               const pSlots = await BempService.listAvailableSlots({
+                 salonId: bookingContext.unitId,
+                 serviceId: bookingContext.serviceId,
+                 professionalId: pid,
+                 date: String(slotDate),
+               });
+               const match = pSlots.find((s: any) => slotLocalTime(s) === wantedTime);
+               if (match) {
+                 bookingContext.professionalId = String(pid);
+                 if (typeof match === "object" && (match as any)?.end) {
+                   bookingContext.selectedSlotEnd = (match as any).end;
+                 }
+                 break;
+               }
+             } catch {}
+           }
+           if (!bookingContext.professionalId && professionals.length) {
+             const firstId = professionals[0]?.id ?? professionals[0]?.professional_id;
+             if (firstId) bookingContext.professionalId = String(firstId);
+           }
+           trace?.record("BOOKING_PROFESSIONAL_RESOLVED", { professionalId: bookingContext.professionalId });
+         } catch (profErr: any) {
+           trace?.record("BOOKING_PROFESSIONAL_RESOLVE_FAILED", { error: profErr?.message });
+         }
+       }
 
        let createFailed = false;
        try {
