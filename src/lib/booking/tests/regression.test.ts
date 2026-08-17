@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { extractBookingSlots, mergeBookingContext } from '../context';
 
 describe('Fluxo de Agendamento - Regressão', () => {
@@ -7,16 +7,31 @@ describe('Fluxo de Agendamento - Regressão', () => {
   it('TESTE A: "Quero fazer mão hoje" -> Manicure', () => {
     const text = "Quero fazer mão hoje";
     const extracted = extractBookingSlots(text, now);
+    console.log('TESTE A:', JSON.stringify(extracted));
     expect(extracted.serviceText).toBe('manicure');
     expect(extracted.date).toBe('2026-08-17');
   });
 
   it('TESTE B: Detecção de períodos', () => {
-    expect(extractBookingSlots("tarde", now).period).toBe('tarde');
-    expect(extractBookingSlots("a tarde", now).period).toBe('tarde');
-    expect(extractBookingSlots("à tarde", now).period).toBe('tarde');
-    expect(extractBookingSlots("manhã", now).period).toBe('manhã');
-    expect(extractBookingSlots("noite", now).period).toBe('noite');
+    const t1 = extractBookingSlots("tarde", now);
+    console.log('TESTE B - tarde:', JSON.stringify(t1));
+    expect(t1.period).toBe('tarde');
+    
+    const t2 = extractBookingSlots("a tarde", now);
+    console.log('TESTE B - a tarde:', JSON.stringify(t2));
+    expect(t2.period).toBe('tarde');
+    
+    const t3 = extractBookingSlots("à tarde", now);
+    console.log('TESTE B - à tarde:', JSON.stringify(t3));
+    expect(t3.period).toBe('tarde');
+    
+    const t4 = extractBookingSlots("manhã", now);
+    console.log('TESTE B - manhã:', JSON.stringify(t4));
+    expect(t4.period).toBe('manhã');
+    
+    const t5 = extractBookingSlots("noite", now);
+    console.log('TESTE B - noite:', JSON.stringify(t5));
+    expect(t5.period).toBe('noite');
   });
 
   it('TESTE C: Extração de HH:mm e Validação de Slot', () => {
@@ -24,10 +39,12 @@ describe('Fluxo de Agendamento - Regressão', () => {
       availableSlots: ['2026-08-17T14:30:00', '2026-08-17T15:00:00']
     };
     const extracted = extractBookingSlots("14:30", now, previous as any);
+    console.log('TESTE C - 14:30:', JSON.stringify(extracted));
     expect(extracted.time).toBe('14:30');
     expect(extracted.selectedSlot).toBe('2026-08-17T14:30:00');
 
     const invalid = extractBookingSlots("16:00", now, previous as any);
+    console.log('TESTE C - 16:00:', JSON.stringify(invalid));
     expect(invalid.time).toBe('16:00');
     expect(invalid.selectedSlot).toBeUndefined();
   });
@@ -39,6 +56,7 @@ describe('Fluxo de Agendamento - Regressão', () => {
     };
     const extracted = {};
     const merged = mergeBookingContext(previous as any, extracted);
+    console.log('TESTE F:', JSON.stringify(merged));
     expect(merged.candidates).toBeDefined();
     expect(merged.clarificationRequired).toBe(true);
   });
@@ -52,9 +70,10 @@ describe('Fluxo de Agendamento - Regressão', () => {
     };
     const text = "quero fazer mão hoje";
     const extracted = extractBookingSlots(text, now, previous as any);
+    console.log('TESTE G - extracted:', JSON.stringify(extracted));
     
-    // O merge deve resultar em um contexto com a nova data e serviço, mas sem o ID antigo
     const merged = mergeBookingContext(previous as any, extracted);
+    console.log('TESTE G - merged:', JSON.stringify(merged));
     expect(merged.date).toBe('2026-08-17');
     expect(merged.serviceText).toBe('manicure');
     expect(merged.serviceId).toBeNull();
