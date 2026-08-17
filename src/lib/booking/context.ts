@@ -373,13 +373,63 @@ const EMPTY = (v: unknown) => v === undefined || v === null || v === "" || v ===
  * MERGE aditivo: campos ausentes na mensagem atual preservam o valor anterior.
  * subscriptionIntent é "sticky": uma vez true, permanece true na conversa.
  */
+export function newBookingSessionId(): string {
+  return `bs_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+/** Zera todos os campos transitórios e abre uma NOVA sessão de booking. */
+export function startNewBookingSession(ctx: BookingContext): BookingContext {
+  const next: BookingContext = { ...ctx };
+  next.bookingSessionId = newBookingSessionId();
+  next.period = null;
+  next.periodSessionId = null;
+  next.time = null;
+  next.selectedSlot = null;
+  next.selectedSlotEnd = null;
+  next.availableSlots = [];
+  next.availabilityCalled = false;
+  next.awaitingConfirmation = false;
+  next.customerConfirmed = false;
+  next.clarificationRequired = false;
+  next.candidates = undefined;
+  if (next.appointmentStatus !== "CONFIRMED") next.appointmentStatus = "NONE";
+  return next;
+}
+
+/** Período só é válido se foi informado NA SESSÃO DE BOOKING ATUAL. */
+export function hasCurrentSessionPeriod(ctx: BookingContext): boolean {
+  if (!ctx.period) return false;
+  if (!ctx.bookingSessionId) return false;
+  return ctx.periodSessionId === ctx.bookingSessionId;
+}
+
 export function mergeBookingContext(
   previous: BookingContext | null | undefined,
   extracted: Partial<BookingContext> | null | undefined,
 ): BookingContext {
   const prev = previous || {};
-  const next: BookingContext = { ...prev };
+  let next: BookingContext = { ...prev };
   const isReset = (extracted as any)?._isReset === true;
+
+  // NOVA SESSÃO: novo serviço detectado (diferente do anterior) e sem confirmação pendente
+  const incomingService = extracted?.serviceId
+    ? `id:${extracted.serviceId}`
+    : extracted?.serviceText
+      ? `text:${String(extracted.serviceText).toLowerCase()}`
+      : null;
+  const previousService = prev.serviceId
+    ? `id:${prev.serviceId}`
+    : prev.serviceText
+      ? `text:${String(prev.serviceText).toLowerCase()}`
+      : null;
+  const startsNewSession =
+    isReset ||
+    !prev.bookingSessionId ||
+    (!!incomingService && incomingService !== previousService && prev.awaitingConfirmation !== true);
+
+  if (startsNewSession) {
+    next = startNewBookingSession(next);
+  }
   
   if (isReset) {
     console.log("[MERGE_DEBUG] Aplicando reset de contexto");
@@ -388,6 +438,7 @@ export function mergeBookingContext(
     next.serviceText = extracted?.serviceText ?? null;
     next.date = extracted?.date ?? null;
     next.period = extracted?.period ?? null;
+    next.periodSessionId = extracted?.period ? next.bookingSessionId ?? null : null;
     next.time = extracted?.time ?? null;
     next.selectedSlot = extracted?.selectedSlot ?? null;
     next.availableSlots = extracted?.availableSlots ?? [];
@@ -404,11 +455,19 @@ export function mergeBookingContext(
     (next as any)[key] = value;
   }
 
+  // Proveniência do período: só vale se informado nesta sessão
+  if (!EMPTY(extracted?.period)) {
+    next.periodSessionId = next.bookingSessionId ?? null;
+  } else if (next.periodSessionId !== next.bookingSessionId) {
+    next.period = null;
+    next.periodSessionId = null;
+  }
+
   next.subscriptionIntent = prev.subscriptionIntent === true || extracted?.subscriptionIntent === true;
   next.intent = extracted?.intent || prev.intent || null;
   
   // PRESERVE CANDIDATES during clarification
-  if (prev.clarificationRequired && !extracted?.serviceId && prev.candidates) {
+  if (!startsNewSession && prev.clarificationRequired && !extracted?.serviceId && prev.candidates) {
     next.candidates = prev.candidates;
     next.clarificationRequired = true;
   }
