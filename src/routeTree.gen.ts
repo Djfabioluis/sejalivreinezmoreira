@@ -34,6 +34,7 @@ import { Route as AuthenticatedAssinantesRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAprendizadoIaRouteImport } from './routes/_authenticated/aprendizado-ia'
 import { Route as AuthenticatedAgentesWhatsappRouteImport } from './routes/_authenticated/agentes-whatsapp'
 import { Route as AuthenticatedAgendarRouteImport } from './routes/_authenticated/agendar'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedAcessosRouteImport } from './routes/_authenticated/acessos'
 import { Route as Char91DotwellKnownChar93OauthProtectedResourceRouteImport } from './routes/[.well-known]/oauth-protected-resource'
 import { Route as Char91DotmcpChar93ListToolsRouteImport } from './routes/[.mcp]/list-tools'
@@ -182,6 +183,11 @@ const AuthenticatedAgendarRoute = AuthenticatedAgendarRouteImport.update({
   path: '/agendar',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAcessosRoute = AuthenticatedAcessosRouteImport.update({
   id: '/acessos',
   path: '/acessos',
@@ -285,6 +291,7 @@ export interface FileRoutesByFullPath {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/acessos': typeof AuthenticatedAcessosRoute
+  '/admin': typeof AuthenticatedAdminRoute
   '/agendar': typeof AuthenticatedAgendarRoute
   '/agentes-whatsapp': typeof AuthenticatedAgentesWhatsappRoute
   '/aprendizado-ia': typeof AuthenticatedAprendizadoIaRoute
@@ -328,6 +335,7 @@ export interface FileRoutesByTo {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/acessos': typeof AuthenticatedAcessosRoute
+  '/admin': typeof AuthenticatedAdminRoute
   '/agendar': typeof AuthenticatedAgendarRoute
   '/agentes-whatsapp': typeof AuthenticatedAgentesWhatsappRoute
   '/aprendizado-ia': typeof AuthenticatedAprendizadoIaRoute
@@ -373,6 +381,7 @@ export interface FileRoutesById {
   '/.mcp/list-tools': typeof Char91DotmcpChar93ListToolsRoute
   '/.well-known/oauth-protected-resource': typeof Char91DotwellKnownChar93OauthProtectedResourceRoute
   '/_authenticated/acessos': typeof AuthenticatedAcessosRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/agendar': typeof AuthenticatedAgendarRoute
   '/_authenticated/agentes-whatsapp': typeof AuthenticatedAgentesWhatsappRoute
   '/_authenticated/aprendizado-ia': typeof AuthenticatedAprendizadoIaRoute
@@ -418,6 +427,7 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/acessos'
+    | '/admin'
     | '/agendar'
     | '/agentes-whatsapp'
     | '/aprendizado-ia'
@@ -461,6 +471,7 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/acessos'
+    | '/admin'
     | '/agendar'
     | '/agentes-whatsapp'
     | '/aprendizado-ia'
@@ -505,6 +516,7 @@ export interface FileRouteTypes {
     | '/.mcp/list-tools'
     | '/.well-known/oauth-protected-resource'
     | '/_authenticated/acessos'
+    | '/_authenticated/admin'
     | '/_authenticated/agendar'
     | '/_authenticated/agentes-whatsapp'
     | '/_authenticated/aprendizado-ia'
@@ -744,6 +756,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAgendarRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/acessos': {
       id: '/_authenticated/acessos'
       path: '/acessos'
@@ -868,6 +887,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAcessosRoute: typeof AuthenticatedAcessosRoute
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedAgendarRoute: typeof AuthenticatedAgendarRoute
   AuthenticatedAgentesWhatsappRoute: typeof AuthenticatedAgentesWhatsappRoute
   AuthenticatedAprendizadoIaRoute: typeof AuthenticatedAprendizadoIaRoute
@@ -889,6 +909,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAcessosRoute: AuthenticatedAcessosRoute,
+  AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedAgendarRoute: AuthenticatedAgendarRoute,
   AuthenticatedAgentesWhatsappRoute: AuthenticatedAgentesWhatsappRoute,
   AuthenticatedAprendizadoIaRoute: AuthenticatedAprendizadoIaRoute,
