@@ -477,14 +477,50 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       }
     }
 
-    const extracted: any = extractBookingSlots(text, new Date(), previousContext);
-    const bookingContext = mergeBookingContext(previousContext, extracted);
+    // ============================================================
+    // PRIORIDADE ABSOLUTA: CONFIRMAÇÃO PENDENTE + INTENÇÃO AFIRMATIVA
+    // Um "sim" com confirmação pendente NUNCA pode cair em
+    // nextRequiredSlot / listSlots / Gemini.
+    // ============================================================
+    const pendingConfirmation =
+      previousContext.awaitingConfirmation === true ||
+      previousContext.appointmentStatus === "AWAITING_CONFIRMATION" ||
+      ((previousContext.appointmentStatus === "FAILED" ||
+        previousContext.appointmentStatus === "CREATING") &&
+        !!previousContext.selectedSlot);
+    const affirmativeIntent = isShortAffirmative(text);
+    const forceConfirmation = pendingConfirmation && affirmativeIntent && !!previousContext.selectedSlot;
+    trace?.record("CONFIRMATION_PRIORITY_EVALUATED", {
+      pendingConfirmation,
+      affirmativeIntent,
+      forceConfirmation,
+      stateBefore: previousContext.appointmentStatus,
+      selectedSlot: previousContext.selectedSlot,
+    });
+
+    const extracted: any = forceConfirmation ? {} : extractBookingSlots(text, new Date(), previousContext);
+    const bookingContext: any = forceConfirmation
+      ? { ...previousContext }
+      : mergeBookingContext(previousContext, extracted);
+
+    if (forceConfirmation) {
+      bookingContext.customerConfirmed = true;
+      bookingContext.awaitingConfirmation = false;
+      bookingContext.appointmentStatus = "CREATING";
+      trace?.record("CONFIRMATION_HANDLER_ENTERED", {
+        selectedSlot: bookingContext.selectedSlot,
+        serviceId: bookingContext.serviceId,
+        date: bookingContext.date,
+        skipNextRequiredSlot: true,
+        skipListSlots: true,
+      });
+    }
 
 
     // ============================================================
     // PRICE_INTENT — Alta prioridade (após cancelamento)
     // ============================================================
-    if (bookingContext.priceIntent && bookingContext.serviceText) {
+    if (!forceConfirmation && bookingContext.priceIntent && bookingContext.serviceText) {
       const { BempService } = await import("@/lib/bemp-service.server");
       const unitId = agent.unidade_id || bookingContext.unitId;
       
@@ -607,7 +643,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     // mergeBookingContext(previousContext, extracted) já foi chamado acima e resultou em bookingContext.
     
 
-    if (!bookingContext.serviceId && agent?.unidade_id && serviceSearchSource.length >= 3 && serviceSearchSource.length < 50) {
+    if (!forceConfirmation && !bookingContext.serviceId && agent?.unidade_id && serviceSearchSource.length >= 3 && serviceSearchSource.length < 50) {
       const { normalizeServiceSearchText } = await import("@/lib/service-utils");
       const normalizedText = normalizeServiceSearchText(serviceSearchSource);
       if (normalizedText && normalizedText.length >= 3) {
@@ -655,7 +691,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
 
     // SELEÇÃO DE PROFISSIONAL (turno seguinte à pergunta NEED_PROFESSIONAL)
-    if (!bookingContext.professionalId && bookingContext.professionalOptions?.length) {
+    if (!forceConfirmation && !bookingContext.professionalId && bookingContext.professionalOptions?.length) {
       const { matchProfessionalChoice, isAnyProfessionalChoice, isAnyProfessionalIndex } = await import("@/lib/booking/context");
       if (isAnyProfessionalChoice(text) || isAnyProfessionalIndex(text, bookingContext.professionalOptions)) {
         bookingContext.professionalPreference = "ANY";
@@ -677,11 +713,11 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     // FLOW CONTROL - Próximo passo (Requisito 5, 6, 7 e 8)
     // ============================================================
     
-    const nextSlot = nextRequiredSlot(bookingContext);
+    const nextSlot = forceConfirmation ? "create_appointment" : nextRequiredSlot(bookingContext);
     trace?.record("NEXT_SLOT_DETERMINED", { nextSlot, context: bookingContext });
 
     // Se o próximo passo for profissional, precisamos listar os profissionais.
-    if (nextSlot === "professional") {
+    if (!forceConfirmation && nextSlot === "professional") {
       const { BempService } = await import("@/lib/bemp-service.server");
       const { buildProfessionalQuestion } = await import("@/lib/booking/lifecycle");
       
@@ -710,7 +746,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     }
 
     // SAUDAÇÃO GENÉRICA: nunca continuar booking antigo automaticamente
-    const greetingOnly = isGenericGreeting(text);
+    const greetingOnly = !forceConfirmation && isGenericGreeting(text);
     if (greetingOnly) {
       const cleaned = clearTransientBooking(bookingContext);
       Object.assign(bookingContext, cleaned);
@@ -750,7 +786,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       slotJustSelected = true;
     } 
     
-    if (!slotJustSelected && !greetingOnly && bookingContext.availableSlots?.length && !bookingContext.selectedSlot) {
+    if (!forceConfirmation && !slotJustSelected && !greetingOnly && bookingContext.availableSlots?.length && !bookingContext.selectedSlot) {
       const { slotLocalTime, filterSlotsByLocalDate } = await import("@/lib/booking/slot-time");
       const dateScopedSlots = filterSlotsByLocalDate(bookingContext.availableSlots, bookingContext.date);
       
@@ -1072,7 +1108,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
     trace?.record("BOOKING_CONTEXT_MERGED");
 
-    let requiredSlot = nextRequiredSlot(bookingContext);
+    let requiredSlot = forceConfirmation ? "create_appointment" : nextRequiredSlot(bookingContext);
     trace?.record("NEXT_REQUIRED_SLOT", { slot: requiredSlot });
 
     await patchCustomerContext(finalKey, {
@@ -1128,7 +1164,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       trace?.record("NEXT_REQUIRED_SLOT_RECALCULATED", { slot: requiredSlot });
     }
 
-    if (!greetingOnly && requiredSlot === "professional" && bookingContext.unitId && bookingContext.serviceId) {
+    if (!forceConfirmation && !greetingOnly && requiredSlot === "professional" && bookingContext.unitId && bookingContext.serviceId) {
       trace?.record("NEED_PROFESSIONAL", { serviceId: bookingContext.serviceId, date: bookingContext.date });
       const { BempService } = await import("@/lib/bemp-service.server");
       const { buildProfessionalQuestion } = await import("@/lib/booking/lifecycle");
@@ -1179,7 +1215,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     // MÁQUINA DE ESTADOS: Se period está preenchido mas disponibilidade ainda é necessária,
     // disparar list_slots automaticamente.
     const { hasCurrentSessionPeriod } = await import("@/lib/booking/context");
-    if (!greetingOnly && requiredSlot === "availability" && hasCurrentSessionPeriod(bookingContext) && !bookingContext.time && !bookingContext.selectedSlot) {
+    if (!forceConfirmation && !greetingOnly && requiredSlot === "availability" && hasCurrentSessionPeriod(bookingContext) && !bookingContext.time && !bookingContext.selectedSlot) {
       trace?.record("AUTO_LIST_SLOTS_TRIGGERED", { period: bookingContext.period });
       
       const { BempService } = await import("@/lib/bemp-service.server");
