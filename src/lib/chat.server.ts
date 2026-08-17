@@ -568,14 +568,14 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
     
     if (finalResponse.trim()) {
       await replyWithAI({
-        instance: instanceId,
-        phone: remoteJid,
-        text: finalResponse,
-        conversationKey,
+        instance: instanceId as string,
+        phone: remoteJid as string,
+        text: finalResponse as string,
+        conversationKey: conversationKey as string,
         messageId: (opts.messages?.[opts.messages.length - 1]?.id as string) || `ai-${Date.now()}`,
-        unitId: effectiveUnitId,
+        unitId: (effectiveUnitId as string) || null,
         _trace: (opts as any)._trace
-      }, traceId);
+      }, traceId as string);
     }
   }
 
