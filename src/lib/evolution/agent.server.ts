@@ -836,8 +836,8 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
        const idempotencyKey = `${finalKey}:${bookingContext.serviceId}:${bookingContext.selectedSlot || bookingContext.time}`;
        const { replyWithAI } = await import("./reply.server");
        const { formatBookingDate } = await import("@/lib/booking/lifecycle");
-       const { clearTransientBooking } = await import("@/lib/booking/context");
-       const { claimResponseSlot } = await import("./reply.server");
+        const { clearTransientBooking } = await import("@/lib/booking/context");
+
 
 
        if (bookingContext.appointmentId) {
@@ -980,8 +980,9 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
             // PONTO DE SINCRONIZAÇÃO: Antes de enviar a resposta final, marcamos que o agendamento foi CONCLUÍDO.
             // Isso previne que qualquer re-processamento da mensagem "Sim" tente criar novamente
             // ou enviar confirmações duplicadas.
-            const cleared = clearTransientBooking(bookingContext);
-            Object.assign(bookingContext, cleared, {
+            const clearedBooking = clearTransientBooking(bookingContext);
+            Object.assign(bookingContext, clearedBooking, {
+
               appointmentStatus: "CONFIRMED",
               appointmentId: String(apptId),
               customerConfirmed: false,
@@ -1013,8 +1014,9 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
             // Limpeza atômica e terminal: o agendamento foi concluído.
             // Transição para CONFIRMED reseta os seletores para não repetir confirmações.
-            const cleared = clearTransientBooking(bookingContext);
-            Object.assign(bookingContext, cleared, {
+            const clearedFail = clearTransientBooking(bookingContext);
+            Object.assign(bookingContext, clearedFail, {
+
               appointmentStatus: "CONFIRMED",
               appointmentId: String(apptId),
               customerConfirmed: false,
