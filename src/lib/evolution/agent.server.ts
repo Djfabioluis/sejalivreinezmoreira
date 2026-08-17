@@ -732,38 +732,40 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
     // MÁQUINA DE ESTADOS DETERMINÍSTICA - SELEÇÃO DE HORÁRIO
     let slotJustSelected = false;
-    if (!greetingOnly && bookingContext.availableSlots?.length && !bookingContext.selectedSlot) {
+    
+    // Se a extração aprimorada em extractBookingSlots já preencheu selectedSlot nesta mensagem
+    if (extracted?.selectedSlot) {
+      bookingContext.selectedSlot = extracted.selectedSlot;
+      const { slotLocalTime } = await import("@/lib/booking/slot-time");
+      bookingContext.time = slotLocalTime(extracted.selectedSlot) || bookingContext.time;
+      slotJustSelected = true;
+    } 
+    
+    if (!slotJustSelected && !greetingOnly && bookingContext.availableSlots?.length && !bookingContext.selectedSlot) {
       const { slotLocalTime, filterSlotsByLocalDate } = await import("@/lib/booking/slot-time");
       const dateScopedSlots = filterSlotsByLocalDate(bookingContext.availableSlots, bookingContext.date);
       
-      // A extração aprimorada em extractBookingSlots já preencheu selectedSlot se houver match exato
-      // Aqui apenas confirmamos ou tentamos match de fallback por texto (mantido para compatibilidade)
-      if (extracted?.selectedSlot) {
-        bookingContext.selectedSlot = extracted.selectedSlot;
-        bookingContext.time = slotLocalTime(extracted.selectedSlot) || bookingContext.time;
+      const selected = dateScopedSlots.find(s => {
+        const hhmm = slotLocalTime(s);
+        if (!hhmm) return false;
+        if (bookingContext.time === hhmm) return true;
+        return text.toLowerCase().includes(hhmm);
+      });
+
+      if (selected) {
+        bookingContext.selectedSlot = selected;
+        bookingContext.time = slotLocalTime(selected) || bookingContext.time || null;
         slotJustSelected = true;
-      } else {
-        const selected = dateScopedSlots.find(s => {
-          const hhmm = slotLocalTime(s);
-          if (!hhmm) return false;
-          if (bookingContext.time === hhmm) return true;
-          return text.toLowerCase().includes(hhmm);
-        });
-
-        if (selected) {
-          bookingContext.selectedSlot = selected;
-          bookingContext.time = slotLocalTime(selected) || bookingContext.time || null;
-          slotJustSelected = true;
-        }
-      }
-
-      if (slotJustSelected) {
-        bookingContext.appointmentStatus = "AWAITING_CONFIRMATION";
-        bookingContext.awaitingConfirmation = true;
-        bookingContext.customerConfirmed = false;
-        trace?.record("BOOKING_SLOT_SELECTED", { slot: bookingContext.selectedSlot, time: bookingContext.time });
       }
     }
+
+    if (slotJustSelected) {
+      bookingContext.appointmentStatus = "AWAITING_CONFIRMATION";
+      bookingContext.awaitingConfirmation = true;
+      bookingContext.customerConfirmed = false;
+      trace?.record("BOOKING_SLOT_SELECTED", { slot: bookingContext.selectedSlot, time: bookingContext.time });
+    }
+
 
     if (agent.unidade_id) bookingContext.unitId = String(agent.unidade_id);
 
