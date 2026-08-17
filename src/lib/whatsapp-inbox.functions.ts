@@ -300,3 +300,10 @@ export const transferConversationUnit = createServerFn({ method: "POST" })
     return result;
   });
 
+
+export const getUnitNameMap = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async () => {
+    const { fetchUnitNameMap } = await import("@/lib/units.server");
+    return fetchUnitNameMap();
+  });
