@@ -2,6 +2,7 @@
  * Orquestração do cancelamento (fluxo em andamento OU agendamento confirmado na BEMP).
  * Lógica isolada e testável — a BEMP entra por injeção de dependência.
  */
+import { logger } from "@/lib/observability/logger.server";
 import {
   detectCancelIntent,
   hasBookingInProgress,
