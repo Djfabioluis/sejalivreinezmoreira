@@ -1,4 +1,6 @@
+import { describe, it, expect } from 'vitest';
 import { BookingContext, extractBookingSlots } from '../context';
+
 
 describe('Booking Session Reset - Structural Regression', () => {
   it('should reset session when a new booking intent is detected during AWAITING_CONFIRMATION', () => {
