@@ -398,11 +398,12 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
     const extracted: any = extractBookingSlots(text);
 
-    // BEMP proativo - OTIMIZADO: Somente se o texto parecer um serviço e não tivermos no contexto
-    if (!previousContext.serviceId && agent?.unidade_id && text.length > 3 && text.length < 50) {
+    // BEMP proativo - usa o termo CANÔNICO normalizado (ex.: "Mao" -> "manicure")
+    const serviceSearchSource: string = extracted?.serviceText || text;
+    if (!previousContext.serviceId && agent?.unidade_id && serviceSearchSource.length >= 3 && serviceSearchSource.length < 50) {
       const { normalizeServiceSearchText } = await import("@/lib/service-utils");
-      const normalizedText = normalizeServiceSearchText(text);
-      if (normalizedText && normalizedText.length > 3) {
+      const normalizedText = normalizeServiceSearchText(serviceSearchSource);
+      if (normalizedText && normalizedText.length >= 3) {
         trace?.record("BEMP_SERVICE_LOOKUP_STARTED");
         const { BempService } = await import("@/lib/bemp-service.server");
         try {
