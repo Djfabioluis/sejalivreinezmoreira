@@ -12,6 +12,9 @@ export function getDeterministicResponse(ctx: BookingContext): string | null {
       return "Qual serviço você gostaria de fazer? 💜";
     case "date":
       return "Qual dia você prefere? 💜";
+    case "professional":
+      // O agente carrega os profissionais REAIS da BEMP e monta a pergunta.
+      return null;
     case "availability":
       if (ctx.period && !ctx.time && !ctx.selectedSlot) {
         // Se o período já está preenchido, não repetimos a pergunta genérica.
@@ -46,18 +49,36 @@ function confirmationDate(ctx: BookingContext): string {
   return m ? formatBookingDate(m[1]) : "";
 }
 
+export function professionalLabel(ctx: BookingContext): string {
+  if (ctx.professionalName) return String(ctx.professionalName);
+  if (ctx.professionalId) return String(ctx.professionalId);
+  if (ctx.professionalPreference === "ANY") return "qualquer profissional disponível";
+  return "";
+}
+
 export function buildConfirmationMessage(ctx: BookingContext): string {
+  const professional = professionalLabel(ctx);
   const lines = [
     "Perfeito! 💜",
     "",
     "Confirma seu agendamento?",
     `Serviço: ${ctx.serviceName ?? ctx.serviceText ?? ""}`.trimEnd(),
+    ...(professional ? [`Profissional: ${professional}`] : []),
     `Data: ${confirmationDate(ctx)}`,
     `Horário: ${ctx.time ?? ""}`.trimEnd(),
     "",
     "Posso confirmar?",
   ];
   return lines.join("\n");
+}
+
+/** Pergunta determinística de profissional, com nomes REAIS da BEMP. */
+export function buildProfessionalQuestion(options: Array<{ id: string; name: string }>): string {
+  if (!options.length) {
+    return "Com qual profissional você gostaria de fazer? 💜 Posso verificar quem está disponível?";
+  }
+  const list = options.map((o, i) => `${i + 1}. ${o.name}`).join("\n");
+  return `Com qual profissional você gostaria de fazer? 💜\n\n${list}\n${options.length + 1}. Qualquer profissional disponível`;
 }
 
 /** Relembra a confirmação pendente (ex.: cliente enviou "?"). */
@@ -79,6 +100,8 @@ export function getFallbackResponse(ctx: BookingContext): string {
       return "Para te ajudar melhor, qual serviço você gostaria de agendar hoje? 💜";
     case "date":
       return "Perfeito! E para qual dia você prefere o seu agendamento? 💜";
+    case "professional":
+      return "Com qual profissional você gostaria de fazer? 💜";
     case "availability":
       return "Vou verificar as opções para você! Você prefere um horário pela manhã, tarde ou noite? ✨";
     case "confirmation":
