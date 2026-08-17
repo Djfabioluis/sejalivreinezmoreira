@@ -1,4 +1,5 @@
 import { logEvent } from "../evolution/logger.server";
+import { getLocalBookingDate, addLocalDays, localWeekday } from "./local-date";
 
 /**
  * Contexto determinístico de agendamento (slot filling + merge persistente).
@@ -86,16 +87,6 @@ const WEEKDAYS: Array<{ re: RegExp; index: number }> = [
   { re: /\bs[áa]bado\b/i, index: 6 },
 ];
 
-function isoDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
-function addDays(base: Date, days: number): Date {
-  const d = new Date(base.getTime());
-  d.setDate(d.getDate() + days);
-  return d;
-}
-
 const SERVICE_PATTERNS: Array<{ re: RegExp; name: string }> = [
   { re: /\bp[ée]\s+e\s+m[ãa]o\b/i, name: "pé e mão" },
   { re: /\b(?:manicure|unha\s+da\s+m[ãa]o|fazer\s+a(?:s)?\s+m[ãa]o(?:s)?|fazer\s+m[ãa]o(?:s)?|servi[çc]o\s+de\s+m[ãa]o|m[ãa]o|mao)\b/i, name: "manicure" },
@@ -172,13 +163,13 @@ export function extractBookingSlots(
 
   // --- Data ---
   if (/\bhoje\b/i.test(t)) {
-    out.date = isoDate(now);
+    out.date = getLocalBookingDate(now);
     logEvent({ instance: 'unknown', event: 'DATE_RESOLVED', status: 'success', payload: { input: 'hoje', resolved: out.date } }).catch(() => {});
   } else if (/depois\s+de\s+amanh[ãa]/i.test(t)) {
-    out.date = isoDate(addDays(now, 2));
+    out.date = addLocalDays(getLocalBookingDate(now), 2);
     logEvent({ instance: 'unknown', event: 'DATE_RESOLVED', status: 'success', payload: { input: 'depois de amanhã', resolved: out.date } }).catch(() => {});
   } else if (/amanh[ãa]/i.test(t)) {
-    out.date = isoDate(addDays(now, 1));
+    out.date = addLocalDays(getLocalBookingDate(now), 1);
     logEvent({ instance: 'unknown', event: 'DATE_RESOLVED', status: 'success', payload: { input: 'amanhã', resolved: out.date } }).catch(() => {});
   } else {
     // Tenta data no formato DD/MM
@@ -186,7 +177,7 @@ export function extractBookingSlots(
     if (dm) {
       const day = Number(dm[1]);
       const month = Number(dm[2]);
-      const year = dm[3] ? Number(dm[3].length === 2 ? `20${dm[3]}` : dm[3]) : now.getFullYear();
+      const year = dm[3] ? Number(dm[3].length === 2 ? `20${dm[3]}` : dm[3]) : Number(getLocalBookingDate(now).slice(0, 4));
       if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
         out.date = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
       }
@@ -194,11 +185,12 @@ export function extractBookingSlots(
       // Tenta dias da semana
       const wd = WEEKDAYS.find((w) => w.re.test(t));
       if (wd) {
-        const todayIdx = now.getDay();
+        const todayLocal = getLocalBookingDate(now);
+        const todayIdx = localWeekday(todayLocal);
         const targetIdx = wd.index;
         let diff = (targetIdx - todayIdx + 7) % 7;
         if (diff === 0 && !/\bhoje\b/i.test(t)) diff = 7;
-        out.date = isoDate(addDays(now, diff));
+        out.date = addLocalDays(todayLocal, diff);
       }
     }
   }

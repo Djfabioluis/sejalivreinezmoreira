@@ -39,13 +39,20 @@ export function formatBookingDate(date?: string | null): string {
 }
 
 /** Mensagem determinística de confirmação após o cliente escolher um horário. */
+function confirmationDate(ctx: BookingContext): string {
+  if (ctx.date) return formatBookingDate(ctx.date);
+  const raw = typeof ctx.selectedSlot === "string" ? ctx.selectedSlot : "";
+  const m = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+  return m ? formatBookingDate(m[1]) : "";
+}
+
 export function buildConfirmationMessage(ctx: BookingContext): string {
   const lines = [
     "Perfeito! 💜",
     "",
     "Confirma seu agendamento?",
     `Serviço: ${ctx.serviceName ?? ctx.serviceText ?? ""}`.trimEnd(),
-    `Data: ${formatBookingDate(ctx.date)}`,
+    `Data: ${confirmationDate(ctx)}`,
     `Horário: ${ctx.time ?? ""}`.trimEnd(),
     "",
     "Posso confirmar?",
@@ -56,7 +63,7 @@ export function buildConfirmationMessage(ctx: BookingContext): string {
 /** Relembra a confirmação pendente (ex.: cliente enviou "?"). */
 export function buildPendingConfirmationReminder(ctx: BookingContext): string {
   const service = ctx.serviceName ?? ctx.serviceText ?? "seu atendimento";
-  const date = formatBookingDate(ctx.date);
+  const date = confirmationDate(ctx);
   const time = ctx.time ?? "";
   return `Estamos quase lá 💜\n\nDeseja confirmar ${service}${date ? ` em ${date}` : ""}${time ? ` às ${time}` : ""}?`;
 }

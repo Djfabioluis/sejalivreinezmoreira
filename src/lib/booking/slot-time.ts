@@ -110,3 +110,27 @@ export function findSlotByTime(slots: unknown[], hhmm: string): string | null {
   }
   return null;
 }
+
+/** Data de calendário LOCAL (YYYY-MM-DD) do slot, sem conversão para UTC. */
+export function slotLocalDate(slot: unknown): string | null {
+  const raw = slotStart(slot);
+  if (!raw) return null;
+  const m = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+  if (m && (/[+-]\d{2}:\d{2}$/.test(raw) || !/Z$/.test(raw))) return m[1];
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return m ? m[1] : null;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(d);
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
+/** Mantém apenas slots cuja data local seja exatamente a data escolhida. */
+export function filterSlotsByLocalDate<T>(slots: T[], date: string | null | undefined): T[] {
+  if (!date) return slots;
+  return slots.filter((s) => {
+    const d = slotLocalDate(s);
+    return !d || d === date;
+  });
+}
