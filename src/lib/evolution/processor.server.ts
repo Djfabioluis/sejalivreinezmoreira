@@ -17,7 +17,7 @@ export function isFromMe(value: unknown): boolean {
  * Orquestrador principal para eventos de mensagens (messages.upsert)
  */
 export async function processMessagesUpsert(payload: any, requestUrl: string) {
-  const instance = payload.instance || payload.instanceName || "unknown";
+  const instance = payload.instance || payload.instanceName || (payload.data && payload.data.instance) || "unknown";
 
   // 1. Normalização (Rápida)
   const messages = normalizeEvolutionMessages(payload, requestUrl);
@@ -521,7 +521,7 @@ source: ${identity.identitySource}`);
  * Orquestrador para atualizações de conexão
  */
 export async function processConnectionUpdate(payload: any) {
-  const instance = payload.instance || payload.instanceName || "unknown";
+  const instance = payload.instance || payload.instanceName || (payload.data && payload.data.instance) || "unknown";
   const state = payload.data?.status || payload.data?.state || "updated";
   const phoneNumber = payload.data?.number || payload.data?.phone || null;
   

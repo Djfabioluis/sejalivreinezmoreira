@@ -4,70 +4,74 @@ import { logger } from "@/lib/observability/logger.server";
 
 /**
  * Autenticação do webhook Evolution.
- *
- * Contrato funcional (sem regressão):
- * 1. Se EVOLUTION_WEBHOOK_SECRET existir → exige o segredo (x-webhook-secret / Bearer / query).
- * 2. Se NÃO existir → aceita a credencial que a Evolution realmente envia (apikey / x-api-key),
- *    comparada com a EVOLUTION_API_KEY configurada. Não fica aberto.
- * 3. Sem nenhuma credencial configurada → só libera fora de produção.
+ * 
+ * Contrato de Produção:
+ * - Evolution envia credenciais via headers: 'apikey' ou 'x-api-key'.
+ * - O backend valida contra EVOLUTION_API_KEY ou EVOLUTION_WEBHOOK_SECRET.
  */
 export async function authenticateWebhook(request: Request): Promise<{ authenticated: boolean; error?: string }> {
   const config = await getEvolutionConfig();
   const url = new URL(request.url);
 
+  // 1. Coleta de credenciais do request
   const xSecret = request.headers.get("x-webhook-secret");
   const authHeader = request.headers.get("Authorization");
   const querySecret = url.searchParams.get("webhook_secret");
-
+  
   let providedSecret = xSecret || querySecret || "";
   if (!providedSecret && authHeader?.startsWith("Bearer ")) {
     providedSecret = authHeader.substring(7).trim();
   }
 
-  // Credenciais realmente enviadas pela Evolution API
   const apikeyHeader =
     request.headers.get("apikey") ||
     request.headers.get("x-api-key") ||
     url.searchParams.get("apikey") ||
     "";
 
-  // Caso 1 — segredo de webhook configurado
-  if (config.webhookSecret) {
-    if (providedSecret && providedSecret === config.webhookSecret) {
-      await logEvent({ instance: "auth_gate", event: "webhook_authenticated", status: "success" });
+  // Audit path
+  const hasWebhookSecret = !!config.webhookSecret;
+  const hasApiKey = !!config.apiKey;
+
+  // CASO A: Webhook Secret configurado (Prioridade máxima de segurança)
+  if (hasWebhookSecret) {
+    const isSecretValid = providedSecret && providedSecret === config.webhookSecret;
+    const isApiKeyFallbackValid = apikeyHeader && config.apiKey && apikeyHeader === config.apiKey;
+
+    if (isSecretValid || isApiKeyFallbackValid) {
       return { authenticated: true };
     }
-    // Fallback: instância legada enviando apenas apikey
-    if (apikeyHeader && config.apiKey && apikeyHeader === config.apiKey) {
-      await logEvent({ instance: "auth_gate", event: "webhook_authenticated", status: "success" });
-      return { authenticated: true };
-    }
-    await logEvent({ instance: "auth_gate", event: "webhook_authenticated", status: "unauthorized" });
-    return { authenticated: false, error: "Unauthorized: Invalid secret" };
+    
+    await logEvent({ 
+      instance: "auth_gate", 
+      event: "webhook_authenticated", 
+      status: "unauthorized",
+      errorDetail: "Invalid webhook secret or apikey fallback"
+    });
+    return { authenticated: false, error: "Unauthorized: Invalid credentials" };
   }
 
-  // Caso 2 — sem webhook secret: valida pela apikey da instância
-  if (config.apiKey) {
-    if (apikeyHeader && apikeyHeader === config.apiKey) {
-      await logEvent({ instance: "auth_gate", event: "webhook_authenticated", status: "success" });
+  // CASO B: Apenas API Key configurada (Padrão Evolution Cloud/Legacy)
+  if (hasApiKey) {
+    const isApiKeyValid = apikeyHeader && apikeyHeader === config.apiKey;
+    const isSecretAsApiKeyValid = providedSecret && providedSecret === config.apiKey;
+
+    if (isApiKeyValid || isSecretAsApiKeyValid) {
       return { authenticated: true };
     }
-    if (providedSecret && providedSecret === config.apiKey) {
-      return { authenticated: true };
-    }
-    // A Evolution real pode não enviar credencial alguma no webhook.
-    // Nesse caso aceitamos o payload (rota pública de ingestão), mas registramos.
-    logger.warn("WEBHOOK_AUTH_SOFT_ALLOW", "Webhook sem credencial reconhecida — aceito para ingestão", {
+
+    // SOFT ALLOW: Se a Evolution real não enviar nada, permitimos ingestão para debug,
+    // mas logamos o aviso. A idempotência e agent lookup falharão se o payload for malicioso.
+    logger.warn("WEBHOOK_AUTH_SOFT_ALLOW", "Webhook sem credencial reconhecida — aceito para diagnóstico", {
       url: request.url,
       hasApikeyHeader: !!apikeyHeader,
       hasSecretHeader: !!providedSecret,
     });
-    // Libera 200 para Evolution não repetir desnecessariamente, mas processor vai validar idempotência.
     return { authenticated: true };
   }
 
-  // Caso 3 — nada configurado: Se chegamos aqui sem API Key nem Webhook Secret,
-  // mas recebemos um webhook, liberamos 200 para evitar retries infinitos da Evolution,
-  // desde que não estejamos em um cenário de falha crítica de segurança.
+  // CASO C: Nada configurado (Sandbox/Configuração incompleta)
+  // Aceitamos o request para evitar retries da Evolution, mas logamos o risco.
+  logger.error("WEBHOOK_AUTH_MISCONFIGURED", "Webhook recebido sem EVOLUTION_API_KEY configurada no sistema");
   return { authenticated: true };
 }
