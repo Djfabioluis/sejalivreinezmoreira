@@ -4,7 +4,7 @@ import { formatBookingDate } from "../lifecycle";
 
 describe("confirmação final", () => {
   it("detecta variações afirmativas", () => {
-    for (const t of ["Sim", "sim", "SIM", "confirmo", "pode confirmar", "pode", "ok", "pode agendar", "Sim, por favor"]) {
+    for (const t of ["Sim", " sim ", "SIM", "confirmo", "confirmar", "pode confirmar", "pode", "ok", "pode agendar", "Sim, por favor", "É isso"]) {
       expect(isShortAffirmative(t)).toBe(true);
     }
     expect(isShortAffirmative("quero remarcar amanhã")).toBe(false);
