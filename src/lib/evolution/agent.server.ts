@@ -818,7 +818,8 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     const confirmationKey = `${bookingContext.date ?? ""}T${bookingContext.time ?? ""}`;
     const alreadySent = (bookingContext as any).confirmationSentFor === confirmationKey;
     
-    if ((slotJustSelected || bookingContext.selectedSlot) && !alreadySent && bookingContext.appointmentStatus === "AWAITING_CONFIRMATION") {
+    // Se acabamos de confirmar ou já tínhamos o status AWAITING_CONFIRMATION sem o ID de sucesso ainda, perguntamos.
+    if ((slotJustSelected || bookingContext.selectedSlot) && !alreadySent && bookingContext.appointmentStatus === "AWAITING_CONFIRMATION" && !bookingContext.appointmentId) {
       (bookingContext as any).confirmationSentFor = confirmationKey;
       const { buildConfirmationMessage } = await import("@/lib/booking/lifecycle");
       const confirmText = buildConfirmationMessage(bookingContext);
@@ -826,6 +827,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       trace?.record("CONFIRMATION_MESSAGE_PREPARED", { confirmationKey, textSnippet: confirmText.slice(0, 50) });
       
       await patchCustomerContext(finalKey, { bookingContext });
+
 
       const { replyWithAI } = await import("./reply.server");
       await replyWithAI({
