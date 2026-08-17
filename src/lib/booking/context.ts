@@ -343,10 +343,19 @@ export function extractBookingSlots(
   }
 
   // --- Horário ---
-  const timeMatch = t.match(/\b([01]?\d|2[0-3])\s*(?::|h|hs|horas?)\s*([0-5]\d)?\b/i);
+  // Normalização agressiva para capturar horas da mensagem
+  const normalizedTextForTime = t
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // Pattern para capturar horários explícitos (18:00, 18h, 18:40, 18 horas)
+  const timeMatch = normalizedTextForTime.match(/\b([01]?\d|2[0-3])\s*(?::|h|hs|horas?)\s*([0-5]\d)?\b/i);
   
-  // Normalização agressiva para "as 18", "as 18h", "às 18", etc.
-  const naturalTimeMatch = t.match(/(?:^|\s)(?:as|às|a|o|quero|pode\s+ser\s+as|pode\s+ser\s+às|quero\s+o\s+das)\s*(\d{1,2})(?:\s*h\s*)?$/i);
+  // Pattern para frases naturais ("as 18", "quero o das 18", "pode ser 18")
+  const naturalTimeMatch = normalizedTextForTime.match(/(?:^|\s)(?:as|a|o|quero|pode\s+ser\s+as|pode\s+ser\s+o\s+das|quero\s+o\s+das)\s*(\d{1,2})(?:\s*h\s*)?$/i);
   
   if (timeMatch || naturalTimeMatch) {
     const match = timeMatch || naturalTimeMatch;
@@ -356,37 +365,44 @@ export function extractBookingSlots(
     
     // Validação contra slots reais se existirem no previous
     if (previous?.availableSlots?.length) {
-      // Priorizar HH:00 quando o cliente diz apenas a hora
       const exactHour = `${hh}:00`;
       const hourSlots = previous.availableSlots.filter(s => {
         const slotTime = s.includes('T') ? s.split('T')[1].slice(0, 5) : s.slice(0, 5);
         return slotTime.startsWith(hh);
       });
 
-      const bestMatch = hourSlots.find(s => {
-        const slotTime = s.includes('T') ? s.split('T')[1].slice(0, 5) : s.slice(0, 5);
-        return slotTime === parsedTime;
-      }) || (mm === "00" ? hourSlots.find(s => {
-        const slotTime = s.includes('T') ? s.split('T')[1].slice(0, 5) : s.slice(0, 5);
-        return slotTime === exactHour;
-      }) : null);
+      // Regra: se o cliente disse apenas a hora (mm=00), priorizar match exato HH:00
+      let bestMatch = null;
+      if (mm === "00") {
+        bestMatch = hourSlots.find(s => {
+          const slotTime = s.includes('T') ? s.split('T')[1].slice(0, 5) : s.slice(0, 5);
+          return slotTime === exactHour;
+        });
+      }
+
+      // Se não achou match exato de hora cheia, ou se mm != 00, procura o parsedTime exato
+      if (!bestMatch) {
+        bestMatch = hourSlots.find(s => {
+          const slotTime = s.includes('T') ? s.split('T')[1].slice(0, 5) : s.slice(0, 5);
+          return slotTime === parsedTime;
+        });
+      }
       
       if (bestMatch) {
         out.selectedSlot = bestMatch;
         out.time = bestMatch.includes('T') ? bestMatch.split('T')[1].slice(0, 5) : bestMatch.slice(0, 5);
       } else {
-        // Se não for válido mas parece um horário, salvamos o time para permitir diálogo
         out.time = parsedTime;
       }
     } else {
       out.time = parsedTime;
     }
   } else {
-    // Tenta capturar apenas o número se for curto e parecer um horário (ex: "14", "14h")
-    const hourOnlyMatch = t.match(/^\s*(\d{1,2})(?:\s*h\s*)?\s*$/i);
+    // Tenta capturar apenas o número se a mensagem for curta (ex: "18")
+    const hourOnlyMatch = normalizedTextForTime.match(/^\s*(\d{1,2})(?:\s*h\s*)?\s*$/i);
     if (hourOnlyMatch) {
       const h = Number(hourOnlyMatch[1]);
-      if (h >= 7 && h <= 21) {
+      if (h >= 7 && h <= 22) {
         const hh = String(h).padStart(2, "0");
         const parsedTime = `${hh}:00`;
         
