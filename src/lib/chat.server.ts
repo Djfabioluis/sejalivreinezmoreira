@@ -329,7 +329,7 @@ export async function streamAgent(opts: { messages: any[]; sandbox?: boolean }) 
   return streamText({
     model,
     system: DEFAULT_SYSTEM_PROMPT + (opts.sandbox ? SANDBOX_NOTE : ""),
-    messages: convertToModelMessages(opts.messages),
+    messages: await convertToModelMessages(opts.messages),
     maxSteps: 5,
   } as any);
 }
@@ -543,7 +543,7 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
   const result = await generateText({
     model,
     system: systemPrompt + (sandbox ? SANDBOX_NOTE : ""),
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
     tools: buildTools(!!sandbox, effectiveUnitId, conversationKey, bookingContext.subscriptionIntent, traceId, bookingContext),
     maxSteps: 5,
   } as any);
