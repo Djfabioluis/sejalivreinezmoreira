@@ -158,23 +158,27 @@ export function extractBookingSlots(
   const t = text.trim();
 
   // RESET LOGIC: Se houver uma nova intenção clara de agendamento e já tivermos um booking confirmado/falho, limpamos.
-  const isNewBookingIntent = /\b(?:quero|preciso|gostaria|agendar|marcar|fazer|hoje|amanh[ãa])\b/i.test(t) && 
+  // Expandido para capturar mais variações naturais que indicam um novo pedido.
+  const isNewBookingIntent = /\b(?:quero|preciso|gostaria|agendar|marcar|fazer|hoje|amanh[ãa]|queria|tem|horario|vaga|reservar|consulta)\b/i.test(t) && 
                             SERVICE_PATTERNS.some(p => p.re.test(t));
   
   const isSessionReset = isNewBookingIntent && previous && (
     previous.appointmentStatus === "CONFIRMED" || 
     previous.appointmentStatus === "FAILED" ||
+    (previous.appointmentStatus as string) === "AWAITING_CONFIRMATION" ||
     (previous.date && previous.appointmentStatus === "NONE" && !previous.awaitingConfirmation) ||
-    (previous.selectedSlot && previous.appointmentStatus === "AWAITING_CONFIRMATION")
+    (previous.selectedSlot && (previous.appointmentStatus as string) === "AWAITING_CONFIRMATION")
   );
 
-
   if (isSessionReset) {
+    out._isReset = true; // Flag interna para log/trace
     // Preservar apenas identidade e saudação
     out.unitId = previous.unitId;
     out.conversationGreeted = previous.conversationGreeted;
+
     out.intent = null;
     out.serviceId = null;
+
     out.serviceName = null;
     out.serviceText = null;
     out.date = null;

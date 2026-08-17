@@ -818,7 +818,8 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     const confirmationKey = `${bookingContext.date ?? ""}T${bookingContext.time ?? ""}`;
     const alreadySent = (bookingContext as any).confirmationSentFor === confirmationKey;
     
-    if ((slotJustSelected || bookingContext.selectedSlot) && !alreadySent && bookingContext.appointmentStatus === "AWAITING_CONFIRMATION") {
+    // Se acabamos de confirmar ou já tínhamos o status AWAITING_CONFIRMATION sem o ID de sucesso ainda, perguntamos.
+    if ((slotJustSelected || bookingContext.selectedSlot) && !alreadySent && bookingContext.appointmentStatus === "AWAITING_CONFIRMATION" && !bookingContext.appointmentId) {
       (bookingContext as any).confirmationSentFor = confirmationKey;
       const { buildConfirmationMessage } = await import("@/lib/booking/lifecycle");
       const confirmText = buildConfirmationMessage(bookingContext);
@@ -826,6 +827,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       trace?.record("CONFIRMATION_MESSAGE_PREPARED", { confirmationKey, textSnippet: confirmText.slice(0, 50) });
       
       await patchCustomerContext(finalKey, { bookingContext });
+
 
       const { replyWithAI } = await import("./reply.server");
       await replyWithAI({
@@ -845,9 +847,13 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
 
     // AGUARDANDO CONFIRMAÇÃO: qualquer mensagem não afirmativa (ex.: "?") recebe lembrete
+    // Mas se for uma NOVA intenção de agendamento, o lembrete é suprimido para priorizar o novo pedido.
     if (
       !greetingOnly &&
+      !(extracted as any)?._isReset &&
       bookingContext.appointmentStatus === "AWAITING_CONFIRMATION" &&
+
+
       bookingContext.customerConfirmed !== true &&
       bookingContext.selectedSlot &&
       !isShortAffirmative(text)
@@ -1029,15 +1035,18 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
             trace?.record("BOOKING_CREATE_SUCCESS", { appointmentId: apptId });
             
             // Persistir IMEDIATAMENTE antes de responder
+            // Ao marcar como CONFIRMED, os transient fields são limpos via clearTransientBooking
             const clearedBooking = clearTransientBooking(bookingContext);
             Object.assign(bookingContext, clearedBooking, {
               appointmentStatus: "CONFIRMED",
               appointmentId: String(apptId),
+              appointment_confirmed_at: new Date().toISOString(),
               customerConfirmed: false,
               awaitingConfirmation: false,
               selectedSlot: null,
               time: null,
             });
+
             (bookingContext as any).createBookingKey = null;
             (bookingContext as any).confirmationSentFor = null;
 

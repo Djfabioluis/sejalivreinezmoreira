@@ -408,6 +408,7 @@ source: ${identity.identitySource}`);
         
         // Se já está locado, não é uma falha que exija retry imediato agressivo do webhook (deixa o processo original terminar)
         await markEventFailed(msg.instance, finalMessageId, `conversation_locked:${lockReason}`);
+
         
         trace.record("MESSAGE_PROCESSING_ABORTED", { 
           stage: "CONVERSATION_LOCK", 
