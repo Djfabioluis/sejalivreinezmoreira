@@ -1,0 +1,357 @@
+import { getBempConfig, BEMP_WEBHOOK_BASE, PROFESSIONAL_PREFERENCE_NOTE, tryUpdateBempScheduleNote, withProfessionalPreferenceNote, extractBempAppointmentId } from "./bemp.server";
+export { extractBempAppointmentId };
+import { logger } from "./observability/logger.server";
+import { AppError } from "./core/errors";
+import { normalizeServiceSearchText, SERVICE_CATEGORY_ALIASES } from "./service-utils";
+/**
+ * BempService: Camada única para comunicação com a API BEMP.
+ * Centraliza tratamento de erros, logs e padrões de dados.
+ */
+export class BempService {
+    static async fetchRaw(url, init, module = "bemp-service") {
+        const cfg = await getBempConfig();
+        const startedAt = Date.now();
+        const method = (init?.method || "GET").toUpperCase();
+        try {
+            const res = await fetch(url, {
+                ...init,
+                headers: { ...cfg.headers, ...init?.headers },
+            });
+            const status = res.status;
+            const text = await res.text();
+            const bodyLength = text.length;
+            const transportEmpty = bodyLength === 0;
+            const durationMs = Date.now() - startedAt;
+            let data = null;
+            if (text) {
+                try {
+                    data = JSON.parse(text);
+                }
+                catch {
+                    data = text;
+                }
+            }
+            if (!res.ok) {
+                throw new AppError({
+                    code: status === 404 ? "NOT_FOUND" : status === 401 ? "UNAUTHORIZED" : status === 429 ? "RATE_LIMITED" : "BEMP_UNAVAILABLE",
+                    message: `Bemp ${status}: ${text.slice(0, 100)}`,
+                    statusCode: status,
+                    cause: { status, text }
+                });
+            }
+            logger.info("BEMP_REQUEST_SUCCESS", `${method} ${url}`, { durationMs, module, status, bodyLength });
+            return { data, status, bodyLength, transportEmpty };
+        }
+        catch (error) {
+            const durationMs = Date.now() - startedAt;
+            logger.error("BEMP_REQUEST_FAILED", error.message, { url, method, durationMs, module });
+            throw error;
+        }
+    }
+    static async fetch(url, init, module = "bemp-service") {
+        const { data } = await this.fetchRaw(url, init, module);
+        return data;
+    }
+    static async listSalons() {
+        const cfg = await getBempConfig();
+        const result = await this.fetch(`${cfg.apiBase}/salons`, undefined, "bemp-salons");
+        return Array.isArray(result) ? result : (result?.data || []);
+    }
+    static async listServices(salonId) {
+        const traceId = Math.random().toString(36).substring(7);
+        const cfg = await getBempConfig();
+        const primaryUrl = `${cfg.apiBase}/salons/${salonId}/services`;
+        // 1. PRIMARY ATTEMPT
+        let services = [];
+        let primarySuccess = false;
+        let primaryStatus = 0;
+        let primaryBodyLength = 0;
+        let transportEmpty = false;
+        try {
+            const result = await this.fetchRaw(primaryUrl, undefined, "bemp-services");
+            primaryStatus = result.status;
+            primaryBodyLength = result.bodyLength;
+            transportEmpty = result.transportEmpty;
+            if (!transportEmpty && result.data) {
+                services = Array.isArray(result.data) ? result.data : (result.data?.data || []);
+                primarySuccess = true;
+            }
+        }
+        catch (err) {
+            primaryStatus = err.statusCode || err.status || 500;
+            logger.error("BEMP_PRIMARY_FAILED", err.message, { salonId, traceId, status: primaryStatus });
+        }
+        // 2. FALLBACK ATTEMPT (if primary is empty body OR primary failed)
+        // IMPORTANT: transportEmpty = body length 0. [] is NOT transportEmpty.
+        const shouldTryFallback = !primarySuccess || transportEmpty;
+        let fallbackUsed = false;
+        let fallbackStatus = 0;
+        let fallbackBodyLength = 0;
+        let fallbackCount = 0;
+        if (shouldTryFallback) {
+            fallbackUsed = true;
+            try {
+                const origin = process.env.VITE_APP_URL || 'http://localhost:8080';
+                const relayUrl = `${origin}/api/public/bemp-services-relay`;
+                logger.info("BEMP_FALLBACK_START", "Iniciando fallback via relay route", {
+                    salonId,
+                    traceId,
+                    reason: transportEmpty ? "EMPTY_BODY" : "FETCH_ERROR"
+                });
+                const res = await fetch(relayUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ unitId: salonId })
+                });
+                fallbackStatus = res.status;
+                const text = await res.text();
+                fallbackBodyLength = text.length;
+                if (res.ok && text) {
+                    const result = JSON.parse(text);
+                    const fallbackServices = Array.isArray(result) ? result : (result?.data || []);
+                    services = fallbackServices;
+                    fallbackCount = services.length;
+                    logger.info("BEMP_FALLBACK_SUCCESS", "Fallback recuperou serviços", {
+                        salonId,
+                        traceId,
+                        count: fallbackCount
+                    });
+                }
+            }
+            catch (fallbackErr) {
+                logger.error("BEMP_FALLBACK_CRITICAL_FAILED", fallbackErr.message, { salonId, traceId });
+            }
+        }
+        // OBSERVABILITY
+        logger.info("BEMP_LOOKUP_COMPLETED", "Processo de consulta BEMP finalizado", {
+            unitId: String(salonId),
+            traceId,
+            primaryStatus,
+            primaryBodyLength,
+            primaryTransportEmpty: transportEmpty,
+            fallbackUsed,
+            fallbackStatus,
+            fallbackCount,
+            finalCount: services.length
+        });
+        // If both failed or returned nothing diagnosticable
+        if (services.length === 0 && (primaryStatus !== 200 || (fallbackUsed && fallbackStatus !== 200))) {
+            throw new AppError({
+                code: "BEMP_UNAVAILABLE",
+                message: `Não foi possível obter o catálogo. Primary: ${primaryStatus}, Fallback: ${fallbackStatus}`,
+                safeMessage: "O sistema de catálogo está temporariamente indisponível.",
+                statusCode: 503
+            });
+        }
+        return services;
+    }
+    static async listProfessionals(salonId, serviceId) {
+        const cfg = await getBempConfig();
+        const result = await this.fetch(`${cfg.apiBase}/salons/${salonId}/services/${serviceId}/professionals`, undefined, "bemp-professionals");
+        return Array.isArray(result) ? result : (result?.data || []);
+    }
+    static async listAvailableSlots(params) {
+        const traceId = Math.random().toString(36).substring(7);
+        const cfg = await getBempConfig();
+        let url = params.professionalId
+            ? `${cfg.apiBase}/salons/${params.salonId}/services/${params.serviceId}/professionals/${params.professionalId}/slots/${params.date}`
+            : `${cfg.apiBase}/salons/${params.salonId}/services/${params.serviceId}/slots/${params.date}`;
+        // 1. PRIMARY ATTEMPT
+        let slots = [];
+        let primarySuccess = false;
+        let primaryStatus = 0;
+        let transportEmpty = false;
+        try {
+            const result = await this.fetchRaw(url, undefined, "bemp-slots");
+            primaryStatus = result.status;
+            transportEmpty = result.transportEmpty;
+            if (!transportEmpty && result.data) {
+                slots = Array.isArray(result.data) ? result.data : (result.data?.data || []);
+                primarySuccess = true;
+            }
+        }
+        catch (err) {
+            primaryStatus = err.statusCode || err.status || 500;
+            logger.error("BEMP_SLOTS_PRIMARY_FAILED", err.message, { ...params, traceId, status: primaryStatus });
+        }
+        // 2. FALLBACK ATTEMPT
+        const shouldTryFallback = !primarySuccess || transportEmpty;
+        let fallbackUsed = false;
+        let fallbackStatus = 0;
+        if (shouldTryFallback) {
+            fallbackUsed = true;
+            try {
+                const origin = process.env.VITE_APP_URL || 'http://localhost:8080';
+                const relayUrl = `${origin}/api/public/bemp-services-relay`;
+                logger.info("BEMP_SLOTS_FALLBACK_START", "Iniciando fallback de slots", { ...params, traceId });
+                // O relay precisa ser atualizado para suportar slots ou passamos a URL completa
+                const res = await fetch(relayUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Bemp-Relay-Secret': process.env.BEMP_RELAY_SECRET || ''
+                    },
+                    body: JSON.stringify({ unitId: params.salonId, path: url.replace(cfg.apiBase, '') })
+                });
+                fallbackStatus = res.status;
+                const text = await res.text();
+                if (res.ok && text) {
+                    const result = JSON.parse(text);
+                    slots = Array.isArray(result) ? result : (result?.data || []);
+                    logger.info("BEMP_SLOTS_FALLBACK_SUCCESS", "Fallback de slots recuperado", { ...params, traceId, count: slots.length });
+                }
+            }
+            catch (fallbackErr) {
+                logger.error("BEMP_SLOTS_FALLBACK_CRITICAL_FAILED", fallbackErr.message, { ...params, traceId });
+            }
+        }
+        if (slots.length === 0 && (primaryStatus !== 200 || (fallbackUsed && fallbackStatus !== 200))) {
+            throw new AppError({
+                code: "BEMP_UNAVAILABLE",
+                message: `Não foi possível obter horários. Primary: ${primaryStatus}, Fallback: ${fallbackStatus}`,
+                safeMessage: "Não conseguimos consultar a agenda neste momento.",
+                statusCode: 503
+            });
+        }
+        return slots;
+    }
+    static async findCustomerByPhone(params) {
+        const cfg = await getBempConfig();
+        const qs = new URLSearchParams({
+            phone_country_code: params.countryCode,
+            phone_area_code: params.areaCode,
+            phone_number: params.number,
+        });
+        return this.fetch(`${cfg.apiBase}/whatsapp_customer?${qs.toString()}`, undefined, "bemp-find-customer");
+    }
+    static async listCustomerSubscriptions(customerId) {
+        const cfg = await getBempConfig();
+        const result = await this.fetch(`${cfg.apiBase}/customers/${customerId}/subscriptions`, undefined, "bemp-customer-subscriptions");
+        return Array.isArray(result) ? result : (result?.data || []);
+    }
+    static async listCustomerAppointments(params) {
+        // Tentar múltiplas variações de telefone para máxima resiliência
+        const variations = [
+            { cc: params.phone_country_code, ac: params.phone_area_code, n: params.phone_number.slice(-8) }, // 8 dígitos (ex. 99102791) - FORMATO MAIS COMUM NA BEMP
+            { cc: params.phone_country_code, ac: params.phone_area_code, n: params.phone_number }, // Completo (pode ter 9 digitos)
+            { cc: params.phone_country_code, ac: params.phone_area_code, n: params.phone_number.replace(/^9/, "") }, // Sem o 9 inicial se for 9 digitos
+            { cc: params.phone_country_code, ac: "0" + params.phone_area_code, n: params.phone_number }, // AC com zero à esquerda
+            { cc: "55", ac: params.phone_area_code, n: params.phone_number }, // Forçar CC 55
+        ];
+        logger.info("BEMP_SEARCH_START", `Busca resiliente iniciada para: ${params.phone_country_code}${params.phone_area_code}${params.phone_number}`, { variationsCount: variations.length });
+        for (const v of variations) {
+            try {
+                const url = `${BEMP_WEBHOOK_BASE}/whatsapp_schedule?phone_country_code=${v.cc}&phone_area_code=${v.ac}&phone_number=${v.n}`;
+                const result = await this.fetch(url, { method: "GET" }, `bemp-appointments-${v.cc}-${v.ac}-${v.n}`);
+                // A API retorna { status: "success", code: 200, data: [...] } ou [...]
+                const data = Array.isArray(result) ? result : (result?.data || []);
+                if (Array.isArray(data) && data.length > 0) {
+                    logger.info("BEMP_SEARCH_MATCH", `Reserva localizada com variação: ${v.cc}-${v.ac}-${v.n}`, {
+                        foundCount: data.length,
+                        firstBookingId: data[0]?.id,
+                        customerName: data[0]?.customer_name
+                    });
+                    return data;
+                }
+            }
+            catch (err) {
+                // Silenciosamente continua para a próxima variação
+                continue;
+            }
+        }
+        logger.warn("BEMP_SEARCH_FAILED", `Nenhuma reserva encontrada após ${variations.length} variações.`, { params });
+        return [];
+    }
+    static async cancelAppointment(params) {
+        const qs = new URLSearchParams({
+            phone_country_code: params.phone_country_code,
+            phone_area_code: params.phone_area_code,
+            phone_number: params.phone_number,
+            id: String(params.appointmentId),
+        });
+        return this.fetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule?${qs.toString()}`, {
+            method: "DELETE",
+        }, "bemp-cancel-appointment");
+    }
+    static async createAppointment(input) {
+        const payload = withProfessionalPreferenceNote(input);
+        const data = await this.fetch(`${BEMP_WEBHOOK_BASE}/whatsapp_schedule`, {
+            method: "POST",
+            body: JSON.stringify(payload),
+        }, "bemp-create-appointment");
+        if (input.professional_id != null) {
+            await tryUpdateBempScheduleNote(data, PROFESSIONAL_PREFERENCE_NOTE);
+        }
+        // Persistência local (através do logger por enquanto para provar o ID)
+        const appointmentId = extractBempAppointmentId(data);
+        logger.info("CREATE_BOOKING_RESULT", "Agendamento criado na BEMP", {
+            appointmentId,
+            customerName: input.customer_name,
+            serviceId: input.service_id,
+            professionalId: input.professional_id,
+            start: input.start
+        });
+        return data;
+    }
+    static async searchServicesByCategory(params) {
+        const traceId = Math.random().toString(36).substring(7);
+        const logCtx = { traceId, unitId: params.effectiveUnitId, category: params.category, query: params.query };
+        logger.info("service_category_search_started", "Iniciando busca de serviços por categoria", logCtx);
+        try {
+            const services = await this.listServices(params.effectiveUnitId);
+            const aliases = SERVICE_CATEGORY_ALIASES[params.category] || [];
+            const normalizedQuery = params.query ? normalizeServiceSearchText(params.query) : "";
+            const matches = services.filter((s) => {
+                const name = normalizeServiceSearchText(s?.name || s?.service_name || s?.title || "");
+                const cat = normalizeServiceSearchText(s?.category || s?.group || "");
+                const desc = normalizeServiceSearchText(s?.description || "");
+                const tags = Array.isArray(s?.tags) ? s.tags.map((t) => normalizeServiceSearchText(String(t))) : [];
+                if (normalizedQuery && name === normalizedQuery)
+                    return true;
+                if (cat === normalizeServiceSearchText(params.category))
+                    return true;
+                if (params.category === "MECHAS" && name.includes("mecha"))
+                    return true;
+                if (aliases.some(alias => name.includes(normalizeServiceSearchText(alias))))
+                    return true;
+                if (aliases.some(alias => desc.includes(normalizeServiceSearchText(alias))))
+                    return true;
+                if (tags.some((tag) => aliases.some(alias => tag.includes(normalizeServiceSearchText(alias)))))
+                    return true;
+                return false;
+            });
+            const sortedMatches = matches.sort((a, b) => {
+                const nameA = normalizeServiceSearchText(a?.name || "");
+                const nameB = normalizeServiceSearchText(b?.name || "");
+                const priorityA = (nameA.includes("mecha") || nameA.includes("pacote de mechas")) ? 0 : 1;
+                const priorityB = (nameB.includes("mecha") || nameB.includes("pacote de mechas")) ? 0 : 1;
+                if (priorityA !== priorityB)
+                    return priorityA - priorityB;
+                return nameA.localeCompare(nameB);
+            });
+            const uniqueMatches = Array.from(new Map(sortedMatches.map((s) => [s.id, s])).values());
+            logger.info("service_category_search_completed", "Busca de serviços concluída", { ...logCtx, resultsCount: uniqueMatches.length });
+            return {
+                success: true,
+                data: uniqueMatches.map((s) => ({
+                    id: s.id,
+                    name: s.name || s.service_name || s.title,
+                    description: s.description,
+                    duration: s.duration || s.tempo,
+                    price: s.price || s.valor,
+                    unitId: String(params.effectiveUnitId),
+                    category: s.category || s.group,
+                    active: true
+                }))
+            };
+        }
+        catch (error) {
+            logger.error("service_category_search_failed", error.message, logCtx);
+            return {
+                success: false,
+                errorCode: error.code === "NOT_FOUND" ? "UNIT_NOT_FOUND" : "BEMP_UNAVAILABLE",
+                error: error.message
+            };
+        }
+    }
+}
