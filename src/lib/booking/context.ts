@@ -202,6 +202,11 @@ export function extractBookingSlots(
     }
   }
 
+  // DATA ABSOLUTA IMUTÁVEL: assim que uma expressão relativa/explícita é resolvida,
+  // a data vira absoluta e nunca mais é recalculada (nem na virada da meia-noite).
+  if (out.date) out.dateLocked = true;
+
+
   // --- Serviço (Resolução de Ambiguidade Prioritária - Determinística) ---
   if (previous?.clarificationRequired && previous.candidates?.length) {
     console.log(`[DETERMINISTIC_RESOLUTION_ATTEMPT] Input: "${t}" | Candidates: ${previous.candidates.length}`);
