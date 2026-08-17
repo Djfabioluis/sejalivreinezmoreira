@@ -507,7 +507,9 @@ source: ${identity.identitySource}`);
         // Todo evento tratado com sucesso é finalizado como processed —
         // inclusive quando a IA está pausada (modo humano) ou não há texto —
         // para nunca deixar eventos presos em PROCESSING.
-        await markEventProcessed(msg.instance, finalMessageId);
+        if (!isFromMe(msg.fromMe)) {
+          await markEventProcessed(msg.instance, finalMessageId);
+        }
         
         trace.record("TOTAL_PROCESSING_COMPLETED", { status: "success", humanMode: isHumanMode });
 

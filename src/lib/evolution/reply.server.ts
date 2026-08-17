@@ -199,8 +199,9 @@ async function proceedWithSend(params: ReplyParams, trace: PerformanceTrace, tra
         reason: "response_slot_already_claimed", 
         messageId: params.messageId 
       });
-      console.warn(`[proceedWithSend] Bloqueando envio duplicado para a mesma mensagem de origem: ${params.messageId}`);
-      return false;
+      // Permite o processamento continuar sem erro para o caller, mas sem disparar o envio físico.
+      trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "duplicate_outbound_prevented" });
+      return true; 
     }
   }
 
