@@ -398,7 +398,9 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       bookingSessionId: customerContext.bookingContext?.bookingSessionId ?? null,
       periodSessionId: customerContext.bookingContext?.periodSessionId ?? null,
       priceIntent: customerContext.bookingContext?.priceIntent === true,
+      confirmationSentFor: customerContext.bookingContext?.confirmationSentFor ?? null,
     };
+
 
     trace?.record("BOOKING_CONTEXT_LOADED", {
       found: Boolean(customerContext.bookingContext),
@@ -732,47 +734,54 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
     // MÁQUINA DE ESTADOS DETERMINÍSTICA - SELEÇÃO DE HORÁRIO
     let slotJustSelected = false;
-    if (!greetingOnly && bookingContext.availableSlots?.length && !bookingContext.selectedSlot) {
+    
+    // Se a extração aprimorada em extractBookingSlots já preencheu selectedSlot nesta mensagem
+    if (extracted?.selectedSlot) {
+      bookingContext.selectedSlot = extracted.selectedSlot;
+      const { slotLocalTime } = await import("@/lib/booking/slot-time");
+      bookingContext.time = slotLocalTime(extracted.selectedSlot) || bookingContext.time;
+      slotJustSelected = true;
+    } 
+    
+    if (!slotJustSelected && !greetingOnly && bookingContext.availableSlots?.length && !bookingContext.selectedSlot) {
       const { slotLocalTime, filterSlotsByLocalDate } = await import("@/lib/booking/slot-time");
       const dateScopedSlots = filterSlotsByLocalDate(bookingContext.availableSlots, bookingContext.date);
       
-      // A extração aprimorada em extractBookingSlots já preencheu selectedSlot se houver match exato
-      // Aqui apenas confirmamos ou tentamos match de fallback por texto (mantido para compatibilidade)
-      if (extracted?.selectedSlot) {
-        bookingContext.selectedSlot = extracted.selectedSlot;
-        bookingContext.time = slotLocalTime(extracted.selectedSlot) || bookingContext.time;
+      const selected = dateScopedSlots.find(s => {
+        const hhmm = slotLocalTime(s);
+        if (!hhmm) return false;
+        if (bookingContext.time === hhmm) return true;
+        return text.toLowerCase().includes(hhmm);
+      });
+
+      if (selected) {
+        bookingContext.selectedSlot = selected;
+        bookingContext.time = slotLocalTime(selected) || bookingContext.time || null;
         slotJustSelected = true;
-      } else {
-        const selected = dateScopedSlots.find(s => {
-          const hhmm = slotLocalTime(s);
-          if (!hhmm) return false;
-          if (bookingContext.time === hhmm) return true;
-          return text.toLowerCase().includes(hhmm);
-        });
-
-        if (selected) {
-          bookingContext.selectedSlot = selected;
-          bookingContext.time = slotLocalTime(selected) || bookingContext.time || null;
-          slotJustSelected = true;
-        }
-      }
-
-      if (slotJustSelected) {
-        bookingContext.appointmentStatus = "AWAITING_CONFIRMATION";
-        bookingContext.awaitingConfirmation = true;
-        bookingContext.customerConfirmed = false;
-        trace?.record("BOOKING_SLOT_SELECTED", { slot: bookingContext.selectedSlot, time: bookingContext.time });
       }
     }
+
+    if (slotJustSelected) {
+      bookingContext.appointmentStatus = "AWAITING_CONFIRMATION";
+      bookingContext.awaitingConfirmation = true;
+      bookingContext.customerConfirmed = false;
+      trace?.record("BOOKING_SLOT_SELECTED", { slot: bookingContext.selectedSlot, time: bookingContext.time });
+    }
+
 
     if (agent.unidade_id) bookingContext.unitId = String(agent.unidade_id);
 
     // TRANSIÇÃO DETERMINÍSTICA: slot selecionado -> pedido de confirmação (nunca silencioso)
     const confirmationKey = `${bookingContext.date ?? ""}T${bookingContext.time ?? ""}`;
-    if (slotJustSelected && (bookingContext as any).confirmationSentFor !== confirmationKey) {
+    const alreadySent = (bookingContext as any).confirmationSentFor === confirmationKey;
+    
+    if ((slotJustSelected || bookingContext.selectedSlot) && !alreadySent && bookingContext.appointmentStatus === "AWAITING_CONFIRMATION") {
       (bookingContext as any).confirmationSentFor = confirmationKey;
       const { buildConfirmationMessage } = await import("@/lib/booking/lifecycle");
       const confirmText = buildConfirmationMessage(bookingContext);
+      
+      trace?.record("CONFIRMATION_MESSAGE_PREPARED", { confirmationKey, textSnippet: confirmText.slice(0, 50) });
+      
       await patchCustomerContext(finalKey, { bookingContext });
 
       const { replyWithAI } = await import("./reply.server");
@@ -789,6 +798,8 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       trace?.record("TOTAL_PROCESSING_COMPLETED", { status: "success", reason: "confirmation_requested" });
       return;
     }
+
+
 
     // AGUARDANDO CONFIRMAÇÃO: qualquer mensagem não afirmativa (ex.: "?") recebe lembrete
     if (
