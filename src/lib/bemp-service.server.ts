@@ -294,21 +294,31 @@ export class BempService {
     const variations = [
       { cc: params.phone_country_code, ac: params.phone_area_code, n: params.phone_number },
       { cc: params.phone_country_code, ac: params.phone_area_code, n: params.phone_number.slice(-8) },
+      { cc: params.phone_country_code, ac: params.phone_area_code, n: params.phone_number.replace(/^9/, "") },
       { cc: params.phone_country_code, ac: "0" + params.phone_area_code, n: params.phone_number },
       { cc: "55", ac: params.phone_area_code, n: params.phone_number },
     ];
+
+    console.log(`[bemp-search] Início da busca resiliente para: ${params.phone_country_code}${params.phone_area_code}${params.phone_number}`);
 
     for (const v of variations) {
       try {
         const url = `${BEMP_WEBHOOK_BASE}/whatsapp_schedule?phone_country_code=${v.cc}&phone_area_code=${v.ac}&phone_number=${v.n}`;
         const result = await this.fetch<any>(url, { method: "GET" }, `bemp-appointments-${v.cc}-${v.ac}-${v.n}`);
         const data = Array.isArray(result) ? result : (result?.data || []);
-        if (data.length > 0) return data;
+        
+        if (data.length > 0) {
+          console.log(`[bemp-search] SUCESSO com a variação: ${v.cc}-${v.ac}-${v.n}`);
+          return data;
+        }
       } catch (err) {
-        // Continue para a próxima variação se falhar
+        // Silenciosamente continua para a próxima variação
         continue;
       }
     }
+
+    // Fallback Final: Busca por nome no catálogo (opcional se habilitado)
+    console.log(`[bemp-search] Falha total em todas as variações de telefone.`);
     return [];
   }
 
