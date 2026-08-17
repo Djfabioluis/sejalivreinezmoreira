@@ -204,6 +204,36 @@ async function proceedWithSend(params: ReplyParams, trace: PerformanceTrace, tra
     }
   }
 
+  // ANTI-DUPLICAÇÃO POR CONTEÚDO: nunca repetir o MESMO texto para a MESMA
+  // conversa dentro de 3 minutos (protege contra retries com messageId distinto).
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: conv } = await supabaseAdmin
+      .from("wa_conversas" as never)
+      .select("messages")
+      .eq("phone" as never, params.conversationKey)
+      .maybeSingle();
+    const messages = (((conv as any)?.messages as any[]) || []).slice(-8);
+    const cutoff = Date.now() - 3 * 60 * 1000;
+    const duplicated = messages.some((m: any) => {
+      if (m?.role !== "assistant") return false;
+      const created = m?.createdAt ? Date.parse(m.createdAt) : 0;
+      if (!created || created < cutoff) return false;
+      const body = (m?.parts || []).map((pt: any) => pt?.text || "").join("");
+      return body.trim() === params.text.trim();
+    });
+    if (duplicated) {
+      trace.record("OUTBOUND_BLOCKED_DUPLICATE", {
+        reason: "identical_text_within_window",
+        conversationKey: params.conversationKey,
+      });
+      console.warn("[proceedWithSend] Bloqueando envio duplicado por conteúdo idêntico recente.");
+      return false;
+    }
+  } catch (dedupeErr: any) {
+    trace.record("OUTBOUND_DEDUPE_CHECK_FAILED", { error: dedupeErr?.message });
+  }
+
   const sentResult = await sendEvolutionText(params.instance, params.phone, params.text, typingMs);
   
   if (sentResult) {
