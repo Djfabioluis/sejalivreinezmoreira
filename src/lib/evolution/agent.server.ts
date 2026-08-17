@@ -478,6 +478,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     const extracted: any = extractBookingSlots(text, new Date(), previousContext);
     const bookingContext = mergeBookingContext(previousContext, extracted);
 
+
     // ============================================================
     // PRICE_INTENT — Alta prioridade (após cancelamento)
     // ============================================================
