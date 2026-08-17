@@ -1,7 +1,171 @@
 /**
- * Execute esta instrucao no projeto: Analise e corrija a integração entre a Evolution API, o webhook do projeto e a IA.
+ * Execute esta instrucao no projeto: CORRIJA AGORA SOMENTE A ENTRADA DO WHATSAPP.
  * 
- * CONTEXTO CONFIRMADO: Evolution API 2.3.7, Instância agente-5541999102791.
+ * NÃO FAÇA MAIS AUDITORIA.
+ * NÃO ALTERE FRONTEND.
+ * NÃO ALTERE BOOKING.
+ * NÃO ALTERE BEMP.
+ * NÃO ALTERE JULIA.
+ * NÃO ALTERE GEMINI.
+ * NÃO ALTERE PERIOD/LIST_SLOTS.
+ * NÃO ALTERE MAPEAMENTO DE UNIDADES.
+ * 
+ * FATO REAL COMPROVADO:
+ * 
+ * Enviei uma nova mensagem pelo WhatsApp.
+ * A Julia não respondeu.
+ * A mensagem NEM APARECEU no painel Conversas.
+ * 
+ * Portanto a falha está ANTES do processor/agent.
+ * 
+ * ==================================================
+ * 1. RESTAURE O WEBHOOK PARA O ÚLTIMO ESTADO FUNCIONAL
+ * ==================================================
+ * 
+ * Use o histórico Git.
+ * 
+ * Localize a última versão em que mensagens REAIS do WhatsApp
+ * chegavam normalmente ao painel Conversas.
+ * 
+ * Compare SOMENTE:
+ * 
+ * src/lib/evolution/auth.server.ts
+ * src/routes/api/public/whatsapp-evolution.ts
+ * src/routes/api/public/whatsapp.ts
+ * 
+ * NÃO faça revert geral.
+ * 
+ * A principal suspeita é a alteração recente de autenticação
+ * fail-closed / EVOLUTION_WEBHOOK_SECRET.
+ * 
+ * Restaure SOMENTE o contrato de autenticação que funcionava
+ * antes dessa alteração.
+ * 
+ * IMPORTANTE:
+ * 
+ * Não confie em teste sintético dizendo WEBHOOK_RECEIVING = SIM.
+ * 
+ * O critério é o webhook conseguir receber o formato REAL enviado
+ * pela Evolution atual.
+ * 
+ * ==================================================
+ * 2. NÃO EXIJA HEADER QUE A EVOLUTION NÃO ENVIA
+ * ==================================================
+ * 
+ * Se EVOLUTION_WEBHOOK_SECRET não existe no ambiente de produção,
+ * NÃO rejeite automaticamente a requisição.
+ * 
+ * Se "apikey" não estiver realmente presente nos webhooks
+ * recebidos da Evolution, NÃO exija "apikey".
+ * 
+ * Use exatamente o comportamento da última versão funcional.
+ * 
+ * Objetivo imediato:
+ * 
+ * REQUEST_REAL_DA_EVOLUTION
+ * → HTTP 200
+ * → processor
+ * → persistência da conversa
+ * → agent
+ * 
+ * ==================================================
+ * 3. CONFIRME A ROTA DE PRODUÇÃO
+ * ==================================================
+ * 
+ * A rota pública deve continuar sendo:
+ * 
+ * POST /api/public/whatsapp-evolution
+ * 
+ * Confirme:
+ * 
+ * ROUTE_EXISTS = SIM
+ * ROUTE_METHOD_POST = SIM
+ * ROUTE_REGISTERED_IN_PRODUCTION = SIM
+ * 
+ * Não altere a URL pública se ela já estiver correta.
+ * 
+ * ==================================================
+ * 4. NÃO BLOQUEIE ANTES DA PERSISTÊNCIA
+ * ==================================================
+ * 
+ * Para um evento real:
+ * 
+ * MESSAGES_UPSERT
+ * 
+ * o fluxo deve obrigatoriamente chegar a:
+ * 
+ * webhook
+ * → processor
+ * → persistência da mensagem
+ * → painel Conversas
+ * → agent
+ * 
+ * Não permitir retorno 401/403 por ausência de uma credencial
+ * que a Evolution atual não envia.
+ * 
+ * ==================================================
+ * 5. PRESERVE TODAS AS CORREÇÕES RECENTES
+ * ==================================================
+ * 
+ * NÃO reverta:
+ * 
+ * mão → manicure
+ * period → list_slots
+ * parsing ISO
+ * fallback BEMP
+ * validação selectedSlot
+ * contexto de segundo turno
+ * reset de booking
+ * dashboard restaurado
+ * homepage
+ * rotas do sistema
+ * 
+ * Somente webhook/auth de entrada.
+ * 
+ * ==================================================
+ * 6. VALIDE COM PAYLOAD REAL DA EVOLUTION
+ * ==================================================
+ * 
+ * Use um payload no mesmo formato da instância real.
+ * 
+ * Confirme:
+ * 
+ * REAL_EVOLUTION_PAYLOAD_ACCEPTED = SIM
+ * MESSAGE_UPSERT_REACHES_PROCESSOR = SIM
+ * MESSAGE_PERSISTENCE_READY = SIM
+ * AGENT_TRIGGER_READY = SIM
+ * 
+ * Execute também:
+ * 
+ * TYPECHECK_PASS =
+ * TESTS_PASS =
+ * BUILD_PASS =
+ * 
+ * ==================================================
+ * 7. DEPLOY
+ * ==================================================
+ * 
+ * Se tudo passar:
+ * 
+ * AUTORIZO DEPLOY/PUBLISH.
+ * 
+ * NÃO ENVIE MENSAGEM WHATSAPP AUTOMATICAMENTE.
+ * 
+ * No final responda SOMENTE:
+ * 
+ * AUTH_REGRESSION_FIXED =
+ * ROUTE_EXISTS =
+ * REAL_EVOLUTION_PAYLOAD_ACCEPTED =
+ * MESSAGE_UPSERT_REACHES_PROCESSOR =
+ * MESSAGE_PERSISTENCE_READY =
+ * AGENT_TRIGGER_READY =
+ * TYPECHECK_PASS =
+ * TESTS_PASS =
+ * BUILD_PASS =
+ * DEPLOY_SUCCESS =
+ * READY_FOR_REAL_OI_TEST =
+ * 
+ * PARE.
  */
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useState } from "react";
