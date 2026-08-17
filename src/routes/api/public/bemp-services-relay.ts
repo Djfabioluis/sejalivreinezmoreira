@@ -39,7 +39,7 @@ export const Route = createFileRoute("/api/public/bemp-services-relay")({
           const cfg = await getBempConfig();
           const url = path ? `${cfg.apiBase}${path}` : `${cfg.apiBase}/salons/${unitId}/services`;
           
-          console.log(`[bemp-relay] Fetching services for unit ${unitId} via relay route`);
+          console.log(`[bemp-relay] Fetching from ${url} via relay route`);
           
           const res = await fetch(url, {
             method: "GET",

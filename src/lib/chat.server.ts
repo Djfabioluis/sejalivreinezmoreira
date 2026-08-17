@@ -354,6 +354,14 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
   // Sanitizar BookingContext: se for um objeto mas vier com campos vazios, garantir que são null
   if (bookingContext && typeof bookingContext === 'object') {
     Object.keys(bookingContext).forEach(key => {
+      const val = (bookingContext as any)[key];
+      if (val === undefined || val === 'UNKNOWN') (bookingContext as any)[key] = null;
+    });
+  }
+
+  // Sanitizar BookingContext: se for um objeto mas vier com campos vazios, garantir que são null
+  if (bookingContext && typeof bookingContext === 'object') {
+    Object.keys(bookingContext).forEach(key => {
       if ((bookingContext as any)[key] === undefined) (bookingContext as any)[key] = null;
     });
   }
