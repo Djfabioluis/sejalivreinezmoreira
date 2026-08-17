@@ -27,6 +27,7 @@ export interface BookingContext {
   dateLocked?: boolean;
 
   subscriptionIntent?: boolean;
+  priceIntent?: boolean; // PRICE_INTENT_DETECTED
   conversationGreeted?: boolean;
   intent?: string | null;
 
@@ -122,6 +123,24 @@ const HARMONIZATION_INTENT_PATTERN = /\b(?:h|a)rmoniza[cç][aã]o\s+(?:de|do|da|
 export function detectHarmonizationIntent(text: string | null | undefined): boolean {
   if (!text) return false;
   return HARMONIZATION_INTENT_PATTERN.test(text);
+}
+
+const PRICE_INTENT_PATTERNS = [
+  /\bpre[çc]o\b/i,
+  /\bvalor\b/i,
+  /\bquanto\s+custa\b/i,
+  /\bquanto\s+[eé]\b/i,
+  /\bquanto\s+sai\b/i,
+  /\bquanto\s+fica\b/i,
+  /\bqual\s+o\s+valor\b/i,
+  /\bquanto\s+voc[eê]s\s+cobram\b/i,
+  /\bqual\s+valor\b/i,
+];
+
+export function detectPriceIntent(text: string | null | undefined): boolean {
+  if (!text) return false;
+  const t = text.toLowerCase();
+  return PRICE_INTENT_PATTERNS.some(re => re.test(t));
 }
 
 /** Extrai apenas os campos presentes na mensagem atual. Ausência = undefined (nunca null destrutivo). */
@@ -375,9 +394,15 @@ export function extractBookingSlots(
     out.intent = "harmonizacao_bumbum_barriga";
   }
   
+  // --- Intenção de preço ---
+  if (detectPriceIntent(t)) {
+    out.priceIntent = true;
+    console.log("[PRICE_INTENT_DETECTED] SIM");
+  }
+
   // LOG PARA DEBUG
-  if (out.period || out.time || out.serviceText) {
-    console.log(`[EXTRACTED_DEBUG] text="${t}" period=${out.period}, time=${out.time}, selectedSlot=${out.selectedSlot}`);
+  if (out.period || out.time || out.serviceText || out.priceIntent) {
+    console.log(`[EXTRACTED_DEBUG] text="${t}" period=${out.period}, time=${out.time}, selectedSlot=${out.selectedSlot}, priceIntent=${out.priceIntent}`);
   }
 
   console.log(`[EXTRACT_DEBUG] Returning out for "${t}": ${JSON.stringify(out)}`);
