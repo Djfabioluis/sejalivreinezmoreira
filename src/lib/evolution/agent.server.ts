@@ -976,20 +976,25 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
             end: createRequest.end,
           });
           const result = await BempService.createAppointment(createRequest);
-          trace?.record("BOOKING_CREATE_RESPONSE_RECEIVED", { httpStatus: 200, hasResponse: Boolean(result) });
+          
+          // REGRA ABSOLUTA DE SUCESSO: O agendamento só é considerado CONFIRMADO
+          // se extrairmos um ID real da resposta da BEMP.
+          const apptId = extractBempAppointmentId(result);
+          
+          trace?.record("BOOKING_CREATE_RESPONSE_RECEIVED", { 
+            httpStatus: 200, 
+            hasResponse: Boolean(result),
+            bempBookingId: apptId || "NONE"
+          });
 
-         const apptId = extractBempAppointmentId(result);
-         if (apptId) {
-           bookingContext.appointmentId = String(apptId);
+          if (apptId) {
+            bookingContext.appointmentId = String(apptId);
             bookingContext.appointmentStatus = "CONFIRMED";
             trace?.record("BOOKING_CREATE_SUCCESS", { appointmentId: apptId });
             
-            // PONTO DE SINCRONIZAÇÃO: Antes de enviar a resposta final, marcamos que o agendamento foi CONCLUÍDO.
-            // Isso previne que qualquer re-processamento da mensagem "Sim" tente criar novamente
-            // ou enviar confirmações duplicadas.
+            // Persistir IMEDIATAMENTE antes de responder
             const clearedBooking = clearTransientBooking(bookingContext);
             Object.assign(bookingContext, clearedBooking, {
-
               appointmentStatus: "CONFIRMED",
               appointmentId: String(apptId),
               customerConfirmed: false,
@@ -1005,9 +1010,8 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
               appointment_confirmed_at: new Date().toISOString()
             });
 
-            // Resposta Final Obrigatória
+            // Mensagem de sucesso REAL
              const finalMsg = `Agendamento confirmado! 💜\n\nServiço: ${bookingContext.serviceName}\nData: ${formatBookingDate(bookingContext.date)}\nHorário: ${bookingContext.time}\n\nTe esperamos!`;
-
 
             await replyWithAI({
               instance,
@@ -1023,43 +1027,46 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
             return;
           } else {
             createFailed = true;
-            trace?.record("BOOKING_CREATE_FAILED", { error: "No ID returned" });
+            trace?.record("BOOKING_CREATE_FAILED", { 
+              error: "BEMP_NO_ID_RETURNED", 
+              responseSnippet: JSON.stringify(result).slice(0, 100) 
+            });
           }
         } catch (err: any) {
           createFailed = true;
-           trace?.record("BOOKING_CREATE_FAILED", {
-             endpoint: "/webhooks/whatsapp_schedule",
-             method: "POST",
-             httpStatus: err?.statusCode ?? err?.status ?? null,
-             errorCode: err?.code ?? null,
-             errorMessage: err?.message,
-           });
+          trace?.record("BOOKING_CREATE_FAILED", {
+            endpoint: "/webhooks/whatsapp_schedule",
+            method: "POST",
+            httpStatus: err?.statusCode ?? err?.status ?? null,
+            errorCode: err?.code ?? null,
+            errorMessage: err?.message,
+          });
         }
 
-       // NUNCA silencioso: falha real recebe resposta segura
+        // SE BEMP FALHAR: Resposta de falha determinística e segura.
+        // O agendamento NÃO é marcado como confirmado.
+        if (createFailed) {
+          // Não limpamos o contexto totalmente para permitir nova tentativa
+          bookingContext.appointmentStatus = "FAILED";
+          bookingContext.customerConfirmed = false;
+          bookingContext.awaitingConfirmation = true;
+          (bookingContext as any).createBookingKey = null;
+          await patchCustomerContext(finalKey, { bookingContext });
 
+          await replyWithAI({
+            instance,
+            phone: contactPhone,
+            text: "Não consegui concluir o agendamento agora 💜\nO horário não foi reservado. Posso tentar novamente para você.",
+            conversationKey: finalKey,
+            messageId,
+            unitId: agent.unidade_id,
+            _trace: trace
+          }, traceId);
 
-       // NUNCA silencioso: falha real recebe resposta segura
-       if (createFailed) {
-         bookingContext.appointmentStatus = "FAILED";
-         bookingContext.customerConfirmed = false;
-         bookingContext.awaitingConfirmation = true;
-         (bookingContext as any).createBookingKey = null;
-         await patchCustomerContext(finalKey, { bookingContext });
+          trace?.record("TOTAL_PROCESSING_COMPLETED", { status: "error", reason: "booking_create_failed" });
+          return;
+        }
 
-         await replyWithAI({
-           instance,
-           phone: contactPhone,
-           text: "Não consegui concluir seu agendamento agora. 💜 Vou precisar tentar novamente em instantes.",
-           conversationKey: finalKey,
-           messageId,
-           unitId: agent.unidade_id,
-           _trace: trace
-         }, traceId);
-
-         trace?.record("TOTAL_PROCESSING_COMPLETED", { status: "error", reason: "booking_create_failed" });
-         return;
-       }
     }
 
 
