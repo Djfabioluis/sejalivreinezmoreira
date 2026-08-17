@@ -49,7 +49,7 @@ describe("Booking Context Lifecycle", () => {
     expect(isShortAffirmative("sim")).toBe(true);
     expect(isShortAffirmative("isso")).toBe(true);
     expect(isShortAffirmative("correto")).toBe(true);
-    expect(isShortAffirmative("pode marcar")).toBe(false); // only exact/short patterns for now
+    expect(isShortAffirmative("pode marcar")).toBe(true); // included in AFFIRMATIVE regex
   });
 
   it("should block duplicate questions", () => {
