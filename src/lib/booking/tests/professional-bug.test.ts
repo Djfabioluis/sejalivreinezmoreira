@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { extractBookingSlots, nextRequiredSlot, mergeBookingContext } from '../context';
+import { extractBookingSlots, nextRequiredSlot, matchProfessionalChoice, isAnyProfessionalIndex } from '../context';
 import { getLocalBookingDate } from '../local-date';
 
 describe('Professional Selection Bug Regression', () => {
@@ -27,7 +27,6 @@ describe('Professional Selection Bug Regression', () => {
   });
 
   it('matches "juliana" and updates context correctly', () => {
-    const { matchProfessionalChoice } = require('../context');
     const chosen = matchProfessionalChoice('juliana', initialContext.professionalOptions);
     expect(chosen).toBeDefined();
     expect(chosen.name).toBe('Juliana Muller');
@@ -41,12 +40,10 @@ describe('Professional Selection Bug Regression', () => {
   });
 
   it('matches "1" as index and updates context', () => {
-    const { isAnyProfessionalIndex, matchProfessionalChoice } = require('../context');
     const text = '1';
-    
-    // Simular lógica do agent.server.ts
     const chosen = matchProfessionalChoice(text, initialContext.professionalOptions);
     expect(chosen).toBeDefined();
     expect(chosen.id).toBe('1');
+    expect(chosen.name).toBe('Juliana Muller');
   });
 });
