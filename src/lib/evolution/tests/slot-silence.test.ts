@@ -30,9 +30,11 @@ const mockSupabase = {
               '2026-08-17T18:00:00.000-03:00',
               '2026-08-17T20:00:00.000-03:00'
             ],
-            appointmentStatus: 'NONE'
+            appointmentStatus: 'NONE',
+            confirmationSentFor: null
           }
         }
+
       }
     };
   }),

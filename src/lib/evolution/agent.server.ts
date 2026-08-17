@@ -398,7 +398,9 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       bookingSessionId: customerContext.bookingContext?.bookingSessionId ?? null,
       periodSessionId: customerContext.bookingContext?.periodSessionId ?? null,
       priceIntent: customerContext.bookingContext?.priceIntent === true,
+      confirmationSentFor: customerContext.bookingContext?.confirmationSentFor ?? null,
     };
+
 
     trace?.record("BOOKING_CONTEXT_LOADED", {
       found: Boolean(customerContext.bookingContext),
@@ -771,7 +773,9 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
     // TRANSIÇÃO DETERMINÍSTICA: slot selecionado -> pedido de confirmação (nunca silencioso)
     const confirmationKey = `${bookingContext.date ?? ""}T${bookingContext.time ?? ""}`;
-    if ((slotJustSelected || bookingContext.selectedSlot) && (bookingContext as any).confirmationSentFor !== confirmationKey && bookingContext.appointmentStatus === "AWAITING_CONFIRMATION") {
+    const alreadySent = (bookingContext as any).confirmationSentFor === confirmationKey;
+    
+    if ((slotJustSelected || bookingContext.selectedSlot) && !alreadySent && bookingContext.appointmentStatus === "AWAITING_CONFIRMATION") {
       (bookingContext as any).confirmationSentFor = confirmationKey;
       const { buildConfirmationMessage } = await import("@/lib/booking/lifecycle");
       const confirmText = buildConfirmationMessage(bookingContext);
@@ -794,6 +798,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       trace?.record("TOTAL_PROCESSING_COMPLETED", { status: "success", reason: "confirmation_requested" });
       return;
     }
+
 
 
     // AGUARDANDO CONFIRMAÇÃO: qualquer mensagem não afirmativa (ex.: "?") recebe lembrete
