@@ -351,6 +351,11 @@ export function extractBookingSlots(
   if (detectHarmonizationIntent(t)) {
     out.intent = "harmonizacao_bumbum_barriga";
   }
+  
+  // LOG PARA DEBUG
+  if (out.period || out.time) {
+    console.log(`[EXTRACTED_DEBUG] period=${out.period}, time=${out.time}, selectedSlot=${out.selectedSlot}`);
+  }
 
   return out;
 }
