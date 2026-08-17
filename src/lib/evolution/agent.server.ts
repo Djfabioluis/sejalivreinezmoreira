@@ -410,17 +410,33 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
         const { BempService } = await import("@/lib/bemp-service.server");
         try {
           const services = await BempService.listServices(agent.unidade_id);
-          const found = services.find((s: any) => {
-            const sName = normalizeServiceSearchText(s.name);
-            return sName === normalizedText || normalizedText.includes(sName);
+          const matches = services.filter((s: any) => {
+            const sName = normalizeServiceSearchText(s.name || s.nome || "");
+            if (!sName) return false;
+            return (
+              sName === normalizedText ||
+              sName.includes(normalizedText) ||
+              (normalizedText.includes(sName) && sName.length > 3)
+            );
           });
+          const exact = matches.find((s: any) => normalizeServiceSearchText(s.name || s.nome || "") === normalizedText);
+          const found = exact ?? (matches.length === 1 ? matches[0] : null);
           if (found) {
             extracted.serviceId = String(found.id);
-            extracted.serviceName = String(found.name);
-            trace?.record("BEMP_SERVICE_LOOKUP_COMPLETED", { found: found.name });
+            extracted.serviceName = String(found.name || (found as any).nome);
+            trace?.record("BEMP_SERVICE_LOOKUP_COMPLETED", { found: extracted.serviceName });
+          } else if (matches.length > 1) {
+            extracted.candidates = matches.slice(0, 5).map((m: any) => ({
+              id: String(m.id),
+              name: String(m.name || m.nome),
+              price: m.price ?? m.valor ?? 0,
+            }));
+            extracted.clarificationRequired = true;
+            trace?.record("BEMP_SERVICE_LOOKUP_COMPLETED", { candidates: extracted.candidates.length });
           } else {
             trace?.record("BEMP_SERVICE_LOOKUP_COMPLETED", { found: null });
           }
+
         } catch (err) {}
       }
     }
