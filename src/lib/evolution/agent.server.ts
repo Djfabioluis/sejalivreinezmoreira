@@ -412,7 +412,51 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       availableSlotsCount: previousContext.availableSlots.length,
     });
 
+    // ============================================================
+    // CANCELAMENTO — PRIORIDADE MÁXIMA (antes de qualquer estado/IA)
+    // ============================================================
+    {
+      const {
+        detectCancelIntent,
+        hasBookingInProgress,
+        resetBookingForCancel,
+        CANCEL_FLOW_MESSAGE,
+        CANCEL_IDLE_MESSAGE,
+      } = await import("@/lib/booking/context");
+
+      if (detectCancelIntent(text)) {
+        const inProgress = hasBookingInProgress(previousContext as any);
+        const cleared = resetBookingForCancel(previousContext as any);
+        trace?.record("CANCEL_INTENT_DETECTED", {
+          inProgress,
+          skipServiceLookup: true,
+          skipGemini: true,
+          nextState: "IDLE",
+        });
+
+        await patchCustomerContext(finalKey, { bookingContext: cleared });
+
+        const { replyWithAI } = await import("./reply.server");
+        await replyWithAI(
+          {
+            instance,
+            phone: contactPhone,
+            text: inProgress ? CANCEL_FLOW_MESSAGE : CANCEL_IDLE_MESSAGE,
+            conversationKey: finalKey,
+            messageId,
+            unitId: agent.unidade_id,
+            _trace: trace,
+          },
+          traceId,
+        );
+
+        trace?.record("TOTAL_PROCESSING_COMPLETED", { status: "success", reason: "cancel_intent" });
+        return;
+      }
+    }
+
     const extracted: any = extractBookingSlots(text);
+
 
     // BEMP proativo - usa o termo CANÔNICO normalizado (ex.: "Mao" -> "manicure")
     const serviceSearchSource: string = extracted?.serviceText || text;
