@@ -621,7 +621,12 @@ export function knownSlots(ctx: BookingContext): Record<string, string> {
 export function nextRequiredSlot(ctx: BookingContext): BookingSlot {
   if (!ctx.unitId) return "unit";
   if (!ctx.serviceId && !ctx.serviceName) return "service";
-  if (!ctx.date) return "date";
+  if (!ctx.date) {
+    // Se há uma intenção de preço ativa, não avançamos para a pergunta de data ainda.
+    // O price handler deve responder primeiro.
+    if (ctx.priceIntent) return "service"; 
+    return "date";
+  }
 
   // NOVO ESTADO: PROFISSIONAL antes do período/horários.
   if (!ctx.professionalId && ctx.professionalPreference !== "ANY" && !ctx.selectedSlot && !ctx.time) {
