@@ -152,12 +152,8 @@ export async function handleCancelFlow(params: {
       return { handled: true, message: buildMultipleCancelList(options), nextContext: ctx, telemetry: t };
     }
 
-    if (selected) {
-      t.cancelConfirmationAsked = true;
-      return { handled: true, message: buildSingleCancelConfirmation(selected), nextContext: ctx, telemetry: t };
-    }
-
-    return { handled: true, message: NO_FUTURE_BOOKINGS_MESSAGE, nextContext: clearPending(ctx), telemetry: t };
+    // Mensagem não relacionada ao cancelamento pendente: libera o fluxo normal.
+    return { handled: false, nextContext: clearPending(ctx), telemetry: t };
   }
 
   // ---- Nova intenção de cancelamento ----
