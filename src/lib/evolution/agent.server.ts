@@ -397,6 +397,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       availableSlots: customerContext.bookingContext?.availableSlots ?? [],
       bookingSessionId: customerContext.bookingContext?.bookingSessionId ?? null,
       periodSessionId: customerContext.bookingContext?.periodSessionId ?? null,
+      priceIntent: customerContext.bookingContext?.priceIntent === true,
     };
 
     trace?.record("BOOKING_CONTEXT_LOADED", {
@@ -476,6 +477,103 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
     const extracted: any = extractBookingSlots(text);
 
+    // ============================================================
+    // PRICE_INTENT — Alta prioridade (após cancelamento)
+    // ============================================================
+    if (extracted.priceIntent || previousContext.priceIntent) {
+      const { BempService } = await import("@/lib/bemp-service.server");
+      const unitId = agent.unidade_id || previousContext.unitId;
+      
+      if (unitId) {
+        // Tentar resolver serviço da mensagem ou do contexto
+        const serviceSearch = extracted.serviceText || previousContext.serviceText || previousContext.serviceName;
+        
+        if (serviceSearch) {
+          const { normalizeServiceSearchText } = await import("@/lib/service-utils");
+          const query = normalizeServiceSearchText(serviceSearch);
+          
+          try {
+            const allServices = await BempService.listServices(unitId);
+            const matches = allServices.filter(s => {
+              const sName = normalizeServiceSearchText(s.name || s.nome || "");
+              return sName.includes(query) || query.includes(sName);
+            });
+
+            if (matches.length === 1) {
+              const service = matches[0];
+              const price = service.price || service.valor;
+              const priceText = price != null 
+                ? `R$ ${Number(price).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                : null;
+              
+              if (priceText) {
+                const response = `A ${service.name || service.nome} custa ${priceText} 💜\nQuer que eu veja os horários disponíveis?`;
+                
+                // Limpar priceIntent após responder, mas manter o resto do contexto
+                const nextCtx = { ...previousContext, ...extracted, priceIntent: false };
+                if (!nextCtx.serviceId) {
+                  nextCtx.serviceId = String(service.id);
+                  nextCtx.serviceName = service.name || service.nome;
+                }
+
+                await patchCustomerContext(finalKey, { bookingContext: nextCtx });
+                const { replyWithAI } = await import("./reply.server");
+                await replyWithAI({
+                  instance,
+                  phone: contactPhone,
+                  text: response,
+                  conversationKey: finalKey,
+                  messageId,
+                  unitId: agent.unidade_id,
+                  _trace: trace,
+                }, traceId);
+
+                trace?.record("PRICE_RESPONSE_SENT", { serviceId: service.id, price: priceText });
+                return;
+              } else {
+                const response = `Encontrei o serviço "${service.name || service.nome}", mas o valor não está disponível no catálogo no momento. 💜`;
+                const nextCtx = { ...previousContext, ...extracted, priceIntent: false };
+                await patchCustomerContext(finalKey, { bookingContext: nextCtx });
+                const { replyWithAI } = await import("./reply.server");
+                await replyWithAI({
+                  instance, phone: contactPhone, text: response, conversationKey: finalKey, messageId, unitId: agent.unidade_id, _trace: trace
+                }, traceId);
+                return;
+              }
+            } else if (matches.length > 1) {
+              const options = matches.map(s => {
+                const price = s.price || s.valor;
+                const pText = price != null 
+                  ? `R$ ${Number(price).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                  : "sob consulta";
+                return `• ${s.name || s.nome} — ${pText}`;
+              }).join("\n");
+              
+              const response = `Encontrei estas opções de ${serviceSearch} 💜\n\n${options}\n\nQual delas você deseja?`;
+              const nextCtx = { ...previousContext, ...extracted, priceIntent: false };
+              await patchCustomerContext(finalKey, { bookingContext: nextCtx });
+              const { replyWithAI } = await import("./reply.server");
+              await replyWithAI({
+                instance, phone: contactPhone, text: response, conversationKey: finalKey, messageId, unitId: agent.unidade_id, _trace: trace
+              }, traceId);
+              return;
+            }
+          } catch (err) {
+            console.error("[PRICE_LOOKUP_ERROR]", err);
+          }
+        } else {
+          // Se não tem serviço, perguntar qual serviço
+          const response = `Claro 💜 De qual serviço você gostaria de saber o valor?`;
+          const nextCtx = { ...previousContext, ...extracted };
+          await patchCustomerContext(finalKey, { bookingContext: nextCtx });
+          const { replyWithAI } = await import("./reply.server");
+          await replyWithAI({
+            instance, phone: contactPhone, text: response, conversationKey: finalKey, messageId, unitId: agent.unidade_id, _trace: trace
+          }, traceId);
+          return;
+        }
+      }
+    }
 
     // BEMP proativo - usa o termo CANÔNICO normalizado (ex.: "Mao" -> "manicure")
     const serviceSearchSource: string = extracted?.serviceText || text;
