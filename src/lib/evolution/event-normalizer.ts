@@ -1,7 +1,11 @@
 import { EvolutionEventName, NormalizedEvolutionEvent } from "./types";
 
 export function normalizeEvolutionEvent(payload: any): NormalizedEvolutionEvent {
-  const rawEvent = (payload.event || "unknown").toLowerCase().replace(/_/g, ".");
+  const rawEvent = String(
+    payload?.event ?? payload?.type ?? payload?.eventType ?? payload?.data?.event ?? "unknown"
+  )
+    .toLowerCase()
+    .replace(/_/g, ".");
   let eventName: EvolutionEventName = "unknown";
 
   if (

@@ -46,10 +46,17 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           return null;
         });
 
+        if (!payload) {
+          return new Response(JSON.stringify({ ok: true, ignored: true, reason: "invalid_json" }), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+
         // 3. Instrumentação imediata (Requisito 4)
         logger.info("WEBHOOK_RAW_RECEIVED", "Payload detectado", { 
           traceId, 
-          event: payload.event,
+          event: payload.event ?? payload.type ?? payload.eventType,
           instance: payload.instance || payload.instanceName,
           remoteJid: payload.data?.key?.remoteJid,
           messageId: payload.data?.key?.id,
