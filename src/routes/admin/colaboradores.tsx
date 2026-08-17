@@ -31,6 +31,9 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 
+import { useQuery } from "@tanstack/react-query";
+import { getCollaborators } from "@/lib/admin.functions";
+
 export const Route = createFileRoute("/admin/colaboradores")({
   component: AdminColaboradores,
 });
@@ -38,12 +41,13 @@ export const Route = createFileRoute("/admin/colaboradores")({
 function AdminColaboradores() {
   const [searchTerm, setSearchTerm] = useState("");
 
-  const colaboradores = [
-    { id: 1, name: "Ana Paula Silva", email: "ana.paula@exemplo.com", phone: "(41) 99887-7665", cpf: "***.***.456-78", modality: "Manicure", status: "ATIVO", contract: "Assinado", date: "10/01/2026" },
-    { id: 2, name: "Roberto Santos", email: "roberto.santos@exemplo.com", phone: "(41) 99776-5544", cpf: "***.***.123-45", modality: "Cabeleireiro", status: "ATIVO", contract: "Pendente", date: "15/02/2026" },
-    { id: 3, name: "Juliana Mendes", email: "juliana.m@exemplo.com", phone: "(41) 99665-4433", cpf: "***.***.890-12", modality: "Esteticista", status: "ATIVO", contract: "Assinado", date: "05/03/2026" },
-    { id: 4, name: "Carlos Ferreira", email: "carlos.f@exemplo.com", phone: "(41) 99554-3322", cpf: "***.***.345-67", modality: "Cabeleireiro", status: "INATIVO", contract: "Atrasado", date: "20/03/2026" },
-  ];
+  const { data: colaboradoresData, isLoading } = useQuery({
+    queryKey: ["admin-collaborators"],
+    queryFn: () => getCollaborators(),
+  });
+
+  const colaboradores = colaboradoresData || [];
+
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -107,14 +111,28 @@ function AdminColaboradores() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {colaboradores.map((colab) => (
-                  <TableRow key={colab.id} className="hover:bg-[#FDFCFB]/50 transition-colors">
-                    <TableCell>
-                      <div>
-                        <p className="font-bold text-[#2D5A5B]">{colab.name}</p>
-                        <p className="text-[10px] text-[#2D5A5B]/50 font-medium uppercase">{colab.cpf}</p>
-                      </div>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-10 text-[#2D5A5B]/40">
+                      Carregando colaboradores...
                     </TableCell>
+                  </TableRow>
+                ) : colaboradores.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-10 text-[#2D5A5B]/40">
+                      Nenhum colaborador encontrado.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  colaboradores.map((colab) => (
+                    <TableRow key={colab.id} className="hover:bg-[#FDFCFB]/50 transition-colors">
+                      <TableCell>
+                        <div>
+                          <p className="font-bold text-[#2D5A5B]">{colab.full_name}</p>
+                          <p className="text-[10px] text-[#2D5A5B]/50 font-medium uppercase">{colab.cpf}</p>
+                        </div>
+                      </TableCell>
+
                     <TableCell>
                       <div>
                         <p className="text-sm text-[#2D5A5B]/70">{colab.email}</p>
