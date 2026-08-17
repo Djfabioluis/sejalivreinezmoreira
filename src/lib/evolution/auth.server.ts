@@ -28,7 +28,10 @@ export async function authenticateWebhook(request: Request): Promise<{ authentic
         return { authenticated: true };
       }
 
-      logger.error("WEBHOOK_AUTH_FAILED", "EVOLUTION_WEBHOOK_SECRET não configurado e apikey ausente.", { url: request.url });
+      logger.error("WEBHOOK_AUTH_FAILED", "EVOLUTION_WEBHOOK_SECRET não configurado e apikey ausente.", { 
+        url: request.url,
+        receivedHeaders: Array.from(request.headers.keys())
+      });
       return { authenticated: false, error: "Unauthorized: Webhook secret not configured" };
     }
     console.warn("[WEBHOOK_AUTH] EVOLUTION_WEBHOOK_SECRET not configured. Allowing traffic in development.");
@@ -42,7 +45,10 @@ export async function authenticateWebhook(request: Request): Promise<{ authentic
       return { authenticated: true };
     }
 
-    logger.warn("WEBHOOK_AUTH_MISSING", "Segredo obrigatório não enviado", { url: request.url });
+    logger.warn("WEBHOOK_AUTH_MISSING", "Segredo obrigatório não enviado", { 
+      url: request.url,
+      receivedHeaders: Array.from(request.headers.keys())
+    });
     return { authenticated: false, error: "Unauthorized: Webhook secret required" };
   }
 
@@ -51,6 +57,10 @@ export async function authenticateWebhook(request: Request): Promise<{ authentic
       instance: "auth_gate",
       event: "webhook_authenticated",
       status: "unauthorized",
+    });
+    logger.warn("WEBHOOK_AUTH_INVALID", "Segredo inválido enviado", { 
+      url: request.url,
+      receivedHeaders: Array.from(request.headers.keys())
     });
     return { authenticated: false, error: "Unauthorized: Invalid secret" };
   }
