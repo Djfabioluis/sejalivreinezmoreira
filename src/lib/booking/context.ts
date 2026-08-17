@@ -154,11 +154,17 @@ export function extractBookingSlots(
 
   const t = text.trim();
 
-  // RESET LOGIC: Se houver uma nova intenção clara de agendamento, limpamos dados antigos.
+  // RESET LOGIC: Se houver uma nova intenção clara de agendamento e já tivermos um booking confirmado/falho, limpamos.
   const isNewBookingIntent = /\b(?:quero|preciso|gostaria|agendar|marcar|fazer|hoje|amanh[ãa])\b/i.test(t) && 
                             SERVICE_PATTERNS.some(p => p.re.test(t));
   
-  if (isNewBookingIntent && previous && !previous.awaitingConfirmation) {
+  const isSessionReset = isNewBookingIntent && previous && (
+    previous.appointmentStatus === "CONFIRMED" || 
+    previous.appointmentStatus === "FAILED" ||
+    (previous.date && previous.appointmentStatus === "NONE" && !previous.awaitingConfirmation)
+  );
+
+  if (isSessionReset) {
     // Preservar apenas identidade e saudação
     out.unitId = previous.unitId;
     out.conversationGreeted = previous.conversationGreeted;
@@ -174,10 +180,8 @@ export function extractBookingSlots(
     out.candidates = undefined;
     out.clarificationRequired = false;
     out.appointmentStatus = "NONE";
-    console.log("[BOOKING_RESET] Nova intenção detectada, limpando contexto antigo.");
-    
-    // IMPORTANTE: Como fizemos um reset, o mergeBookingContext não deve tentar
-    // restaurar serviceId/date do previous. Marcamos isso no output.
+    out.bookingSessionId = Math.random().toString(36).substring(7);
+    console.log("[BOOKING_RESET] Nova sessão iniciada, limpando contexto anterior.");
     (out as any)._isReset = true;
   }
 
