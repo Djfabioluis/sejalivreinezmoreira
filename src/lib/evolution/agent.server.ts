@@ -475,22 +475,77 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     }
 
     // MÁQUINA DE ESTADOS DETERMINÍSTICA - SELEÇÃO DE HORÁRIO
+    let slotJustSelected = false;
     if (!greetingOnly && bookingContext.availableSlots?.length && !bookingContext.selectedSlot) {
       const { slotLocalTime } = await import("@/lib/booking/slot-time");
+      const textTimeMatch = text.match(/\b([01]?\d|2[0-3])\s*(?::|h|hs|horas?)\s*([0-5]\d)?\b/i);
+      const textTime = textTimeMatch
+        ? `${String(Number(textTimeMatch[1])).padStart(2, "0")}:${textTimeMatch[2] ?? "00"}`
+        : null;
       const selected = bookingContext.availableSlots.find(s => {
         const hhmm = slotLocalTime(s);
-        return (!!hhmm && text.includes(hhmm)) || (!!bookingContext.time && slotLocalTime(s) === bookingContext.time);
+        if (!hhmm) return false;
+        return text.includes(hhmm) || hhmm === textTime || (!!bookingContext.time && hhmm === bookingContext.time);
       });
       if (selected) {
         bookingContext.selectedSlot = selected;
         bookingContext.time = slotLocalTime(selected) || bookingContext.time || null;
         bookingContext.appointmentStatus = "AWAITING_CONFIRMATION";
         bookingContext.awaitingConfirmation = true;
-        trace?.record("BOOKING_SLOT_SELECTED", { slot: selected });
+        bookingContext.customerConfirmed = false;
+        slotJustSelected = true;
+        trace?.record("BOOKING_SLOT_SELECTED", { slot: selected, time: bookingContext.time });
       }
     }
 
     if (agent.unidade_id) bookingContext.unitId = String(agent.unidade_id);
+
+    // TRANSIÇÃO DETERMINÍSTICA: slot selecionado -> pedido de confirmação (nunca silencioso)
+    if (slotJustSelected) {
+      const { buildConfirmationMessage } = await import("@/lib/booking/lifecycle");
+      const confirmText = buildConfirmationMessage(bookingContext);
+      await patchCustomerContext(finalKey, { bookingContext });
+
+      const { replyWithAI } = await import("./reply.server");
+      await replyWithAI({
+        instance,
+        phone: contactPhone,
+        text: confirmText,
+        conversationKey: finalKey,
+        messageId,
+        unitId: agent.unidade_id,
+        _trace: trace
+      }, traceId);
+
+      trace?.record("TOTAL_PROCESSING_COMPLETED", { status: "success", reason: "confirmation_requested" });
+      return;
+    }
+
+    // AGUARDANDO CONFIRMAÇÃO: qualquer mensagem não afirmativa (ex.: "?") recebe lembrete
+    if (
+      !greetingOnly &&
+      bookingContext.appointmentStatus === "AWAITING_CONFIRMATION" &&
+      bookingContext.customerConfirmed !== true &&
+      bookingContext.selectedSlot &&
+      !isShortAffirmative(text)
+    ) {
+      const { buildPendingConfirmationReminder } = await import("@/lib/booking/lifecycle");
+      await patchCustomerContext(finalKey, { bookingContext });
+
+      const { replyWithAI } = await import("./reply.server");
+      await replyWithAI({
+        instance,
+        phone: contactPhone,
+        text: buildPendingConfirmationReminder(bookingContext),
+        conversationKey: finalKey,
+        messageId,
+        unitId: agent.unidade_id,
+        _trace: trace
+      }, traceId);
+
+      trace?.record("TOTAL_PROCESSING_COMPLETED", { status: "success", reason: "confirmation_reminder" });
+      return;
+    }
 
     // CRIAÇÃO DETERMINÍSTICA PÓS CONFIRMAÇÃO
     if (bookingContext.customerConfirmed === true && bookingContext.appointmentStatus === "CREATING") {
