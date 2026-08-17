@@ -716,6 +716,8 @@ export function clearTransientBooking(ctx: BookingContext): BookingContext {
   next.serviceName = null;
   next.serviceText = null;
   next.date = null;
+  next.dateLocked = false;
+
   next.period = null;
   next.time = null;
   next.selectedSlot = null;
