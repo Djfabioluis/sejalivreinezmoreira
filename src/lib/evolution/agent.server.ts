@@ -1072,6 +1072,13 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     }
 
     // ESTADO NEED_PROFESSIONAL: perguntar o profissional ANTES do período/horários.
+    // BUG FIX: Se o próximo passo for profissional mas acabamos de selecioná-lo (PROFESSIONAL_SELECTED),
+    // devemos recalcular o requiredSlot AGORA para evitar repetir a pergunta.
+    if (requiredSlot === "professional" && bookingContext.professionalId) {
+      requiredSlot = nextRequiredSlot(bookingContext);
+      trace?.record("NEXT_REQUIRED_SLOT_RECALCULATED", { slot: requiredSlot });
+    }
+
     if (!greetingOnly && requiredSlot === "professional" && bookingContext.unitId && bookingContext.serviceId) {
       trace?.record("NEED_PROFESSIONAL", { serviceId: bookingContext.serviceId, date: bookingContext.date });
       const { BempService } = await import("@/lib/bemp-service.server");
@@ -1115,6 +1122,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
         return;
       }
     }
+
 
     // REQUISITO 5: Fluxo Determinístico sem Gemini para perguntas estruturais
     const { getDeterministicResponse } = await import("@/lib/booking/lifecycle");
