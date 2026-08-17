@@ -204,7 +204,13 @@ export function extractBookingSlots(
   // --- Serviço (Resolução de Ambiguidade Prioritária - Determinística) ---
   if (previous?.clarificationRequired && previous.candidates?.length) {
     console.log(`[DETERMINISTIC_RESOLUTION_ATTEMPT] Input: "${t}" | Candidates: ${previous.candidates.length}`);
+    const normalizedInput = t.toLowerCase().trim();
+    const isServiceInput = SERVICE_PATTERNS.some(p => p.re.test(t));
 
+    // Se a mensagem contém um NOVO padrão de serviço mas não contém índices,
+    // talvez o cliente ignorou as opções e pediu algo novo.
+    // Mas se for APENAS índice ou nome das opções, resolvemos aqui.
+    
     // 1. Tentar por índice ("o segundo", "opção 1", "1", "primeiro")
     // Padrões autorizados: "1", "primeiro", "o primeiro", "o 1"
     const ordinalMatch = t.match(/\b(?:a|o)?\s*(primeir[ao]|segund[ao]|terceir[ao]|quart[ao]|quint[ao])\b/i);
