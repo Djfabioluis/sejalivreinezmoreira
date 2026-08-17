@@ -201,7 +201,7 @@ export function extractBookingSlots(
   }
 
   // --- Serviço (Resolução de Ambiguidade Prioritária - Determinística) ---
-  if (previous?.clarificationRequired && previous.candidates?.length && !out.serviceText) {
+  if (previous?.clarificationRequired && previous.candidates?.length) {
     console.log(`[DETERMINISTIC_RESOLUTION_ATTEMPT] Input: "${t}" | Candidates: ${previous.candidates.length}`);
 
     // 1. Tentar por índice ("o segundo", "opção 1", "1", "primeiro")
@@ -386,10 +386,10 @@ export function mergeBookingContext(
     next.clarificationRequired = true;
   }
 
-  if (!next.serviceId && prev.serviceId && extracted?.serviceId === undefined) next.serviceId = prev.serviceId;
-  if (!next.serviceName && prev.serviceName && extracted?.serviceName === undefined) next.serviceName = prev.serviceName;
-  if (!next.serviceText && prev.serviceText && extracted?.serviceText === undefined) next.serviceText = prev.serviceText;
-  if (!next.date && prev.date && extracted?.date === undefined) next.date = prev.date;
+  if (!next.serviceId && prev.serviceId && extracted?.serviceId === undefined && !isNewBookingIntent) next.serviceId = prev.serviceId;
+  if (!next.serviceName && prev.serviceName && extracted?.serviceName === undefined && !isNewBookingIntent) next.serviceName = prev.serviceName;
+  if (!next.serviceText && prev.serviceText && extracted?.serviceText === undefined && !isNewBookingIntent) next.serviceText = prev.serviceText;
+  if (!next.date && prev.date && extracted?.date === undefined && !isNewBookingIntent) next.date = prev.date;
 
   return next;
 }
