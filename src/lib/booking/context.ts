@@ -258,7 +258,6 @@ export function extractBookingSlots(
     }
 
     // 2. Tentar por nome exato entre os candidatos (case insensitive)
-    const normalizedInput = t.toLowerCase();
     const exactMatch = previous.candidates.find((c: any) => 
       normalizedInput.includes(c.name.toLowerCase()) || 
       c.name.toLowerCase() === normalizedInput
