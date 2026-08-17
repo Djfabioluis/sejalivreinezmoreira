@@ -470,43 +470,67 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
   }
 
   // 2. LLM EXECUTION
-    // --- AUTO LIST SLOTS (Requisito: Período informado -> Listar horários) ---
-    const requiredSlot = nextRequiredSlot(bookingContext);
-    if (requiredSlot === "availability" && bookingContext.period && !bookingContext.time && !bookingContext.selectedSlot) {
-      console.log(`[AUTO_LIST_SLOTS] Triggered for period: ${bookingContext.period}`);
-      const slots = await BempService.listAvailableSlots({
-        salonId: effectiveUnitId!,
+  // 2. AUTO LIST SLOTS (Intervenção Determinística)
+  // Se temos Unit, Service e Date, mas não Time, e temos Period -> Chamar list_slots
+  const canListSlots = bookingContext.unitId && bookingContext.serviceId && bookingContext.date && bookingContext.period && !bookingContext.time;
+  
+  if (canListSlots) {
+    try {
+      console.log(`[AUTO_LIST_SLOTS] Intervenção ativada para unidade ${bookingContext.unitId}, serviço ${bookingContext.serviceId}, data ${bookingContext.date}, período ${bookingContext.period}`);
+      
+      const allSlots = await BempService.listAvailableSlots({
+        salonId: bookingContext.unitId!,
         serviceId: bookingContext.serviceId!,
-        date: bookingContext.date!,
+        date: bookingContext.date!
       });
 
-      const period = bookingContext.period;
-      const filtered = slots.filter((s: any) => {
-        const time = s.start || String(s);
-        const hour = parseInt(time.split(":")[0]);
-        if (period === "manhã") return hour < 12;
-        if (period === "tarde") return hour >= 12 && hour < 18;
-        if (period === "noite") return hour >= 18;
+      // Filtro de período robusto baseado em HH:mm (ISO ou formatado)
+      const filtered = allSlots.filter((s: any) => {
+        const timeStr = typeof s === 'string' ? s : s.start || s.time || "";
+        const hourStr = timeStr.includes('T') ? timeStr.split('T')[1].slice(0, 2) : timeStr.slice(0, 2);
+        const hour = parseInt(hourStr);
+        
+        if (isNaN(hour)) return false;
+        
+        if (bookingContext.period === "manhã") return hour < 12;
+        if (bookingContext.period === "tarde") return hour >= 12 && hour < 18;
+        if (bookingContext.period === "noite") return hour >= 18;
         return true;
       });
 
       if (filtered.length > 0) {
-        const availableTimes = filtered.map((s: any) => s.start || String(s));
-        bookingContext.availableSlots = availableTimes;
-        await patchCustomerContext(conversationKey!, { bookingContext });
+        const slotOptions = filtered.map((s: any) => {
+          const timeStr = typeof s === 'string' ? s : s.start || s.time || "";
+          return timeStr.includes('T') ? timeStr.split('T')[1].slice(0, 5) : timeStr.slice(0, 5);
+        }).join(", ");
         
-        const slotsText = availableTimes.slice(0, 10).join(", ");
+        bookingContext.availableSlots = filtered.map((s: any) => typeof s === 'string' ? s : s.start || s.time || "");
+        
+        // Persistir slots encontrados
+        await patchCustomerContext(conversationKey, { bookingContext });
+
         return {
-          role: "assistant",
-          content: `Encontrei estes horários para ${period}:\n\n${slotsText}\n\nQual deles fica melhor para você? 💜`
-        };
+          text: `Encontrei estes horários para você no período da ${bookingContext.period}: ${slotOptions}. Qual deles fica melhor para você? 💜`,
+          usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+          finishReason: "stop"
+        } as any;
       } else {
         return {
-          role: "assistant",
-          content: `Puxa, não encontrei horários disponíveis para ${period} no dia ${bookingContext.date}. Gostaria de tentar outro período ou outro dia? 💜`
-        };
+          text: `Infelizmente não encontrei horários disponíveis para o período da ${bookingContext.period} no dia solicitado. Gostaria de tentar outro período ou data? 💜`,
+          usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+          finishReason: "stop"
+        } as any;
       }
+    } catch (err) {
+      console.error("[AUTO_LIST_SLOTS_ERROR]", err);
+      // Se falhar o list_slots, não repetimos a pergunta, respondemos erro técnico
+      return {
+        text: "Desculpe, tive uma instabilidade técnica ao consultar a agenda. Poderia tentar novamente em instantes? 💜",
+        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+        finishReason: "error"
+      } as any;
     }
+  }
 
     const systemPrompt = assembleSystemPrompt({
     contactName: opts.contactName,
