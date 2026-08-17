@@ -572,7 +572,7 @@ export async function runAgent(opts: AgentOptions & { messages?: any[]; text?: s
         phone: remoteJid,
         text: finalResponse,
         conversationKey,
-        messageId: opts.messages?.[opts.messages.length - 1]?.id,
+        messageId: (opts.messages?.[opts.messages.length - 1]?.id as string) || `ai-${Date.now()}`,
         unitId: effectiveUnitId,
         _trace: (opts as any)._trace
       }, traceId);

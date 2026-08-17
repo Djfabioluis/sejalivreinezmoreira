@@ -35,10 +35,16 @@ export const sendManualWAMessage = createServerFn({ method: "POST" })
       
       trace.record("EVOLUTION_SEND_STARTED", { instance: params.instance });
 
-      const sent = await sendEvolutionText(params.instance, params.phone, params.text, typingMs);
+      const sent = await EvolutionService.sendText({
+        instance: params.instance,
+        to: params.phone,
+        text: params.text,
+        typingMs,
+        module: "manual"
+      });
 
       if (sent) {
-        const sentMessageId = sent.data?.key?.id || sent.data?.message?.key?.id || params.messageId || traceId;
+        const sentMessageId = params.messageId || traceId;
         trace.record("EVOLUTION_SEND_SUCCESS", { evolutionId: sentMessageId });
         trace.record("MESSAGE_SENT", { sentMessageId });
 
@@ -248,7 +254,7 @@ async function proceedWithSend(params: ReplyParams, trace: PerformanceTrace, tra
   });
   
   if (sentResult) {
-    const sentMessageId = sentResult.data?.key?.id || sentResult.data?.message?.key?.id || params.messageId || traceId;
+    const sentMessageId = params.messageId || traceId;
     trace.record("EVOLUTION_SEND_SUCCESS", { evolutionId: sentMessageId });
     trace.record("MESSAGE_SENT", { sentMessageId });
 
