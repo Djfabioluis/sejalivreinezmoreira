@@ -1,41 +1,45 @@
 import { supabaseAdmin } from "./src/integrations/supabase/client.server";
 
 async function findTrace() {
+  // Use raw query for jsonb text search or just list recent logs and filter in JS
   const { data: logs, error } = await supabaseAdmin
     .from('evo_trace_logs')
     .select('*')
-    .ilike('payload::text', '%as 18%')
     .order('timestamp', { ascending: false })
-    .limit(20);
+    .limit(300);
 
   if (error) {
     console.error("Error fetching logs:", error);
     return;
   }
 
-  if (!logs || logs.length === 0) {
-    console.log("No logs found matching 'as 18'");
-    // Try broader search for Fabio's JID
-    const { data: recent, error: err2 } = await supabaseAdmin
-      .from('evo_trace_logs')
-      .select('*')
-      .ilike('payload::text', '%5541992495561%')
-      .order('timestamp', { ascending: false })
-      .limit(50);
-    
-    if (recent) {
-      console.log("Recent logs for Fabio:", recent.length);
-      recent.forEach(r => {
-         console.log(`[${r.timestamp}] ${r.trace_id} | ${r.step} | ${JSON.stringify(r.payload).slice(0, 100)}`);
-      });
-    }
+  const fabioJid = "5541992495561";
+  const targetText = "as 18";
+
+  const relevant = logs?.filter(l => {
+    const p = JSON.stringify(l.payload || {});
+    return p.includes(fabioJid) || p.toLowerCase().includes(targetText);
+  });
+
+  if (!relevant || relevant.length === 0) {
+    console.log("No relevant logs found in last 300 records.");
     return;
   }
 
-  logs.forEach(log => {
-    console.log(`[${log.timestamp}] TRACE_ID: ${log.trace_id} | STEP: ${log.step}`);
-    console.log(JSON.stringify(log.payload, null, 2));
-  });
+  // Group by trace_id to see the flow
+  const grouped = relevant.reduce((acc: any, l: any) => {
+    if (!acc[l.trace_id]) acc[l.trace_id] = [];
+    acc[l.trace_id].push(l);
+    return acc;
+  }, {});
+
+  for (const tid in grouped) {
+    const steps = grouped[tid].sort((a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+    console.log(`\n--- TRACE: ${tid} ---`);
+    steps.forEach((s: any) => {
+      console.log(`[${s.timestamp}] ${s.step} | ${JSON.stringify(s.payload || {})}`);
+    });
+  }
 }
 
 findTrace();
