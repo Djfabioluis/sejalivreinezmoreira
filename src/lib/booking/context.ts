@@ -396,6 +396,7 @@ export function mergeBookingContext(
   }
 
   console.log("[MERGE_DEBUG] Merge normal");
+  for (const [key, value] of Object.entries(extracted || {})) {
     if (EMPTY(value)) continue;
     // REQUISITO 6: Nunca substituir por null, merge aditivo
     (next as any)[key] = value;
