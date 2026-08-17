@@ -778,3 +778,58 @@ export function ensureNoDuplicateBookingQuestion(text: string, ctx: BookingConte
 
   return { text, blocked: false };
 }
+
+/* ------------------------------------------------------------------ */
+/* Cancelamento (prioridade máxima)                                    */
+/* ------------------------------------------------------------------ */
+
+const CANCEL_INTENT =
+  /^(cancelar|cancela|cancelamento|quero\s+cancelar|cancelar\s+agendamento|cancelar\s+o\s+agendamento|desistir|desisti|pare|parar|nao\s+quero\s+mais|nao\s+quero|deixa\s+pra\s+la)[\s.,!?💜]*$/;
+
+/** Detecta deterministicamente a intenção de cancelar (normalizado, sem acento). */
+export function detectCancelIntent(text: string | null | undefined): boolean {
+  if (!text) return false;
+  const t = String(text)
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ");
+  if (!t || t.length > 40) return false;
+  return CANCEL_INTENT.test(t);
+}
+
+/** TRUE quando há um fluxo de agendamento em andamento (ainda não criado na BEMP). */
+export function hasBookingInProgress(ctx: BookingContext): boolean {
+  return Boolean(
+    ctx.serviceId ||
+      ctx.serviceName ||
+      ctx.serviceText ||
+      ctx.date ||
+      ctx.period ||
+      ctx.time ||
+      ctx.selectedSlot ||
+      ctx.professionalId ||
+      ctx.professionalPreference ||
+      ctx.awaitingConfirmation,
+  );
+}
+
+/** Reseta o contexto para IDLE após cancelamento do fluxo. */
+export function resetBookingForCancel(ctx: BookingContext): BookingContext {
+  const next = clearTransientBooking({ ...ctx });
+  next.professionalId = null;
+  next.professionalName = null;
+  next.professionalPreference = null;
+  next.professionalOptions = undefined;
+  next.subscriptionIntent = false;
+  (next as any).createBookingKey = null;
+  (next as any).confirmationSentFor = null;
+  if (next.appointmentStatus !== "CONFIRMED") next.appointmentStatus = "NONE";
+  return next;
+}
+
+export const CANCEL_FLOW_MESSAGE =
+  "Sem problema 💜 O agendamento em andamento foi cancelado. Se quiser começar novamente, é só me chamar.";
+export const CANCEL_IDLE_MESSAGE =
+  "Sem problema 💜 Não há nenhum agendamento em andamento. Se quiser iniciar um novo, é só me chamar.";
