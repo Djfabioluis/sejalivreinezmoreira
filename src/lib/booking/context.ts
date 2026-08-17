@@ -43,6 +43,16 @@ export interface BookingContext {
   availabilityCalled?: boolean;
   bookingSessionId?: string | null;
   periodSessionId?: string | null;
+
+  /** Cancelamento de agendamento JÁ confirmado na BEMP (aguardando confirmação do cliente). */
+  pendingCancellation?: boolean;
+  pendingCancellationBookingId?: string | null;
+  pendingCancellationOptions?: Array<{
+    id: string;
+    serviceName: string;
+    start: string;
+    unitId: string | null;
+  }>;
 }
 
 export type BookingSlot =
