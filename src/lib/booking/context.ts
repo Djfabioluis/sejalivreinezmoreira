@@ -44,6 +44,8 @@ export interface BookingContext {
   availabilityCalled?: boolean;
   bookingSessionId?: string | null;
   periodSessionId?: string | null;
+  /** Internal flag to indicate session was reset. */
+  _isReset?: boolean;
 
   /** Cancelamento de agendamento JÁ confirmado na BEMP (aguardando confirmação do cliente). */
   pendingCancellation?: boolean;
@@ -54,6 +56,7 @@ export interface BookingContext {
     start: string;
     unitId: string | null;
   }>;
+
 }
 
 export type BookingSlot =
@@ -161,8 +164,10 @@ export function extractBookingSlots(
   const isSessionReset = isNewBookingIntent && previous && (
     previous.appointmentStatus === "CONFIRMED" || 
     previous.appointmentStatus === "FAILED" ||
-    (previous.date && previous.appointmentStatus === "NONE" && !previous.awaitingConfirmation)
+    (previous.date && previous.appointmentStatus === "NONE" && !previous.awaitingConfirmation) ||
+    (previous.selectedSlot && previous.appointmentStatus === "AWAITING_CONFIRMATION")
   );
+
 
   if (isSessionReset) {
     // Preservar apenas identidade e saudação
