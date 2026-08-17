@@ -12,11 +12,19 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
+import { useQuery } from "@tanstack/react-query";
+import { getAdminStats } from "@/lib/admin.functions";
+
 export const Route = createFileRoute("/admin/")({
   component: AdminDashboard,
 });
 
 function AdminDashboard() {
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ["admin-stats"],
+    queryFn: () => getAdminStats(),
+  });
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <header className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
@@ -35,11 +43,32 @@ function AdminDashboard() {
       {/* Indicadores Principais */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
         {[
-          { title: "Colaboradores Ativos", value: "24", icon: Users, color: "bg-[#2D5A5B]/10 text-[#2D5A5B]" },
-          { title: "Contratos Assinados", value: "18", icon: FileText, color: "bg-green-100 text-green-700" },
-          { title: "Aguardando Assinatura", value: "8", icon: Clock, color: "bg-amber-100 text-amber-700" },
-          { title: "Manual Pendente", value: "12", icon: BookOpen, color: "bg-blue-100 text-blue-700" },
+          { 
+            title: "Colaboradores Ativos", 
+            value: isLoading ? "..." : stats?.activeProfessionals.toString(), 
+            icon: Users, 
+            color: "bg-[#2D5A5B]/10 text-[#2D5A5B]" 
+          },
+          { 
+            title: "Contratos Assinados", 
+            value: isLoading ? "..." : stats?.signedContracts.toString(), 
+            icon: FileText, 
+            color: "bg-green-100 text-green-700" 
+          },
+          { 
+            title: "Aguardando Assinatura", 
+            value: isLoading ? "..." : stats?.pendingSignatures.toString(), 
+            icon: Clock, 
+            color: "bg-amber-100 text-amber-700" 
+          },
+          { 
+            title: "Manual Pendente", 
+            value: isLoading ? "..." : stats?.pendingManuals.toString(), 
+            icon: BookOpen, 
+            color: "bg-blue-100 text-blue-700" 
+          },
         ].map((item, i) => (
+
           <Card key={i} className="border-none shadow-sm hover:shadow-md transition-shadow duration-300 rounded-2xl overflow-hidden">
             <CardContent className="p-6">
               <div className="flex items-center justify-between">

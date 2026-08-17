@@ -7,7 +7,6 @@ import {
   UserPlus, 
   FileText,
   UserCheck,
-  UserMinus,
   AlertCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,6 +29,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { useQuery } from "@tanstack/react-query";
+import { getCollaborators } from "@/lib/admin.functions";
 
 export const Route = createFileRoute("/admin/colaboradores")({
   component: AdminColaboradores,
@@ -38,28 +39,28 @@ export const Route = createFileRoute("/admin/colaboradores")({
 function AdminColaboradores() {
   const [searchTerm, setSearchTerm] = useState("");
 
-  const colaboradores = [
-    { id: 1, name: "Ana Paula Silva", email: "ana.paula@exemplo.com", phone: "(41) 99887-7665", cpf: "***.***.456-78", modality: "Manicure", status: "ATIVO", contract: "Assinado", date: "10/01/2026" },
-    { id: 2, name: "Roberto Santos", email: "roberto.santos@exemplo.com", phone: "(41) 99776-5544", cpf: "***.***.123-45", modality: "Cabeleireiro", status: "ATIVO", contract: "Pendente", date: "15/02/2026" },
-    { id: 3, name: "Juliana Mendes", email: "juliana.m@exemplo.com", phone: "(41) 99665-4433", cpf: "***.***.890-12", modality: "Esteticista", status: "ATIVO", contract: "Assinado", date: "05/03/2026" },
-    { id: 4, name: "Carlos Ferreira", email: "carlos.f@exemplo.com", phone: "(41) 99554-3322", cpf: "***.***.345-67", modality: "Cabeleireiro", status: "INATIVO", contract: "Atrasado", date: "20/03/2026" },
-  ];
+  const { data: colaboradoresData, isLoading } = useQuery({
+    queryKey: ["admin-collaborators"],
+    queryFn: () => getCollaborators(),
+  });
 
-  const getStatusBadge = (status: string) => {
+  const colaboradores = colaboradoresData || [];
+
+  const getStatusBadge = (status: string | null) => {
     switch (status) {
-      case "ATIVO": return <Badge className="bg-green-50 text-green-700 border-none">Ativo</Badge>;
-      case "INATIVO": return <Badge className="bg-gray-100 text-gray-700 border-none">Inativo</Badge>;
-      case "BLOQUEADO": return <Badge className="bg-red-50 text-red-700 border-none">Bloqueado</Badge>;
-      default: return <Badge variant="outline">{status}</Badge>;
+      case "ATIVO": return <Badge className="bg-green-50 text-green-700 border-none text-[10px] uppercase font-bold tracking-wider px-2">Ativo</Badge>;
+      case "INATIVO": return <Badge className="bg-gray-100 text-gray-700 border-none text-[10px] uppercase font-bold tracking-wider px-2">Inativo</Badge>;
+      case "BLOQUEADO": return <Badge className="bg-red-50 text-red-700 border-none text-[10px] uppercase font-bold tracking-wider px-2">Bloqueado</Badge>;
+      default: return <Badge variant="outline" className="text-[10px] uppercase font-bold tracking-wider px-2">{status || "S/N"}</Badge>;
     }
   };
 
-  const getContractBadge = (contract: string) => {
+  const getContractBadge = (contract: string | null) => {
     switch (contract) {
-      case "Assinado": return <Badge className="bg-[#2D5A5B]/10 text-[#2D5A5B] border-none">Assinado</Badge>;
-      case "Pendente": return <Badge className="bg-amber-50 text-amber-700 border-none">Pendente</Badge>;
-      case "Atrasado": return <Badge className="bg-red-50 text-red-700 border-none">Atrasado</Badge>;
-      default: return <Badge variant="outline">{contract}</Badge>;
+      case "ASSINADO": return <Badge className="bg-[#2D5A5B]/10 text-[#2D5A5B] border-none text-[10px] uppercase font-bold tracking-wider px-2">Assinado</Badge>;
+      case "PENDENTE": return <Badge className="bg-amber-50 text-amber-700 border-none text-[10px] uppercase font-bold tracking-wider px-2">Pendente</Badge>;
+      case "ATRASADO": return <Badge className="bg-red-50 text-red-700 border-none text-[10px] uppercase font-bold tracking-wider px-2">Atrasado</Badge>;
+      default: return <Badge variant="outline" className="text-[10px] uppercase font-bold tracking-wider px-2">{contract || "S/N"}</Badge>;
     }
   };
 
@@ -107,48 +108,61 @@ function AdminColaboradores() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {colaboradores.map((colab) => (
-                  <TableRow key={colab.id} className="hover:bg-[#FDFCFB]/50 transition-colors">
-                    <TableCell>
-                      <div>
-                        <p className="font-bold text-[#2D5A5B]">{colab.name}</p>
-                        <p className="text-[10px] text-[#2D5A5B]/50 font-medium uppercase">{colab.cpf}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div>
-                        <p className="text-sm text-[#2D5A5B]/70">{colab.email}</p>
-                        <p className="text-xs text-[#2D5A5B]/50">{colab.phone}</p>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-[#2D5A5B]/70 font-medium">{colab.modality}</TableCell>
-                    <TableCell>{getStatusBadge(colab.status)}</TableCell>
-                    <TableCell>{getContractBadge(colab.contract)}</TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-[#2D5A5B]/5 text-[#2D5A5B]">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48 rounded-xl border-[#2D5A5B]/10 shadow-lg">
-                          <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="gap-2 cursor-pointer focus:bg-[#2D5A5B]/5 focus:text-[#2D5A5B]">
-                            <FileText className="h-4 w-4" /> Ver Perfil
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2 cursor-pointer focus:bg-[#2D5A5B]/5 focus:text-[#2D5A5B]">
-                            <UserCheck className="h-4 w-4" /> Ativar/Inativar
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="gap-2 text-red-600 cursor-pointer focus:bg-red-50 focus:text-red-700">
-                            <AlertCircle className="h-4 w-4" /> Bloquear Acesso
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                {isLoading ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-10 text-[#2D5A5B]/40">
+                      Carregando colaboradores...
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : colaboradores.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-10 text-[#2D5A5B]/40">
+                      Nenhum colaborador encontrado.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  colaboradores.map((colab) => (
+                    <TableRow key={colab.id} className="hover:bg-[#FDFCFB]/50 transition-colors">
+                      <TableCell>
+                        <div>
+                          <p className="font-bold text-[#2D5A5B]">{colab.full_name}</p>
+                          <p className="text-[10px] text-[#2D5A5B]/50 font-medium uppercase">{colab.cpf}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div>
+                          <p className="text-sm text-[#2D5A5B]/70">{colab.phone}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-[#2D5A5B]/70 font-medium text-xs">{colab.modality}</TableCell>
+                      <TableCell>{getStatusBadge(colab.status)}</TableCell>
+                      <TableCell>{getContractBadge(null)}</TableCell>
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0 hover:bg-[#2D5A5B]/5 text-[#2D5A5B]">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48 rounded-xl border-[#2D5A5B]/10 shadow-lg">
+                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem className="gap-2 cursor-pointer focus:bg-[#2D5A5B]/5 focus:text-[#2D5A5B]">
+                              <FileText className="h-4 w-4" /> Ver Perfil
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="gap-2 cursor-pointer focus:bg-[#2D5A5B]/5 focus:text-[#2D5A5B]">
+                              <UserCheck className="h-4 w-4" /> Ativar/Inativar
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem className="gap-2 text-red-600 cursor-pointer focus:bg-red-50 focus:text-red-700">
+                              <AlertCircle className="h-4 w-4" /> Bloquear Acesso
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
