@@ -441,6 +441,14 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       }
     }
 
+    // Segurança: intenção canônica reconhecida (ex.: "Mão" -> manicure) nunca deve
+    // fazer o fluxo repetir a pergunta de serviço.
+    if (!extracted.serviceId && !extracted.serviceName && extracted.serviceText && !extracted.clarificationRequired) {
+      extracted.serviceName = String(extracted.serviceText);
+    }
+
+
+
     const explicitSubscription = detectSubscriptionIntent(text);
     if (explicitSubscription) extracted.subscriptionIntent = true;
 
