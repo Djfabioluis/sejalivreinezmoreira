@@ -563,7 +563,20 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
               await patchCustomerContext(finalKey, { bookingContext: nextCtx });
               const { replyWithAI } = await import("./reply.server");
               await replyWithAI({
-                instance, phone: contactPhone, text: response, conversationKey: finalKey, messageId, unitId: agent.unidade_id, _trace: trace
+                instance, 
+                phone: contactPhone, 
+                text: response, 
+                conversationKey: finalKey, 
+                messageId, 
+                unitId: agent.unidade_id, 
+                _trace: trace,
+                resolvedPrices: matches.map(s => ({
+                  serviceId: String(s.id),
+                  serviceName: s.name || s.nome || "serviço",
+                  price: Number(s.price || s.valor || 0),
+                  unitId: unitId,
+                  source: "bemp:listServices"
+                }))
               }, traceId);
               return;
             }
