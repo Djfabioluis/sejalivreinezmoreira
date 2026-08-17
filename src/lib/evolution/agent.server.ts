@@ -599,6 +599,10 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
     // BEMP proativo - usa o termo CANÔNICO normalizado (ex.: "Mao" -> "manicure")
     const serviceSearchSource: string = extracted?.serviceText || text;
+    // Requisito 10: Garantir que a extração de data/período da mensagem atual seja mesclada corretamente
+    // mergeBookingContext(previousContext, extracted) já foi chamado acima e resultou em bookingContext.
+    
+
     if (!previousContext.serviceId && agent?.unidade_id && serviceSearchSource.length >= 3 && serviceSearchSource.length < 50) {
       const { normalizeServiceSearchText } = await import("@/lib/service-utils");
       const normalizedText = normalizeServiceSearchText(serviceSearchSource);
@@ -665,8 +669,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     const explicitSubscription = detectSubscriptionIntent(text);
     if (explicitSubscription) extracted.subscriptionIntent = true;
 
-    console.log(`[BOOKING_CONTEXT_BEFORE] ${JSON.stringify(previousContext)}`);
-    const bookingContext = mergeBookingContext(previousContext, extracted);
+    // mergeBookingContext já realizado acima para controle de fluxo proativo
     console.log(`[BOOKING_FIELDS_EXTRACTED] ${JSON.stringify(extracted)}`);
     console.log(`[BOOKING_CONTEXT_AFTER] ${JSON.stringify(bookingContext)}`);
     

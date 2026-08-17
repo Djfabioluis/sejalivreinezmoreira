@@ -202,13 +202,15 @@ export function extractBookingSlots(
   }
 
   // --- Data ---
-  if (/\bhoje\b/i.test(t)) {
+  const normalizedDateT = t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  
+  if (/\bhoje\b/i.test(normalizedDateT)) {
     out.date = getLocalBookingDate(now);
     logEvent({ instance: 'unknown', event: 'DATE_RESOLVED', status: 'success', payload: { input: 'hoje', resolved: out.date } }).catch(() => {});
-  } else if (/depois\s+de\s+amanh[ãa]/i.test(t)) {
+  } else if (/depois\s+de\s+amanha/i.test(normalizedDateT)) {
     out.date = addLocalDays(getLocalBookingDate(now), 2);
     logEvent({ instance: 'unknown', event: 'DATE_RESOLVED', status: 'success', payload: { input: 'depois de amanhã', resolved: out.date } }).catch(() => {});
-  } else if (/amanh[ãa]/i.test(t)) {
+  } else if (/\bamanha\b/i.test(normalizedDateT)) {
     out.date = addLocalDays(getLocalBookingDate(now), 1);
     logEvent({ instance: 'unknown', event: 'DATE_RESOLVED', status: 'success', payload: { input: 'amanhã', resolved: out.date } }).catch(() => {});
   } else {
@@ -336,7 +338,7 @@ export function extractBookingSlots(
     out.period = "manhã";
   } else if (/\btarde\b|\btardezinha\b/.test(normalizedT)) {
     out.period = "tarde";
-  } else if (/\bnoite\b|\bnoitinha\b/.test(normalizedT)) {
+  } else if (/\bnoite\b|\bnoitinha\b|\bnoi\b|\banoite\b/.test(normalizedT)) {
     out.period = "noite";
   }
 
