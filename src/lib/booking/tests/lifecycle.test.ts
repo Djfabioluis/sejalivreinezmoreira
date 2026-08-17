@@ -12,7 +12,7 @@ describe("Booking Context Lifecycle", () => {
   it("should extract basic slots", () => {
     const text = "Quero manicure amanhã às 15:30";
     const slots = extractBookingSlots(text, new Date("2026-08-13T10:00:00Z"));
-    expect(slots.serviceName).toBe("MANICURE");
+    expect(slots.serviceText).toBe("manicure");
     expect(slots.date).toBe("2026-08-14");
     expect(slots.time).toBe("15:30");
   });
