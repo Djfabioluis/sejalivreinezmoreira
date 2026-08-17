@@ -32,7 +32,6 @@ export const sendManualWAMessage = createServerFn({ method: "POST" })
 
       trace.record("AI_RESPONSE_GENERATED", { textSnippet: params.text.slice(0, 50) });
       
-      // Validação de Preço (Manual também passa por auditoria se desejado, mas aqui mantemos o fluxo solicitado)
       trace.record("EVOLUTION_SEND_STARTED", { instance: params.instance });
 
       const sent = await sendEvolutionText(params.instance, params.phone, params.text, typingMs);
@@ -120,7 +119,6 @@ export async function replyWithAI(params: ReplyParams, traceId: string) {
 
   if (foundPrices && foundPrices.length > 0) {
     if (isClarificationRequired) {
-      // Bloqueio total de preços em estado de ambiguidade
       trace.record("PRICE_MISMATCH_BLOCKED", {
         reason: "SERVICE_AMBIGUITY_PENDING",
         generatedText: params.text,
@@ -131,53 +129,54 @@ export async function replyWithAI(params: ReplyParams, traceId: string) {
       return replyWithAI({ ...params, text: fallbackText }, `${traceId}-ambiguity-fallback`);
     }
 
-    if (!params.resolvedPrice) {
-      // REGRA 3: Se a Julia citou preço mas não há SERVICE_PRICE_RESOLVED
+    const resolvedPrices = params.resolvedPrices || (params.resolvedPrice ? [params.resolvedPrice] : []);
+
+    if (resolvedPrices.length === 0) {
       trace.record("PRICE_MISMATCH_BLOCKED", {
         reason: "NO_RESOLVED_PRICE_CONTEXT",
         generatedText: params.text,
         traceId
       });
       console.warn(`[replyWithAI] PRICE_MISMATCH_BLOCKED: Citação de preço sem contexto resolvido. Text: ${params.text}`);
-      
-      // Fallback determinístico (Requisito 3)
       const fallbackText = "Vou confirmar o valor certinho para você. 💜";
       return replyWithAI({ ...params, text: fallbackText }, `${traceId}-fallback`);
     }
 
-    // Validar se o preço citado bate com o oficial
-    const officialPriceStr = params.resolvedPrice.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
-    
     for (const found of foundPrices) {
       const numericPart = found.replace(/[^\d,.]/g, '').replace(',', '.');
       const foundValue = parseFloat(numericPart);
+      const officialMatch = resolvedPrices.find(p => Math.abs(foundValue - p.price) < 0.01);
       
-      if (Math.abs(foundValue - params.resolvedPrice.price) > 0.01) {
+      if (!officialMatch) {
         trace.record("PRICE_MISMATCH_BLOCKED", {
-          officialPrice: params.resolvedPrice.price,
+          availablePrices: resolvedPrices.map(p => p.price),
           generatedPrice: foundValue,
-          serviceId: params.resolvedPrice.serviceId,
           traceId
         });
-        console.error(`[replyWithAI] PRICE_MISMATCH_BLOCKED: Oficial=${params.resolvedPrice.price}, IA=${foundValue}`);
+        console.error(`[replyWithAI] PRICE_MISMATCH_BLOCKED: IA=${foundValue}, No official match found.`);
         
-        // Se houver mismatch, forçamos a correção do texto ou fallback
-        const correctedText = params.text.replace(found, `R$ ${officialPriceStr}`);
-        trace.record("PRICE_AUTO_CORRECTED", { from: found, to: `R$ ${officialPriceStr}` });
-        
-        // Recomeça o envio com o texto corrigido
-        return replyWithAI({ ...params, text: correctedText }, `${traceId}-corrected`);
+        if (resolvedPrices.length === 1) {
+          const officialPriceStr = resolvedPrices[0].price.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+          const correctedText = params.text.replace(found, `R$ ${officialPriceStr}`);
+          trace.record("PRICE_AUTO_CORRECTED", { from: found, to: `R$ ${officialPriceStr}` });
+          return replyWithAI({ ...params, text: correctedText }, `${traceId}-corrected`);
+        }
+        const fallbackText = "Vou confirmar o valor certinho para você. 💜";
+        return replyWithAI({ ...params, text: fallbackText }, `${traceId}-fallback-mismatch`);
       }
     }
 
     trace.record("PRICE_SENT", {
-      serviceId: params.resolvedPrice.serviceId,
-      officialPrice: params.resolvedPrice.price,
-      sentPrice: foundPrices[0],
+      serviceCount: resolvedPrices.length,
+      officialPrices: resolvedPrices.map(p => p.price),
       traceId
     });
   }
 
+  return proceedWithSend(params, trace, traceId);
+}
+
+async function proceedWithSend(params: ReplyParams, trace: PerformanceTrace, traceId: string) {
   const typingMs = Math.min(Math.max(params.text.length * 30, 2000), 5000);
 
   await sendEvolutionPresence(
@@ -188,7 +187,6 @@ export async function replyWithAI(params: ReplyParams, traceId: string) {
   ).catch(() => false);
 
   trace.record("AI_RESPONSE_GENERATED", { textSnippet: params.text.slice(0, 50) });
-  
   trace.record("EVOLUTION_SEND_STARTED", { instance: params.instance });
   const sentResult = await sendEvolutionText(params.instance, params.phone, params.text, typingMs);
   
@@ -221,14 +219,12 @@ export async function replyWithAI(params: ReplyParams, traceId: string) {
       const { markResponseSent } = await import("./idempotency.server");
       await markResponseSent(params.instance, params.messageId);
     }
-
     return true;
   } else {
     if (params.messageId) {
       const { markResponseFailed } = await import("./idempotency.server");
       await markResponseFailed(params.instance, params.messageId, "evolution_send_failed");
     }
-    
     throw new Error(`EVOLUTION_REPLY_SEND_FAILED: Failed to send message via instance ${params.instance}`);
   }
 }
