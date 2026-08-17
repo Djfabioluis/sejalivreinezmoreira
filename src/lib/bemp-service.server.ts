@@ -191,13 +191,78 @@ export class BempService {
     professionalId?: string | number;
     date: string;
   }): Promise<any[]> {
+    const traceId = Math.random().toString(36).substring(7);
     const cfg = await getBempConfig();
     let url = params.professionalId
       ? `${cfg.apiBase}/salons/${params.salonId}/services/${params.serviceId}/professionals/${params.professionalId}/slots/${params.date}`
       : `${cfg.apiBase}/salons/${params.salonId}/services/${params.serviceId}/slots/${params.date}`;
     
-    const result = await this.fetch<any>(url, undefined, "bemp-slots");
-    return Array.isArray(result) ? result : (result?.data || []);
+    // 1. PRIMARY ATTEMPT
+    let slots: any[] = [];
+    let primarySuccess = false;
+    let primaryStatus = 0;
+    let transportEmpty = false;
+
+    try {
+      const result = await this.fetchRaw(url, undefined, "bemp-slots");
+      primaryStatus = result.status;
+      transportEmpty = result.transportEmpty;
+      
+      if (!transportEmpty && result.data) {
+        slots = Array.isArray(result.data) ? result.data : (result.data?.data || []);
+        primarySuccess = true;
+      }
+    } catch (err: any) {
+      primaryStatus = err.statusCode || err.status || 500;
+      logger.error("BEMP_SLOTS_PRIMARY_FAILED", err.message, { ...params, traceId, status: primaryStatus });
+    }
+
+    // 2. FALLBACK ATTEMPT
+    const shouldTryFallback = !primarySuccess || transportEmpty;
+    let fallbackUsed = false;
+    let fallbackStatus = 0;
+
+    if (shouldTryFallback) {
+      fallbackUsed = true;
+      try {
+        const origin = process.env.VITE_APP_URL || 'http://localhost:8080';
+        const relayUrl = `${origin}/api/public/bemp-services-relay`;
+        
+        logger.info("BEMP_SLOTS_FALLBACK_START", "Iniciando fallback de slots", { ...params, traceId });
+        
+        // O relay precisa ser atualizado para suportar slots ou passamos a URL completa
+        const res = await fetch(relayUrl, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'X-Bemp-Relay-Secret': process.env.BEMP_RELAY_SECRET || '' 
+          },
+          body: JSON.stringify({ unitId: params.salonId, path: url.replace(cfg.apiBase, '') })
+        });
+
+        fallbackStatus = res.status;
+        const text = await res.text();
+
+        if (res.ok && text) {
+          const result = JSON.parse(text);
+          slots = Array.isArray(result) ? result : (result?.data || []);
+          logger.info("BEMP_SLOTS_FALLBACK_SUCCESS", "Fallback de slots recuperado", { ...params, traceId, count: slots.length });
+        }
+      } catch (fallbackErr: any) {
+        logger.error("BEMP_SLOTS_FALLBACK_CRITICAL_FAILED", fallbackErr.message, { ...params, traceId });
+      }
+    }
+
+    if (slots.length === 0 && (primaryStatus !== 200 || (fallbackUsed && fallbackStatus !== 200))) {
+      throw new AppError({
+        code: "BEMP_UNAVAILABLE",
+        message: `Não foi possível obter horários. Primary: ${primaryStatus}, Fallback: ${fallbackStatus}`,
+        safeMessage: "Não conseguimos consultar a agenda neste momento.",
+        statusCode: 503
+      });
+    }
+
+    return slots;
   }
 
   static async findCustomerByPhone(params: {
