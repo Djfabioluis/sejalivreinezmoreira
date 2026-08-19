@@ -7,6 +7,10 @@ import { extractMessageText } from "./message-text";
 import { normalizePhone, buildConversationKey, normalizeContactName, resolveCustomerIdentity } from "./contact";
 import { logger } from "@/lib/observability/logger.server";
 import { PerformanceTrace } from "./performance.server";
+import { getUnitServiceHours, isJuliaWithinServiceHours } from "../julia-service-hours.server";
+import { SALON_TZ } from "../booking/local-date";
+import { replyWithAI } from "./reply.server";
+
 
 /** Normalização estrita: só valores explicitamente verdadeiros contam como fromMe. */
 export function isFromMe(value: unknown): boolean {
@@ -406,7 +410,56 @@ source: ${identity.identitySource}`);
         await markEventFailed(msg.instance, finalMessageId, reason);
         continue;
       }
+      // 5.5 Julia Service Hours Check
+      if (agent.service_hours_enabled && agent.unidade_id) {
+        const hours = await getUnitServiceHours(agent.unidade_id);
+        const status = isJuliaWithinServiceHours(hours, new Date(), agent.timezone || SALON_TZ);
+        
+        if (!status.isOpen) {
+          trace.record("JULIA_OUT_OF_HOURS", { 
+            unitId: agent.unidade_id, 
+            localTime: status.localTime,
+            nextOpening: status.nextOpening?.time 
+          });
 
+          // Check idempotency for "Out of Hours" message (once per window)
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          const { data: conv } = await supabaseAdmin
+            .from("wa_conversas")
+            .select("out_of_hours_message_sent_at")
+            .eq("phone", phone)
+            .maybeSingle();
+
+          const lastSent = conv?.out_of_hours_message_sent_at ? new Date(conv.out_of_hours_message_sent_at).getTime() : 0;
+          const threeHoursAgo = Date.now() - 3 * 60 * 60 * 1000;
+
+          if (lastSent < threeHoursAgo) {
+            let message = "Olá! No momento Julia AI está fora do seu horário de atendimento.";
+            if (status.nextOpening) {
+              message += ` Estarei de volta ${status.nextOpening.day} às ${status.nextOpening.time}. 💜`;
+            } else {
+              message += " Em breve estarei de volta para te ajudar! 💜";
+            }
+
+            await replyWithAI({
+              instance: msg.instance,
+              phone,
+              text: message,
+              conversationKey: phone,
+              messageId: finalMessageId,
+              unitId: agent.unidade_id
+            }, `${traceId}-out-of-hours`);
+
+            await supabaseAdmin
+              .from("wa_conversas")
+              .update({ out_of_hours_message_sent_at: new Date().toISOString() })
+              .eq("phone", phone);
+          }
+
+          trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "OUT_OF_HOURS" });
+          return; // Stop processing
+        }
+      }
 
       try {
         let isHumanMode = false;

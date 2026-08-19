@@ -51,8 +51,11 @@ import {
   selecionarUnidadeAgente,
   toggleIAAgente,
   syncEvolutionInstances,
+  updateAgentServiceHours,
+  getAgentServiceHoursConfig,
   type AgenteWa,
 } from "@/lib/agentes-whatsapp.functions";
+
 import { listSalons } from "@/lib/bemp.functions";
 
 export const Route = createFileRoute("/_authenticated/agentes-whatsapp")({
@@ -107,6 +110,9 @@ function AgentesWhatsAppPage() {
   const disconnect = useServerFn(desconectarAgente);
   const remove = useServerFn(removerAgente);
   const selectUnit = useServerFn(selecionarUnidadeAgente);
+  const updateServiceHours = useServerFn(updateAgentServiceHours);
+  const getServiceHours = useServerFn(getAgentServiceHoursConfig);
+
 
   const [items, setItems] = useState<AgenteWa[]>([]);
   const [configured, setConfigured] = useState(true);
@@ -129,6 +135,13 @@ function AgentesWhatsAppPage() {
   const [unitId, setUnitId] = useState("");
   const [salons, setSalons] = useState<any[]>([]);
   const [loadingSalons, setLoadingSalons] = useState(false);
+  
+  const [configOpen, setConfigOpen] = useState(false);
+  const [configAgent, setConfigAgent] = useState<AgenteWa | null>(null);
+  const [configHours, setConfigHours] = useState<any[]>([]);
+  const [configEnabled, setConfigEnabled] = useState(false);
+  const [configTimezone, setConfigTimezone] = useState("America/Sao_Paulo");
+
 
   const reload = useCallback(async () => {
     try {
@@ -282,6 +295,62 @@ function AgentesWhatsAppPage() {
     }
   }
 
+  async function handleOpenConfig(agente: AgenteWa) {
+    if (!agente.unidade_id) {
+      toast.error("Vincule uma unidade antes de configurar horários.");
+      return;
+    }
+    setConfigAgent(agente);
+    setConfigEnabled(agente.service_hours_enabled || false);
+    setConfigTimezone(agente.timezone || "America/Sao_Paulo");
+    setLoading(true);
+    try {
+      const res = await getServiceHours({ data: { unidadeId: agente.unidade_id } });
+      const days = [0,1,2,3,4,5,6];
+      const hours = days.map(d => {
+        const existing = res.hours.find(h => h.day_of_week === d);
+        return existing || {
+          day_of_week: d,
+          is_active: true,
+          opening_time: "08:00",
+          closing_time: "20:00"
+        };
+      });
+      setConfigHours(hours);
+      setConfigOpen(true);
+    } catch (err) {
+      toast.error("Erro ao carregar configurações");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSaveConfig() {
+    if (!configAgent || !configAgent.unidade_id) return;
+    setSaving(true);
+    try {
+      await updateServiceHours({
+        data: {
+          agenteId: configAgent.id,
+          unidadeId: configAgent.unidade_id,
+          enabled: configEnabled,
+          timezone: configTimezone,
+          hours: configHours
+        }
+      });
+      toast.success("Configurações salvas!");
+      setConfigOpen(false);
+      void reload();
+    } catch (err) {
+      toast.error("Erro ao salvar configurações");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const dayNames = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+
+
   return (
     <div className="mx-auto w-full max-w-3xl space-y-6 p-4 sm:p-6">
       <header className="space-y-1">
@@ -364,7 +433,9 @@ function AgentesWhatsAppPage() {
                   {a.unidade_id && (
                     <Button size="sm" variant="outline" className="h-7 text-[10px]" onClick={() => handleOpenUnit(a, "manual")}>Alterar Unidade</Button>
                   )}
+                  <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => handleOpenConfig(a)} title="Horários"><Info className="h-3.5 w-3.5" /></Button>
                   <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => openQr(a)} title="QR Code"><QrCode className="h-3.5 w-3.5" /></Button>
+
                   <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive" onClick={() => void removerAgente({data:{id:a.id}}).then(()=>reload())} title="Excluir"><Trash2 className="h-3.5 w-3.5" /></Button>
                 </div>
               </div>
@@ -427,6 +498,95 @@ function AgentesWhatsAppPage() {
             {qrLoading ? <Loader2 className="h-12 w-12 animate-spin" /> : qrData ? <img src={qrData} className="w-64 h-64 border p-2 bg-white" /> : "Erro ao carregar QR"}
           </div>
           <p className="text-xs text-muted-foreground">Escaneie o QR Code no seu celular.</p>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Configuração de Horários */}
+      <Dialog open={configOpen} onOpenChange={setConfigOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Configuração Julia AI - {configAgent?.nome}</DialogTitle>
+            <DialogDescription>Defina os horários em que a IA responderá automaticamente.</DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-6 py-4">
+            <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg border border-primary/10">
+              <div className="space-y-0.5">
+                <Label className="text-base">Ativar Controle de Horário</Label>
+                <p className="text-sm text-muted-foreground">Julia só responderá dentro da janela definida.</p>
+              </div>
+              <Button 
+                variant={configEnabled ? "default" : "outline"} 
+                onClick={() => setConfigEnabled(!configEnabled)}
+              >
+                {configEnabled ? "Ativado" : "Desativado"}
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Timezone da Unidade</Label>
+              <Select value={configTimezone} onValueChange={setConfigTimezone}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="America/Sao_Paulo">Brasília (GMT-3)</SelectItem>
+                  <SelectItem value="America/Manaus">Manaus (GMT-4)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-4">
+              <Label className="text-base font-semibold">Janelas de Atendimento</Label>
+              <div className="grid gap-3">
+                {configHours.map((h, i) => (
+                  <div key={h.day_of_week} className="flex items-center gap-4 p-3 border rounded-lg bg-card">
+                    <div className="w-24 font-medium text-sm">{dayNames[h.day_of_week]}</div>
+                    <Button 
+                      size="sm" 
+                      variant={h.is_active ? "ghost" : "outline"} 
+                      className={h.is_active ? "text-primary" : "text-muted-foreground opacity-50"}
+                      onClick={() => {
+                        const newHours = [...configHours];
+                        newHours[i].is_active = !newHours[i].is_active;
+                        setConfigHours(newHours);
+                      }}
+                    >
+                      {h.is_active ? "Aberto" : "Fechado"}
+                    </Button>
+                    {h.is_active && (
+                      <div className="flex items-center gap-2 flex-1">
+                        <Input 
+                          type="time" 
+                          value={h.opening_time.slice(0,5)} 
+                          className="h-8"
+                          onChange={e => {
+                            const newHours = [...configHours];
+                            newHours[i].opening_time = e.target.value;
+                            setConfigHours(newHours);
+                          }}
+                        />
+                        <span className="text-muted-foreground">até</span>
+                        <Input 
+                          type="time" 
+                          value={h.closing_time.slice(0,5)} 
+                          className="h-8"
+                          onChange={e => {
+                            const newHours = [...configHours];
+                            newHours[i].closing_time = e.target.value;
+                            setConfigHours(newHours);
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfigOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSaveConfig} disabled={saving}>Salvar Configuração</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
