@@ -44,7 +44,6 @@ export function isJuliaWithinServiceHours(
   const formatter = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,
     hour12: false,
-    weekday: "numeric", 
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit"
@@ -53,9 +52,7 @@ export function isJuliaWithinServiceHours(
   const parts = formatter.formatToParts(currentDate);
   const get = (type: string) => parts.find(p => p.type === type)?.value || "00";
   
-  // Intl.DateTimeFormat 'weekday' with 'numeric' returns a string like "1" to "7".
-  // Note: Standard JS getDay() is 0=Sun, 1=Mon. 
-  // We'll use a safer way to get the local day of week to match our 0-6 day_of_week config.
+  // Standard way to get local day of week to match our 0-6 day_of_week config.
   const localDateStr = currentDate.toLocaleString("en-US", { timeZone: timezone });
   const localDay = new Date(localDateStr).getDay();
   const localTime = `${get("hour")}:${get("minute")}`;
