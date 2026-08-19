@@ -1873,9 +1873,11 @@ export type Database = {
           nome: string
           selected_unit_at: string | null
           selected_unit_by: string | null
+          service_hours_enabled: boolean | null
           status: string
           status_conexao: string | null
           telefone: string
+          timezone: string | null
           tipo: string
           unidade_id: string | null
         }
@@ -1890,9 +1892,11 @@ export type Database = {
           nome: string
           selected_unit_at?: string | null
           selected_unit_by?: string | null
+          service_hours_enabled?: boolean | null
           status?: string
           status_conexao?: string | null
           telefone: string
+          timezone?: string | null
           tipo: string
           unidade_id?: string | null
         }
@@ -1907,9 +1911,11 @@ export type Database = {
           nome?: string
           selected_unit_at?: string | null
           selected_unit_by?: string | null
+          service_hours_enabled?: boolean | null
           status?: string
           status_conexao?: string | null
           telefone?: string
+          timezone?: string | null
           tipo?: string
           unidade_id?: string | null
         }
@@ -1932,6 +1938,7 @@ export type Database = {
           last_read_at: string | null
           messages: Json
           origin_unit_id: string | null
+          out_of_hours_message_sent_at: string | null
           phone: string
           phone_number: string | null
           previous_unit_id: string | null
@@ -1959,6 +1966,7 @@ export type Database = {
           last_read_at?: string | null
           messages?: Json
           origin_unit_id?: string | null
+          out_of_hours_message_sent_at?: string | null
           phone: string
           phone_number?: string | null
           previous_unit_id?: string | null
@@ -1986,6 +1994,7 @@ export type Database = {
           last_read_at?: string | null
           messages?: Json
           origin_unit_id?: string | null
+          out_of_hours_message_sent_at?: string | null
           phone?: string
           phone_number?: string | null
           previous_unit_id?: string | null
@@ -2025,6 +2034,39 @@ export type Database = {
           conversation_key?: string
           expires_at?: string
           trace_id?: string
+        }
+        Relationships: []
+      }
+      wa_julia_service_hours: {
+        Row: {
+          closing_time: string
+          created_at: string
+          day_of_week: number
+          id: string
+          is_active: boolean
+          opening_time: string
+          unidade_id: string
+          updated_at: string
+        }
+        Insert: {
+          closing_time?: string
+          created_at?: string
+          day_of_week: number
+          id?: string
+          is_active?: boolean
+          opening_time?: string
+          unidade_id: string
+          updated_at?: string
+        }
+        Update: {
+          closing_time?: string
+          created_at?: string
+          day_of_week?: number
+          id?: string
+          is_active?: boolean
+          opening_time?: string
+          unidade_id?: string
+          updated_at?: string
         }
         Relationships: []
       }
