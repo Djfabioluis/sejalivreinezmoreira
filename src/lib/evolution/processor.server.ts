@@ -7,6 +7,10 @@ import { extractMessageText } from "./message-text";
 import { normalizePhone, buildConversationKey, normalizeContactName, resolveCustomerIdentity } from "./contact";
 import { logger } from "@/lib/observability/logger.server";
 import { PerformanceTrace } from "./performance.server";
+import { getUnitServiceHours, isJuliaWithinServiceHours } from "../julia-service-hours.server";
+import { SALON_TZ } from "../booking/local-date";
+import { replyWithAI } from "./reply.server";
+
 
 /** Normalização estrita: só valores explicitamente verdadeiros contam como fromMe. */
 export function isFromMe(value: unknown): boolean {
