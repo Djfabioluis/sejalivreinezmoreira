@@ -22,7 +22,10 @@ export type AgenteWa = {
   selected_unit_by: string | null;
   criado_em: string;
   last_connection_at: string | null;
+  timezone?: string;
+  service_hours_enabled?: boolean;
 };
+
 
 const OriginSchema = z
   .string()
@@ -39,8 +42,9 @@ export const listAgentes = createServerFn({ method: "GET" })
     const { isEvolutionConfigured } = await import("@/lib/evolution.server");
     const { data, error } = await supabaseAdmin
       .from("wa_agentes" as never)
-      .select("id,nome,tipo,telefone,instancia,status,status_conexao,ia_ativa,unidade_id,selected_unit_at,selected_unit_by,criado_em,last_connection_at")
+      .select("id,nome,tipo,telefone,instancia,status,status_conexao,ia_ativa,unidade_id,selected_unit_at,selected_unit_by,criado_em,last_connection_at,timezone,service_hours_enabled")
       .order("criado_em", { ascending: false });
+
     if (error) throw new Error(error.message);
     return {
       configured: await isEvolutionConfigured(),
@@ -384,3 +388,67 @@ export const syncEvolutionInstances = createServerFn({ method: "POST" })
       stats: { updatedCount, createdCount, ignoredCount }
     };
   });
+
+export const updateAgentServiceHours = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({
+      agenteId: z.string().uuid(),
+      unidadeId: z.string(),
+      enabled: z.boolean(),
+      timezone: z.string(),
+      hours: z.array(
+        z.object({
+          day_of_week: z.number(),
+          is_active: z.boolean(),
+          opening_time: z.string(),
+          closing_time: z.string(),
+        })
+      ),
+    }).parse(input)
+  )
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    
+    // Update Agent settings
+    const { error: agentErr } = await supabaseAdmin
+      .from("wa_agentes" as never)
+      .update({
+        service_hours_enabled: data.enabled,
+        timezone: data.timezone,
+        atualizado_em: new Date().toISOString()
+      } as never)
+      .eq("id", data.agenteId);
+
+    if (agentErr) throw new Error(agentErr.message);
+
+    // Upsert Service Hours
+    for (const h of data.hours) {
+      const { error } = await supabaseAdmin
+        .from("wa_julia_service_hours")
+        .upsert({
+          unidade_id: data.unidadeId,
+          day_of_week: h.day_of_week,
+          is_active: h.is_active,
+          opening_time: h.opening_time,
+          closing_time: h.closing_time,
+          updated_at: new Date().toISOString()
+        }, { onConflict: "unidade_id, day_of_week" });
+      
+      if (error) throw new Error(error.message);
+    }
+
+    return { success: true };
+  });
+
+export const getAgentServiceHoursConfig = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ unidadeId: z.string() }).parse(input))
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const { getUnitServiceHours } = await import("./julia-service-hours.server");
+    const hours = await getUnitServiceHours(data.unidadeId);
+    return { hours };
+  });
+
