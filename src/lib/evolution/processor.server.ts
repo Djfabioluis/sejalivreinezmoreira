@@ -172,6 +172,12 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
 
         if (aiMessage) {
           trace.record("MESSAGE_PROCESSING_ABORTED", { stage: "OUTBOUND_CHECK", reason: "ai_echo_ignored", traceId });
+          
+          // CORREÇÃO: AI OUTBOUND NO LONGER TRIGGERS HUMAN
+          // Se for eco da IA, garantimos que NUNCA ativará o modo humano.
+          // O markEventProcessed é vital para idempotência.
+          await markEventProcessed(msg.instance, msg.messageId);
+          
           trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "ai_echo_ignored" });
           continue; 
         }
@@ -197,9 +203,9 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
 
         trace.record("CONVERSATION_LOOKUP_STARTED", { conversationKey });
         
-        // PONTO DE SINCRONIZAÇÃO: Antes de marcar modo humano, verificamos se a conversa já foi processada 
-        // ou está bloqueada. Como já fizemos o claimEvent acima para o eco, estamos seguros aqui.
-        
+        // CORREÇÃO: SCOPED HUMAN MODE PER CONVERSATION
+        // O update deve ser restrito ao telefone da conversa específica (conversationKey).
+        // Adicionamos redundância de segurança com a instância.
         const { error: updateError } = await supabaseAdmin
           .from("wa_conversas")
           .update({ 
@@ -211,10 +217,10 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
             last_human_message_at: new Date().toISOString()
           })
           .eq("phone", conversationKey)
-          .neq("attendance_mode", "HUMAN"); // Otimização idempotente
+          .eq("instance", msg.instance) // Garante isolamento por instância também
+          .neq("attendance_mode", "HUMAN");
         
         trace.record("CONVERSATION_LOOKUP_COMPLETED", { updatedToHuman: !updateError });
-
 
         if (updateError) {
           console.error("[takeover] Error updating to HUMAN mode:", updateError);
