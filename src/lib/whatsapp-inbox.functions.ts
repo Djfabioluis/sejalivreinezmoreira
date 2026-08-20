@@ -16,6 +16,9 @@ export type WAConversation = {
   messages: any[];
   updated_at: string;
   unidade_id?: string | null;
+  attendance_mode?: "AI" | "HUMAN" | null;
+  human_takeover_detected?: boolean;
+  human_takeover_source?: string | null;
 };
 
 
