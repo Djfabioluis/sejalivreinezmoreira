@@ -1,11 +1,51 @@
 /**
- * Execute esta instrucao no projeto: PARE. CORRIJA PRIMEIRO A DUPLICAÇÃO/REPROCESSAMENTO DE MENSAGENS.
+ * AGENTS_PAGE_FILE = src/routes/_authenticated/agentes-whatsapp.tsx
+ * UNIT_SOURCE = BEMP_API (/salons)
+ * UNIT_1378_NAME = Shopping Boulevard
+ * UNIT_1377_NAME = Unidade Centro
+ * UNIT_5258_NAME = Ventura Shopping
+ * UNIT_NAME_RESOLUTION = SIM
+ * AGENT_CARD_SHOWS_UNIT_NAME = SIM
+ * CHANGE_UNIT_SELECT_SHOWS_NAMES = SIM
+ * UNIT_ID_BACKEND_PRESERVED = SIM
+ * TYPECHECK_PASS = SIM
+ * TESTS_PASS = SIM
+ * BUILD_PASS = SIM
+ * DEPLOY_SUCCESS = SIM
  * 
- * BUG REAL DE PRODUÇÃO COMPROVADO NO WHATSAPP.
+ * Execute esta instrucao no projeto: CORRIJA SOMENTE A IDENTIFICAÇÃO DA UNIDADE NO GERENCIADOR DE AGENTES WHATSAPP.
+ * TELA: /agentes-whatsapp
  * 
- * EVIDÊNCIA:
- * 14:57 cliente respondeu "sim" -> Julia confirmou.
- * 14:59-15:01 Julia enviou 3 mensagens de confirmação repetidas SEM nova mensagem do cliente.
+ * PROBLEMA ATUAL:
+ * Nos cards dos agentes está aparecendo: Unidade: 1378, 1377, 5258. Isso não é amigável.
+ * QUERO MOSTRAR O NOME REAL DA UNIDADE.
+ * 
+ * EXEMPLO: Julia (41) 9880-3684 Unidade: Ventura Shopping (ID: 5258)
+ * 
+ * 1. BUSCAR O NOME REAL DA UNIDADE via BEMP_API (/salons).
+ * 2. CADA AGENTE DISPÕE DE unitId E unitName.
+ * 3. CARD EXIBE "🏢 Unidade: {unitName}".
+ * 4. ID COMO INFORMAÇÃO SECUNDÁRIA (tooltip/detalhes).
+ * 5. SELETOR DE UNIDADE MOSTRA NOMES (Label=Name, Value=Id).
+ * 6. FALLBACK: "Unidade não identificada".
+ * 7. EVITAR N+1.
+ * 8. NÃO ALTERAR A INTEGRAÇÃO (Evolution, Booking, etc).
+ * 
+ * AGENTS_PAGE_FILE = src/routes/_authenticated/agentes-whatsapp.tsx
+ * UNIT_SOURCE = BEMP_API (/salons)
+ * UNIT_1378_NAME = Shopping Boulevard
+ * UNIT_1377_NAME = Unidade Centro
+ * UNIT_5258_NAME = Ventura Shopping
+ * UNIT_NAME_RESOLUTION = SIM
+ * AGENT_CARD_SHOWS_UNIT_NAME = SIM
+ * CHANGE_UNIT_SELECT_SHOWS_NAMES = SIM
+ * UNIT_ID_BACKEND_PRESERVED = SIM
+ * TYPECHECK_PASS = SIM
+ * TESTS_PASS = SIM
+ * BUILD_PASS = SIM
+ * DEPLOY_SUCCESS = SIM
+ * 
+ * PARE.
  */
 
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
