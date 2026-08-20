@@ -276,7 +276,13 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       periodSessionId: customerContext.bookingContext?.periodSessionId ?? null,
       priceIntent: customerContext.bookingContext?.priceIntent === true,
       confirmationSentFor: customerContext.bookingContext?.confirmationSentFor ?? null,
+      awaitingAlternativeChoice: customerContext.bookingContext?.awaitingAlternativeChoice === true,
+      alternativeStage: customerContext.bookingContext?.alternativeStage ?? null,
+      failedPeriods: (customerContext.bookingContext?.failedPeriods ?? []) as string[],
+      lastAlternativeReplyKey: customerContext.bookingContext?.lastAlternativeReplyKey ?? null,
+      lastNoSlotsSearchKey: customerContext.bookingContext?.lastNoSlotsSearchKey ?? null,
     };
+
 
 
     trace?.record("BOOKING_CONTEXT_LOADED", {
@@ -392,6 +398,110 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
         skipListSlots: true,
       });
     }
+
+    // ============================================================
+    // AWAITING_ALTERNATIVE_CHOICE (após NO_SLOTS_FOUND)
+    // Um "sim" aqui NUNCA pode repetir a busca nem a mesma mensagem.
+    // ============================================================
+    if (!forceConfirmation && previousContext.awaitingAlternativeChoice === true) {
+      const {
+        ALTERNATIVE_MENU_MESSAGE,
+        ASK_DAY_MESSAGE,
+        buildPeriodQuestion,
+        isAlternativeAffirmative,
+        parseAlternativeChoice,
+        extractPeriodChoice,
+        alternativeReplyKey,
+      } = await import("@/lib/booking/no-slots");
+
+      const stage = previousContext.alternativeStage ?? "MENU";
+      const failedPeriods: string[] = Array.isArray(previousContext.failedPeriods)
+        ? previousContext.failedPeriods
+        : [];
+      const explicitPeriod = extractPeriodChoice(text);
+      const choice = parseAlternativeChoice(text);
+
+      let altText: string | null = null;
+      let nextStage: any = stage;
+      let stillAwaiting = true;
+
+      if (explicitPeriod) {
+        // Cliente já disse o período: seguir fluxo normal com nova busca.
+        bookingContext.period = explicitPeriod;
+        bookingContext.periodSessionId = bookingContext.bookingSessionId ?? null;
+        bookingContext.availableSlots = [];
+        stillAwaiting = false;
+        nextStage = null;
+      } else if (extracted?.date) {
+        // Cliente já informou outro dia: seguir fluxo normal.
+        bookingContext.failedPeriods = [];
+        bookingContext.period = null;
+        bookingContext.periodSessionId = null;
+        bookingContext.availableSlots = [];
+        stillAwaiting = false;
+        nextStage = null;
+      } else if (choice === "period" || (stage === "AWAITING_PERIOD" && !explicitPeriod)) {
+        altText = buildPeriodQuestion(failedPeriods);
+        nextStage = "AWAITING_PERIOD";
+      } else if (choice === "day") {
+        bookingContext.date = null;
+        bookingContext.dateLocked = false;
+        bookingContext.period = null;
+        bookingContext.periodSessionId = null;
+        bookingContext.failedPeriods = [];
+        altText = ASK_DAY_MESSAGE;
+        nextStage = "AWAITING_DATE";
+      } else if (isAlternativeAffirmative(text)) {
+        altText = ALTERNATIVE_MENU_MESSAGE;
+        nextStage = "MENU";
+      }
+
+      if (altText) {
+        // Preserva serviço/profissional/data e NÃO refaz a busca anterior.
+        bookingContext.awaitingAlternativeChoice = true;
+        bookingContext.alternativeStage = nextStage;
+        bookingContext.availableSlots = [];
+
+        const replyKey = alternativeReplyKey(String(nextStage), altText);
+        const duplicate = previousContext.lastAlternativeReplyKey === replyKey;
+        bookingContext.lastAlternativeReplyKey = replyKey;
+        await patchCustomerContext(finalKey, { bookingContext });
+
+        trace?.record("ALTERNATIVE_CHOICE_HANDLED", { stage: nextStage, duplicate });
+
+        if (!duplicate) {
+          const { replyWithAI } = await import("./reply.server");
+          await replyWithAI({
+            instance,
+            phone: contactPhone,
+            text: altText,
+            conversationKey: finalKey,
+            messageId,
+            unitId: agent.unidade_id,
+            _trace: trace,
+          }, traceId);
+        }
+
+        trace?.record("TOTAL_PROCESSING_COMPLETED", {
+          status: "success",
+          reason: duplicate ? "alternative_duplicate_blocked" : "alternative_choice_reply",
+        });
+        return;
+      }
+
+      if (!stillAwaiting) {
+        bookingContext.awaitingAlternativeChoice = false;
+        bookingContext.alternativeStage = null;
+        bookingContext.lastAlternativeReplyKey = null;
+        bookingContext.lastNoSlotsSearchKey = null;
+        trace?.record("ALTERNATIVE_CHOICE_RESOLVED", {
+          period: bookingContext.period,
+          date: bookingContext.date,
+        });
+      }
+    }
+
+
 
 
     // ============================================================
@@ -1180,20 +1290,58 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
           trace?.record("TOTAL_PROCESSING_COMPLETED", { reason: "auto_slots_sent" });
           return;
         } else {
-          const { replyWithAI } = await import("./reply.server");
-          await replyWithAI({
-            instance,
-            phone: contactPhone,
-            text: `Infelizmente não encontrei horários disponíveis para ${bookingContext.period} nesta data. 😔 Gostaria de tentar outro período ou outro dia?`,
-            conversationKey: finalKey,
-            messageId,
-            unitId: agent.unidade_id,
-            _trace: trace
-          }, traceId);
-          
-          trace?.record("TOTAL_PROCESSING_COMPLETED", { reason: "no_slots_found" });
+          const { noSlotsMessage, alternativeReplyKey } = await import("@/lib/booking/no-slots");
+          const failedPeriod = String(bookingContext.period ?? "");
+          const searchKey = [
+            bookingContext.unitId,
+            bookingContext.serviceId,
+            bookingContext.professionalId ?? "ANY",
+            bookingContext.date,
+            failedPeriod,
+          ].join("|");
+
+          const noSlotsText = noSlotsMessage(failedPeriod);
+          const replyKey = alternativeReplyKey("NO_SLOTS", noSlotsText);
+          const duplicate =
+            bookingContext.lastAlternativeReplyKey === replyKey &&
+            bookingContext.lastNoSlotsSearchKey === searchKey;
+
+          // Estado: AWAITING_ALTERNATIVE_CHOICE (preserva serviço, profissional e data)
+          const previousFailed: string[] = Array.isArray(bookingContext.failedPeriods)
+            ? bookingContext.failedPeriods
+            : [];
+          bookingContext.failedPeriods = failedPeriod && !previousFailed.includes(failedPeriod)
+            ? [...previousFailed, failedPeriod]
+            : previousFailed;
+          bookingContext.awaitingAlternativeChoice = true;
+          bookingContext.alternativeStage = "MENU";
+          bookingContext.period = null;
+          bookingContext.periodSessionId = null;
+          bookingContext.availableSlots = [];
+          bookingContext.lastAlternativeReplyKey = replyKey;
+          bookingContext.lastNoSlotsSearchKey = searchKey;
+          await patchCustomerContext(finalKey, { bookingContext });
+
+          if (!duplicate) {
+            const { replyWithAI } = await import("./reply.server");
+            await replyWithAI({
+              instance,
+              phone: contactPhone,
+              text: noSlotsText,
+              conversationKey: finalKey,
+              messageId,
+              unitId: agent.unidade_id,
+              _trace: trace
+            }, traceId);
+          }
+
+          trace?.record("NO_SLOTS_FOUND", { failedPeriod, duplicate });
+          trace?.record("TOTAL_PROCESSING_COMPLETED", {
+            reason: duplicate ? "no_slots_duplicate_blocked" : "no_slots_found",
+          });
           return;
         }
+
       } catch (err: any) {
         logger.error("AUTO_LIST_SLOTS_FAILED", err.message);
       }

@@ -57,7 +57,17 @@ export interface BookingContext {
     unitId: string | null;
   }>;
 
+  /** NO_SLOTS_FOUND: aguardando o cliente escolher outro período ou outro dia. */
+  awaitingAlternativeChoice?: boolean;
+  alternativeStage?: "MENU" | "AWAITING_PERIOD" | "AWAITING_DATE" | null;
+  /** Períodos que já falharam para a data atual (não perguntar de novo). */
+  failedPeriods?: string[];
+  /** Última resposta enviada para o estado atual (proteção anti-repetição). */
+  lastAlternativeReplyKey?: string | null;
+  /** Assinatura da última busca sem horários (não repetir a mesma consulta). */
+  lastNoSlotsSearchKey?: string | null;
 }
+
 
 export type BookingSlot =
   | "unit"
