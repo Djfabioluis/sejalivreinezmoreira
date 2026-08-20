@@ -9,14 +9,14 @@ const row: Row = { assistant_response_status: null, processing_started_at: null 
 
 vi.mock("@/integrations/supabase/client.server", () => {
   const builder = (patch: any) => {
-    const state: any = { statuses: null as string[] | null, requireStatus: undefined as string | undefined, staleBefore: null as string | null };
+    const state: any = { orConditions: null as string[] | null, requireStatus: undefined as string | undefined, staleBefore: null as string | null };
     const api: any = {
       match(m: any) {
         if (m.assistant_response_status) state.requireStatus = m.assistant_response_status;
         return api;
       },
-      in(_col: string, values: (string | null)[]) {
-        state.statuses = values as string[];
+      or(filter: string) {
+        state.orConditions = filter.split(",").map((s: string) => s.trim());
         return api;
       },
       lt(_col: string, value: string) {
@@ -25,7 +25,15 @@ vi.mock("@/integrations/supabase/client.server", () => {
       },
       select() {
         let ok = true;
-        if (state.statuses) ok = state.statuses.includes(row.assistant_response_status as any);
+        if (state.orConditions) {
+          ok = state.orConditions.some((cond: string) => {
+            const [, op, val] = cond.split(".");
+            const status = row.assistant_response_status;
+            if (op === "is") return status === null;
+            if (op === "eq") return status === val;
+            return false;
+          });
+        }
         if (state.requireStatus) ok = row.assistant_response_status === state.requireStatus;
         if (ok && state.staleBefore) {
           ok = !!row.processing_started_at && row.processing_started_at < state.staleBefore;
@@ -61,6 +69,12 @@ describe("Outbound slot state machine", () => {
   });
 
   it("primeiro claim é permitido e marca sending", async () => {
+    expect(await claimResponseSlot("inst", "m1")).toBe(true);
+    expect(row.assistant_response_status).toBe("sending");
+  });
+
+  it("status NULL permite claim e marca sending", async () => {
+    row.assistant_response_status = null;
     expect(await claimResponseSlot("inst", "m1")).toBe(true);
     expect(row.assistant_response_status).toBe("sending");
   });
