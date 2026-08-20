@@ -393,6 +393,110 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       });
     }
 
+    // ============================================================
+    // AWAITING_ALTERNATIVE_CHOICE (após NO_SLOTS_FOUND)
+    // Um "sim" aqui NUNCA pode repetir a busca nem a mesma mensagem.
+    // ============================================================
+    if (!forceConfirmation && previousContext.awaitingAlternativeChoice === true) {
+      const {
+        ALTERNATIVE_MENU_MESSAGE,
+        ASK_DAY_MESSAGE,
+        buildPeriodQuestion,
+        isAlternativeAffirmative,
+        parseAlternativeChoice,
+        extractPeriodChoice,
+        alternativeReplyKey,
+      } = await import("@/lib/booking/no-slots");
+
+      const stage = previousContext.alternativeStage ?? "MENU";
+      const failedPeriods: string[] = Array.isArray(previousContext.failedPeriods)
+        ? previousContext.failedPeriods
+        : [];
+      const explicitPeriod = extractPeriodChoice(text);
+      const choice = parseAlternativeChoice(text);
+
+      let altText: string | null = null;
+      let nextStage: any = stage;
+      let stillAwaiting = true;
+
+      if (explicitPeriod) {
+        // Cliente já disse o período: seguir fluxo normal com nova busca.
+        bookingContext.period = explicitPeriod;
+        bookingContext.periodSessionId = bookingContext.bookingSessionId ?? null;
+        bookingContext.availableSlots = [];
+        stillAwaiting = false;
+        nextStage = null;
+      } else if (extracted?.date) {
+        // Cliente já informou outro dia: seguir fluxo normal.
+        bookingContext.failedPeriods = [];
+        bookingContext.period = null;
+        bookingContext.periodSessionId = null;
+        bookingContext.availableSlots = [];
+        stillAwaiting = false;
+        nextStage = null;
+      } else if (choice === "period" || (stage === "AWAITING_PERIOD" && !explicitPeriod)) {
+        altText = buildPeriodQuestion(failedPeriods);
+        nextStage = "AWAITING_PERIOD";
+      } else if (choice === "day") {
+        bookingContext.date = null;
+        bookingContext.dateLocked = false;
+        bookingContext.period = null;
+        bookingContext.periodSessionId = null;
+        bookingContext.failedPeriods = [];
+        altText = ASK_DAY_MESSAGE;
+        nextStage = "AWAITING_DATE";
+      } else if (isAlternativeAffirmative(text)) {
+        altText = ALTERNATIVE_MENU_MESSAGE;
+        nextStage = "MENU";
+      }
+
+      if (altText) {
+        // Preserva serviço/profissional/data e NÃO refaz a busca anterior.
+        bookingContext.awaitingAlternativeChoice = true;
+        bookingContext.alternativeStage = nextStage;
+        bookingContext.availableSlots = [];
+
+        const replyKey = alternativeReplyKey(String(nextStage), altText);
+        const duplicate = previousContext.lastAlternativeReplyKey === replyKey;
+        bookingContext.lastAlternativeReplyKey = replyKey;
+        await patchCustomerContext(finalKey, { bookingContext });
+
+        trace?.record("ALTERNATIVE_CHOICE_HANDLED", { stage: nextStage, duplicate });
+
+        if (!duplicate) {
+          const { replyWithAI } = await import("./reply.server");
+          await replyWithAI({
+            instance,
+            phone: contactPhone,
+            text: altText,
+            conversationKey: finalKey,
+            messageId,
+            unitId: agent.unidade_id,
+            _trace: trace,
+          }, traceId);
+        }
+
+        trace?.record("TOTAL_PROCESSING_COMPLETED", {
+          status: "success",
+          reason: duplicate ? "alternative_duplicate_blocked" : "alternative_choice_reply",
+        });
+        return;
+      }
+
+      if (!stillAwaiting) {
+        bookingContext.awaitingAlternativeChoice = false;
+        bookingContext.alternativeStage = null;
+        bookingContext.lastAlternativeReplyKey = null;
+        bookingContext.lastNoSlotsSearchKey = null;
+        trace?.record("ALTERNATIVE_CHOICE_RESOLVED", {
+          period: bookingContext.period,
+          date: bookingContext.date,
+        });
+      }
+    }
+
+
+
 
     // ============================================================
     // SAUDAÇÃO — PRIORIDADE MÁXIMA (antes de serviço/profissional/preço)
