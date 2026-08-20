@@ -97,20 +97,26 @@ export async function markResponsePending(instance: string, sourceMessageId: str
   return assistantResponseId;
 }
 
+/** Janela após a qual um envio preso em "sending" é considerado abandonado. */
+export const SENDING_STALE_MS = 2 * 60 * 1000;
+
 /**
  * Reserva o slot de envio da resposta (garante 1 envio por mensagem de origem).
- * Retorna false apenas quando já existe um envio em andamento/concluído.
+ * - status `sent` => bloqueia definitivamente (duplicata).
+ * - status `sending` recente => bloqueia (envio concorrente em andamento).
+ * - status `sending` expirado => recupera e permite novo claim.
+ * - null/pending/failed => permite claim.
  */
 export async function claimResponseSlot(instance: string, sourceMessageId: string): Promise<boolean> {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  
-  // Usar RPC atômico para garantir que apenas UM processo consiga o slot de envio.
-  // assistant_response_status = 'sending' é o lock.
+  const nowIso = new Date().toISOString();
+
+  // 1) Claim normal (nunca sobrescreve 'sent' nem 'sending' ativo).
   const { data, error } = await supabaseAdmin
     .from("evo_events" as never)
-    .update({ 
+    .update({
       assistant_response_status: "sending",
-      processing_started_at: new Date().toISOString()
+      processing_started_at: nowIso,
     } as never)
     .match({ instance, message_id: sourceMessageId } as never)
     .in("assistant_response_status", [null, "pending", "failed"])
@@ -120,8 +126,37 @@ export async function claimResponseSlot(instance: string, sourceMessageId: strin
     console.error(`[claimResponseSlot] DB Error: ${error.message}`);
     return true; // fail-open para não travar o cliente por erro de DB
   }
-  
-  return Array.isArray(data) ? data.length > 0 : false;
+
+  if (Array.isArray(data) && data.length > 0) return true;
+
+  // 2) Recuperação de "sending" abandonado (exception/timeout no envio anterior).
+  const staleCutoff = new Date(Date.now() - SENDING_STALE_MS).toISOString();
+  const { data: recovered, error: recoverError } = await supabaseAdmin
+    .from("evo_events" as never)
+    .update({
+      assistant_response_status: "sending",
+      processing_started_at: nowIso,
+    } as never)
+    .match({ instance, message_id: sourceMessageId, assistant_response_status: "sending" } as never)
+    .lt("processing_started_at" as never, staleCutoff)
+    .select("id");
+
+  if (recoverError) {
+    console.error(`[claimResponseSlot] stale recovery error: ${recoverError.message}`);
+    return false;
+  }
+
+  const didRecover = Array.isArray(recovered) && recovered.length > 0;
+  if (didRecover) {
+    await logEvent({
+      instance,
+      messageId: sourceMessageId,
+      event: "stale_sending_recovered",
+      status: "recovered",
+      payload: { staleCutoff },
+    });
+  }
+  return didRecover;
 }
 
 export async function markResponseFailed(instance: string, sourceMessageId: string, detail: string) {
