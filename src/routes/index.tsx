@@ -1,61 +1,40 @@
 /**
- * Execute esta instrucao no projeto: PARE. NÃO ALTERE NENHUM ARQUIVO.
- * 
- * O pedido anterior foi interpretado errado.
- * NÃO quero mudança visual, homepage ou frontend.
- * 
- * Quero SOMENTE AUDITORIA do problema:
- * 
- * NENHUMA INSTÂNCIA DE IA ESTÁ RESPONDENDO NO WHATSAPP.
- * 
- * NÃO EDITE CÓDIGO.
+ * Execute esta instrucao no projeto: NÃO EDITE NENHUM ARQUIVO.
+ * NÃO ALTERE FRONTEND.
  * NÃO FAÇA DEPLOY.
- * NÃO FAÇA PUBLISH.
  * 
- * Verifique somente:
+ * Quero somente DIAGNÓSTICO.
  * 
- * 1. whatsapp-evolution.ts
+ * Problema:
+ * nenhuma instância de IA responde no WhatsApp.
+ * 
+ * Verifique apenas:
+ * 
+ * 1. webhook Evolution
  * 2. processor.server.ts
  * 3. agent.server.ts
  * 4. instance-mapper.server.ts
  * 5. reply.server.ts
- * 6. configuração de horário da IA
- * 7. AI_ACTIVE
+ * 6. AI_ACTIVE
+ * 7. horário de atendimento da IA
  * 
- * Para as unidades/agentes:
+ * Para as unidades 1378, 1377 e 5258, responda SOMENTE:
  * 
- * 1378
- * 1377
- * 5258
+ * 1378_CONNECTED =
+ * 1377_CONNECTED =
+ * 5258_CONNECTED =
  * 
- * responda SOMENTE:
- * 
- * INSTANCE_1378_CONNECTED =
- * INSTANCE_1377_CONNECTED =
- * INSTANCE_5258_CONNECTED =
- * 
- * WEBHOOK_RECEIVED =
- * WEBHOOK_AUTH_VALID =
- * 
- * INSTANCE_MAPPING_PASS =
- * UNIT_RESOLUTION_PASS =
- * AGENT_RESOLUTION_PASS =
- * 
- * GLOBAL_AI_ENABLED =
- * 
- * SERVICE_HOURS_ENABLED_1378 =
- * SERVICE_HOURS_ENABLED_1377 =
- * SERVICE_HOURS_ENABLED_5258 =
- * 
- * ALLOW_AI_1378 =
- * ALLOW_AI_1377 =
- * ALLOW_AI_5258 =
+ * WEBHOOK_OK =
+ * INSTANCE_MAPPING_OK =
+ * UNIT_RESOLUTION_OK =
+ * AGENT_RESOLUTION_OK =
+ * AI_ACTIVE_OK =
+ * SERVICE_HOURS_BLOCKING =
  * 
  * COMMON_FAILURE_POINT =
  * ROOT_CAUSE =
  * 
- * NÃO CORRIJA AINDA.
- * 
+ * NÃO CORRIJA NADA.
  * PARE.
  */
 
