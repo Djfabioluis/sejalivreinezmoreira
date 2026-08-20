@@ -1,63 +1,60 @@
 /**
- * Execute esta instrucao no projeto: PARE. NENHUMA INSTÂNCIA DE IA ESTÁ RESPONDENDO.
+ * Execute esta instrucao no projeto: PARE. NÃO ALTERE NENHUM ARQUIVO.
  * 
- * Não altere booking, BEMP, preços, serviços, profissionais, slots ou cancelamento.
+ * O pedido anterior foi interpretado errado.
+ * NÃO quero mudança visual, homepage ou frontend.
  * 
- * Quero primeiro localizar a falha GLOBAL compartilhada entre todas as instâncias.
+ * Quero SOMENTE AUDITORIA do problema:
  * 
- * Verifique especificamente:
+ * NENHUMA INSTÂNCIA DE IA ESTÁ RESPONDENDO NO WHATSAPP.
  * 
- * - whatsapp-evolution.ts
- * - processor.server.ts
- * - agent.server.ts
- * - instance-mapper.server.ts
- * - reply.server.ts
- * - chat.server.ts
- * - configuração de horários da IA
- * - AI_ACTIVE
- * - resolução de unidade/agente
- * - idempotência
+ * NÃO EDITE CÓDIGO.
+ * NÃO FAÇA DEPLOY.
+ * NÃO FAÇA PUBLISH.
  * 
- * Para as instâncias/unidades atuais, incluindo:
+ * Verifique somente:
+ * 
+ * 1. whatsapp-evolution.ts
+ * 2. processor.server.ts
+ * 3. agent.server.ts
+ * 4. instance-mapper.server.ts
+ * 5. reply.server.ts
+ * 6. configuração de horário da IA
+ * 7. AI_ACTIVE
+ * 
+ * Para as unidades/agentes:
  * 
  * 1378
  * 1377
  * 5258
  * 
- * mostre:
+ * responda SOMENTE:
  * 
  * INSTANCE_1378_CONNECTED =
  * INSTANCE_1377_CONNECTED =
  * INSTANCE_5258_CONNECTED =
  * 
- * GLOBAL_AI_ENABLED =
- * 
- * SERVICE_HOURS_FEATURE_ACTIVE =
- * NO_SERVICE_HOURS_CONFIG_ALLOWS_AI =
- * 
- * WEBHOOK_ROUTE_ACTIVE =
+ * WEBHOOK_RECEIVED =
  * WEBHOOK_AUTH_VALID =
  * 
  * INSTANCE_MAPPING_PASS =
  * UNIT_RESOLUTION_PASS =
  * AGENT_RESOLUTION_PASS =
  * 
+ * GLOBAL_AI_ENABLED =
+ * 
+ * SERVICE_HOURS_ENABLED_1378 =
+ * SERVICE_HOURS_ENABLED_1377 =
+ * SERVICE_HOURS_ENABLED_5258 =
+ * 
+ * ALLOW_AI_1378 =
+ * ALLOW_AI_1377 =
+ * ALLOW_AI_5258 =
+ * 
+ * COMMON_FAILURE_POINT =
  * ROOT_CAUSE =
- * FIRST_FAILURE_POINT =
  * 
- * IMPORTANTE:
- * 
- * Se uma unidade NÃO possui configuração de horário da IA,
- * isso NÃO pode significar "fechado".
- * 
- * Sem configuração de horário:
- * 
- * ALLOW_AI_PROCESSING = SIM
- * 
- * Não corrija ainda vários arquivos.
- * Identifique primeiro o PRIMEIRO ponto comum de falha.
- * 
- * Responda somente com os campos acima.
+ * NÃO CORRIJA AINDA.
  * 
  * PARE.
  */
