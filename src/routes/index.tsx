@@ -13,7 +13,7 @@
  * BUILD_PASS = SIM
  * DEPLOY_SUCCESS = SIM
  * 
- * Execute esta instrucao no projeto: CORRIJA SOMENTE A IDENTIFICAÇÃO DA UNIDADE NO GERENCIADOR DE AGENTES WHATSAPP.
+ * Execute esta instrucao no projeto: .
  * TELA: /agentes-whatsapp
  * 
  * PROBLEMA ATUAL:
