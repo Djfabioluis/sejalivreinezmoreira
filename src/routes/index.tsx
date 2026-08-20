@@ -123,63 +123,95 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground font-sans selection:bg-primary/20 scroll-smooth">
       <div className="hidden">
-        Execute esta instrucao no projeto: LIMPE SOMENTE A HOMEPAGE.
+        Execute esta instrucao no projeto: CORRIJA SOMENTE A REPETIÇÃO APÓS NÃO ENCONTRAR HORÁRIOS.
 
-Arquivo principal:
-src/routes/index.tsx
+Problema real:
 
-Remova todos os textos que foram inseridos por engano durante os diagnósticos técnicos, incluindo textos como:
+Quando a Julia responde:
 
-- WEBHOOK_RECEIVED
-- PROCESSOR_ENTERED
-- AGENT_ENTERED
-- AI_CALL_STARTED
-- CLAIM_RESPONSE_SLOT
-- OUTBOUND_BLOCKED_DUPLICATE
-- EVOLUTION_SEND_CALLED
-- ROOT_CAUSE
-- ERROR_MESSAGE
-- instruções técnicas
-- prompts de diagnóstico
-- textos de testes
+"Não encontrei horários disponíveis para manhã nesta data.
+Gostaria de tentar outro período ou outro dia?"
+
+e o cliente responde:
+
+"sim"
+
+a Julia repete a mesma mensagem e executa novamente a mesma busca.
+
+REGRA CORRETA:
+
+Após NO_SLOTS_FOUND:
+
+salvar estado:
+AWAITING_ALTERNATIVE_CHOICE = true
+
+Se o cliente responder:
+"sim", "quero", "pode", "ok"
+
+NÃO repetir a busca anterior.
+
+Responder:
+
+"Claro 💜 Você prefere tentar:
+1. Outro período no mesmo dia
+2. Outro dia"
+
+Depois:
+
+se escolher 1:
+perguntar manhã, tarde ou noite,
+excluindo o período que já falhou.
+
+se escolher 2:
+perguntar qual dia deseja.
 
 IMPORTANTE:
 
-Preserve os textos originais da homepage, como:
+- não repetir mensagem idêntica
+- não consultar novamente os mesmos parâmetros
+- não perder serviço escolhido
+- não perder profissional escolhido
+- preservar data quando escolher outro período
+- preservar profissional Juliana Muller
+- uma mensagem do cliente deve gerar no máximo uma resposta da Julia
 
-- Seja Livre para Brilhar
-- IA Humanizada no seu WhatsApp
-- apresentação comercial
-- Recursos
-- Planos
-- FAQ
-- Entrar
-- Começar Agora
-- botões e conteúdo institucional original
+Adicionar proteção:
 
-Se houver alterações acidentais recentes em src/routes/index.tsx,
-reverta SOMENTE essas alterações de diagnóstico.
+se mesma resposta já foi enviada para o mesmo estado,
+não reenviar.
 
-NÃO alterar:
+Não alterar:
+Evolution
+outbound
+idempotência global
+BEMP
+preços
+homepage
+webhook
 
-- backend
-- Evolution
-- Julia AI
-- booking
-- BEMP
-- webhook
-- idempotência
-- banco de dados
-- agentes
-- configurações
+Testar:
 
-Objetivo final:
+manicure
+→ amanhã
+→ Juliana
+→ manhã
+→ sem horários
+→ "sim"
+→ perguntar "outro período ou outro dia"
+→ NÃO repetir mensagem de indisponibilidade
 
-HOMEPAGE_CLEAN = SIM
-DIAGNOSTIC_TEXT_REMOVED = SIM
-ORIGINAL_CONTENT_PRESERVED = SIM
-BACKEND_UNCHANGED = SIM
-BUILD_PASS = SIM
+Responder:
+
+NO_SLOTS_STATE_FIXED =
+YES_ADVANCES_FLOW =
+SAME_SEARCH_NOT_REPEATED =
+SERVICE_PRESERVED =
+PROFESSIONAL_PRESERVED =
+DUPLICATE_REPLY_BLOCKED =
+TYPECHECK_PASS =
+TESTS_PASS =
+BUILD_PASS =
+READY_TO_DEPLOY =
 
 PARE.
       </div>
