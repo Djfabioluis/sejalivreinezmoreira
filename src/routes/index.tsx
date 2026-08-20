@@ -1,39 +1,59 @@
 /**
- * Execute esta instrucao no projeto: ANALISE SOMENTE. NÃO ALTERE NENHUM ARQUIVO.
+ * Execute esta instrucao no projeto: CORRIJA SOMENTE O BLOQUEIO HUMAN_MESSAGE_DETECTED.
  * 
- * Problema:
- * nenhuma instância de IA está respondendo no WhatsApp.
+ * Causa já identificada:
  * 
- * Verifique as unidades/agentes 1378, 1377 e 5258.
- * 
- * Analise somente:
- * 
- * - webhook Evolution
- * - processor.server.ts
- * - agent.server.ts
- * - instance-mapper.server.ts
- * - reply.server.ts
- * - AI_ACTIVE
- * - horário de atendimento da IA
- * 
- * Responda somente:
- * 
- * 1378_CONNECTED =
- * 1377_CONNECTED =
- * 5258_CONNECTED =
- * 
- * WEBHOOK_OK =
- * INSTANCE_MAPPING_OK =
- * UNIT_RESOLUTION_OK =
- * AGENT_RESOLUTION_OK =
- * AI_ACTIVE_OK =
- * SERVICE_HOURS_BLOCKING =
- * 
- * COMMON_FAILURE_POINT =
  * ROOT_CAUSE =
+ * Attendance Mode = HUMAN está silenciando a IA indevidamente.
  * 
- * NÃO CORRIJA.
- * NÃO FAÇA DEPLOY.
+ * REGRA CORRETA:
+ * 
+ * 1. Modo HUMAN deve valer SOMENTE para a conversa específica.
+ * 2. Nunca pode bloquear todas as conversas da unidade ou instância.
+ * 3. Mensagens enviadas pela própria IA/Evolution NÃO podem ativar modo HUMAN.
+ * 4. Somente mensagem manual comprovadamente enviada por um atendente humano pode ativar HUMAN.
+ * 5. Uma conversa em HUMAN não pode impedir a IA de responder outros clientes.
+ * 
+ * Preserve:
+ * - webhook
+ * - instance mapper
+ * - unit resolution
+ * - agent resolution
+ * - AI_ACTIVE
+ * - service hours
+ * - booking
+ * - BEMP
+ * 
+ * Adicione teste:
+ * 
+ * cliente A em HUMAN
+ * → Julia não responde cliente A
+ * 
+ * cliente B em AI
+ * → Julia responde normalmente
+ * 
+ * outbound enviado pela própria Julia
+ * → NÃO ativa HUMAN
+ * 
+ * Corrija somente esse ponto.
+ * 
+ * Execute:
+ * 
+ * TYPECHECK_PASS =
+ * TESTS_PASS =
+ * BUILD_PASS =
+ * 
+ * Depois responda:
+ * 
+ * HUMAN_MODE_SCOPED_PER_CONVERSATION =
+ * AI_OUTBOUND_NO_LONGER_TRIGGERS_HUMAN =
+ * OTHER_CONVERSATIONS_REMAIN_AI =
+ * TYPECHECK_PASS =
+ * TESTS_PASS =
+ * BUILD_PASS =
+ * READY_TO_DEPLOY =
+ * 
+ * NÃO faça outras alterações.
  * PARE.
  */
 
