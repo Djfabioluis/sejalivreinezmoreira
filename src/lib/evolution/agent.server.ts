@@ -276,7 +276,13 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
       periodSessionId: customerContext.bookingContext?.periodSessionId ?? null,
       priceIntent: customerContext.bookingContext?.priceIntent === true,
       confirmationSentFor: customerContext.bookingContext?.confirmationSentFor ?? null,
+      awaitingAlternativeChoice: customerContext.bookingContext?.awaitingAlternativeChoice === true,
+      alternativeStage: customerContext.bookingContext?.alternativeStage ?? null,
+      failedPeriods: (customerContext.bookingContext?.failedPeriods ?? []) as string[],
+      lastAlternativeReplyKey: customerContext.bookingContext?.lastAlternativeReplyKey ?? null,
+      lastNoSlotsSearchKey: customerContext.bookingContext?.lastNoSlotsSearchKey ?? null,
     };
+
 
 
     trace?.record("BOOKING_CONTEXT_LOADED", {
