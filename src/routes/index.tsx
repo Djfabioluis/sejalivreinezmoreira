@@ -123,91 +123,92 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground font-sans selection:bg-primary/20 scroll-smooth">
       <div className="hidden">
-        Execute esta instrucao no projeto: CORRIJA SOMENTE A REPETIÇÃO APÓS NÃO ENCONTRAR HORÁRIOS.
+        Execute esta instrucao no projeto: CORRIJA SOMENTE A CONFIRMAÇÃO REAL DO AGENDAMENTO NO BEMP.
 
-Problema real:
+Problema comprovado:
 
-Quando a Julia responde:
+A Julia enviou:
 
-"Não encontrei horários disponíveis para manhã nesta data.
-Gostaria de tentar outro período ou outro dia?"
+"Agendamento confirmado!
+Serviço: MANICURE
+Data: 22/08/2026
+Horário: 12:00"
 
-e o cliente responde:
+Porém o agendamento NÃO foi criado no BEMP.
 
-"sim"
+REGRA OBRIGATÓRIA:
 
-a Julia repete a mesma mensagem e executa novamente a mesma busca.
+A mensagem "Agendamento confirmado" só pode ser enviada DEPOIS que o BEMP retornar sucesso real.
 
-REGRA CORRETA:
+Fluxo correto:
 
-Após NO_SLOTS_FOUND:
+cliente confirma
+→ chamar API de criação do BEMP
+→ receber HTTP de sucesso
+→ receber appointmentId/bookingId válido
+→ confirmar no BEMP
+→ somente então enviar "Agendamento confirmado"
 
-salvar estado:
-AWAITING_ALTERNATIVE_CHOICE = true
+Se o BEMP falhar, retornar erro ou não devolver ID:
 
-Se o cliente responder:
-"sim", "quero", "pode", "ok"
+NÃO enviar confirmação.
 
-NÃO repetir a busca anterior.
+Responder ao cliente:
 
-Responder:
-
-"Claro 💜 Você prefere tentar:
-1. Outro período no mesmo dia
-2. Outro dia"
-
-Depois:
-
-se escolher 1:
-perguntar manhã, tarde ou noite,
-excluindo o período que já falhou.
-
-se escolher 2:
-perguntar qual dia deseja.
+"Não consegui concluir seu agendamento agora 💜
+Vou verificar novamente esse horário."
 
 IMPORTANTE:
 
-- não repetir mensagem idêntica
-- não consultar novamente os mesmos parâmetros
-- não perder serviço escolhido
-- não perder profissional escolhido
-- preservar data quando escolher outro período
-- preservar profissional Juliana Muller
-- uma mensagem do cliente deve gerar no máximo uma resposta da Julia
+Registrar no trace:
 
-Adicionar proteção:
+BEMP_CREATE_CALLED =
+BEMP_HTTP_STATUS =
+BEMP_RESPONSE =
+BEMP_APPOINTMENT_ID =
+BEMP_CREATE_SUCCESS =
 
-se mesma resposta já foi enviada para o mesmo estado,
-não reenviar.
+Após criar, fazer consulta de confirmação usando o ID retornado.
 
-Não alterar:
+Só considerar sucesso se:
+
+BEMP_CREATE_SUCCESS = SIM
+e
+BEMP_APPOINTMENT_ID existir
+e
+BEMP_BOOKING_VERIFIED = SIM
+
+Preservar:
+- serviço MANICURE
+- profissional Juliana Muller
+- data 22/08/2026
+- horário escolhido 12:00
+- cliente correto
+- unidade correta
+
+NÃO alterar:
 Evolution
 outbound
-idempotência global
-BEMP
-preços
+idempotência
 homepage
-webhook
+preços
+fluxo de saudação
 
-Testar:
+Teste obrigatório:
 
-manicure
-→ amanhã
-→ Juliana
-→ manhã
-→ sem horários
-→ "sim"
-→ perguntar "outro período ou outro dia"
-→ NÃO repetir mensagem de indisponibilidade
+cliente confirma
+→ BEMP cria agendamento
+→ retorna ID válido
+→ consulta confirma existência
+→ Julia envia "Agendamento confirmado"
 
 Responder:
 
-NO_SLOTS_STATE_FIXED =
-YES_ADVANCES_FLOW =
-SAME_SEARCH_NOT_REPEATED =
-SERVICE_PRESERVED =
-PROFESSIONAL_PRESERVED =
-DUPLICATE_REPLY_BLOCKED =
+BEMP_CREATE_CALLED =
+BEMP_CREATE_SUCCESS =
+BEMP_APPOINTMENT_ID_RETURNED =
+BEMP_BOOKING_VERIFIED =
+FALSE_CONFIRMATION_BLOCKED =
 TYPECHECK_PASS =
 TESTS_PASS =
 BUILD_PASS =
