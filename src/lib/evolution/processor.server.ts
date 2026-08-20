@@ -212,11 +212,11 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
             attendance_mode: "HUMAN", 
             human_takeover_at: new Date().toISOString(),
             human_takeover_detected: true,
-            human_takeover_source: "manual_agent_reply",
+            human_takeover_source: "manual_agent_reply" as any,
             ai_paused_at: new Date().toISOString(),
             ai_pause_reason: "HUMAN_AGENT_REPLIED",
             last_human_message_at: new Date().toISOString()
-          })
+          } as any)
           .eq("phone", conversationKey)
           .eq("instance", msg.instance)
           .neq("attendance_mode", "HUMAN");
