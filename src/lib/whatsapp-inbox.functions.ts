@@ -229,6 +229,9 @@ export const endHumanTakeover = createServerFn({ method: "POST" })
     await assertPermission(context, "agendar");
     // Módulo humano removido. Mantendo função para compatibilidade de interface, mas sem efeito de bloqueio.
     return { success: true };
+  });
+
+
 
 export const transferConversationUnit = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
