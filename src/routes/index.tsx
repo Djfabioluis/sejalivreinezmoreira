@@ -1,59 +1,48 @@
 /**
- * Execute esta instrucao no projeto: CORRIJA SOMENTE O BLOQUEIO HUMAN_MESSAGE_DETECTED.
+ * Execute esta instrucao no projeto: ANALISE E CORRIJA SOMENTE O ESTADO HUMAN DAS CONVERSAS.
  * 
- * Causa já identificada:
+ * A correção anterior tornou HUMAN por conversa, mas a IA ainda não responde.
  * 
- * ROOT_CAUSE =
- * Attendance Mode = HUMAN está silenciando a IA indevidamente.
+ * Verifique uma conversa REAL que deveria estar com IA ativa.
  * 
- * REGRA CORRETA:
+ * Mostre antes de alterar:
  * 
- * 1. Modo HUMAN deve valer SOMENTE para a conversa específica.
- * 2. Nunca pode bloquear todas as conversas da unidade ou instância.
- * 3. Mensagens enviadas pela própria IA/Evolution NÃO podem ativar modo HUMAN.
- * 4. Somente mensagem manual comprovadamente enviada por um atendente humano pode ativar HUMAN.
- * 5. Uma conversa em HUMAN não pode impedir a IA de responder outros clientes.
+ * ATTENDANCE_MODE =
+ * HUMAN_TAKEOVER_ACTIVE =
+ * HUMAN_TAKEOVER_SOURCE =
+ * HUMAN_TAKEOVER_AT =
  * 
- * Preserve:
- * - webhook
- * - instance mapper
- * - unit resolution
- * - agent resolution
- * - AI_ACTIVE
- * - service hours
- * - booking
- * - BEMP
+ * Se a conversa estiver HUMAN por causa de:
+ * - mensagem antiga da própria IA
+ * - echo/fromMe
+ * - regra legada
+ * - evento automático
  * 
- * Adicione teste:
+ * isso é estado inválido.
  * 
- * cliente A em HUMAN
- * → Julia não responde cliente A
+ * Nesse caso:
+ * resetar SOMENTE essa conversa para:
  * 
- * cliente B em AI
- * → Julia responde normalmente
+ * ATTENDANCE_MODE = AI
+ * HUMAN_TAKEOVER_ACTIVE = false
  * 
- * outbound enviado pela própria Julia
- * → NÃO ativa HUMAN
+ * NÃO resetar conversas onde houve takeover manual real de atendente humano.
  * 
- * Corrija somente esse ponto.
+ * Também garantir que exista no painel um botão:
+ * "Retornar para IA"
  * 
- * Execute:
+ * Teste:
+ * 
+ * CONVERSATION_STALE_HUMAN_FOUND =
+ * CONVERSATION_RESET_TO_AI =
+ * MANUAL_HUMAN_TAKEOVER_PRESERVED =
+ * AI_RESPONSE_AFTER_RESET =
  * 
  * TYPECHECK_PASS =
  * TESTS_PASS =
  * BUILD_PASS =
  * 
- * Depois responda:
- * 
- * HUMAN_MODE_SCOPED_PER_CONVERSATION =
- * AI_OUTBOUND_NO_LONGER_TRIGGERS_HUMAN =
- * OTHER_CONVERSATIONS_REMAIN_AI =
- * TYPECHECK_PASS =
- * TESTS_PASS =
- * BUILD_PASS =
- * READY_TO_DEPLOY =
- * 
- * NÃO faça outras alterações.
+ * Corrija somente isso.
  * PARE.
  */
 
