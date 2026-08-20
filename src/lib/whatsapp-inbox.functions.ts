@@ -221,38 +221,15 @@ export const sendManualWAMessage = createServerFn({ method: "POST" })
     return { success: true };
   });
 
-/** Encerra o atendimento humano e reativa a Julia (ação explícita do atendente). */
+/** Encerra o atendimento humano e reativa a Julia (ação explícita do atendente). Módulo humano removido. */
 export const endHumanTakeover = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(z.object({ phone: z.string() }))
   .handler(async ({ data, context }) => {
     await assertPermission(context, "agendar");
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    const { error } = await supabaseAdmin
-      .from("wa_conversas" as never)
-      .update({
-        attendance_mode: "AI",
-        human_takeover_detected: false,
-        human_takeover_at: null,
-        human_takeover_requested_at: null,
-        human_transfer_message_sent: false,
-        ai_paused_at: null,
-        ai_pause_reason: null,
-      } as never)
-      .eq("phone", data.phone);
-
-    if (error) throw new Error(error.message);
-
-    console.log(`[CONVERSATION_MODE_CHANGED_TO_AI] ${JSON.stringify({
-      conversationId: data.phone,
-      phoneLast4: data.phone.slice(-4),
-      agentId: null,
-      unitId: null,
-      timestamp: new Date().toISOString(),
-    })}`);
-
+    // Módulo humano removido. Mantendo função para compatibilidade de interface, mas sem efeito de bloqueio.
     return { success: true };
+  });
   });
 
 export const transferConversationUnit = createServerFn({ method: "POST" })
