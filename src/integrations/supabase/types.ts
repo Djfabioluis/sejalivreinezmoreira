@@ -1440,18 +1440,21 @@ export type Database = {
         Row: {
           created_at: string
           permissoes: string[]
+          unidades: string[] | null
           updated_at: string
           user_id: string
         }
         Insert: {
           created_at?: string
           permissoes?: string[]
+          unidades?: string[] | null
           updated_at?: string
           user_id: string
         }
         Update: {
           created_at?: string
           permissoes?: string[]
+          unidades?: string[] | null
           updated_at?: string
           user_id?: string
         }
@@ -2172,6 +2175,10 @@ export type Database = {
           p_text: string
         }
         Returns: undefined
+      }
+      user_can_access_unit: {
+        Args: { _unidade_id: string; _user_id: string }
+        Returns: boolean
       }
       user_has_permission: {
         Args: { _perm: string; _user_id: string }
