@@ -395,6 +395,43 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
 
     // ============================================================
+    // SAUDAÇÃO — PRIORIDADE MÁXIMA (antes de serviço/profissional/preço)
+    // ============================================================
+    if (!forceConfirmation && isGenericGreeting(text)) {
+      const { hasActiveAwaitingFlow, resetBookingForGreeting, JULIA_INTRO_MESSAGE } =
+        await import("@/lib/booking/context");
+
+      const activeFlow = hasActiveAwaitingFlow(bookingContext as any);
+      trace?.record("GREETING_DETECTED", { activeFlow });
+
+      if (!activeFlow) {
+        const cleared = resetBookingForGreeting(bookingContext as any);
+        Object.keys(bookingContext as any).forEach((k) => delete (bookingContext as any)[k]);
+        Object.assign(bookingContext, cleared);
+        trace?.record("STALE_BOOKING_CONTEXT_RESET", { reason: "generic_greeting" });
+
+        await patchCustomerContext(finalKey, { bookingContext });
+
+        const { replyWithAI } = await import("./reply.server");
+        await replyWithAI({
+          instance,
+          phone: contactPhone,
+          text: JULIA_INTRO_MESSAGE,
+          conversationKey: finalKey,
+          messageId,
+          unitId: agent.unidade_id,
+          _trace: trace,
+        }, traceId);
+
+        trace?.record("JULIA_INTRO_SENT", { reason: "greeting" });
+        trace?.record("TOTAL_PROCESSING_COMPLETED", { status: "success", reason: "greeting_intro" });
+        return;
+      }
+
+      trace?.record("ACTIVE_FLOW_PRESERVED", { status: bookingContext.appointmentStatus });
+    }
+
+
     // PRICE_INTENT — Alta prioridade (após cancelamento)
     // ============================================================
     if (!forceConfirmation && bookingContext.priceIntent && bookingContext.serviceText) {
@@ -698,6 +735,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     // Se acabamos de confirmar ou já tínhamos o status AWAITING_CONFIRMATION sem o ID de sucesso ainda, perguntamos.
     if ((slotJustSelected || bookingContext.selectedSlot) && !alreadySent && bookingContext.appointmentStatus === "AWAITING_CONFIRMATION" && !bookingContext.appointmentId) {
       (bookingContext as any).confirmationSentFor = confirmationKey;
+      (bookingContext as any).lastFlowActivityAt = Date.now();
       await patchCustomerContext(finalKey, { bookingContext });
       const { buildConfirmationMessage } = await import("@/lib/booking/lifecycle");
       const confirmText = buildConfirmationMessage(bookingContext);
