@@ -1,19 +1,36 @@
 /**
- * Execute esta instrucao no projeto: CORRIJA SOMENTE O BLOQUEIO HUMAN_MESSAGE_DETECTED.
+ * Execute esta instrucao no projeto: REMOVA O MÓDULO DE ATENDIMENTO HUMANO DO WHATSAPP.
  * 
- * Causa já identificada:
- * ROOT_CAUSE = Attendance Mode = HUMAN está silenciando a IA indevidamente.
+ * Objetivo:
+ * todas as conversas devem ser processadas pela IA quando:
  * 
- * REGRA CORRETA:
- * 1. Modo HUMAN deve valer SOMENTE para a conversa específica.
- * 2. Nunca pode bloquear todas as conversas da unidade ou instância.
- * 3. Mensagens enviadas pela própria IA/Evolution NÃO podem ativar modo HUMAN.
- * 4. Somente mensagem manual comprovadamente enviada por um atendente humano pode ativar HUMAN.
- * 5. Uma conversa em HUMAN não pode impedir a IA de responder outros clientes.
+ * AGENT_ACTIVE = true
+ * AI_ACTIVE = true
+ * instância Evolution = conectada
  * 
- * HUMAN_MODE_SCOPED_PER_CONVERSATION = SIM
- * AI_OUTBOUND_NO_LONGER_TRIGGERS_HUMAN = SIM
- * OTHER_CONVERSATIONS_REMAIN_AI = SIM
+ * Remover do fluxo:
+ * - HUMAN_MESSAGE_DETECTED
+ * - Attendance Mode = HUMAN
+ * - human takeover
+ * - HUMAN_TAKEOVER_ACTIVE
+ * - bloqueio da IA por mensagem humana
+ * - timeout de retorno para IA
+ * - botão "Retornar para IA"
+ * - qualquer early return causado por HUMAN
+ * 
+ * IMPORTANTE:
+ * 1. NÃO alterar: webhook Evolution, instance mapping, unit resolution, booking, BEMP, preços, serviços, horários, cancelamento.
+ * 2. Em processor.server.ts e agent.server.ts: nenhuma mensagem válida do cliente pode ser bloqueada por estado HUMAN.
+ * 3. Mensagens fromMe da Evolution devem continuar ignoradas como eco, mas NÃO devem mudar estado da conversa.
+ * 4. Conversas que atualmente estejam HUMAN devem passar a funcionar como AI automaticamente.
+ * 5. Remover a interface do modo humano do painel.
+ * 6. NÃO apague colunas/tabelas do banco nesta etapa. Apenas pare de usar o módulo humano.
+ * 
+ * HUMAN_MODULE_REMOVED = SIM
+ * HUMAN_EARLY_RETURNS_REMOVED = SIM
+ * STALE_HUMAN_CONVERSATIONS_UNBLOCKED = SIM
+ * FROM_ME_ECHO_PROTECTION_PRESERVED = SIM
+ * AI_ALWAYS_PROCESSES_VALID_INBOUND = SIM
  * TYPECHECK_PASS = SIM
  * TESTS_PASS = SIM
  * BUILD_PASS = SIM

@@ -197,48 +197,24 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
         }
 
 
-        // fromMe=true mas NÃO foi a IA -> HUMANO assumiu
+        // fromMe=true mas NÃO foi a IA -> Módulo humano removido, apenas logamos o eco
         const phone = outboundIdentity.phone;
         const conversationKey = outboundConversationKey;
 
         trace.record("CONVERSATION_LOOKUP_STARTED", { conversationKey });
         
-        // CORREÇÃO: SCOPED HUMAN MODE PER CONVERSATION
-        // O update deve ser restrito ao telefone da conversa específica (conversationKey).
-        // Adicionamos redundância de segurança com a instância.
-        const { error: updateError } = await supabaseAdmin
-          .from("wa_conversas")
-          .update({ 
-            attendance_mode: "HUMAN", 
-            human_takeover_at: new Date().toISOString(),
-            human_takeover_detected: true,
-            human_takeover_source: "manual_agent_reply" as any,
-            ai_paused_at: new Date().toISOString(),
-            ai_pause_reason: "HUMAN_AGENT_REPLIED",
-            last_human_message_at: new Date().toISOString()
-          } as any)
-          .eq("phone", conversationKey)
-          .eq("instance", msg.instance)
-          .neq("attendance_mode", "HUMAN");
-        
-        trace.record("CONVERSATION_LOOKUP_COMPLETED", { updatedToHuman: !updateError });
-
-        if (updateError) {
-          console.error("[takeover] Error updating to HUMAN mode:", updateError);
-        }
-
         await logEvent({
           instance: msg.instance,
           messageId: msg.messageId,
-          event: "HUMAN_MESSAGE_DETECTED",
-          status: "attendance_mode_set_to_human",
+          event: "HUMAN_MESSAGE_ECHO",
+          status: "human_takeover_module_removed_echo_ignored",
           payload: { traceId, phone, conversationKey, remoteJid: msg.remoteJid, fromMe: msg.fromMe }
         });
         
         // Finalizar eco humano como processado
         await markEventProcessed(msg.instance, msg.messageId);
         
-        trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "human_takeover_processed" });
+        trace.record("TOTAL_PROCESSING_COMPLETED", { reason: "human_echo_ignored_module_removed" });
 
         continue;
       }

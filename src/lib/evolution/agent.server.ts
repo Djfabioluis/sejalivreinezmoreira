@@ -196,67 +196,12 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
     }
     trace?.record("CONTEXT_LOAD_COMPLETED", { historyCount: conv?.messages?.length || 0 });
 
-    const isHumanMode =
-      conv?.instance === instance && (
-        conv?.attendance_mode === "HUMAN" ||
-        conv?.human_takeover_detected === true ||
-        !!conv?.ai_paused_at
-      );
-
-    trace?.record("CONVERSATION_CORRELATION", {
-      incomingInstance: instance,
-      customerPhoneLast4: contactPhone.slice(-4),
-      expectedConversationKey: conversationKey,
-      loadedConversationKey: conv?.phone,
-      loadedConversationInstance: conv?.instance,
-      sameInstance: conv?.instance === instance,
-      attendanceMode: conv?.attendance_mode || "AI"
-    });
-
-    if (isHumanMode) {
-      const stage = "CONVERSATION_MODE_CHECKED";
-      const reason = conv?.ai_pause_reason || "HUMAN_TAKEOVER_ACTIVE";
-      
-      trace?.record(stage, { 
-        mode: "HUMAN", 
-        human_takeover_detected: conv?.human_takeover_detected,
-        ai_paused_at: conv?.ai_paused_at,
-        ai_pause_reason: reason,
-        takeoverSource: conv?.human_takeover_source
-      });
-
-      const isManualTakeover = 
-        conv?.human_takeover_source === "manual_agent_reply" || 
-        conv?.ai_pause_reason === "HUMAN_AGENT_REPLIED";
-
-      const customerRequested = conv?.ai_pause_reason === "CUSTOMER_REQUESTED_HUMAN" || conv?.human_takeover_source === "customer_intent";
-      
-      const takeoverAtStr = conv?.human_takeover_at;
-      const takeoverAt = takeoverAtStr ? new Date(takeoverAtStr).getTime() : 0;
-      const minutesSinceTakeover = takeoverAt > 0 ? (Date.now() - takeoverAt) / 60000 : 0;
-
-      // REGRA: Se o takeover foi manual por um atendente real, preservamos estritamente.
-      // Caso contrário (stale/legacy), resetamos após o timeout.
-      const stillPaused =
-        isManualTakeover ||
-        customerRequested || 
-        takeoverAt === 0 || 
-        minutesSinceTakeover < HUMAN_TAKEOVER_TIMEOUT_MINUTES;
-
-      if (stillPaused) {
-        trace?.record("MESSAGE_PROCESSING_ABORTED", { 
-          stage, 
-          reason,
-          traceId,
-          conversationId: finalKey,
-          instanceId: instance,
-          phoneLast4: contactPhone.slice(-4),
-          isManual: isManualTakeover
-        });
-        trace?.record("TOTAL_PROCESSING_COMPLETED", { reason: "human_mode_blocked" });
-        return;
-      }
-
+    // MÓDULO HUMANO REMOVIDO: Nenhuma mensagem válida do cliente pode ser bloqueada por estado HUMAN.
+    // Ignoramos attendance_mode e tratamos tudo como AI.
+    trace?.record("ATTENDANCE_MODE_CHECKED", { mode: "AI_FORCED", originalMode: conv?.attendance_mode });
+    
+    // Reset proativo de estado HUMAN se detectado (auto-cura de conversas travadas)
+    if (conv?.attendance_mode === "HUMAN" || !!conv?.ai_paused_at) {
       await supabaseAdmin
         .from("wa_conversas")
         .update({
@@ -269,89 +214,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
           ai_pause_reason: null,
         } as any)
         .eq("phone", finalKey);
-      
-      trace?.record("CONVERSATION_MODE_CHANGED_TO_AI", { reason: "stale_takeover_reset" });
-    } else {
-      trace?.record("ATTENDANCE_MODE_CHECKED", { mode: "AI" });
-    }
-
-    if (text) {
-      const { detectHumanTakeoverIntent, HUMAN_TRANSFER_MESSAGE, AI_PAUSE_REASON_CUSTOMER } =
-        await import("@/lib/human-takeover");
-
-      if (detectHumanTakeoverIntent(text)) {
-        trace?.record("HUMAN_TAKEOVER_INTENT_DETECTED");
-        const alreadySent = conv?.human_transfer_message_sent === true;
-        const nowIso = new Date().toISOString();
-
-        await supabaseAdmin
-          .from("wa_conversas")
-          .update({
-            attendance_mode: "HUMAN",
-            human_takeover_detected: true,
-            human_takeover_source: "customer_intent" as any,
-            human_takeover_at: nowIso,
-            human_takeover_requested_at: nowIso,
-            ai_paused_at: nowIso,
-            ai_pause_reason: AI_PAUSE_REASON_CUSTOMER,
-            human_transfer_message_sent: true,
-          } as any)
-          .eq("phone", finalKey);
-
-        trace?.record("MESSAGE_PROCESSING_ABORTED", { 
-          stage: "HUMAN_INTENT_CHECK", 
-          reason: "human_takeover_intent_detected",
-          traceId
-        });
-
-        if (!alreadySent) {
-
-          const { replyWithAI } = await import("./reply.server");
-          await replyWithAI({
-            instance,
-            phone: contactPhone,
-            text: HUMAN_TRANSFER_MESSAGE,
-            conversationKey: finalKey,
-            messageId,
-            unitId: agent?.unidade_id ?? null,
-            allowDuringHumanMode: true
-          }, traceId);
-
-        }
-        trace?.record("TOTAL_PROCESSING_COMPLETED", { reason: "human_handoff" });
-        return;
-      }
-    }
-
-    const iaEnabled = isIAActive;
-
-    if (!iaEnabled) {
-      trace?.record("MESSAGE_PROCESSING_ABORTED", { 
-        stage: "IA_STATUS_CHECK", 
-        reason: "ia_disabled_for_agent",
-        traceId,
-        agentId: agent?.id
-      });
-      trace?.record("TOTAL_PROCESSING_COMPLETED", { reason: "ia_disabled" });
-      return;
-    }
-
-
-    // Double-check race condition
-    const { data: finalCheck } = await supabaseAdmin
-      .from("wa_conversas")
-      .select("attendance_mode")
-      .eq("phone", finalKey)
-      .maybeSingle();
-
-    if (finalCheck?.attendance_mode === "HUMAN") {
-      trace?.record("MESSAGE_PROCESSING_ABORTED", { 
-        stage: "RACE_CONDITION_CHECK", 
-        reason: "human_mode_detected_late",
-        traceId
-      });
-      trace?.record("TOTAL_PROCESSING_COMPLETED", { reason: "race_condition_human" });
-      return;
+      trace?.record("CONVERSATION_MODE_RESET_TO_AI", { reason: "human_module_removed_auto_reset" });
     }
 
 
