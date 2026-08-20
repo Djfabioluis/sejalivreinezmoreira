@@ -150,7 +150,7 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
     const { data: conversation } = await supabaseAdmin
       .from("wa_conversas" as any)
-      .select("id, messages, customer_context, contact_name, attendance_mode, human_takeover_at, human_takeover_detected, human_takeover_requested_at, human_transfer_message_sent, ai_paused_at, ai_pause_reason, last_human_message_at, phone, instance, unidade_id")
+      .select("id, messages, customer_context, contact_name, attendance_mode, human_takeover_at, human_takeover_detected, human_takeover_source, human_takeover_requested_at, human_transfer_message_sent, ai_paused_at, ai_pause_reason, last_human_message_at, phone, instance, unidade_id")
       .eq("phone", conversationKey)
       .maybeSingle();
 
@@ -277,12 +277,13 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
           .update({
             attendance_mode: "HUMAN",
             human_takeover_detected: true,
+            human_takeover_source: "customer_intent" as any,
             human_takeover_at: nowIso,
             human_takeover_requested_at: nowIso,
             ai_paused_at: nowIso,
             ai_pause_reason: AI_PAUSE_REASON_CUSTOMER,
             human_transfer_message_sent: true,
-          })
+          } as any)
           .eq("phone", finalKey);
 
         trace?.record("MESSAGE_PROCESSING_ABORTED", { 
