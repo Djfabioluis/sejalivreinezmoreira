@@ -112,6 +112,7 @@ export async function claimResponseSlot(instance: string, sourceMessageId: strin
   const nowIso = new Date().toISOString();
 
   // 1) Claim normal (nunca sobrescreve 'sent' nem 'sending' ativo).
+  // NULL precisa ser testado com IS NULL, nunca com IN (NULL).
   const { data, error } = await supabaseAdmin
     .from("evo_events" as never)
     .update({
@@ -119,7 +120,7 @@ export async function claimResponseSlot(instance: string, sourceMessageId: strin
       processing_started_at: nowIso,
     } as never)
     .match({ instance, message_id: sourceMessageId } as never)
-    .in("assistant_response_status", [null, "pending", "failed"])
+    .or("assistant_response_status.eq.pending,assistant_response_status.is.null,assistant_response_status.eq.failed" as never)
     .select("id");
 
   if (error) {
