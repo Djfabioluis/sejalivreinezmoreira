@@ -18,6 +18,7 @@ export type AgenteWa = {
   status_conexao: "conectado" | "conectando" | "desconectado" | null;
   ia_ativa: boolean;
   unidade_id: string | null;
+  unidade_nome?: string;
   selected_unit_at: string | null;
   selected_unit_by: string | null;
   criado_em: string;
@@ -40,15 +41,26 @@ export const listAgentes = createServerFn({ method: "GET" })
     await assertAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { isEvolutionConfigured } = await import("@/lib/evolution.server");
-    const { data, error } = await supabaseAdmin
-      .from("wa_agentes" as never)
-      .select("id,nome,tipo,telefone,instancia,status,status_conexao,ia_ativa,unidade_id,selected_unit_at,selected_unit_by,criado_em,last_connection_at,timezone,service_hours_enabled")
-      .order("criado_em", { ascending: false });
+    const { fetchUnitNameMap } = await import("@/lib/units.server");
+    
+    const [agentsResult, unitMap] = await Promise.all([
+      supabaseAdmin
+        .from("wa_agentes" as never)
+        .select("id,nome,tipo,telefone,instancia,status,status_conexao,ia_ativa,unidade_id,selected_unit_at,selected_unit_by,criado_em,last_connection_at,timezone,service_hours_enabled")
+        .order("criado_em", { ascending: false }),
+      fetchUnitNameMap()
+    ]);
 
-    if (error) throw new Error(error.message);
+    if (agentsResult.error) throw new Error(agentsResult.error.message);
+    
+    const items = (agentsResult.data ?? []).map((a: any) => ({
+      ...a,
+      unidade_nome: a.unidade_id ? unitMap[String(a.unidade_id)] : undefined
+    }));
+
     return {
       configured: await isEvolutionConfigured(),
-      items: (data ?? []) as unknown as AgenteWa[],
+      items: items as unknown as AgenteWa[],
     };
   });
 
