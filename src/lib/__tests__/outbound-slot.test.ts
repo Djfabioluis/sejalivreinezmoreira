@@ -73,6 +73,12 @@ describe("Outbound slot state machine", () => {
     expect(row.assistant_response_status).toBe("sending");
   });
 
+  it("status NULL permite claim e marca sending", async () => {
+    row.assistant_response_status = null;
+    expect(await claimResponseSlot("inst", "m1")).toBe(true);
+    expect(row.assistant_response_status).toBe("sending");
+  });
+
   it("envio concorrente (sending recente) é bloqueado", async () => {
     await claimResponseSlot("inst", "m1");
     expect(await claimResponseSlot("inst", "m1")).toBe(false);
