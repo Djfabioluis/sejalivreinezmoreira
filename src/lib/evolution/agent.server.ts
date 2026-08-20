@@ -1290,20 +1290,58 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
           trace?.record("TOTAL_PROCESSING_COMPLETED", { reason: "auto_slots_sent" });
           return;
         } else {
-          const { replyWithAI } = await import("./reply.server");
-          await replyWithAI({
-            instance,
-            phone: contactPhone,
-            text: `Infelizmente não encontrei horários disponíveis para ${bookingContext.period} nesta data. 😔 Gostaria de tentar outro período ou outro dia?`,
-            conversationKey: finalKey,
-            messageId,
-            unitId: agent.unidade_id,
-            _trace: trace
-          }, traceId);
-          
-          trace?.record("TOTAL_PROCESSING_COMPLETED", { reason: "no_slots_found" });
+          const { noSlotsMessage, alternativeReplyKey } = await import("@/lib/booking/no-slots");
+          const failedPeriod = String(bookingContext.period ?? "");
+          const searchKey = [
+            bookingContext.unitId,
+            bookingContext.serviceId,
+            bookingContext.professionalId ?? "ANY",
+            bookingContext.date,
+            failedPeriod,
+          ].join("|");
+
+          const noSlotsText = noSlotsMessage(failedPeriod);
+          const replyKey = alternativeReplyKey("NO_SLOTS", noSlotsText);
+          const duplicate =
+            bookingContext.lastAlternativeReplyKey === replyKey &&
+            bookingContext.lastNoSlotsSearchKey === searchKey;
+
+          // Estado: AWAITING_ALTERNATIVE_CHOICE (preserva serviço, profissional e data)
+          const previousFailed: string[] = Array.isArray(bookingContext.failedPeriods)
+            ? bookingContext.failedPeriods
+            : [];
+          bookingContext.failedPeriods = failedPeriod && !previousFailed.includes(failedPeriod)
+            ? [...previousFailed, failedPeriod]
+            : previousFailed;
+          bookingContext.awaitingAlternativeChoice = true;
+          bookingContext.alternativeStage = "MENU";
+          bookingContext.period = null;
+          bookingContext.periodSessionId = null;
+          bookingContext.availableSlots = [];
+          bookingContext.lastAlternativeReplyKey = replyKey;
+          bookingContext.lastNoSlotsSearchKey = searchKey;
+          await patchCustomerContext(finalKey, { bookingContext });
+
+          if (!duplicate) {
+            const { replyWithAI } = await import("./reply.server");
+            await replyWithAI({
+              instance,
+              phone: contactPhone,
+              text: noSlotsText,
+              conversationKey: finalKey,
+              messageId,
+              unitId: agent.unidade_id,
+              _trace: trace
+            }, traceId);
+          }
+
+          trace?.record("NO_SLOTS_FOUND", { failedPeriod, duplicate });
+          trace?.record("TOTAL_PROCESSING_COMPLETED", {
+            reason: duplicate ? "no_slots_duplicate_blocked" : "no_slots_found",
+          });
           return;
         }
+
       } catch (err: any) {
         logger.error("AUTO_LIST_SLOTS_FAILED", err.message);
       }
