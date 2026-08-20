@@ -1,49 +1,63 @@
 /**
- * AGENTS_PAGE_FILE = src/routes/_authenticated/agentes-whatsapp.tsx
- * UNIT_SOURCE = BEMP_API (/salons)
- * UNIT_1378_NAME = Shopping Boulevard
- * UNIT_1377_NAME = Unidade Centro
- * UNIT_5258_NAME = Ventura Shopping
- * UNIT_NAME_RESOLUTION = SIM
- * AGENT_CARD_SHOWS_UNIT_NAME = SIM
- * CHANGE_UNIT_SELECT_SHOWS_NAMES = SIM
- * UNIT_ID_BACKEND_PRESERVED = SIM
- * TYPECHECK_PASS = SIM
- * TESTS_PASS = SIM
- * BUILD_PASS = SIM
- * DEPLOY_SUCCESS = SIM
+ * Execute esta instrucao no projeto: PARE. NENHUMA INSTÂNCIA DE IA ESTÁ RESPONDENDO.
  * 
- * Execute esta instrucao no projeto: .
- * TELA: /agentes-whatsapp
+ * Não altere booking, BEMP, preços, serviços, profissionais, slots ou cancelamento.
  * 
- * PROBLEMA ATUAL:
- * Nos cards dos agentes está aparecendo: Unidade: 1378, 1377, 5258. Isso não é amigável.
- * QUERO MOSTRAR O NOME REAL DA UNIDADE.
+ * Quero primeiro localizar a falha GLOBAL compartilhada entre todas as instâncias.
  * 
- * EXEMPLO: Julia (41) 9880-3684 Unidade: Ventura Shopping (ID: 5258)
+ * Verifique especificamente:
  * 
- * 1. BUSCAR O NOME REAL DA UNIDADE via BEMP_API (/salons).
- * 2. CADA AGENTE DISPÕE DE unitId E unitName.
- * 3. CARD EXIBE "🏢 Unidade: {unitName}".
- * 4. ID COMO INFORMAÇÃO SECUNDÁRIA (tooltip/detalhes).
- * 5. SELETOR DE UNIDADE MOSTRA NOMES (Label=Name, Value=Id).
- * 6. FALLBACK: "Unidade não identificada".
- * 7. EVITAR N+1.
- * 8. NÃO ALTERAR A INTEGRAÇÃO (Evolution, Booking, etc).
+ * - whatsapp-evolution.ts
+ * - processor.server.ts
+ * - agent.server.ts
+ * - instance-mapper.server.ts
+ * - reply.server.ts
+ * - chat.server.ts
+ * - configuração de horários da IA
+ * - AI_ACTIVE
+ * - resolução de unidade/agente
+ * - idempotência
  * 
- * AGENTS_PAGE_FILE = src/routes/_authenticated/agentes-whatsapp.tsx
- * UNIT_SOURCE = BEMP_API (/salons)
- * UNIT_1378_NAME = Shopping Boulevard
- * UNIT_1377_NAME = Unidade Centro
- * UNIT_5258_NAME = Ventura Shopping
- * UNIT_NAME_RESOLUTION = SIM
- * AGENT_CARD_SHOWS_UNIT_NAME = SIM
- * CHANGE_UNIT_SELECT_SHOWS_NAMES = SIM
- * UNIT_ID_BACKEND_PRESERVED = SIM
- * TYPECHECK_PASS = SIM
- * TESTS_PASS = SIM
- * BUILD_PASS = SIM
- * DEPLOY_SUCCESS = SIM
+ * Para as instâncias/unidades atuais, incluindo:
+ * 
+ * 1378
+ * 1377
+ * 5258
+ * 
+ * mostre:
+ * 
+ * INSTANCE_1378_CONNECTED =
+ * INSTANCE_1377_CONNECTED =
+ * INSTANCE_5258_CONNECTED =
+ * 
+ * GLOBAL_AI_ENABLED =
+ * 
+ * SERVICE_HOURS_FEATURE_ACTIVE =
+ * NO_SERVICE_HOURS_CONFIG_ALLOWS_AI =
+ * 
+ * WEBHOOK_ROUTE_ACTIVE =
+ * WEBHOOK_AUTH_VALID =
+ * 
+ * INSTANCE_MAPPING_PASS =
+ * UNIT_RESOLUTION_PASS =
+ * AGENT_RESOLUTION_PASS =
+ * 
+ * ROOT_CAUSE =
+ * FIRST_FAILURE_POINT =
+ * 
+ * IMPORTANTE:
+ * 
+ * Se uma unidade NÃO possui configuração de horário da IA,
+ * isso NÃO pode significar "fechado".
+ * 
+ * Sem configuração de horário:
+ * 
+ * ALLOW_AI_PROCESSING = SIM
+ * 
+ * Não corrija ainda vários arquivos.
+ * Identifique primeiro o PRIMEIRO ponto comum de falha.
+ * 
+ * Responda somente com os campos acima.
  * 
  * PARE.
  */
