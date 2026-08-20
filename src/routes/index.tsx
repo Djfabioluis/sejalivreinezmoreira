@@ -1,24 +1,22 @@
 /**
- * Execute esta instrucao no projeto: NÃO EDITE NENHUM ARQUIVO.
- * NÃO ALTERE FRONTEND.
- * NÃO FAÇA DEPLOY.
- * 
- * Quero somente DIAGNÓSTICO.
+ * Execute esta instrucao no projeto: ANALISE SOMENTE. NÃO ALTERE NENHUM ARQUIVO.
  * 
  * Problema:
- * nenhuma instância de IA responde no WhatsApp.
+ * nenhuma instância de IA está respondendo no WhatsApp.
  * 
- * Verifique apenas:
+ * Verifique as unidades/agentes 1378, 1377 e 5258.
  * 
- * 1. webhook Evolution
- * 2. processor.server.ts
- * 3. agent.server.ts
- * 4. instance-mapper.server.ts
- * 5. reply.server.ts
- * 6. AI_ACTIVE
- * 7. horário de atendimento da IA
+ * Analise somente:
  * 
- * Para as unidades 1378, 1377 e 5258, responda SOMENTE:
+ * - webhook Evolution
+ * - processor.server.ts
+ * - agent.server.ts
+ * - instance-mapper.server.ts
+ * - reply.server.ts
+ * - AI_ACTIVE
+ * - horário de atendimento da IA
+ * 
+ * Responda somente:
  * 
  * 1378_CONNECTED =
  * 1377_CONNECTED =
@@ -34,7 +32,8 @@
  * COMMON_FAILURE_POINT =
  * ROOT_CAUSE =
  * 
- * NÃO CORRIJA NADA.
+ * NÃO CORRIJA.
+ * NÃO FAÇA DEPLOY.
  * PARE.
  */
 
