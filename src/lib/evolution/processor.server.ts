@@ -212,12 +212,13 @@ export async function processMessagesUpsert(payload: any, requestUrl: string) {
             attendance_mode: "HUMAN", 
             human_takeover_at: new Date().toISOString(),
             human_takeover_detected: true,
+            human_takeover_source: "manual_agent_reply",
             ai_paused_at: new Date().toISOString(),
             ai_pause_reason: "HUMAN_AGENT_REPLIED",
             last_human_message_at: new Date().toISOString()
           })
           .eq("phone", conversationKey)
-          .eq("instance", msg.instance) // Garante isolamento por instância também
+          .eq("instance", msg.instance)
           .neq("attendance_mode", "HUMAN");
         
         trace.record("CONVERSATION_LOOKUP_COMPLETED", { updatedToHuman: !updateError });
