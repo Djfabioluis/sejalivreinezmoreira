@@ -916,6 +916,49 @@ export function resetBookingForCancel(ctx: BookingContext): BookingContext {
   return next;
 }
 
+/* ------------------------------------------------------------------ */
+/* Saudação: reset de contexto antigo + apresentação                   */
+/* ------------------------------------------------------------------ */
+
+export const JULIA_INTRO_MESSAGE =
+  "Olá! 💜 Eu sou a Julia, assistente virtual da Seja Livre.\nEstou aqui para te ajudar com serviços, valores e agendamentos.\nComo posso te ajudar hoje?";
+
+/** Janela em que um fluxo aguardando resposta ainda é considerado "recente". */
+export const ACTIVE_FLOW_WINDOW_MS = 30 * 60 * 1000;
+
+/**
+ * TRUE quando existe um fluxo REAL e recente aguardando resposta do cliente
+ * (ex.: confirmação pendente de um horário já escolhido).
+ */
+export function hasActiveAwaitingFlow(
+  ctx: BookingContext,
+  nowMs: number = Date.now(),
+): boolean {
+  const status = ctx.appointmentStatus;
+  const awaiting =
+    (status === "AWAITING_CONFIRMATION" || status === "CREATING") &&
+    Boolean(ctx.selectedSlot || (ctx as any).awaitingConfirmation);
+  if (!awaiting) return false;
+
+  const last = (ctx as any).lastFlowActivityAt;
+  const lastMs = typeof last === "number" ? last : last ? Date.parse(String(last)) : NaN;
+  if (!Number.isFinite(lastMs)) return true; // sem carimbo: preservar por segurança
+  return nowMs - lastMs <= ACTIVE_FLOW_WINDOW_MS;
+}
+
+/**
+ * Limpa todo o contexto antigo de booking ao receber uma saudação,
+ * preservando somente a identidade (unidade) e agendamentos já confirmados.
+ */
+export function resetBookingForGreeting(ctx: BookingContext): BookingContext {
+  const next = resetBookingForCancel({ ...ctx });
+  (next as any).priceIntent = false;
+  (next as any).lastFlowActivityAt = null;
+  next.conversationGreeted = true;
+  return next;
+}
+
+
 export const CANCEL_FLOW_MESSAGE =
   "Sem problema 💜 O agendamento em andamento foi cancelado. Se quiser começar novamente, é só me chamar.";
 export const CANCEL_IDLE_MESSAGE =
