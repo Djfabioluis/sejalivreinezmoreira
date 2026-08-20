@@ -196,26 +196,16 @@ export const sendManualWAMessage = createServerFn({ method: "POST" })
 
     if (rpcErr) throw new Error(`Mensagem enviada, mas falha ao salvar no histórico: ${rpcErr.message}`);
 
-    // Atendente humano respondeu: manter conversa em modo HUMANO e IA pausada
+    // MÓDULO HUMANO REMOVIDO: Mantemos o log mas não pausamos a IA.
     const nowIso = new Date().toISOString();
-    await supabaseAdmin
-      .from("wa_conversas" as never)
-      .update({
-        attendance_mode: "HUMAN",
-        human_takeover_detected: true,
-        human_takeover_at: nowIso,
-        ai_paused_at: nowIso,
-        ai_pause_reason: "HUMAN_AGENT_REPLIED",
-        last_human_message_at: nowIso,
-      } as never)
-      .eq("phone", data.phone);
-
-    console.log(`[HUMAN_MESSAGE_DETECTED] ${JSON.stringify({
+    
+    console.log(`[HUMAN_MESSAGE_ECHO] ${JSON.stringify({
       conversationId: data.phone,
       phoneLast4: String(phone_number).slice(-4),
       agentId: null,
       unitId: (conv as any).unidade_id ?? null,
       timestamp: nowIso,
+      action: "human_module_removed_ai_remains_active"
     })}`);
 
     return { success: true };
