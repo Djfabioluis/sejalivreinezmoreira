@@ -15,7 +15,8 @@ import {
   ChevronRight,
   User,
   Bot,
-  ArrowDown
+  ArrowDown,
+  Power
 } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useServerFn } from "@tanstack/react-start";
@@ -27,8 +28,10 @@ import {
   sendManualWAMessage,
   extractConversationMessageText,
   getUnitNameMap,
+  endHumanTakeover,
   type WAConversation 
 } from "@/lib/whatsapp-inbox.functions";
+import { resetConversationToAI } from "@/lib/evolution/human-reset.functions";
 import { listAgentes } from "@/lib/agentes-whatsapp.functions";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -67,6 +70,8 @@ export function InboxPanel() {
   const fetchUnitNames = useServerFn(getUnitNameMap);
   const fnUpdateStatus = useServerFn(updateConversationStatus);
   const fnSendMessage = useServerFn(sendManualWAMessage);
+  const fnEndHuman = useServerFn(endHumanTakeover);
+  const fnResetAI = useServerFn(resetConversationToAI);
 
   useEffect(() => { selectedPhoneRef.current = selectedPhone; }, [selectedPhone]);
 
@@ -333,6 +338,29 @@ export function InboxPanel() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {selectedConversation?.attendance_mode === "HUMAN" && (
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="h-8 gap-2 text-emerald-600 border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10"
+                    onClick={async () => {
+                      if (!selectedPhone) return;
+                      toast.loading("Reativando Julia AI...");
+                      try {
+                        await fnResetAI({ data: { phone: selectedPhone } });
+                        toast.dismiss();
+                        toast.success("Julia AI reativada para esta conversa!");
+                        await loadConversation(selectedPhone, true);
+                      } catch (err: any) {
+                        toast.dismiss();
+                        toast.error(err.message || "Erro ao reativar IA");
+                      }
+                    }}
+                  >
+                    <Power className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Retornar para IA</span>
+                  </Button>
+                )}
                 <Select 
                   value={selectedConversation?.status} 
                   onValueChange={(val) => {

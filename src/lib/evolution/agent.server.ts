@@ -221,16 +221,27 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
         mode: "HUMAN", 
         human_takeover_detected: conv?.human_takeover_detected,
         ai_paused_at: conv?.ai_paused_at,
-        ai_pause_reason: reason
+        ai_pause_reason: reason,
+        takeoverSource: conv?.human_takeover_source
       });
 
-      const customerRequested = conv?.ai_pause_reason === "CUSTOMER_REQUESTED_HUMAN";
+      const isManualTakeover = 
+        conv?.human_takeover_source === "manual_agent_reply" || 
+        conv?.ai_pause_reason === "HUMAN_AGENT_REPLIED";
+
+      const customerRequested = conv?.ai_pause_reason === "CUSTOMER_REQUESTED_HUMAN" || conv?.human_takeover_source === "customer_intent";
+      
       const takeoverAtStr = conv?.human_takeover_at;
       const takeoverAt = takeoverAtStr ? new Date(takeoverAtStr).getTime() : 0;
       const minutesSinceTakeover = takeoverAt > 0 ? (Date.now() - takeoverAt) / 60000 : 0;
 
+      // REGRA: Se o takeover foi manual por um atendente real, preservamos estritamente.
+      // Caso contrário (stale/legacy), resetamos após o timeout.
       const stillPaused =
-        customerRequested || takeoverAt === 0 || minutesSinceTakeover < HUMAN_TAKEOVER_TIMEOUT_MINUTES;
+        isManualTakeover ||
+        customerRequested || 
+        takeoverAt === 0 || 
+        minutesSinceTakeover < HUMAN_TAKEOVER_TIMEOUT_MINUTES;
 
       if (stillPaused) {
         trace?.record("MESSAGE_PROCESSING_ABORTED", { 
@@ -239,12 +250,12 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
           traceId,
           conversationId: finalKey,
           instanceId: instance,
-          phoneLast4: contactPhone.slice(-4)
+          phoneLast4: contactPhone.slice(-4),
+          isManual: isManualTakeover
         });
         trace?.record("TOTAL_PROCESSING_COMPLETED", { reason: "human_mode_blocked" });
         return;
       }
-
 
       await supabaseAdmin
         .from("wa_conversas")
@@ -252,13 +263,14 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
           attendance_mode: "AI",
           human_takeover_at: null,
           human_takeover_detected: false,
+          human_takeover_source: null,
           human_transfer_message_sent: false,
           ai_paused_at: null,
           ai_pause_reason: null,
-        })
+        } as any)
         .eq("phone", finalKey);
       
-      trace?.record("CONVERSATION_MODE_CHANGED_TO_AI");
+      trace?.record("CONVERSATION_MODE_CHANGED_TO_AI", { reason: "stale_takeover_reset" });
     } else {
       trace?.record("ATTENDANCE_MODE_CHECKED", { mode: "AI" });
     }
