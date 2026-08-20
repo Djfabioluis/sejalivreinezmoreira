@@ -1,20 +1,28 @@
 /**
- * Execute esta instrucao no projeto: NÃO ALTERE NENHUM ARQUIVO.
+ * Execute esta instrucao no projeto: NÃO EDITE NENHUM ARQUIVO.
+ * NÃO ALTERE FRONTEND.
+ * NÃO FAÇA DEPLOY.
  * 
- * Quero somente diagnóstico.
+ * Quero somente DIAGNÓSTICO.
  * 
- * Nenhuma instância de IA está respondendo no WhatsApp.
+ * Problema:
+ * nenhuma instância de IA responde no WhatsApp.
  * 
- * Analise apenas:
- * - src/routes/api/public/whatsapp-evolution.ts
- * - processor.server.ts
- * - agent.server.ts
- * - instance-mapper.server.ts
- * - reply.server.ts
- * - AI_ACTIVE
- * - service hours
+ * Verifique apenas:
  * 
- * Para unidades 1378, 1377 e 5258, informe:
+ * 1. webhook Evolution
+ * 2. processor.server.ts
+ * 3. agent.server.ts
+ * 4. instance-mapper.server.ts
+ * 5. reply.server.ts
+ * 6. AI_ACTIVE
+ * 7. horário de atendimento da IA
+ * 
+ * Para as unidades 1378, 1377 e 5258, responda SOMENTE:
+ * 
+ * 1378_CONNECTED =
+ * 1377_CONNECTED =
+ * 5258_CONNECTED =
  * 
  * WEBHOOK_OK =
  * INSTANCE_MAPPING_OK =
@@ -22,12 +30,12 @@
  * AGENT_RESOLUTION_OK =
  * AI_ACTIVE_OK =
  * SERVICE_HOURS_BLOCKING =
+ * 
  * COMMON_FAILURE_POINT =
  * ROOT_CAUSE =
  * 
- * NÃO CORRIJA.
- * NÃO EDITE.
- * NÃO FAÇA DEPLOY.
+ * NÃO CORRIJA NADA.
+ * PARE.
  */
 
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
