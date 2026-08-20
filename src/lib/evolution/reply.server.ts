@@ -245,14 +245,25 @@ async function proceedWithSend(params: ReplyParams, trace: PerformanceTrace, tra
     trace.record("OUTBOUND_DEDUPE_CHECK_FAILED", { error: dedupeErr?.message });
   }
 
-  const sentResult = await EvolutionService.sendText({
-    instance: params.instance,
-    to: params.phone,
-    text: params.text,
-    typingMs,
-    module: "julia-ai"
-  });
-  
+  let sentResult: any = false;
+  try {
+    sentResult = await EvolutionService.sendText({
+      instance: params.instance,
+      to: params.phone,
+      text: params.text,
+      typingMs,
+      module: "julia-ai"
+    });
+  } catch (sendError: any) {
+    // Exception/timeout no envio: liberar o slot ANTES de propagar o erro.
+    if (params.messageId) {
+      const { markResponseFailed } = await import("./idempotency.server");
+      await markResponseFailed(params.instance, params.messageId, `evolution_send_exception: ${sendError?.message || sendError}`);
+    }
+    trace.record("EVOLUTION_SEND_EXCEPTION", { error: sendError?.message || String(sendError) });
+    throw sendError;
+  }
+
   if (sentResult) {
     const sentMessageId = params.messageId || traceId;
     trace.record("EVOLUTION_SEND_SUCCESS", { evolutionId: sentMessageId });
@@ -292,10 +303,10 @@ async function proceedWithSend(params: ReplyParams, trace: PerformanceTrace, tra
   }
 }
 
-export function ensureAIAllowedToReply(conv: any) {
-  const isHuman = conv?.attendance_mode === 'HUMAN' || !!conv?.ai_paused_at;
-  if (isHuman) {
-    return { allowed: false, reason: "human_mode" };
-  }
-  return { allowed: true };
+/**
+ * HUMAN MODE REMOVIDO: nenhuma conversa é mais bloqueada por attendance_mode
+ * HUMAN ou ai_paused_at. Mantido apenas para compatibilidade de chamadas.
+ */
+export function ensureAIAllowedToReply(_conv?: any) {
+  return { allowed: true as const, reason: "human_module_removed" };
 }
