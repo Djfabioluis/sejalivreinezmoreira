@@ -7,42 +7,64 @@ export const Route = createFileRoute('/')({
 function Index() {
   return (
     <div className="p-8 font-sans leading-relaxed whitespace-pre-wrap">
-      Execute esta instrucao no projeto: NÃO ALTERE FRONTEND.
+      Execute esta instrucao no projeto: CORRIJA SOMENTE 2 PONTOS NO BACKEND.
 
-Corrija somente o bug já diagnosticado:
+ARQUIVOS:
+src/lib/evolution/idempotency.server.ts
+src/lib/evolution/reply.server.ts
 
-OUTBOUND_BLOCKED_DUPLICATE
-reason = response_slot_already_claimed
+1. OUTBOUND PRESO EM "sending"
 
-O primeiro envio reserva o slot, falha/timeout, e os retries ficam bloqueados.
+Hoje claimResponseSlot muda para "sending".
 
-Corrigir apenas a lógica de outbound para:
+Se o envio Evolution lançar exception/timeout,
+garantir que markResponseFailed(instance, messageId, erro)
+seja chamado antes de propagar o erro.
 
-PENDING
-SENT
-FAILED
+Adicionar recuperação de "sending" antigo:
+se processing_started_at estiver expirado,
+permitir novo claim.
 
-Regras:
+Não permitir dois envios simultâneos.
 
-- só SENT bloqueia duplicidade
-- FAILED libera retry
-- PENDING expirado libera retry
-- sucesso somente com HTTP 200 + messageId da Evolution
-- preservar proteção contra envio concorrente
+2. REMOVER RESTO DO HUMAN MODE
 
-Não alterar:
-index.tsx
-homepage
-booking
-BEMP
-agent
-webhook
+Em reply.server.ts ainda existe ensureAIAllowedToReply()
+bloqueando por:
 
-No final informar somente:
+attendance_mode === "HUMAN"
+ou
+ai_paused_at
 
-OUTBOUND_LOCK_FIXED =
-FAILED_RETRY_ENABLED =
-STALE_PENDING_RECOVERY =
+Remover esse bloqueio do fluxo da IA.
+
+Não alterar frontend.
+Não alterar index.tsx.
+Não alterar booking/BEMP/webhook.
+
+Testar:
+
+envio falha/timeout
+→ status failed
+→ retry permitido
+
+sending antigo expirado
+→ retry permitido
+
+envio sucesso
+→ status sent
+→ novo retry bloqueado
+
+conversa antiga HUMAN
+→ não bloqueia IA
+
+Responder:
+
+SEND_EXCEPTION_MARKS_FAILED =
+STALE_SENDING_RECOVERY =
+SUCCESS_MARKS_SENT =
+DUPLICATE_AFTER_SENT_BLOCKED =
+HUMAN_GUARD_REMOVED =
 TYPECHECK_PASS =
 TESTS_PASS =
 BUILD_PASS =
