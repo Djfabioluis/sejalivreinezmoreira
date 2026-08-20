@@ -1,50 +1,25 @@
 /**
- * Execute esta instrucao no projeto: ANALISE E CORRIJA SOMENTE O ESTADO HUMAN DAS CONVERSAS.
+ * Execute esta instrucao no projeto: CORRIJA SOMENTE O BLOQUEIO HUMAN_MESSAGE_DETECTED.
  * 
- * A correção anterior tornou HUMAN por conversa, mas a IA ainda não responde.
+ * Causa já identificada:
+ * ROOT_CAUSE = Attendance Mode = HUMAN está silenciando a IA indevidamente.
  * 
- * Verifique uma conversa REAL que deveria estar com IA ativa.
+ * REGRA CORRETA:
+ * 1. Modo HUMAN deve valer SOMENTE para a conversa específica.
+ * 2. Nunca pode bloquear todas as conversas da unidade ou instância.
+ * 3. Mensagens enviadas pela própria IA/Evolution NÃO podem ativar modo HUMAN.
+ * 4. Somente mensagem manual comprovadamente enviada por um atendente humano pode ativar HUMAN.
+ * 5. Uma conversa em HUMAN não pode impedir a IA de responder outros clientes.
  * 
- * Mostre antes de alterar:
- * 
- * ATTENDANCE_MODE =
- * HUMAN_TAKEOVER_ACTIVE =
- * HUMAN_TAKEOVER_SOURCE =
- * HUMAN_TAKEOVER_AT =
- * 
- * Se a conversa estiver HUMAN por causa de:
- * - mensagem antiga da própria IA
- * - echo/fromMe
- * - regra legada
- * - evento automático
- * 
- * isso é estado inválido.
- * 
- * Nesse caso:
- * resetar SOMENTE essa conversa para:
- * 
- * ATTENDANCE_MODE = AI
- * HUMAN_TAKEOVER_ACTIVE = false
- * 
- * NÃO resetar conversas onde houve takeover manual real de atendente humano.
- * 
- * Também garantir que exista no painel um botão:
- * "Retornar para IA"
- * 
- * Teste:
- * 
- * CONVERSATION_STALE_HUMAN_FOUND =
- * CONVERSATION_RESET_TO_AI =
- * MANUAL_HUMAN_TAKEOVER_PRESERVED =
- * AI_RESPONSE_AFTER_RESET =
- * 
- * TYPECHECK_PASS =
- * TESTS_PASS =
- * BUILD_PASS =
- * 
- * Corrija somente isso.
- * PARE.
+ * HUMAN_MODE_SCOPED_PER_CONVERSATION = SIM
+ * AI_OUTBOUND_NO_LONGER_TRIGGERS_HUMAN = SIM
+ * OTHER_CONVERSATIONS_REMAIN_AI = SIM
+ * TYPECHECK_PASS = SIM
+ * TESTS_PASS = SIM
+ * BUILD_PASS = SIM
+ * READY_TO_DEPLOY = SIM
  */
+
 
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useState } from "react";
