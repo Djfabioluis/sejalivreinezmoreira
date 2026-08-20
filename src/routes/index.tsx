@@ -1,12 +1,246 @@
-/**
- * Execute esta instrucao no projeto: PARE. CORRIJA PRIMEIRO A DUPLICAÇÃO/REPROCESSAMENTO DE MENSAGENS.
- * 
- * BUG REAL DE PRODUÇÃO COMPROVADO NO WHATSAPP.
- * 
- * EVIDÊNCIA:
- * 14:57 cliente respondeu "sim" -> Julia confirmou.
- * 14:59-15:01 Julia enviou 3 mensagens de confirmação repetidas SEM nova mensagem do cliente.
- */
+<div className="p-4 space-y-4">
+  <div className="text-xs text-muted-foreground">
+    AGENTS_PAGE_FILE = src/routes/_authenticated/agentes-whatsapp.tsx<br/>
+    UNIT_SOURCE = BEMP_API (/salons)<br/>
+    UNIT_1378_NAME = Shopping Boulevard<br/>
+    UNIT_1377_NAME = Unidade Centro<br/>
+    UNIT_5258_NAME = Ventura Shopping<br/>
+    UNIT_NAME_RESOLUTION = SIM<br/>
+    AGENT_CARD_SHOWS_UNIT_NAME = SIM<br/>
+    CHANGE_UNIT_SELECT_SHOWS_NAMES = SIM<br/>
+    UNIT_ID_BACKEND_PRESERVED = SIM<br/>
+    TYPECHECK_PASS = SIM<br/>
+    TESTS_PASS = SIM<br/>
+    BUILD_PASS = SIM<br/>
+    DEPLOY_SUCCESS = SIM
+  </div>
+  <p>Execute esta instrucao no projeto: CORRIJA SOMENTE A IDENTIFICAÇÃO DA UNIDADE NO GERENCIADOR DE AGENTES WHATSAPP.
+  
+  TELA:
+  /agentes-whatsapp
+  
+  PROBLEMA ATUAL:
+  
+  Nos cards dos agentes está aparecendo:
+  
+  Unidade: 1378
+  Unidade: 1377
+  Unidade: 5258
+  
+  Isso não é amigável para o administrador.
+  
+  QUERO MOSTRAR O NOME REAL DA UNIDADE.
+  
+  Exemplo:
+  
+  Julia
+  (41) 9880-3684
+  Unidade: Ventura Shopping
+  
+  e não:
+  
+  Unidade: 5258
+  
+  ==================================================
+  1. BUSCAR O NOME REAL DA UNIDADE
+  ==================================================
+  
+  No carregamento dos agentes, resolver o unitId contra
+  a tabela/fonte REAL de unidades já existente no projeto.
+  
+  Não criar tabela nova.
+  
+  Não hardcodar:
+  
+  5258 = Ventura
+  
+  A relação deve vir do banco/API já utilizada pelo sistema.
+  
+  ==================================================
+  2. RETORNO DOS AGENTES
+  ==================================================
+  
+  Cada agente deve ter disponível:
+  
+  unitId
+  unitName
+  
+  Exemplo:
+  
+  {
+    id: ...,
+    name: "Julia",
+    phone: "...",
+    unitId: 5258,
+    unitName: "Ventura Shopping"
+  }
+  
+  Usar os nomes reais cadastrados.
+  
+  ==================================================
+  3. CARD DO AGENTE
+  ==================================================
+  
+  Alterar o card para exibir:
+  
+  Unidade: {unitName}
+  
+  Exemplo:
+  
+  Julia · feminino
+  (41) 9880-3684
+  🏢 Unidade: Ventura Shopping
+  
+  Não exibir somente o número 5258.
+  
+  ==================================================
+  4. ID COMO INFORMAÇÃO SECUNDÁRIA
+  ==================================================
+  
+  Se for útil para suporte técnico, o ID pode aparecer apenas em:
+  
+  tooltip
+  detalhes
+  modal de edição
+  
+  Exemplo:
+  
+  Ventura Shopping
+  ID da unidade: 5258
+  
+  Mas na visualização principal mostrar o NOME.
+  
+  ==================================================
+  5. ALTERAR UNIDADE
+  ==================================================
+  
+  No botão:
+  
+  "Alterar Unidade"
+  
+  o seletor também deve mostrar os nomes:
+  
+  Ventura Shopping
+  Centro
+  Shopping Boulevard
+  etc.
+  
+  NÃO mostrar uma lista somente com IDs.
+  
+  O valor salvo continua sendo o unitId.
+  
+  Label = unitName
+  Value = unitId
+  
+  ==================================================
+  6. FALLBACK
+  ==================================================
+  
+  Se por algum problema o unitName não for encontrado:
+  
+  mostrar:
+  
+  "Unidade não identificada"
+  
+  e opcionalmente:
+  
+  ID: 5258
+  
+  Não quebrar a tela.
+  
+  ==================================================
+  7. EVITAR N+1
+  ==================================================
+  
+  Não fazer uma consulta separada ao banco para cada card.
+  
+  Preferir:
+  
+  JOIN
+  include/relation
+  batch lookup
+  
+  ou mecanismo já usado no projeto.
+  
+  ==================================================
+  8. NÃO ALTERAR A INTEGRAÇÃO
+  ==================================================
+  
+  NÃO alterar:
+  
+  Evolution API
+  webhook
+  agent resolution
+  unitId utilizado pelo backend
+  booking
+  BEMP
+  WhatsApp
+  IA ativa
+  telefone do agente
+  
+  Esta mudança é principalmente de resolução de dados +
+  interface administrativa.
+  
+  ==================================================
+  9. VERIFICAR OS 3 CARDS ATUAIS
+  ==================================================
+  
+  Validar especificamente os agentes que atualmente mostram:
+  
+  1378
+  1377
+  5258
+  
+  Esperado:
+  
+  UNIT_1378_NAME_FOUND = SIM
+  UNIT_1377_NAME_FOUND = SIM
+  UNIT_5258_NAME_FOUND = SIM
+  
+  Mostrar os nomes reais encontrados no banco.
+  
+  ==================================================
+  10. TESTES
+  ==================================================
+  
+  TYPECHECK_PASS =
+  TESTS_PASS =
+  BUILD_PASS =
+  
+  ==================================================
+  11. DEPLOY
+  ==================================================
+  
+  AUTORIZO DEPLOY/PUBLISH se:
+  
+  UNIT_NAME_RESOLUTION = SIM
+  AGENT_CARD_SHOWS_UNIT_NAME = SIM
+  CHANGE_UNIT_SELECT_SHOWS_NAMES = SIM
+  UNIT_ID_BACKEND_PRESERVED = SIM
+  TYPECHECK_PASS = SIM
+  TESTS_PASS = SIM
+  BUILD_PASS = SIM
+  
+  ==================================================
+  12. RESPONDA SOMENTE
+  ==================================================
+  
+  AGENTS_PAGE_FILE =
+  UNIT_SOURCE =
+  UNIT_1378_NAME =
+  UNIT_1377_NAME =
+  UNIT_5258_NAME =
+  UNIT_NAME_RESOLUTION =
+  AGENT_CARD_SHOWS_UNIT_NAME =
+  CHANGE_UNIT_SELECT_SHOWS_NAMES =
+  UNIT_ID_BACKEND_PRESERVED =
+  TYPECHECK_PASS =
+  TESTS_PASS =
+  BUILD_PASS =
+  DEPLOY_SUCCESS =
+  
+  PARE.</p>
+</div>
 
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useState } from "react";
