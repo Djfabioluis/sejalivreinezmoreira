@@ -950,9 +950,11 @@ export function hasActiveAwaitingFlow(
     Boolean(ctx.selectedSlot || (ctx as any).awaitingConfirmation);
   if (!awaiting) return false;
 
+  // Só preservamos o fluxo quando existe interação REAL e RECENTE.
+  // Sem carimbo de atividade => fluxo abandonado/antigo => resetar.
   const last = (ctx as any).lastFlowActivityAt;
   const lastMs = typeof last === "number" ? last : last ? Date.parse(String(last)) : NaN;
-  if (!Number.isFinite(lastMs)) return true; // sem carimbo: preservar por segurança
+  if (!Number.isFinite(lastMs)) return false;
   return nowMs - lastMs <= ACTIVE_FLOW_WINDOW_MS;
 }
 
@@ -964,9 +966,13 @@ export function resetBookingForGreeting(ctx: BookingContext): BookingContext {
   const next = resetBookingForCancel({ ...ctx });
   (next as any).priceIntent = false;
   (next as any).lastFlowActivityAt = null;
-  next.conversationGreeted = true;
+  (next as any).awaitingConfirmation = false;
+  (next as any).appointmentId = null;
+  // Nova conversa: a apresentação da Julia deve ocorrer novamente.
+  next.conversationGreeted = false;
   return next;
 }
+
 
 
 export const CANCEL_FLOW_MESSAGE =

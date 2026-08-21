@@ -513,12 +513,17 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
       const activeFlow = hasActiveAwaitingFlow(bookingContext as any);
       trace?.record("GREETING_DETECTED", { activeFlow });
+      trace?.record("STALE_FLOW_DETECTED", { stale: !activeFlow, status: bookingContext.appointmentStatus ?? null });
 
       if (!activeFlow) {
         const cleared = resetBookingForGreeting(bookingContext as any);
         Object.keys(bookingContext as any).forEach((k) => delete (bookingContext as any)[k]);
         Object.assign(bookingContext, cleared);
+        trace?.record("STALE_FLOW_RESET", { reason: "generic_greeting" });
+        trace?.record("CONVERSATION_GREETED_RESET", { value: false });
         trace?.record("STALE_BOOKING_CONTEXT_RESET", { reason: "generic_greeting" });
+        (bookingContext as any).conversationGreeted = true;
+
 
         await patchCustomerContext(finalKey, { bookingContext });
 

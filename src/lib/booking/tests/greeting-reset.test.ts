@@ -52,6 +52,14 @@ describe("saudação e reset de contexto", () => {
     expect(hasActiveAwaitingFlow(active)).toBe(true);
   });
 
+  it("fluxo sem carimbo de atividade é tratado como abandonado", () => {
+    const noStamp = { ...base, lastFlowActivityAt: undefined, appointmentStatus: "CREATING" };
+    expect(hasActiveAwaitingFlow(noStamp)).toBe(false);
+    const next: any = resetBookingForGreeting(noStamp);
+    expect(next.conversationGreeted).toBe(false);
+    expect(next.appointmentId).toBeNull();
+  });
+
   it("nova conversa recebe apresentação da Julia", () => {
     expect(JULIA_INTRO_MESSAGE).toContain("Eu sou a Julia");
     expect(hasActiveAwaitingFlow({ appointmentStatus: "NONE" } as any)).toBe(false);
