@@ -920,36 +920,51 @@ export async function runAgentFlow(msg: NormalizedEvolutionMessage, textOverride
 
 
 
-       if (bookingContext.appointmentId) {
-         trace?.record("BOOKING_CREATE_SKIPPED_DUPLICATE", { idempotencyKey });
-          const existingMsg = `Agendamento confirmado! 💜\n\nServiço: ${bookingContext.serviceName}\nData: ${formatBookingDate(bookingContext.date)}\nHorário: ${bookingContext.time}\n\nTe esperamos!`;
-          await replyWithAI({
-            instance,
-            phone: contactPhone,
-            text: existingMsg,
-            conversationKey: finalKey,
-            messageId,
-            unitId: agent.unidade_id,
-            _trace: trace,
-          }, traceId);
-         await patchCustomerContext(finalKey, { bookingContext });
-          trace?.record("TOTAL_PROCESSING_COMPLETED", { status: "success", reason: "existing_booking_confirmed" });
-         return;
+       // IDEMPOTÊNCIA REAL: chave existente NÃO é prova de agendamento.
+       // Só reutilizamos um booking anterior se houver ID válido VERIFICADO no BEMP.
+       const existingId = String((bookingContext as any).appointmentId ?? "").trim();
+       const verifyPhoneParts = {
+         phone_country_code: "55",
+         phone_area_code: contactPhone.slice(0, 2),
+         phone_number: contactPhone.slice(2),
+       };
+
+       if (existingId) {
+         const verified = await BempService.verifyAppointmentExists({
+           appointmentId: existingId,
+           ...verifyPhoneParts,
+         });
+         trace?.record("BEMP_VERIFY_EXISTING", { appointmentId: existingId, verified });
+
+         if (verified) {
+           trace?.record("BOOKING_CREATE_SKIPPED_DUPLICATE", { idempotencyKey, verified: true });
+           const existingMsg = `Agendamento confirmado! 💜\n\nServiço: ${bookingContext.serviceName}\nData: ${formatBookingDate(bookingContext.date)}\nHorário: ${bookingContext.time}\n\nTe esperamos!`;
+           await replyWithAI({
+             instance,
+             phone: contactPhone,
+             text: existingMsg,
+             conversationKey: finalKey,
+             messageId,
+             unitId: agent.unidade_id,
+             _trace: trace,
+           }, traceId);
+           await patchCustomerContext(finalKey, { bookingContext });
+           trace?.record("TOTAL_PROCESSING_COMPLETED", { status: "success", reason: "existing_booking_confirmed" });
+           return;
+         }
+
+         // ID não existe mais no BEMP => tentativa anterior falhou. Liberar recriação.
+         trace?.record("STALE_APPOINTMENT_ID_DISCARDED", { appointmentId: existingId });
+         (bookingContext as any).appointmentId = null;
+         (bookingContext as any).createBookingKey = null;
        }
-       if ((bookingContext as any).createBookingKey === idempotencyKey) {
-         trace?.record("BOOKING_CREATE_SKIPPED_DUPLICATE", { idempotencyKey, pending: true });
-         await replyWithAI({
-           instance,
-           phone: contactPhone,
-           text: "Seu agendamento já está sendo processado. 💜 Vou manter apenas uma solicitação.",
-           conversationKey: finalKey,
-           messageId,
-           unitId: agent.unidade_id,
-           _trace: trace,
-         }, traceId);
-         trace?.record("TOTAL_PROCESSING_COMPLETED", { status: "success", reason: "duplicate_booking_pending" });
-         return;
+
+       if (!existingId && (bookingContext as any).createBookingKey === idempotencyKey) {
+         // Chave antiga sem appointmentId => tentativa anterior falhou. Não confirmar; recriar.
+         trace?.record("STALE_IDEMPOTENCY_KEY_RELEASED", { idempotencyKey });
+         (bookingContext as any).createBookingKey = null;
        }
+
        (bookingContext as any).createBookingKey = idempotencyKey;
        await patchCustomerContext(finalKey, { bookingContext });
 
