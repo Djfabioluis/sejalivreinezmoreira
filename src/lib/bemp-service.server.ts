@@ -328,6 +328,31 @@ export class BempService {
   }
 
 
+  /**
+   * Verifica no BEMP se um agendamento com o ID informado realmente existe.
+   * Fonte de verdade para bloquear confirmações falsas.
+   */
+  static async verifyAppointmentExists(params: {
+    appointmentId: string | number | null | undefined;
+    phone_country_code: string;
+    phone_area_code: string;
+    phone_number: string;
+  }): Promise<boolean> {
+    const id = params.appointmentId == null ? "" : String(params.appointmentId).trim();
+    if (!id) return false;
+    try {
+      const list = await this.listCustomerAppointments({
+        phone_country_code: params.phone_country_code,
+        phone_area_code: params.phone_area_code,
+        phone_number: params.phone_number,
+      });
+      return list.some((a: any) => String(a?.id ?? a?.appointment_id ?? "").trim() === id);
+    } catch {
+      return false;
+    }
+  }
+
+
   static async cancelAppointment(params: {
     appointmentId: string | number;
     phone_country_code: string;
