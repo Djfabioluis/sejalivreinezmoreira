@@ -123,43 +123,92 @@ function LandingPage() {
   return (
     <div className="min-h-screen bg-background text-foreground font-sans selection:bg-primary/20 scroll-smooth">
       <div className="hidden">
-        Execute esta instrucao no projeto: NÃO ALTERE CÓDIGO.
+        Execute esta instrucao no projeto: CORRIJA SOMENTE O RETRY APÓS FALHA DE CRIAÇÃO NO BEMP.
 
-Analise a ÚLTIMA conversa real usada no teste.
+Problema real:
 
-Quero diagnosticar 2 problemas:
+Quando o BEMP falha ao criar o agendamento, a Julia responde:
 
-1. A Julia não iniciou o atendimento se apresentando.
-2. Ela confirmou o agendamento, mas ele não apareceu no BEMP.
+"Não consegui concluir o agendamento agora 💜
+O horário não foi reservado. Posso tentar novamente para você?"
 
-Informe SOMENTE:
+Quando o cliente responde:
+"pode", "sim", "tente", "ok", "quero"
 
-GREETING_RECEIVED =
-NEW_CONVERSATION_DETECTED =
-OLD_BOOKING_CONTEXT_FOUND =
-OLD_CONTEXT_RESET =
-JULIA_INTRO_TRIGGERED =
+a Julia está repetindo a mesma mensagem.
 
-BOOKING_CONFIRMATION_RECEIVED =
-BEMP_CREATE_CALLED =
-BEMP_CREATE_HTTP_STATUS =
-BEMP_CREATE_RESPONSE =
-BEMP_APPOINTMENT_ID =
-BEMP_VERIFY_CALLED =
-BEMP_VERIFY_FOUND =
+REGRA CORRETA:
 
-CONFIRMATION_MESSAGE_SENT =
+Após falha de criação, salvar estado:
 
-FIRST_FAILURE_GREETING =
-FIRST_FAILURE_BOOKING =
+AWAITING_BOOKING_RETRY = true
 
-ROOT_CAUSE_GREETING =
-ROOT_CAUSE_BOOKING =
+Preservar:
+- serviço
+- profissional
+- data
+- horário
+- cliente
+- unidade
 
-Não use mock.
-Não use testes simulados.
-Use a conversa REAL mais recente.
-Não corrija nada.
+Se cliente confirmar retry:
+
+1. NÃO repetir a mensagem de erro.
+2. Revalidar o horário no BEMP.
+3. Se ainda estiver disponível:
+   tentar criar novamente.
+4. Se criar com sucesso:
+   verificar appointmentId real no BEMP.
+5. Só então enviar:
+   "Agendamento confirmado"
+
+Se o horário não estiver mais disponível:
+mostrar novos horários disponíveis.
+
+Se a nova tentativa falhar novamente:
+informar falha uma única vez e oferecer:
+- tentar outro horário
+- tentar outro dia
+
+Adicionar proteção para nunca enviar a mesma mensagem de erro duas vezes seguidas.
+
+NÃO alterar:
+Evolution
+outbound
+idempotência de mensagens
+saudação
+homepage
+preços
+
+Testar:
+
+BEMP create falha
+→ Julia pergunta se pode tentar novamente
+
+cliente: "pode"
+→ retry real executado
+→ NÃO repetir mensagem anterior
+
+Se sucesso:
+→ appointmentId verificado
+→ confirmação enviada
+
+Se horário indisponível:
+→ novos horários oferecidos
+
+Responder:
+
+BOOKING_RETRY_STATE_FIXED =
+YES_TRIGGERS_REAL_RETRY =
+FAILED_MESSAGE_NOT_REPEATED =
+SLOT_REVALIDATED =
+BEMP_CREATE_RETRIED =
+SUCCESS_REQUIRES_VERIFIED_ID =
+NEW_SLOTS_ON_UNAVAILABLE =
+TYPECHECK_PASS =
+TESTS_PASS =
+BUILD_PASS =
+READY_TO_DEPLOY =
 
 PARE.
       </div>
